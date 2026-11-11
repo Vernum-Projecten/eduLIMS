@@ -5,7 +5,7 @@
 
 eduLIMS is a LIMS for the LifeScience practical courses at Hanze, built for
 the research group New Business & ICT. The design is recorded in
-[`docs/architecture.md`](docs/architecture.md) and the requirements, with
+[`docs/architecture.md`](docs/architecture.md) and the draft requirements, with
 stable IDs, in [`docs/requirements.md`](docs/requirements.md). The working
 rules for people and AI sessions are in [`CLAUDE.md`](CLAUDE.md). Read them
 before you make a change.

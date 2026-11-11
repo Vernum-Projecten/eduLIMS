@@ -3,7 +3,14 @@
 
 # Requirements
 
-This document lists every requirement of eduLIMS with a stable ID. Code,
+> **Status: working draft.** These requirements are not final. Priorities,
+> acceptance criteria, KPIs and even the requirements themselves are still
+> under discussion with the product owner, teachers and students, and will
+> change. Treat every row as the current proposal, not a commitment: when a
+> requirement is unclear, missing, or conflicts with what is being built,
+> raise it with the owner instead of implementing it as settled.
+
+This document lists the current draft requirements of eduLIMS, each with a stable ID. Code,
 tests, issues and pull requests cite these IDs (for example `S4`, `Q-SEC-1`,
 `R-06`, `K-03`). An ID is never reused: a dropped requirement keeps its row
 with the status "Dropped".

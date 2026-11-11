@@ -6,7 +6,7 @@
 
 - [README](README.md): what eduLIMS is, the status, the quick start and the stack.
 - [Architecture](docs/architecture.md): the design authority: principles, integrations, data split, portals and roles, deployment, quality requirements.
-- [Requirements](docs/requirements.md): S1 to S9, D1 to D8, B1 to B4, the Q-* quality requirements, risks R-01 to R-10 and the KPIs, with stable IDs.
+- [Requirements](docs/requirements.md) (working draft, not final): S1 to S9, D1 to D8, B1 to B4, the Q-* quality requirements, risks R-01 to R-10 and the KPIs, with stable IDs.
 - [Working rules](CLAUDE.md): the rules for changing the code.
 
 ## Design

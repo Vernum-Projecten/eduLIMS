@@ -93,7 +93,7 @@ behind each choice are in the [decision records](docs/adr/README.md).
 - [Architecture](docs/architecture.md): principles, integrations, data split,
   portals and roles, deployment, and quality requirements. The ArchiMate model
   and its views are in [`docs/architecture/`](docs/architecture/).
-- [Requirements](docs/requirements.md): functional requirements S1 to S9, D1
+- [Requirements](docs/requirements.md) (working draft, still under discussion): functional requirements S1 to S9, D1
   to D8 and B1 to B4, the quality requirements, risks and KPIs, each with a
   stable ID.
 - [Test strategy](docs/test-strategy.md) and the Definition of Done.
