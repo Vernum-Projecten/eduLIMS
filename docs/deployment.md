@@ -137,22 +137,26 @@ monitoring at it. `docker compose ps` shows each service's health.
 ## Identity provider
 
 eduLIMS signs users in through OpenID Connect with Microsoft Entra ID, with
-Keycloak, or with both on the sign-in page. Each provider is on when its
-variables are set in `.env`.
+Keycloak, or with both on the sign-in page. A provider is on when all of its
+variables are set in `.env` (all or none), and a production server refuses to
+start with no provider at all.
 
 - **Microsoft Entra ID** is the default for Hanze: students and staff sign
   in with their institution account, and no identity service runs on the
-  host. Register an app in the Hanze tenant with the redirect URI that
-  eduLIMS's better-auth configuration names under `BETTER_AUTH_URL`, define
-  the app roles `edulims-student`, `edulims-docent` and `edulims-beheerder`,
-  assign them to users or groups, and set `MICROSOFT_CLIENT_ID`,
-  `MICROSOFT_CLIENT_SECRET` and `MICROSOFT_TENANT_ID`.
+  host. Register an app in the Hanze tenant with the redirect URI
+  `<BETTER_AUTH_URL>/api/auth/callback/microsoft`, define the app roles
+  `edulims-student`, `edulims-docent` and `edulims-beheerder`, assign them to
+  users or groups, and set `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
+  and `MICROSOFT_TENANT_ID`.
 - **Keycloak** fits a deployment without access to the tenant (a pilot, a
   partner institution, a test environment), or one that federates several
   sources. Start it with the profile, create the realm and a confidential
-  client with the standard flow and PKCE S256, and set `KEYCLOAK_ISSUER`
-  (`https://<keycloak host>/realms/<realm>`), `KEYCLOAK_CLIENT_ID`,
-  `KEYCLOAK_CLIENT_SECRET` and `KEYCLOAK_LABEL`:
+  client with the standard flow, PKCE S256 and the redirect URI
+  `<BETTER_AUTH_URL>/api/auth/callback/keycloak`, and set `KEYCLOAK_ISSUER`
+  (`https://<keycloak host>/realms/<realm>`; plain `http` is accepted only on
+  localhost outside production), `KEYCLOAK_CLIENT_ID` and
+  `KEYCLOAK_CLIENT_SECRET`. `KEYCLOAK_LABEL` is the sign-in button's text
+  (default "Inloggen met Keycloak").
 
   ```sh
   COMPOSE_PROFILES=keycloak docker compose up -d --wait
@@ -166,23 +170,24 @@ variables are set in `.env`.
 ### Role mapping
 
 eduLIMS knows three roles: `student`, `docent` and `beheerder`. At sign-in it
-reads the claim `OIDC_ROLE_CLAIM` from the ID token and maps each value
-through `OIDC_ROLE_MAP`:
+reads the claim `OIDC_ROLE_CLAIM` (a dot path) from the ID token, and from
+the ID token only, and maps each value through `OIDC_ROLE_MAP`. The defaults:
 
 ```text
-OIDC_ROLE_CLAIM=roles
-OIDC_ROLE_MAP=edulims-student=student,edulims-docent=docent,edulims-beheerder=beheerder
+# OIDC_ROLE_CLAIM: `roles` for Entra ID, `realm_access.roles` for Keycloak
+OIDC_ROLE_MAP=edulims-student:student,edulims-docent:docent,edulims-beheerder:beheerder
 OIDC_DEFAULT_ROLE=
 ```
 
-Entra ID writes assigned app roles to `roles`. The development realm writes
-its realm roles to `roles` through a protocol mapper; a Keycloak realm you
-set up yourself needs the same mapper (realm roles, claim `roles`, added to
-the ID token). A user whose token holds no mapped value gets
-`OIDC_DEFAULT_ROLE`, or is refused when it is empty. The mapping seeds the
-role in the eduLIMS database; the database is what every access check reads,
-so a beheerder can change a role in eduLIMS and it applies on the next
-request.
+Entra ID writes assigned app roles to `roles` in the ID token. Keycloak
+writes realm roles to `realm_access.roles` in the access token by default,
+which eduLIMS does not read, so the realm needs a "User Realm Role" protocol
+mapper on the client with token claim name `realm_access.roles` and "Add to
+ID token" on. The development realm has that mapper. A user whose token
+holds no mapped value gets `OIDC_DEFAULT_ROLE`, and is refused when it is
+unset (deny by default). The mapping seeds the role in the eduLIMS database;
+the database is what every access check reads, so a beheerder can change a
+role in eduLIMS and it applies on the next request.
 
 ## Updating
 
