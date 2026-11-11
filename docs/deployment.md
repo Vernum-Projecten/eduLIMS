@@ -184,15 +184,65 @@ OIDC_ROLE_MAP=edulims-student:student,edulims-teacher:teacher,edulims-admin:admi
 OIDC_DEFAULT_ROLE=
 ```
 
-Entra ID writes assigned app roles to `roles` in the ID token. Keycloak
-writes realm roles to `realm_access.roles` in the access token by default,
-which eduLIMS does not read, so the realm needs a "User Realm Role" protocol
-mapper on the client with token claim name `realm_access.roles` and "Add to
-ID token" on. The development realm has that mapper. A user whose token
-holds no mapped value gets `OIDC_DEFAULT_ROLE`, and is refused when it is
-unset (deny by default). The mapping seeds the role in the eduLIMS database;
-the database is what every access check reads, so an administrator can change a
-role in eduLIMS and it applies on the next request.
+Every value in the claim is mapped, so a user can hold more than one role.
+The allowed role sets are student, teacher, admin, and teacher with admin
+together ([ADR 0012](adr/0012-multiple-roles-and-portal-switcher.md)).
+Student is exclusive: a token that maps to student and teacher, or student
+and admin, refuses the sign-in with the error `role_conflict`, and the
+sign-in page tells the user to contact their administrator. The refusal is
+logged with the provider id only. A user whose token holds no mapped value
+gets `OIDC_DEFAULT_ROLE`, and is refused with `no_edulims_role` when it is
+unset (deny by default). The mapping stores the role set in the eduLIMS
+database, sorted and comma-separated (`teacher,admin`); the database is what
+every access check reads, so a role changed in eduLIMS applies on the next
+request. Every write of a role set, from the provider, the seed or the
+better-auth admin endpoints, passes the same check.
+
+Roles are a set, not a ranking: admin does not include teacher, and teacher
+does not include admin. Each server function checks the one role it needs.
+
+#### Microsoft Entra ID: app roles, assigned to users or to groups
+
+Define the app roles on the app registration and assign them in the
+enterprise application, to a user directly or to a group (assigning an app
+role to a group needs Entra ID P1 or higher; members of nested groups do not
+inherit it). Entra ID writes the effective app roles of the user, direct and
+through groups, to the `roles` claim of the ID token, which is the default
+`OIDC_ROLE_CLAIM`.
+
+Use app roles, not the `groups` claim. The `groups` claim carries group
+object IDs, not names, and a user in more than 200 groups gets an overage
+claim instead of the list, which eduLIMS cannot read. If you still map
+groups, set `OIDC_ROLE_CLAIM=groups`, turn on the groups claim for the ID
+token in the token configuration, and map the object IDs:
+
+```text
+OIDC_ROLE_CLAIM=groups
+OIDC_ROLE_MAP=<object id of the student group>:student,<object id of the teacher group>:teacher,<object id of the admin group>:admin
+```
+
+#### Keycloak: realm roles, direct or through groups
+
+Give a user a realm role directly, through a group that has the role, or
+through a composite role. Keycloak writes realm roles to
+`realm_access.roles` in the access token by default, which eduLIMS does not
+read, so the client needs a "User Realm Role" protocol mapper with token
+claim name `realm_access.roles` and "Add to ID token" on. That mapper writes
+the effective realm roles: the direct ones, the ones from every group the
+user is in, and the ones a composite role expands to. The development realm
+has that mapper.
+
+To map group membership instead of roles, add a "Group Membership" mapper
+with claim name `groups`, "Full group path" on and "Add to ID token" on (the
+development realm has one), and map the group paths:
+
+```text
+OIDC_ROLE_CLAIM=groups
+OIDC_ROLE_MAP=/Students:student,/Teachers:teacher,/Administrators:admin
+```
+
+Group paths change when a group is renamed or moved, and realm roles do not,
+so prefer `realm_access.roles`.
 
 ## Updating
 
@@ -264,8 +314,11 @@ docker compose up -d --wait
 `compose.dev.yaml` runs what `pnpm dev` needs: the same PostgreSQL image with
 the same databases, a read-only `edulims_readonly` role for the Postgres MCP
 server, and Keycloak in development mode with the `edulims` realm imported
-from `docker/keycloak/edulims-realm.json` (users `student`, `teacher` and
-`admin`, each with its name as password). It also creates the throwaway
+from `docker/keycloak/edulims-realm.json` (users with roles assigned
+directly, through groups, or both, each with its name as password; the
+[demo accounts](https://edulims.eu/get-started/demo-accounts/) list them).
+The realm is imported when the Keycloak container is created, so a changed
+realm file needs `pnpm dev:db:stop && pnpm dev:db`. It also creates the throwaway
 `edulims_test` and `edulims_e2e` databases that `pnpm test` and
 `pnpm test:e2e` use (`docker/postgres/init/30-edulims-test-databases.sh`).
 FerroEHR is the opt-in `ferroehr` profile. `pnpm dev:db` starts the stack

@@ -41,6 +41,11 @@ je account en rol, het thema (licht, donker of de instelling van je systeem)
 en **Uitloggen**. Onderdelen die nog niet klaar zijn, tonen **Binnenkort
 beschikbaar**.
 
+## Als je meer dan één rol hebt
+
+Een studentaccount heeft alleen de rol student. Geef je ook les, dan krijg je
+een apart medewerkersaccount voor het Docentportaal.
+
 ## De taal wijzigen
 
 eduLIMS is er in het Nederlands en het Engels. Kies bovenaan de pagina de

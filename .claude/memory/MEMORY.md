@@ -29,6 +29,9 @@ adding one, and update it instead of duplicating.
   laboratory education"; owner 2026-11-11
 - [Brand and UI](brand-and-ui.md): the Microplate mark; build from shadcn/ui
   components and blocks, user-friendly end to end; the language menu pattern
+- [Multiple roles](multiple-roles.md): role sets {student}, {teacher},
+  {admin}, {teacher, admin}; student exclusive; a set, not a ranking; portal
+  switcher, portal in the URL, last portal saved; owner 2026-11-11
 - [Supply-chain release age](supply-chain-release-age.md): pnpm
   `minimumReleaseAge: 1440`, strict; Dependabot cooldown 7 days
 

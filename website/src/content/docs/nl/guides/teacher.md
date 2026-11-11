@@ -42,6 +42,16 @@ je account en rol, het thema (licht, donker of de instelling van je systeem)
 en **Uitloggen**. Onderdelen die nog niet klaar zijn, tonen **Binnenkort
 beschikbaar**.
 
+## Als je meer dan één rol hebt
+
+Een account kan tegelijk docent en beheerder zijn. Bovenaan de zijbalk staat
+dan het portaal waarin je werkt, bijvoorbeeld **Docentportaal**. Kies het om
+de lijst met je portalen te openen en kies het andere, of druk op **Alt+1** of
+**Alt+2** (**Option+1** of **Option+2** op een Mac). eduLIMS onthoudt het
+portaal dat je kiest en opent het de volgende keer dat je inlogt. Elk portaal
+toont alleen wat die rol mag zien: als beheerder zie je geen cijfers of
+resultaten. Het gebruikersmenu onderaan de zijbalk toont al je rollen.
+
 ## De taal wijzigen
 
 eduLIMS is er in het Nederlands en het Engels. Kies bovenaan de pagina de

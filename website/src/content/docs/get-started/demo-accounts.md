@@ -1,6 +1,6 @@
 ---
 title: Demo accounts
-description: The accounts to sign in with on a development machine, one per role, for Keycloak and for the development login.
+description: The accounts to sign in with on a development machine, for each role set, for Keycloak and for the development login.
 sidebar:
   label: Demo accounts
 ---
@@ -16,28 +16,46 @@ first ([Quick start](/get-started/quick-start/)).
 
 `pnpm dev:db` starts Keycloak with the `edulims` realm from
 `docker/keycloak/edulims-realm.json`. On the eduLIMS sign-in page choose
-**Sign in with Keycloak**, then use one of these:
+**Sign in with Keycloak**, then use one of these. The password is the
+username.
 
-| Role          | Username  | Password  | Lands on  |
-| ------------- | --------- | --------- | --------- |
-| Student       | `student` | `student` | `/student` |
-| Teacher       | `teacher` | `teacher` | `/teacher` |
-| Administrator | `admin`   | `admin`   | `/admin`   |
+| Username         | Roles in eduLIMS          | How Keycloak grants them                                  | Lands on   |
+| ---------------- | ------------------------- | --------------------------------------------------------- | ---------- |
+| `student`        | Student                   | group `Students`                                          | `/student` |
+| `teacher`        | Teacher                   | group `Teachers`                                          | `/teacher` |
+| `admin`          | Administrator             | realm role `edulims-admin`, assigned directly             | `/admin`   |
+| `coordinator`    | Teacher and Administrator | groups `Teachers` and `Administrators`                    | `/teacher` |
+| `teacher-direct` | Teacher                   | realm role `edulims-teacher`, assigned directly           | `/teacher` |
+| `mixed`          | Teacher and Administrator | group `Teachers`, and realm role `edulims-admin` directly | `/teacher` |
+| `conflict`       | refused                   | groups `Students` and `Teachers`                          | `/login` with "conflicting roles" |
+| `norole`         | refused                   | no eduLIMS role                                           | `/login` with "no role" |
 
-Each user carries the realm role (`edulims-student`, `edulims-teacher`,
-`edulims-admin`) that eduLIMS maps to its own role at every sign-in
+Each group carries one realm role (`Students` has `edulims-student`,
+`Teachers` has `edulims-teacher`, `Administrators` has `edulims-admin`). The
+realm's protocol mapper writes the effective realm roles, direct and from
+groups, to `realm_access.roles` in the ID token, and eduLIMS maps them to its
+own roles at every sign-in. A second mapper writes the group paths to
+`groups`, so `OIDC_ROLE_CLAIM=groups` can be tried as well
 ([Identity providers](/operations/identity-providers/)).
+
+Student is never combined with another role, so `conflict` is refused.
+A teacher-administrator lands on the Teacher portal the first time and on
+the portal they last switched to after that.
+
+The realm is imported only when the Keycloak container is created. After a
+change to the realm file, recreate it: `pnpm dev:db:stop`, then `pnpm dev:db`.
 
 ## Sign in with the development login
 
 With `EDULIMS_DEV_LOGIN=true` (the example env file's default) and after
 `pnpm db:seed`, the sign-in page also offers an email and password form:
 
-| Role          | Email                  | Password           |
-| ------------- | ---------------------- | ------------------ |
-| Student       | `student@example.test` | `eduLIMS-dev-only` |
-| Teacher       | `teacher@example.test` | `eduLIMS-dev-only` |
-| Administrator | `admin@example.test`   | `eduLIMS-dev-only` |
+| Roles                     | Email                        | Password           |
+| ------------------------- | ---------------------------- | ------------------ |
+| Student                   | `student@example.test`       | `eduLIMS-dev-only` |
+| Teacher                   | `teacher@example.test`       | `eduLIMS-dev-only` |
+| Administrator             | `admin@example.test`         | `eduLIMS-dev-only` |
+| Teacher and Administrator | `teacher-admin@example.test` | `eduLIMS-dev-only` |
 
 The server refuses the development login when `NODE_ENV=production`, and the
 seed refuses to run without the flag.
@@ -46,7 +64,8 @@ seed refuses to run without the flag.
 
 The admin console at <http://localhost:8180> is a different account in a
 different realm (`master`): username `admin`, password `admin`. It manages
-Keycloak itself (users, roles, clients); it does not sign in to eduLIMS.
+Keycloak itself (users, roles, groups, clients); it does not sign in to
+eduLIMS.
 
 ## Start again from a clean slate
 

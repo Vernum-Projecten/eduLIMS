@@ -28,10 +28,21 @@ pnpm dev
 ```
 
 Sign in at <http://localhost:3000> with a demo account: through Keycloak as
-`student`, `teacher` or `admin` (the password is the username), or with the
-development login as `student@example.test`, `teacher@example.test` or
-`admin@example.test` (password `eduLIMS-dev-only`). The README's "Demo
-accounts" table has all of them.
+`student`, `teacher`, `admin` or `coordinator` (teacher and administrator;
+the password is the username), or with the development login as
+`student@example.test`, `teacher@example.test`, `admin@example.test` or
+`teacher-admin@example.test` (password `eduLIMS-dev-only`). The README's
+"Demo accounts" table has all of them, and the docs site lists the Keycloak
+users that test roles from groups, direct roles, a conflicting role set and
+no role. The realm is imported only when the Keycloak container is created:
+after a change to `docker/keycloak/edulims-realm.json`, run
+`pnpm dev:db:stop && pnpm dev:db`.
+
+`tests/integration/keycloak-roles.test.ts` (part of `pnpm test`) signs each
+of those users in at the development Keycloak through its test-only
+`edulims-test` client and checks the role set eduLIMS maps from the ID
+token. It skips itself when that Keycloak or client is not reachable, as in
+CI; `EDULIMS_IT_KEYCLOAK_ISSUER` points it at another realm URL.
 
 `pnpm dev:db` starts PostgreSQL 18 and Keycloak from `compose.dev.yaml` and
 waits until they are healthy. `pnpm dev:db:stop` stops them and keeps the

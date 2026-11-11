@@ -20,6 +20,7 @@ Each significant architecture or technology decision is recorded here in the
 | [0009](0009-no-ai-attribution-human-review.md) | No AI attribution; human review of every change | Accepted |
 | [0010](0010-vendor-neutral-oidc-entra-and-keycloak.md) | Vendor-neutral sign-in: Microsoft Entra ID and Keycloak | Accepted |
 | [0011](0011-english-code-and-i18n.md) | English code and an internationalised UI with Paraglide JS | Proposed |
+| [0012](0012-multiple-roles-and-portal-switcher.md) | Multiple roles per user and a portal switcher | Proposed |
 
 ## Adding a record
 

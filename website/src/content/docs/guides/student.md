@@ -41,6 +41,11 @@ where you are. Your name sits at the foot of the sidebar: choose it for your
 account and role, the theme (light, dark or your system's setting) and
 **Sign out**. Sections that are not built yet say **Coming soon**.
 
+## If you have more than one role
+
+A student account has only the student role. If you also teach, you get a
+separate staff account for the Teacher portal.
+
 ## Change the language
 
 eduLIMS is in English and Dutch. Choose the language button in the header
