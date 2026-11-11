@@ -18,6 +18,7 @@ import { Route as AuthedTeacherRouteImport } from './routes/_authed/teacher'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiReadyRouteImport } from './routes/api/ready'
 import { Route as DevChartsRouteImport } from './routes/dev/charts'
+import { Route as DevFormsRouteImport } from './routes/dev/forms'
 import { Route as DevVirtualRouteImport } from './routes/dev/virtual'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedAdminActivityRouteImport } from './routes/_authed/admin/activity'
@@ -86,6 +87,11 @@ const ApiReadyRoute = ApiReadyRouteImport.update({
 const DevChartsRoute = DevChartsRouteImport.update({
   id: '/dev/charts',
   path: '/dev/charts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevFormsRoute = DevFormsRouteImport.update({
+  id: '/dev/forms',
+  path: '/dev/forms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DevVirtualRoute = DevVirtualRouteImport.update({
@@ -229,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
   '/dev/charts': typeof DevChartsRoute
+  '/dev/forms': typeof DevFormsRoute
   '/dev/virtual': typeof DevVirtualRoute
   '/admin/activity': typeof AuthedAdminActivityRoute
   '/admin/classes': typeof AuthedAdminClassesRoute
@@ -261,6 +268,7 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
   '/dev/charts': typeof DevChartsRoute
+  '/dev/forms': typeof DevFormsRoute
   '/dev/virtual': typeof DevVirtualRoute
   '/admin/activity': typeof AuthedAdminActivityRoute
   '/admin/classes': typeof AuthedAdminClassesRoute
@@ -298,6 +306,7 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
   '/dev/charts': typeof DevChartsRoute
+  '/dev/forms': typeof DevFormsRoute
   '/dev/virtual': typeof DevVirtualRoute
   '/_authed/admin/activity': typeof AuthedAdminActivityRoute
   '/_authed/admin/classes': typeof AuthedAdminClassesRoute
@@ -335,6 +344,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/ready'
     | '/dev/charts'
+    | '/dev/forms'
     | '/dev/virtual'
     | '/admin/activity'
     | '/admin/classes'
@@ -367,6 +377,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/ready'
     | '/dev/charts'
+    | '/dev/forms'
     | '/dev/virtual'
     | '/admin/activity'
     | '/admin/classes'
@@ -403,6 +414,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/ready'
     | '/dev/charts'
+    | '/dev/forms'
     | '/dev/virtual'
     | '/_authed/admin/activity'
     | '/_authed/admin/classes'
@@ -437,6 +449,7 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   ApiReadyRoute: typeof ApiReadyRoute
   DevChartsRoute: typeof DevChartsRoute
+  DevFormsRoute: typeof DevFormsRoute
   DevVirtualRoute: typeof DevVirtualRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
@@ -504,6 +517,13 @@ declare module '@tanstack/react-router' {
       path: '/dev/charts'
       fullPath: '/dev/charts'
       preLoaderRoute: typeof DevChartsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/forms': {
+      id: '/dev/forms'
+      path: '/dev/forms'
+      fullPath: '/dev/forms'
+      preLoaderRoute: typeof DevFormsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dev/virtual': {
@@ -795,6 +815,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   ApiReadyRoute: ApiReadyRoute,
   DevChartsRoute: DevChartsRoute,
+  DevFormsRoute: DevFormsRoute,
   DevVirtualRoute: DevVirtualRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }

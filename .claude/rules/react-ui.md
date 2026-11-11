@@ -41,30 +41,62 @@ locale (`en` or `nl`).
 - **Icons** come from `lucide-react` and are `aria-hidden` unless they are the
   only content of a control, which then carries an `aria-label`.
 
-## 2. Forms: shadcn Field + TanStack Form + Zod
+## 2. Forms: `useAppForm` + shadcn Field + Zod
 
-Every form follows the shadcn TanStack Form guide
-(<https://ui.shadcn.com/docs/forms/tanstack-form>) and the `/new-form` skill:
+Every form is built on the one foundation in `src/components/form/` (#61)
+and the `/new-form` skill; `/dev/forms` shows every piece on fictional data.
+Never call `useForm` or wire `Field`, `FieldLabel` and `FieldError` by hand
+in a feature component.
 
-- One Zod schema per form, shared with the server function's `.validator()`,
-  so client and server reject the same input.
-- `useForm({ defaultValues, validators: { onSubmit: schema }, onSubmit })`;
-  the `<form>` handler calls `e.preventDefault()` then `form.handleSubmit()`.
-- Each field renders through `form.Field` inside `<FieldGroup>`:
-  `const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid`,
-  `<Field data-invalid={isInvalid}>`, `<FieldLabel htmlFor={field.name}>`, the
-  control with `id={field.name}`, `name={field.name}`, `value`, `onBlur`,
-  `onChange` and `aria-invalid={isInvalid}`, then
-  `{isInvalid && <FieldError errors={field.state.meta.errors} />}`.
+- **One hook:** `useAppForm` from `@/components/form/app-form`
+  (`createFormHook`). `withForm` splits a large form into typed parts
+  (`formOptions` shared by the form and its parts).
+- **One Zod schema per form**, shared with the server function's
+  `.validator()`, so client and server refuse the same input. Validate it
+  with `validationLogic: revalidateLogic()` and
+  `validators: { onDynamic: schema }`: nothing shows before the first submit,
+  then each change revalidates. Plain `onSubmit` loses an error when the
+  field only loses focus; use `onChange: schema` only on a small form that
+  should validate while typing (a form-level `onChange` schema renders every
+  invalid field on each keystroke).
+- **Fields are registered components:** `form.AppField name="…"` (the name is
+  typed from the default values, nested paths too, such as
+  `criteria[2].levels[0].points`) renders `field.TextField`,
+  `TextareaField`, `NumberField` (`NaN` for an empty entry, which the schema
+  refuses), `SelectField`, `CheckboxField`, `CheckboxGroupField`,
+  `RadioGroupField`, `SwitchField`, `DateField` (a `YYYY-MM-DD` value on the
+  localised `Calendar`) or `EmailListField` (pasted addresses, checked with
+  `emailListSchema`). Each takes a translated `label` and an optional
+  `description`, and wires the label, `aria-invalid`, `aria-describedby`
+  (help text and error) and the error itself; an error shows once the field
+  is touched, and a submit touches every field.
+- **Form components:** inside `form.AppForm`, `form.SubmitButton`
+  (subscribes to `isSubmitting` only; spinner, no double submit, focus to the
+  first invalid control after a refused submit; never disabled while the form
+  is merely invalid, which would hide the reason) and `form.FormErrors` (the
+  form-level refusal at the top, focused when it appears).
+- **Async checks** ("this sample ID is already registered") are a field's
+  `onChangeAsync` with `onChangeAsyncDebounceMs`, calling a GET server
+  function through `useServerFn` with the validator's `signal`; the field
+  shows "Checking…" in a live region while it runs.
+- **Server refusals** map back with `applyServerRefusal(formApi, { fields,
+  form })`: a translated message at the field it concerns, or at the top.
+  The next change clears it.
+- **Arrays** use `form.AppField name="…" mode="array"` with `pushValue`,
+  `removeValue` and `moveValue`; every row has a stable `id` as its React
+  key, `ArrayRowControls` (move up, move down, remove, named after the row)
+  and `useArrayEditing`, which announces each change in a live region and
+  keeps focus on the moved row (WCAG 2.1.1, 2.4.3, 4.1.3). Row names in a
+  callback are read with `form.getFieldValue`, since an array field renders
+  only on a change of its structure.
+- **Granular subscriptions:** read form state in a component with
+  `useStore(form.store, selector)` or `form.Subscribe` and a selector that
+  returns a primitive, so a keystroke renders only its own field
+  (`tests/unit/form-foundation.test.tsx` proves it).
 - Every control has a visible label (WCAG 1.3.1, 3.3.2); a placeholder is
-  never the label. Help text is a `FieldDescription`.
-- Validation messages come from the i18n layer and are specific and
-  actionable ("Sample ID LS-0042 does not exist in this practical", never
-  "Invalid input"). The
-  server's refusal is rendered next to the field it concerns, or at the top of
-  the form with focus moved to it.
-- The submit button shows the pending state (`form.state.isSubmitting`) and
-  cannot double-submit.
+  never the label. Validation messages come from the i18n layer and are
+  specific and actionable ("Sample ID LS-0042 does not exist in this
+  practical", never "Invalid input").
 
 ## 3. Accessibility (WCAG 2.1 AA)
 
