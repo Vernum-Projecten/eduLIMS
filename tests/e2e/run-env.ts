@@ -70,5 +70,6 @@ export function appUrl(): string {
  * service on its own fixed port (`compose.dev.yaml`), unlike the app's per-run port.
  */
 export function keycloakRealm(): string {
-  return process.env["EDULIMS_E2E_KEYCLOAK_REALM"] ?? "http://localhost:8180/realms/edulims";
+  const port = process.env["EDULIMS_DEV_KEYCLOAK_PORT"] ?? "8180";
+  return process.env["EDULIMS_E2E_KEYCLOAK_REALM"] ?? `http://localhost:${port}/realms/edulims`;
 }

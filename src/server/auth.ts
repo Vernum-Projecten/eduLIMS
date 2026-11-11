@@ -111,7 +111,9 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         roleSource: { type: "string", required: false, input: false, fieldName: "role_source" },
       },
       validateUserInfo: createIdpRoleSync({
-        settingsOf: (providerId) => providerSettings(db, providerId),
+        // NOTE: ASVS V7.4.2 (#92 M-1); the gate reads `enabled` past the 30-second cache, so a
+        // provider disabled in another process mints no session within that window.
+        settingsOf: (providerId) => providerSettings(db, providerId, { fresh: true }),
         consumeAdminGrant: (email, providerId) =>
           consumePendingAdminGrant(db, { email, providerId, now: new Date() }),
         testOf: async (ctx, providerId) => {

@@ -439,9 +439,11 @@ the first provider and the first administrator with the tools image:
    switch a provider; on the host the last enabled provider can be switched
    off, which the screen refuses. Disabling a provider also ends every
    session of the users who have an account there. A running eduLIMS caches
-   provider settings for up to 30 seconds per process, so a change made with
-   the tools image reaches the sign-in page within 30 seconds; a change in
-   the Admin screen applies at once in that process.
+   provider settings for up to 30 seconds per process, so the sign-in page
+   shows a change made with the tools image within 30 seconds. A disabled
+   provider stops working at once all the same: the sign-in check and every
+   session read ask the database, not the cache, and refuse a sign-in or a
+   session through a provider that is off.
 
 3. Make the first administrator. Either the provider's role map maps an IdP
    role or group to `admin`, or grant the role from the host:
@@ -450,20 +452,37 @@ the first provider and the first administrator with the tools image:
    docker compose run --rm edulims-tools admin grant <email> --provider entra
    ```
 
-   An existing user gets the admin role at once (as a local role set). For an
-   email that has not signed in yet, the grant waits for 24 hours and is
-   applied at that email's first sign-in through the named provider, which
-   must be marked "email addresses are verified". With the Entra ID example
-   above, whose addresses are not verified, make the first administrator
-   through the `edulims-admin` app role instead. `admin revoke <email>`
-   takes the role away again and ends that user's sessions; it never removes
-   the last administrator. Both write the activity log with actor `system`.
-   The same command is the break-glass path when the identity provider is
-   down or no administrator is left.
+   An existing user whose address a provider verified gets the admin role at
+   once (as a local role set). For an email that has not signed in yet, the
+   grant waits for 24 hours and is applied at that email's first sign-in
+   through the named provider, which must be marked "email addresses are
+   verified". `admin revoke <email>` takes the role away again and ends that
+   user's sessions; it never removes the last administrator. Both write the
+   activity log with actor `system`. The same command is the break-glass path
+   when the identity provider is down or no administrator is left.
+
+   With the Entra ID example above, whose addresses are not verified,
+   `admin grant <email>` refuses with `email_unverified`, because an address
+   nobody verified may belong to someone else. Make the first administrator
+   through the `edulims-admin` app role, or, for a user who has already
+   signed in once (with a mapped role, so eduLIMS has their account), look
+   the account up and grant by its id:
+
+   ```sh
+   docker compose run --rm edulims-tools admin lookup <email>
+   # user <id> (email not verified)
+   docker compose run --rm edulims-tools admin grant --user-id <id>
+   ```
+
+   Check in Entra ID that the account behind that address is the person you
+   mean before you grant. The activity log records the grant with reason
+   `admin_grant_override`. A user who never signed in has no account yet, so
+   the override cannot reach them; that case needs the app role.
 
 After that, administrators manage the providers in the Admin screen.
 Developers run the same commands with `pnpm idp:add`, `pnpm idp:list`,
-`pnpm admin:grant <email>` and so on (below, "Local development").
+`pnpm admin:grant <email>` (with `--user-id <id>` for the override) and so on
+(below, "Local development").
 
 ## Updating
 

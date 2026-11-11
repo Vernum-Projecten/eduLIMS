@@ -110,7 +110,7 @@ describe("PKCE attestation (H1, ASVS V10.2.1)", () => {
     ]);
   });
 
-  it("records turning the attestation on as a changed field", async () => {
+  it("records turning the attestation on, with its new value (#92)", async () => {
     const { ctx, database } = await setup(["S256"]);
     await createProvider(ctx, OIDC);
     await updateProvider(ctx, {
@@ -119,7 +119,22 @@ describe("PKCE attestation (H1, ASVS V10.2.1)", () => {
     });
     expect((await actions(database)).at(-1)).toEqual({
       action: "idp_updated",
-      metadata: { provider_id: "entra", protocol: "oidc", fields: ["attest_pkce"] },
+      metadata: {
+        provider_id: "entra",
+        protocol: "oidc",
+        fields: ["attest_pkce"],
+        attest_pkce: true,
+      },
+    });
+  });
+
+  it("records withdrawing the attestation with the value false (#92)", async () => {
+    const { ctx, database } = await setup(["S256"]);
+    await createProvider(ctx, { ...OIDC, oidc: { ...OIDC.oidc, attestPkce: true } });
+    await updateProvider(ctx, { ...OIDC, oidc: { ...OIDC.oidc, clientSecret: "" } });
+    expect((await actions(database)).at(-1)?.metadata).toMatchObject({
+      fields: ["attest_pkce"],
+      attest_pkce: false,
     });
   });
 });
@@ -141,7 +156,26 @@ describe("a moved issuer (M1)", () => {
     expect(stored?.issuer).toBe(ISSUER);
   });
 
-  it("keeps the stored secret when the issuer stays on its origin", async () => {
+  it("refuses to keep the stored secret for another issuer on the same origin (#92 L2)", async () => {
+    const { ctx, database } = await setup();
+    await createProvider(ctx, OIDC);
+    // Another Entra ID tenant: same origin, another path.
+    const otherTenant = {
+      ...OIDC,
+      oidc: {
+        ...OIDC.oidc,
+        issuer: "https://login.example.test/other-tenant/v2.0",
+        clientSecret: "",
+      },
+    };
+    expect(await updateProvider(ctx, otherTenant)).toEqual({
+      ok: false,
+      error: "client_secret_required",
+    });
+    expect((await actions(database)).map((row) => row.action)).toEqual(["idp_created"]);
+  });
+
+  it("keeps the stored secret when the issuer is unchanged", async () => {
     const { ctx } = await setup();
     await createProvider(ctx, OIDC);
     expect(

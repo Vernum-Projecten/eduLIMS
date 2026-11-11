@@ -212,6 +212,14 @@ describe("OIDC discovery", () => {
     expect(await problem(() => discoverOidc(ISSUER, PUBLIC))).toBe("unsupported_client_auth");
   });
 
+  it("keeps the sso plugin's own address check when it fetches discovery (#92 L3)", async () => {
+    // Our save-time check is told the host is public (a stale or rebound DNS answer); the
+    // plugin checks the host again right before the fetch and refuses it.
+    const local = "https://localhost/realms/x";
+    vi.stubGlobal("fetch", async () => Response.json({ issuer: local }));
+    expect(await problem(() => discoverOidc(local, PUBLIC))).toBe("issuer_private");
+  });
+
   it("drops an end-session endpoint on another origin", async () => {
     stubDiscovery({ end_session_endpoint: "https://elsewhere.example.test/logout" });
     expect((await discoverOidc(ISSUER, PUBLIC)).endSessionEndpoint).toBeNull();

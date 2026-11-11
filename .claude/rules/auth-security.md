@@ -34,7 +34,8 @@ both.
   memory.
 - **The plugin's management endpoints stay unreachable** (`/sso/register`,
   `/sso/update-provider`, `/sso/delete-provider`, `/sso/providers`,
-  `/sso/get-provider`, domain verification): `disabledPaths`, a before-hook
+  `/sso/get-provider`, domain verification, SP-initiated SAML logout
+  `/sso/saml2/logout/:providerId`): `disabledPaths`, a before-hook
   lock (`src/server/idp/sso-guards.ts`) and `providersLimit: 0`. Never
   enable `defaultSSO`, `domainVerification`, `trustEmailVerified`,
   `trustedProviders`, a shared `redirectURI` or organisation provisioning.
@@ -49,8 +50,14 @@ both.
   transaction.
 - **PKCE enforced, not only sent:** with no `nonce` yet (#74), a provider is
   saved only when its discovery lists `S256` or an administrator attests it
-  (`attest_pkce`, logged). Never default the attestation on. An edit that
-  moves the issuer to another origin needs a new client secret.
+  (`attest_pkce`, logged with its new value). Never default the
+  attestation on. An edit that changes the issuer at all, a path on the same
+  origin included, needs a new client secret.
+- **Disabled at once:** the 30-second provider cache is for the sign-in
+  buttons only. The sign-in gate reads `enabled` uncached
+  (`providerSettings(…, { fresh: true })`), and the session read
+  (`src/server/session.ts`) ends a session whose `sign_in_method` names a
+  disabled provider. Never put a cached read in front of either.
 - **Secrets at rest:** client secrets and SAML keys are sealed with
   AES-256-GCM under `EDULIMS_DATA_KEY` (`src/server/idp/crypto.ts`) by the
   wrapped adapter (`src/server/idp/encrypted-adapter.ts`); they are
@@ -63,7 +70,9 @@ both.
   check (https in production, no private address by `net.BlockList`,
   tunnelled IPv4 forms included, unless the operator lists the origin in
   `EDULIMS_IDP_PRIVATE_ORIGINS`, which must be https in production). The
-  metadata fetch resolves once and checks at connect time. `trustedOrigins`
+  metadata fetch resolves once and checks at connect time; OIDC discovery
+  trusts only the private origins, so the plugin checks the issuer's
+  addresses again when it fetches. `trustedOrigins`
   is the app origin and that list only, never a stored issuer, so the sso
   plugin's fetch-time DNS check applies to every other IdP.
 - The better-auth handler is mounted as a server route under `/api/auth/*`;

@@ -39,6 +39,17 @@ describe("runCli", () => {
     expect((await run("admin", "grant", "a@example.test", "extra")).code).toBe(2);
   });
 
+  it("refuses a malformed `admin grant --user-id`, and mixing it with an email (#92)", async () => {
+    const bad = await run("admin", "grant", "--user-id", "x'; drop");
+    expect(bad.code).toBe(1);
+    expect(bad.lines[0]).toBe("refused: invalid user-id");
+    expect((await run("admin", "grant", "a@example.test", "--user-id", "user-12345")).code).toBe(2);
+    expect((await run("admin", "revoke", "--user-id", "user-12345")).code).toBe(2);
+    expect(
+      (await run("admin", "grant", "--user-id", "user-12345", "--provider", "entra")).code,
+    ).toBe(2);
+  });
+
   it("refuses unknown `idp`, `migrate` and `prune` arguments with exit code 2", async () => {
     expect((await run("idp", "explode")).code).toBe(2);
     expect((await run("idp", "list", "extra")).code).toBe(2);

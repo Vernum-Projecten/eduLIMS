@@ -130,10 +130,19 @@ export async function discoverOidc(
       return false;
     }
   };
+  // NOTE: #92 L3 (ASVS V1.3.6); the fetch trusts only the operator's private origins, so the
+  // plugin resolves a public issuer again right before it fetches and refuses a private answer.
+  const fetchTrusted = (url: string) => {
+    try {
+      return policy.privateOrigins.includes(new URL(url).origin);
+    } catch {
+      return false;
+    }
+  };
   const discoveryEndpoint = computeDiscoveryUrl(issuer);
   let document: Awaited<ReturnType<typeof fetchDiscoveryDocument>>;
   try {
-    const fetched = await fetchDiscoveryDocument(discoveryEndpoint, 10_000, sameOrigin);
+    const fetched = await fetchDiscoveryDocument(discoveryEndpoint, 10_000, fetchTrusted);
     validateDiscoveryDocument(fetched, issuer);
     // Only the endpoints eduLIMS stores are checked: an unused UserInfo endpoint may live on
     // another origin (Entra ID's is on Microsoft Graph).
@@ -157,6 +166,9 @@ export async function discoverOidc(
   } catch (error) {
     if (error instanceof DiscoveryError && error.code === "issuer_mismatch") {
       throw new IdpValidationError("issuer_mismatch", { cause: error });
+    }
+    if (error instanceof DiscoveryError && error.code === "discovery_private_host") {
+      throw new IdpValidationError("issuer_private", { cause: error });
     }
     if (error instanceof DiscoveryError && error.code === "discovery_untrusted_origin") {
       throw new IdpValidationError("endpoint_foreign_origin", { cause: error });
