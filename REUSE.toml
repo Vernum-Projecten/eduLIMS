@@ -99,3 +99,19 @@ path = [".github/cff-schema/schema.json", ".github/cff-schema/LICENSE"]
 precedence = "override"
 SPDX-FileCopyrightText = "The Citation File Format contributors"
 SPDX-License-Identifier = "CC-BY-4.0"
+
+# The OWASP standards and cheat sheets, vendored byte for byte by
+# scripts/vendor/owasp-*.sh. Upstream, tag, commit and sha256 of every file are
+# in each tree's PROVENANCE.md; the upstream licence file sits beside them.
+[[annotations]]
+path = "docs/security/vendor/**"
+precedence = "override"
+SPDX-FileCopyrightText = "The OWASP Foundation, Inc. and the OWASP project contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+# The PROVENANCE.md files the fetch scripts write are the project's own.
+[[annotations]]
+path = "docs/security/vendor/*/PROVENANCE.md"
+precedence = "override"
+SPDX-FileCopyrightText = "Ruben Talstra"
+SPDX-License-Identifier = "Apache-2.0"
