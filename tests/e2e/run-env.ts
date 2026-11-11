@@ -73,3 +73,13 @@ export function keycloakRealm(): string {
   const port = process.env["EDULIMS_DEV_KEYCLOAK_PORT"] ?? "8180";
   return process.env["EDULIMS_E2E_KEYCLOAK_REALM"] ?? `http://localhost:${port}/realms/edulims`;
 }
+
+/**
+ * The secret values the e2e app runs with: public, e2e-only values that playwright.config.ts
+ * passes to the server, and that the system page journey checks the page against (#36).
+ */
+export const E2E_SECRETS = {
+  BETTER_AUTH_SECRET: "e2e-only-secret-not-for-production-use-0123456789",
+  // A public e2e-only key: 32 bytes, base64.
+  EDULIMS_DATA_KEY: "ZWR1bGltcy1lMmUtZGF0YS1rZXktMDEyMzQ1Njc4OTA=",
+} as const;

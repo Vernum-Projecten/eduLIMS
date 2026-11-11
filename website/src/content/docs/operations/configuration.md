@@ -39,6 +39,12 @@ Identity providers are not configured here: administrators manage them in
 Admin → System → Identity providers, and the first one comes from the host
 CLI ([Identity providers](/operations/identity-providers/), "First start").
 
+The release image sets `EDULIMS_BUILD_VERSION`, `EDULIMS_BUILD_REVISION`,
+`EDULIMS_BUILD_CREATED` and `EDULIMS_BUILD_PROVENANCE` itself, from the
+release that built it; Admin → System shows them. Do not set them in `.env`
+or in the Compose file: a malformed value stops the System page with an
+error.
+
 ## The Compose stack
 
 These variables are read by `compose.yaml` on a deployment host. A required
