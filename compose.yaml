@@ -164,7 +164,6 @@ services:
     networks: [backend, egress]
     # The image's HEALTHCHECK runs `ferrobridge healthcheck` (GET
     # /health/readiness on the loopback); compose keeps it.
-
   # ── eduLIMS schema migrations, a one-shot ─────────────────────────────────
   # Runs `pnpm db:migrate` and exits. `docker compose up` runs it before the
   # server on every start, and a migration that is already applied is a no-op.
@@ -227,7 +226,6 @@ services:
       - /tmp
     networks: [backend, egress]
     # The image's HEALTHCHECK probes GET /api/health; compose keeps it.
-
   # ── Keycloak, the optional identity provider (profile `keycloak`) ─────────
   # Production mode (`start`) on its own database in the shared PostgreSQL
   # server. TLS ends at the host's reverse proxy, which forwards

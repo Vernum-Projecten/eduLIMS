@@ -161,3 +161,7 @@ test-results/
 # Playwright
 /test-results/
 /playwright-report/
+
+# Operator config and database backups on a deployment host
+/config/
+/backups/

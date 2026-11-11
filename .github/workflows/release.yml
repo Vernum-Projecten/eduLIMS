@@ -409,7 +409,17 @@ jobs:
   # it.
   milestone:
     name: close the milestone
-    needs: [plan, github-release, build, image, migrate-image, vulnerability-record, scan-and-tag, finalize-release]
+    needs:
+      [
+        plan,
+        github-release,
+        build,
+        image,
+        migrate-image,
+        vulnerability-record,
+        scan-and-tag,
+        finalize-release,
+      ]
     if: ${{ always() && needs.plan.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
