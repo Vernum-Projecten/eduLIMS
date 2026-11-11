@@ -12,7 +12,7 @@
   "role_admin": "Administrator",
   "portal_student": "Student portal",
   "portal_teacher": "Teacher portal",
-  "portal_admin": "Administrator portal",
+  "portal_admin": "Admin portal",
   "home_go_to_portal": "Go to my portal",
   "home_no_role": "Your account has no role yet. Contact an administrator.",
   "welcome": "Welcome, {name}.",

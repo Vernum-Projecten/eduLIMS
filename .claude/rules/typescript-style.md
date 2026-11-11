@@ -90,7 +90,8 @@ can end up in both bundles. The boundary is explicit:
   `draft | submitted | graded`, S8), with an exhaustive `switch` that
   ends in a `never` check.
 - **Dates:** store and compare instants in UTC (`timestamptz`); format for
-  the user in `nl-NL` and `Europe/Amsterdam` at render time. Deadline logic
+  the user in the active locale and `APP_TIME_ZONE` at render time, through
+  the `Intl` helpers in `src/lib/i18n/` (ADR 0011). Deadline logic
   (S6) never compares formatted strings.
 
 ## Dependencies
