@@ -202,6 +202,65 @@ on its element stays fine.
   `KeyboardEvent`s and call `HotkeyManager.resetInstance()` after each case;
   e2e emulates macOS and Windows through `navigator.platform`.
 
+## Virtual: long lists that are not paginated
+
+`@tanstack/react-virtual` renders only the rows in view
+(<https://tanstack.com/virtual/latest>). Use it for a list that grows without
+a page size (the activity log's infinite list, a large class roster); a table
+the server already pages does not need it.
+
+- **Use the shared pieces in `src/components/virtual/`**, never a bare
+  `useVirtualizer` in a feature: `VirtualList` for a list, and
+  `useVirtualRows` for anything else (the data table's virtual body). The
+  index math and the keyboard model are pure functions in
+  `src/lib/virtual-rows.ts`, unit-tested.
+- **Accessibility holds over the window:** a list gives each item
+  `aria-setsize` (the whole set) and `aria-posinset`; a table row gives
+  `aria-rowindex` (`ariaRowPosition(index, headerRows)`) with `aria-rowcount`
+  on the table. One row is the tab stop; arrow keys, Home, End, PageUp and
+  PageDown move focus and scroll the row into view. The focused row stays
+  rendered when it scrolls away, so focus is never dropped to `body`.
+- **No inline style:** `useVirtualRows` sets `directDomUpdates`, so the
+  virtualizer writes row offsets and the total height to the DOM itself.
+  Rows are `absolute top-0 left-0` only once `positioned` is true.
+- **SSR renders the first window:** `initialRect` gives the server a viewport
+  height (match the CSS height); before the first layout effect rows sit in
+  normal flow, which is where the first window is anyway, so the hydration
+  render matches. Keys are stable ids (`getKey`), never the index.
+- Rows may differ in height: `measureElement` measures each one; give an
+  honest `estimateRowHeight`.
+- The demo is `/dev/virtual` (10,000 fictional rows), a development-only
+  route that is a 404 in a production build.
+
+## Devtools: development only
+
+One TanStack Devtools panel (`@tanstack/react-devtools`) with the Router,
+Query and Form plugins (<https://tanstack.com/devtools/latest>) lives in
+`src/components/devtools/app-devtools.tsx`, all devDependencies.
+
+- **Only `DevtoolsLoader` imports it**, through a dynamic `import()` behind
+  `import.meta.env.DEV`, inside `ClientOnly`. A production build drops the
+  import; `scripts/checks/no-devtools.sh` (CI `build` job) fails when a
+  devtools marker or chunk reaches `.output/public/assets`.
+- **Off under automation:** the loader renders nothing when
+  `navigator.webdriver` is set, so Playwright and axe see the app alone, in
+  the dev project too.
+- **The Form plugin needs no registry:** every `useForm`, and the
+  `useAppForm` built on it, reports to the devtools event bus by itself.
+- A new devtools plugin goes in `app-devtools.tsx`, never in a route or a
+  component.
+
+## Dev-only routes and their e2e
+
+A route under `src/routes/dev/` throws `notFound()` in `beforeLoad` unless
+`getDevPagesEnabled()` (`src/lib/dev-tools.functions.ts`) says so: it reads
+`NODE_ENV` on the server at request time, so the pages are served in
+development and in the e2e build (`NODE_ENV=test`) and are a 404 in
+production (ASVS V13.4, unit-tested in `src/server/dev-tools.test.ts`). Their
+journeys are ordinary specs against the e2e build. Never gate a page on
+`import.meta.env.DEV`; that is for code the production bundle must not
+contain at all, such as the devtools.
+
 ## SSR hygiene
 
 - No `window`, `document` or `localStorage` at module scope or during

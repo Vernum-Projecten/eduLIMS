@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-router";
 import { CircleAlertIcon, CompassIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { DevtoolsLoader } from "@/components/devtools/devtools-loader";
 import { AppShell } from "@/components/shell/app-shell";
 import { PublicLayout } from "@/components/shell/public-layout";
 import { ThemeProvider, useThemeState } from "@/components/theme/theme-provider";
@@ -75,6 +76,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster />
         </ThemeProvider>
+        <DevtoolsLoader />
         <Scripts />
       </body>
     </html>

@@ -235,6 +235,8 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-node-pnpm
       - run: pnpm build
+      # The production client bundle carries no TanStack Devtools (#64).
+      - run: bash scripts/checks/no-devtools.sh
 
   # The browser journeys: Playwright with the axe accessibility scan, against
   # the app on a PostgreSQL 18 service container. playwright.config.ts runs
@@ -493,6 +495,7 @@ jobs:
           bash scripts/checks/pr-title.sh --self-test
           bash scripts/checks/linked-issue.sh --self-test
           bash scripts/checks/pin-freshness.sh --self-test
+          bash scripts/checks/no-devtools.sh --self-test
           bash scripts/dev/env-sync.sh --self-test
 
   # The brand palette's contrast, measured from assets/brand/tokens.css: a
