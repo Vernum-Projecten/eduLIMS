@@ -291,6 +291,27 @@ the server already pages does not need it.
 - The demo is `/dev/virtual` (10,000 fictional rows), a development-only
   route that is a 404 in a production build.
 
+### A virtual data table or server pagination
+
+- **Server pagination is the default for a large set**: the users table and
+  every list the server sorts and filters pages on the server, with the
+  state in the URL (§Forms and tables). Never load a whole large set into the
+  browser to virtualise it.
+- **`DataTable` with `virtual`** is for a long list that is not paginated:
+  an infinite list that grows as the user scrolls, or a set the screen needs
+  whole (a full roster, every well of an upload). Pass
+  `virtual={{ estimateRowHeight, viewportHeight, className }}` with a height
+  class that matches `viewportHeight`, so SSR renders the first window.
+- The virtual body (`data-table-virtual-body.tsx`) renders each row as a flex
+  row with explicit table roles, so the columns line up without inline
+  widths: a cell takes an equal share unless its column meta sets a width
+  (`className: "w-36 flex-none"`), and header and body cells get the same
+  classes. It sets `aria-rowcount` and `aria-rowindex`, keeps the header
+  sticky through `useVirtualRows`'s `scrollMargin`, and uses its keyboard
+  model on the rows; a key inside a cell's control stays with that control.
+- The demo is `/dev/virtual-table` (10,000 fictional rows, sortable by three
+  columns), development-only like `/dev/virtual`.
+
 ## Devtools: development only
 
 One TanStack Devtools panel (`@tanstack/react-devtools`) with the Router,

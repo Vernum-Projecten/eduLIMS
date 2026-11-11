@@ -12,13 +12,15 @@ import { type DemoRow, demoRows } from "@/lib/virtual-demo-rows";
 /** Rows in the demo: the size issue #64 asks the virtualised list to handle. */
 export const DEMO_ROW_COUNT = 10_000;
 
-const ANALYTE_LABEL: Record<DemoRow["analyte"], () => string> = {
+/** The translated name of each demo analyte. */
+export const ANALYTE_LABEL: Record<DemoRow["analyte"], () => string> = {
   hba1c: m.dev_virtual_analyte_hba1c,
   crp: m.dev_virtual_analyte_crp,
   absorbance: m.dev_virtual_analyte_absorbance,
 };
 
-const ANALYTE_UNIT: Record<DemoRow["analyte"], string> = {
+/** The unit of each demo analyte. */
+export const ANALYTE_UNIT: Record<DemoRow["analyte"], string> = {
   hba1c: "%",
   crp: "mg/L",
   absorbance: "OD",

@@ -24,6 +24,12 @@ export interface VirtualRowsOptions {
   initialViewportHeight: number;
   /** Rows rendered beyond each edge of the viewport. */
   overscan?: number;
+  /**
+   * Height in px of what sits above the rows inside the scroll element, such as a table's
+   * sticky header: the window starts below it, and a row scrolled into view is not hidden
+   * under it.
+   */
+  scrollMargin?: number;
 }
 
 /**
@@ -44,6 +50,7 @@ export function useVirtualRows({
   estimateRowHeight,
   initialViewportHeight,
   overscan = 5,
+  scrollMargin = 0,
 }: VirtualRowsOptions) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -63,6 +70,8 @@ export function useVirtualRows({
     getItemKey: getRowKey,
     overscan,
     rangeExtractor,
+    scrollMargin,
+    scrollPaddingStart: scrollMargin,
     initialRect: { width: 0, height: initialViewportHeight },
     directDomUpdates: true,
   });
