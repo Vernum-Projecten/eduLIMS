@@ -26,6 +26,7 @@ export const CLASS_ACTION_ERRORS = [
   "not_found",
   "forbidden",
   "archived",
+  "not_archived",
   "owner_not_removable",
   "not_class_teacher",
   "not_class_student",

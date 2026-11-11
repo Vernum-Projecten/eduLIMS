@@ -25,6 +25,7 @@ export const INVITE_ROW_STATUSES = [
   "member",
   "invited",
   "wrong_role",
+  "no_account",
 ] as const;
 export type InviteRowStatus = (typeof INVITE_ROW_STATUSES)[number];
 
@@ -87,9 +88,11 @@ export async function classifyInvitees(
     seen.add(email);
     if (memberSet.has(email)) return { email, status: "member" };
     if (invitedSet.has(email)) return { email, status: "invited" };
-    if (!inviteeFits(role, roleOf.has(email) ? roleOf.get(email) : undefined)) {
-      return { email, status: "wrong_role" };
-    }
+    const stored = roleOf.has(email) ? roleOf.get(email) : undefined;
+    // NOTE: owner decision on #28; an invitation never grants teacher, so a colleague without
+    // an account signs in once first.
+    if (role === "teacher" && stored === undefined) return { email, status: "no_account" };
+    if (!inviteeFits(role, stored)) return { email, status: "wrong_role" };
     return { email, status: "new" };
   });
 }

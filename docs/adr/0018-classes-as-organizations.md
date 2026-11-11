@@ -53,6 +53,10 @@ Option 3, on `better-auth` 1.7.20.
   `disabledPaths`, a before-hook answers any `/organization` path with 404,
   `allowUserToCreateOrganization` is off, and the plugin's own `before*`
   hooks refuse, so a server-side `auth.api` call cannot write either.
+- **Lifecycle (owner decisions on #28):** the owner archives a class, which
+  makes it read-only, and can reopen it. Deleting a class removes its
+  memberships, invitations and lab groups in one transaction; only
+  practicals, submissions and grades block it (#98).
 - **Invitations without email:** `invitationExpiresIn` is 30 days and no
   `sendInvitationEmail` is set. A session-create hook accepts every pending,
   unexpired invitation for the user's verified email on each sign-in. When
