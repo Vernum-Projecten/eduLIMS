@@ -68,12 +68,16 @@ pnpm test:e2e         # production build, then Playwright with the axe scan
 ```
 
 The database tests and the browser tests run on a real PostgreSQL 18, so
-they need the dev stack (`pnpm dev:db`). `pnpm test` uses the `edulims_test`
-database: the run empties and migrates it once, and every test runs in a
-transaction that is rolled back. `pnpm test:e2e` empties, migrates and seeds
-the `edulims_e2e` database before the app starts. Neither touches the
-`edulims` development database. Set `TEST_DATABASE_URL` or `E2E_DATABASE_URL`
-to use another local server.
+they need the dev stack (`pnpm dev:db`). Every run creates a database of its
+own next to `edulims_test` (`pnpm test`) or `edulims_e2e` (`pnpm test:e2e`),
+named `<base>_<run id>`, and drops it at the end, so runs in parallel
+worktrees never meet. `pnpm test` migrates its database once, and every test
+runs in a transaction that is rolled back. `pnpm test:e2e` migrates and seeds
+its database before the app starts, on a free port of its own. A run also
+drops run databases older than 6 hours that a crashed run left behind.
+Neither touches the `edulims` development database. Set `TEST_DATABASE_URL`
+or `E2E_DATABASE_URL` to use another local server; its user needs the
+`CREATEDB` right.
 
 Browser and accessibility tests run with Playwright and axe. CI runs them on
 every pull request; [`docs/test-strategy.md`](docs/test-strategy.md) lists

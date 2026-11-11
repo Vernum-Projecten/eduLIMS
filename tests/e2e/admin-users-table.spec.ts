@@ -12,8 +12,9 @@ import {
   signInAsAdmin,
   userRow,
   usersTable,
-  whenHydrated,
 } from "./admin-users-helpers";
+import { expectHydrated } from "./fixtures";
+import { appUrl } from "./run-env";
 
 const SEARCH = "Search by name or email address";
 
@@ -176,7 +177,7 @@ test("the data table works with the keyboard alone (#58)", async ({ page }) => {
   await signInAsAdmin(page);
   await page.goto("/admin/users");
   const searchbox = page.getByRole("searchbox", { name: SEARCH });
-  await whenHydrated(searchbox);
+  await expectHydrated(searchbox);
   await searchbox.focus();
   await page.keyboard.type("Test");
   await expect(page).toHaveURL(/q=Test/);
@@ -222,8 +223,8 @@ test.describe("in the dark theme and in Dutch", () => {
   }) => {
     await signInAsAdmin(page);
     await context.addCookies([
-      { name: "EDULIMS_THEME", value: "dark", url: "http://localhost:3100" },
-      { name: "EDULIMS_LOCALE", value: "nl", url: "http://localhost:3100" },
+      { name: "EDULIMS_THEME", value: "dark", url: appUrl() },
+      { name: "EDULIMS_LOCALE", value: "nl", url: appUrl() },
     ]);
     await page.goto("/admin/users?q=Test%20Teacher");
     await expect(page.locator("html")).toHaveAttribute("lang", "nl");

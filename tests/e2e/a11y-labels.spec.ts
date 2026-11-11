@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { devLogin, expectNoA11yViolations } from "./fixtures";
+import { appUrl } from "./run-env";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
   readFileSync(new URL("../../messages/nl.json", import.meta.url), "utf8"),
@@ -26,8 +27,8 @@ async function usePreferences(
   locale: "en" | "nl",
 ): Promise<void> {
   await context.addCookies([
-    { name: "EDULIMS_THEME", value: theme, url: "http://localhost:3100" },
-    { name: "EDULIMS_LOCALE", value: locale, url: "http://localhost:3100" },
+    { name: "EDULIMS_THEME", value: theme, url: appUrl() },
+    { name: "EDULIMS_LOCALE", value: locale, url: appUrl() },
   ]);
 }
 

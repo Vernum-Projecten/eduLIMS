@@ -49,10 +49,16 @@ export function assertResettable(env: {
   return target;
 }
 
-/** Throws unless the URL names a database whose name ends in `_test`, the Vitest database. */
+// A name ending in `_test`, or the run database of one (test-run-database.ts).
+const TEST_DATABASE_NAME = /_test(?:_[0-9a-z]{1,10}_[0-9a-f]{6})?$/;
+
+/**
+ * Throws unless the URL names a Vitest database: a name ending in `_test`, or the run database
+ * `<name>_test_<run id>` that the global setup creates next to it.
+ */
 export function assertTestDatabase(databaseUrl: string): DatabaseTarget {
   const target = assertResettable({ NODE_ENV: "test", DATABASE_URL: databaseUrl });
-  if (!target.database.endsWith("_test")) {
+  if (!TEST_DATABASE_NAME.test(target.database)) {
     throw new Error(
       `Refusing to run the database tests on "${target.database}": the name must end in _test.`,
     );

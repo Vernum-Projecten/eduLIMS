@@ -98,9 +98,10 @@ pnpm check       # typecheck, Biome lint, Vitest
 pnpm test:e2e    # production build, then Playwright with the axe scan
 ```
 
-`pnpm test` runs on the `edulims_test` database: each run empties and
-migrates it once, and every database test runs in a transaction that is
-rolled back. `pnpm test:e2e` empties, migrates and seeds the `edulims_e2e`
-database before the app starts. Neither touches your development data.
+`pnpm test` creates a database of its own next to `edulims_test`, migrates it
+once and drops it at the end; every database test runs in a transaction that
+is rolled back. `pnpm test:e2e` does the same next to `edulims_e2e`, seeds
+it, and serves the app on a free port. Runs in parallel worktrees never share
+a database, and neither touches your development data.
 
 [Contributing](/development/contributing/) has the full workflow.

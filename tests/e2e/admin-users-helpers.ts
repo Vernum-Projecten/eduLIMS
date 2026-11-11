@@ -3,7 +3,7 @@
 
 // Shared steps of the Users screen's journeys (#34, #58).
 import { readFileSync } from "node:fs";
-import { type Browser, expect, type Locator, type Page } from "@playwright/test";
+import { type Browser, expect, type Page } from "@playwright/test";
 import { devLogin, expectNoA11yViolations } from "./fixtures";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
@@ -30,15 +30,6 @@ export async function axe(page: Page): Promise<void> {
 export async function signInAsAdmin(page: Page): Promise<void> {
   await devLogin(page, ADMIN);
   await expect(page).toHaveURL(/\/admin$/);
-}
-
-/** Waits until React has hydrated `locator`, so keys typed into it are not lost. */
-export async function whenHydrated(locator: Locator): Promise<void> {
-  await expect
-    .poll(() =>
-      locator.evaluate((el) => Object.keys(el).some((key) => key.startsWith("__reactProps"))),
-    )
-    .toBe(true);
 }
 
 export function usersTable(page: Page) {

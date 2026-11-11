@@ -55,6 +55,21 @@ describe("assertTestDatabase", () => {
     );
   });
 
+  it("allows the run database of a _test database (#69)", () => {
+    expect(
+      assertTestDatabase("postgres://u:p@127.0.0.1/edulims_test_mhv1abc_0a1b2c").database,
+    ).toBe("edulims_test_mhv1abc_0a1b2c");
+  });
+
+  it.each(["edulims_test_feature", "edulims_mhv1abc_0a1b2c", "edulims_e2e_mhv1abc_0a1b2c"])(
+    "refuses %s, which is no test or test run database",
+    (name) => {
+      expect(() => assertTestDatabase(`postgres://u:p@127.0.0.1/${name}`)).toThrow(
+        /must end in _test/,
+      );
+    },
+  );
+
   it("refuses the development database", () => {
     expect(() => assertTestDatabase(LOCAL)).toThrow(/must end in _test/);
   });

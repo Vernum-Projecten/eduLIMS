@@ -91,8 +91,8 @@ The test commands read these from the shell, not from `.env`:
 
 | Variable                   | Default                                                  | Meaning                                                            |
 | -------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------ |
-| `TEST_DATABASE_URL`        | `postgres://edulims:edulims@127.0.0.1:5432/edulims_test` | Database of `pnpm test`; its name must end in `_test`.             |
-| `E2E_DATABASE_URL`         | `postgres://edulims:edulims@127.0.0.1:5432/edulims_e2e`  | Database of `pnpm test:e2e`, emptied and seeded before every run.  |
+| `TEST_DATABASE_URL`        | `postgres://edulims:edulims@127.0.0.1:5432/edulims_test` | Base of `pnpm test`: each run creates `<name>_<run id>` beside it, so its name must end in `_test` and its user needs `CREATEDB`. |
+| `E2E_DATABASE_URL`         | `postgres://edulims:edulims@127.0.0.1:5432/edulims_e2e`  | Base of `pnpm test:e2e`: each run creates, seeds and drops `<name>_<run id>` beside it; its user needs `CREATEDB`. |
 | `EDULIMS_CONTAINER_ENGINE` | `podman` when installed, else `docker`                   | Container engine of `pnpm dev:db`, `dev:db:stop` and `dev:db:logs`. |
 
 ## Secrets

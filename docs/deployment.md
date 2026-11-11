@@ -404,9 +404,12 @@ from `docker/keycloak/edulims-realm.json` (users with roles assigned
 directly, through groups, or both, each with its name as password; the
 [demo accounts](https://edulims.eu/get-started/demo-accounts/) list them).
 The realm is imported when the Keycloak container is created, so a changed
-realm file needs `pnpm dev:db:stop && pnpm dev:db`. It also creates the throwaway
-`edulims_test` and `edulims_e2e` databases that `pnpm test` and
-`pnpm test:e2e` use (`docker/postgres/init/30-edulims-test-databases.sh`).
+realm file needs `pnpm dev:db:stop && pnpm dev:db`. It also creates the
+`edulims_test` and `edulims_e2e` databases and gives the `edulims` role
+`CREATEDB` (`docker/postgres/init/30-edulims-test-databases.sh`): every
+`pnpm test` and `pnpm test:e2e` run creates its own database next to one of
+them and drops it at the end. On a dev volume created before that grant, run
+the script once by hand (its header has the command).
 FerroEHR is the opt-in `ferroehr` profile. `pnpm dev:db` starts the stack
 with `podman compose`, or `docker compose` without Podman; the header of
 `compose.dev.yaml` has the commands.

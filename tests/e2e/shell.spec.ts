@@ -3,7 +3,8 @@
 
 import { readFileSync } from "node:fs";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { devLogin, expectNoA11yViolations } from "./fixtures";
+import { devLogin, expectHydrated, expectNoA11yViolations } from "./fixtures";
+import { appUrl } from "./run-env";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
   readFileSync(new URL("../../messages/nl.json", import.meta.url), "utf8"),
@@ -47,7 +48,7 @@ async function signInAs(page: Page, role: PortalRole): Promise<void> {
 
 /** Sets the theme cookie before any page loads, as a returning visitor would have it. */
 async function setThemeCookie(context: BrowserContext, theme: "light" | "dark"): Promise<void> {
-  await context.addCookies([{ name: "EDULIMS_THEME", value: theme, url: "http://localhost:3100" }]);
+  await context.addCookies([{ name: "EDULIMS_THEME", value: theme, url: appUrl() }]);
 }
 
 /** Collects hydration errors from the console, so a test can assert there were none. */
@@ -231,7 +232,9 @@ test("the theme menu switches <html class> and the choice renders on the server"
   const html = page.locator("html");
   await expect(html).not.toHaveClass(/\b(dark|light)\b/);
 
-  await page.getByRole("button", { name: "Theme: System" }).click();
+  const themeButton = page.getByRole("button", { name: "Theme: System" });
+  await expectHydrated(themeButton);
+  await themeButton.click();
   await page.getByRole("menuitemradio", { name: "Dark" }).click();
   await expect(html).toHaveClass(/\bdark\b/);
   await expect(page.getByRole("button", { name: "Theme: Dark" })).toBeVisible();
@@ -280,6 +283,7 @@ test.describe("demo accounts (development login on)", () => {
     await page.goto("/login");
     const toggle = page.getByRole("button", { name: "Demo accounts" });
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expectHydrated(toggle);
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
 
@@ -351,9 +355,7 @@ test.describe("in Dutch", () => {
     context,
   }) => {
     await signInAs(page, "admin");
-    await context.addCookies([
-      { name: "EDULIMS_LOCALE", value: "nl", url: "http://localhost:3100" },
-    ]);
+    await context.addCookies([{ name: "EDULIMS_LOCALE", value: "nl", url: appUrl() }]);
     await page.goto("/admin");
     await expect(page.locator("html")).toHaveAttribute("lang", "nl");
     await expect(
@@ -377,9 +379,7 @@ test.describe("in Dutch", () => {
 
   for (const path of ["/", "/login"]) {
     test(`${path} is translated and axe-clean in both themes`, async ({ page, context }) => {
-      await context.addCookies([
-        { name: "EDULIMS_LOCALE", value: "nl", url: "http://localhost:3100" },
-      ]);
+      await context.addCookies([{ name: "EDULIMS_LOCALE", value: "nl", url: appUrl() }]);
       for (const theme of ["light", "dark"] as const) {
         await setThemeCookie(context, theme);
         await page.goto(path);

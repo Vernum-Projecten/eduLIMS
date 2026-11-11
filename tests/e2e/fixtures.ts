@@ -2,19 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 /** Seeded by `pnpm db:seed` (src/server/db/seed.ts). */
 export const DEV_PASSWORD = "eduLIMS-dev-only";
 
+/**
+ * Waits until React has hydrated `element`, so its handlers are attached.
+ *
+ * A server-rendered form takes input before hydration, and hydration then resets its
+ * controlled fields: under parallel load the test typed an email that hydration erased. React
+ * marks every hydrated node with a `__reactProps$<id>` key, and the user has no other signal.
+ */
+export async function expectHydrated(element: Locator): Promise<void> {
+  await expect
+    .poll(() =>
+      element.evaluate((el) => Object.keys(el).some((k) => k.startsWith("__reactProps$"))),
+    )
+    .toBe(true);
+}
+
 /** Signs in with a seeded dev account through the English login form. */
 export async function devLogin(page: Page, email: string): Promise<void> {
   await page.goto("/login");
-  // The fields are controlled: text typed before React hydrates them is lost under load.
-  await page.waitForFunction(() => {
-    const input = document.querySelector("input[name=email]");
-    return input !== null && Object.keys(input).some((key) => key.startsWith("__reactProps"));
-  });
+  await expectHydrated(page.getByRole("form", { name: "Sign in with a test account" }));
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(DEV_PASSWORD);
   await page.getByRole("button", { name: "Sign in with a test account" }).click();

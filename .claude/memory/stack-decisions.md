@@ -23,8 +23,9 @@ The bootstrap settled the frontend and backend framework:
   adapter is Kysely and migrations stay hand-reviewed; revisit Drizzle only
   once its 1.0 is stable.
 - **Real PostgreSQL 18 everywhere:** development (`pnpm dev:db`, the
-  `compose.dev.yaml` stack), unit tests (`edulims_test`, a rolled-back
-  transaction per test) and e2e (`edulims_e2e`); PGlite was removed (owner:
+  `compose.dev.yaml` stack), unit tests (a run database beside
+  `edulims_test`, a rolled-back transaction per test) and e2e (a run
+  database beside `edulims_e2e`); PGlite was removed (owner:
   "build it directly on the proper postgres server").
 - **Docs site:** Astro Starlight in `website/` on GitHub Pages at
   <https://edulims.eu>, English everywhere plus Dutch user guides; chosen over

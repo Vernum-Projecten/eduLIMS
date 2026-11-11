@@ -5,6 +5,7 @@
 import { readFileSync } from "node:fs";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { devLogin, expectNoA11yViolations } from "./fixtures";
+import { appUrl } from "./run-env";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
   readFileSync(new URL("../../messages/nl.json", import.meta.url), "utf8"),
@@ -193,9 +194,7 @@ test("an IdP sign-in with conflicting roles is explained", async ({ page }) => {
 test.describe("axe with the switcher open", () => {
   for (const theme of ["light", "dark"] as const) {
     test(`is clean in the ${theme} theme`, async ({ page, context }) => {
-      await context.addCookies([
-        { name: "EDULIMS_THEME", value: theme, url: "http://localhost:3100" },
-      ]);
+      await context.addCookies([{ name: "EDULIMS_THEME", value: theme, url: appUrl() }]);
       await devLogin(page, COORDINATOR);
       await expect(page).toHaveURL(/\/teacher$/);
       await openSwitcher(page);
@@ -206,9 +205,7 @@ test.describe("axe with the switcher open", () => {
   test("is translated and clean in Dutch", async ({ page, context }) => {
     await devLogin(page, COORDINATOR);
     await expect(page).toHaveURL(/\/teacher$/);
-    await context.addCookies([
-      { name: "EDULIMS_LOCALE", value: "nl", url: "http://localhost:3100" },
-    ]);
+    await context.addCookies([{ name: "EDULIMS_LOCALE", value: "nl", url: appUrl() }]);
     await page.goto("/teacher");
     await expect(page.locator("html")).toHaveAttribute("lang", "nl");
     const trigger = page.getByRole("button", { name: new RegExp(dutch("portal_switcher_open")) });
@@ -229,11 +226,20 @@ test("on the collapsed rail the switcher shows the icon with the portal name as 
 }) => {
   await devLogin(page, COORDINATOR);
   await expect(page).toHaveURL(/\/teacher$/);
-  await page.keyboard.press("ControlOrMeta+b");
+  // The URL changes before the portal layout renders; the toggle shows it is there to collapse.
+  const toggle = page.getByRole("banner").getByRole("button", { name: "Show or hide the sidebar" });
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await toggle.focus();
+  await page.keyboard.press("Enter");
+  // The tooltip shows only on the collapsed rail, so the test goes on once the rail is collapsed.
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await page.waitForFunction(() => document.getAnimations().length === 0);
   const trigger = switcher(page);
   await trigger.focus();
-  await expect(page.getByRole("tooltip")).toHaveText("Teacher portal");
+  await expect(trigger).toBeFocused();
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toHaveText("Teacher portal");
   await page.keyboard.press("Enter");
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();

@@ -182,8 +182,9 @@ jobs:
   # Unit tests with coverage. vitest.config.ts holds the 70% thresholds the
   # maintainability requirement sets for the core, so a drop fails here. The
   # database tests run on a PostgreSQL 18 service container (the image of the
-  # e2e lane): the Vitest global setup empties and migrates `edulims_test`,
-  # and every test runs in a transaction that is rolled back.
+  # e2e lane): the Vitest global setup creates and migrates a run database
+  # beside `edulims_test`, and every test runs in a transaction that is
+  # rolled back.
   test:
     name: test
     needs: install
