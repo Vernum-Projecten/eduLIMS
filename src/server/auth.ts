@@ -17,6 +17,7 @@ import { createIdpRoleSync } from "./idp-sync.ts";
 import { applySavedLocaleOnSignIn } from "./preferences/locale-cookie.ts";
 import { refuseOwnRoleWrites, roleWriteHooks } from "./role-guard.ts";
 import { SESSION_EXPIRES_IN_SECONDS, SESSION_UPDATE_AGE_SECONDS } from "./session-policy.ts";
+import { lastSignInMethod, lastSignInTime } from "./users/sign-in-tracking.ts";
 
 /** Where an identity provider returns the user after signing out of it: the eduLIMS sign-in page. */
 export const POST_LOGOUT_PATH = "/login";
@@ -118,6 +119,9 @@ export function createAuth(env: Env, database: BetterAuthOptions["database"] = g
         locale: { type: "string", required: false, input: false },
         // The portal last picked in the portal switcher (ADR 0012); only saveLastPortal writes it.
         lastPortal: { type: "string", required: false, input: false, fieldName: "last_portal" },
+        // Where the role set comes from (hybrid ownership, #32); only the IdP sync and the
+        // Users screen's local role edit write it.
+        roleSource: { type: "string", required: false, input: false, fieldName: "role_source" },
       },
       validateUserInfo: createIdpRoleSync({
         claimPaths: {
@@ -137,6 +141,9 @@ export function createAuth(env: Env, database: BetterAuthOptions["database"] = g
       genericOAuth({ config: keycloakProviders(env) }),
       // The activity log (B4): sign-ins, sign-outs, sessions, users and the admin endpoints.
       auditLog(auditDatabase(database)),
+      // The last sign-in method and time for the Users screen and the login hint (#34).
+      lastSignInMethod(),
+      lastSignInTime(auditDatabase(database)),
       // Must stay last: forwards better-auth Set-Cookie headers through TanStack Start.
       tanstackStartCookies(),
     ],

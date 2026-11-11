@@ -56,14 +56,73 @@ eduLIMS is in English and Dutch. Choose the language button in the header
 are signed in, eduLIMS saves the choice to your account, so it also applies
 the next time you sign in, on any device.
 
+## Users and roles
+
+**Users and roles** lists every account of eduLIMS, 25 to a page. Each row
+shows the name and e-mail address, the roles with where they come from
+(Microsoft Entra ID, Keycloak or eduLIMS), the sign-in methods, the status
+(**Active**, **Blocked** or **Never signed in**), the last sign-in and the
+number of active sessions. The screen shows no grades, results or
+submissions.
+
+- **Search** by part of a name or an e-mail address, then press **Enter** or
+  choose **Search**.
+- **Filter** on a role, a sign-in method or a status. The search and the
+  filters are part of the address, so you can bookmark or share a filtered
+  view. **Clear search and filters** shows everyone again.
+- **Sort** by name or by last sign-in with the column headers, and page
+  through the list with **Previous page** and **Next page**. **Rows per page**
+  shows 10, 25, 50 or 100 users.
+
+Choose a name to open the user's details beside the list. The details have
+their own address, so you can share a link to one user. They show:
+
+- **Profile:** when the account was created, the last sign-in and its
+  method, and the saved language and portal.
+- **Roles:** the user's roles and where they come from (see below).
+- **Block:** block or unblock the user.
+- **Active sessions:** the browsers and devices the user is signed in on.
+  **End session** signs the user out on one device, **End all sessions** on
+  every device. On your own account you cannot end the session you are using
+  (sign out instead); **End all other sessions** keeps it open.
+- **Linked accounts:** the identity-provider accounts linked to the user.
+- **Recent activity:** the last ten events of the activity log about or by
+  this user.
+
+Every action asks you to confirm it first, says in a message whether it
+worked, and is recorded in the activity log.
+
+### Block a user
+
+Choose **Block user**, write the reason and, if the block should end by
+itself, choose its last day. A blocked user is signed out at once, and every
+sign-in is refused, through Microsoft Entra ID and Keycloak too, until the
+last day has passed or you choose **Unblock**. Only administrators see the
+reason. You cannot block your own account.
+
 ## Give a user a role
 
 eduLIMS knows three roles: `student`, `teacher` and `admin`. A user without a
 role cannot use eduLIMS, and sees a message that asks them to contact an
-administrator.
+administrator. A user holds one role, or both teacher and administrator; a
+student cannot hold another role.
 
-Today the role comes from the identity provider. At every sign-in, eduLIMS
-reads the user's roles from the ID token and maps them to an eduLIMS role:
+A user's roles come either from the identity provider or from eduLIMS:
+
+- **From the identity provider.** When the identity provider sends an
+  eduLIMS role, it decides: eduLIMS sets the user's roles from it at every
+  sign-in, and the details show **From Microsoft Entra ID** or
+  **From Keycloak**. Change these roles in the identity provider; the change
+  applies at the user's next sign-in.
+- **From eduLIMS.** When the identity provider sends no eduLIMS role, the
+  roles an administrator assigned in eduLIMS apply, and the details show
+  **From eduLIMS**. Change them in the details under **Change roles**: tick
+  the roles and choose **Save roles**. The change applies at once.
+
+Nobody can change their own roles; ask another administrator.
+
+At every sign-in, eduLIMS reads the user's roles from the ID token and maps
+them to an eduLIMS role:
 
 - **Microsoft Entra ID:** assign the app role `edulims-student`,
   `edulims-teacher` or `edulims-admin` of the eduLIMS app registration to the
@@ -73,13 +132,6 @@ reads the user's roles from the ID token and maps them to an eduLIMS role:
 
 The change applies at the user's next sign-in. The role names are
 configurable ([Identity providers](/operations/identity-providers/)).
-
-:::note
-Whether roles are owned by the identity provider, by eduLIMS, or by the
-provider with an override in the admin portal is an open question for the
-product owner ([ADR 0010](/development/decisions/0010-vendor-neutral-oidc-entra-and-keycloak/)).
-Role editing in the admin portal waits for that answer.
-:::
 
 ## Planned tasks
 

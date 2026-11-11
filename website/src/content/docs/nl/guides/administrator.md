@@ -56,16 +56,80 @@ taalknop (daarop staat de huidige taal, bijvoorbeeld **Nederlands**) en kies
 ingelogd, dan bewaart eduLIMS je keuze bij je account. Die geldt dan ook de
 volgende keer dat je inlogt, op elk apparaat.
 
+## Gebruikers en rollen
+
+**Gebruikers en rollen** toont elk account van eduLIMS, 25 per pagina. Elke
+rij toont de naam en het e-mailadres, de rollen en waar ze vandaan komen
+(Microsoft Entra ID, Keycloak of eduLIMS), de aanmeldmethoden, de status
+(**Actief**, **Geblokkeerd** of **Nooit aangemeld**), de laatste aanmelding
+en het aantal actieve sessies. Het scherm toont geen cijfers, resultaten of
+inleveringen.
+
+- **Zoek** op een deel van een naam of e-mailadres en druk op **Enter** of
+  kies **Zoeken**.
+- **Filter** op een rol, een aanmeldmethode of een status. De zoekopdracht en
+  de filters staan in het adres, dus je kunt een gefilterde weergave als
+  bladwijzer bewaren of delen. **Zoekopdracht en filters wissen** toont
+  iedereen weer.
+- **Sorteer** op naam of op laatste aanmelding met de kolomkoppen en blader
+  met **Vorige pagina** en **Volgende pagina**. **Rijen per pagina** toont
+  10, 25, 50 of 100 gebruikers.
+
+Kies een naam om de gegevens van die gebruiker naast de lijst te openen. De
+gegevens hebben een eigen adres, dus je kunt een link naar één gebruiker
+delen. Ze tonen:
+
+- **Profiel:** wanneer het account is aangemaakt, de laatste aanmelding en
+  de methode daarvan, en de opgeslagen taal en het opgeslagen portaal.
+- **Rollen:** de rollen van de gebruiker en waar ze vandaan komen (zie
+  hieronder).
+- **Blokkade:** de gebruiker blokkeren of deblokkeren.
+- **Actieve sessies:** de browsers en apparaten waarop de gebruiker is
+  aangemeld. **Sessie beëindigen** meldt de gebruiker af op één apparaat,
+  **Alle sessies beëindigen** op elk apparaat. Op je eigen account kun je de
+  sessie die je gebruikt niet beëindigen (meld je af); **Alle andere sessies
+  beëindigen** laat die open.
+- **Gekoppelde accounts:** de accounts bij de identity provider die aan de
+  gebruiker zijn gekoppeld.
+- **Recente activiteit:** de laatste tien gebeurtenissen uit het
+  activiteitenlogboek over of door deze gebruiker.
+
+Elke actie vraagt eerst om een bevestiging, meldt of hij gelukt is en komt
+in het activiteitenlogboek.
+
+### Een gebruiker blokkeren
+
+Kies **Gebruiker blokkeren**, schrijf de reden op en kies, als de blokkade
+vanzelf moet aflopen, de laatste dag. Een geblokkeerde gebruiker wordt
+meteen afgemeld, en elke aanmelding wordt geweigerd, ook via Microsoft Entra
+ID en Keycloak, tot de laatste dag voorbij is of je **Deblokkeren** kiest.
+Alleen beheerders zien de reden. Je kunt je eigen account niet blokkeren.
+
 ## Een gebruiker een rol geven
 
 eduLIMS kent drie rollen: student, docent en beheerder (in de configuratie
 `student`, `teacher` en `admin`). Een gebruiker zonder rol kan eduLIMS niet
 gebruiken en krijgt een melding dat hij contact moet opnemen met een
-beheerder.
+beheerder. Een gebruiker heeft één rol, of docent en beheerder samen; een
+student kan geen andere rol hebben.
 
-Op dit moment komt de rol uit de identity provider. Bij elke keer inloggen
-leest eduLIMS de rollen uit het ID-token en zet ze om naar een rol in
-eduLIMS:
+De rollen van een gebruiker komen uit de identity provider of uit eduLIMS:
+
+- **Uit de identity provider.** Stuurt de identity provider een rol voor
+  eduLIMS mee, dan beslist die: eduLIMS zet de rollen bij elke aanmelding
+  opnieuw, en de gegevens tonen **Via Microsoft Entra ID** of
+  **Via Keycloak**. Wijzig deze rollen in de identity provider; de wijziging
+  werkt vanaf de volgende aanmelding.
+- **Uit eduLIMS.** Stuurt de identity provider geen rol voor eduLIMS mee,
+  dan gelden de rollen die een beheerder in eduLIMS heeft toegekend, en de
+  gegevens tonen **Via eduLIMS**. Wijzig ze in de gegevens onder **Rollen
+  wijzigen**: vink de rollen aan en kies **Rollen opslaan**. De wijziging
+  werkt meteen.
+
+Niemand kan zijn eigen rollen wijzigen; vraag een andere beheerder.
+
+Bij elke keer inloggen leest eduLIMS de rollen uit het ID-token en zet ze om
+naar een rol in eduLIMS:
 
 - **Microsoft Entra ID:** wijs de app-rol `edulims-student`,
   `edulims-teacher` of `edulims-admin` van de app-registratie van eduLIMS toe
@@ -75,13 +139,6 @@ eduLIMS:
 
 De wijziging werkt vanaf de volgende keer dat de gebruiker inlogt. De namen
 van de rollen zijn instelbaar ([Identity providers](/operations/identity-providers/)).
-
-:::note
-Of rollen worden beheerd in de identity provider, in eduLIMS, of in de
-provider met een uitzondering in het Beheerportaal, is nog een open vraag
-voor de producteigenaar ([ADR 0010](/development/decisions/0010-vendor-neutral-oidc-entra-and-keycloak/)).
-Rollen bewerken in het Beheerportaal wacht op dat antwoord.
-:::
 
 ## Geplande taken
 

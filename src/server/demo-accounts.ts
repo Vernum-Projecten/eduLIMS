@@ -38,6 +38,15 @@ export const DEV_USERS = [
     roles: ["teacher", "admin"],
     hidden: true,
   },
+  // The Users screen's e2e journeys (#34): blocked and unblocked, sessions ended, roles edited.
+  { email: "blocked@example.test", name: "Blocked Test Student", roles: ["student"], hidden: true },
+  {
+    email: "sessions@example.test",
+    name: "Sessions Test Teacher",
+    roles: ["teacher"],
+    hidden: true,
+  },
+  { email: "roles@example.test", name: "Roles Test Teacher", roles: ["teacher"], hidden: true },
 ] as const satisfies readonly DevUser[];
 
 /** The realm of the development Keycloak (compose.dev.yaml). */

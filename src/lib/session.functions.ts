@@ -3,8 +3,11 @@
 
 // Server functions callable from loaders/beforeLoad on both sides; bodies run on the server.
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
+import { getCookie, getRequestHeaders } from "@tanstack/react-start/server";
+import { hostCookieName } from "@/lib/cookies";
+import { LAST_SIGN_IN_METHOD_COOKIE, offeredSignInMethod } from "@/lib/sign-in-method";
 import { identityProviders } from "@/server/auth";
+import { isSecureOrigin } from "@/server/cookie-security";
 import { demoAccountsFor } from "@/server/demo-accounts";
 import { getEnv } from "@/server/env";
 import { getSessionUser } from "@/server/session";
@@ -25,5 +28,10 @@ export const getLoginOptions = createServerFn({ method: "GET" }).handler(() => {
     providers,
     devLogin: env.EDULIMS_DEV_LOGIN,
     demoAccounts: demoAccountsFor(env.EDULIMS_DEV_LOGIN, providers),
+    lastSignInMethod: offeredSignInMethod(
+      getCookie(hostCookieName(LAST_SIGN_IN_METHOD_COOKIE, isSecureOrigin())),
+      providers.map((provider) => provider.id),
+      env.EDULIMS_DEV_LOGIN,
+    ),
   };
 });

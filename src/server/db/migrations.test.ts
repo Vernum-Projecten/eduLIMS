@@ -58,6 +58,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0007_user_role_source", "Success"],
       ["0006_session_absolute_lifetime", "Success"],
       ["0005_audit_event", "Success"],
       ["0004_user_role_check", "Success"],
@@ -75,6 +76,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0007_user_role_source", "Success"],
       ["0006_session_absolute_lifetime", "Success"],
       ["0005_audit_event", "Success"],
       ["0004_user_role_check", "Success"],
@@ -92,6 +94,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0007_user_role_source", "Success"],
       ["0006_session_absolute_lifetime", "Success"],
       ["0005_audit_event", "Success"],
       ["0004_user_role_check", "Success"],
@@ -131,8 +134,9 @@ describe("migrations", () => {
         .executeTakeFirstOrThrow();
     expect((await insertSession(db, "capped")).expiresAt).toEqual(new Date("2026-11-12T08:00:00Z"));
     const migrator = createMigrator(db);
-    const down = await migrator.migrateDown();
+    const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0007_user_role_source", "Success"],
       ["0006_session_absolute_lifetime", "Success"],
     ]);
     expect((await insertSession(db, "uncapped")).expiresAt).toEqual(

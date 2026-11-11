@@ -48,9 +48,13 @@ both.
   be seeded from the provider's role claim on every OIDC sign-in
   (`OIDC_ROLE_CLAIM`, `OIDC_ROLE_MAP`; no mapped role means no access unless
   `OIDC_DEFAULT_ROLE` is set), and the eduLIMS database is the source the
-  checks read. Who owns role assignment (provider vs Admin portal, B1) is an
-  open owner question in ADR 0010; do not build role editing before it is
-  answered.
+  checks read. Role ownership is **hybrid** (owner decision on #32): a
+  mapped role the IdP sends is authoritative and replaces the set, with the
+  provider stored in `user.role_source`; without one, a set an administrator
+  assigned in eduLIMS (`role_source = 'local'`) applies
+  (`src/server/role-ownership.ts`). Only a local set is editable in the
+  Admin portal (`setLocalRoles`, which writes its `authz_role_change` row in
+  the same transaction).
 - **A user holds a role set, not a ranking** (ADR 0012). The allowed sets
   are {student}, {teacher}, {admin} and {teacher, admin}; student is never
   combined with another role. `validateRoleSet` (`src/lib/roles.ts`) is the
@@ -62,8 +66,8 @@ both.
   better-auth's admin permission check splits the raw string. Nobody changes
   their own roles: the `hooks.before` guard `refuseOwnRoleWrites` answers a
   `set-role` or `update-user` `data.role` on the session user's own id with
-  403 `cannot_change_own_roles`, until the owner decides who owns role
-  assignment. A sign-in refused for no role or a role conflict also revokes
+  403 `cannot_change_own_roles` (owner decision on #32), and `setLocalRoles`
+  refuses the same. A sign-in refused for no role or a role conflict also revokes
   that user's live sessions (A07). No role implies another: check the specific role a
   function needs (`requireRole("teacher")`), never "admin or higher". An
   administrator who is also a teacher reaches results only as a teacher, of
