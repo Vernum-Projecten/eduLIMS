@@ -178,7 +178,8 @@ sets squash-only merges with auto-merge and branch deletion, the `main`,
 `release-branches` and `release-tags` rulesets, the `release` environment, secret scanning with push protection, Dependabot
 alerts and security updates, private vulnerability reporting, the CodeQL
 default setup off (`codeql.yml` is the advanced setup), a read-only default
-`GITHUB_TOKEN`, required SHA pinning of actions, and immutable releases.
+`GITHUB_TOKEN`, required SHA pinning of actions, immutable releases, the About section
+(description, homepage, topics) and GitHub Pages on `edulims.eu` with HTTPS.
 
 The tracker helpers under `scripts/gh/` each carry a `--self-test`:
 

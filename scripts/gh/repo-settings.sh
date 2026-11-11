@@ -22,7 +22,9 @@
 #     default setup off (codeql.yml is the advanced setup);
 #   * Actions: a read-only default GITHUB_TOKEN that may not approve pull
 #     requests, and actions pinned to a full commit SHA;
-#   * immutable releases.
+#   * immutable releases;
+#   * the About section (description, homepage, topics; no wiki) and GitHub
+#     Pages built by a workflow on the custom domain edulims.eu with HTTPS.
 # A setting the plan or the API does not offer is reported as `skipped` with
 # the API's answer, and the run goes on.
 #
@@ -101,6 +103,26 @@ ruleset() {
 }
 
 apply() {
+  echo "== about =="
+  api required PATCH "repos/$REPO" '{
+    "description": "Open-source laboratory information management system (LIMS) for practical laboratory education. Samples, analyser results via openEHR and HL7 v2, rubric grading and KPI dashboards. TypeScript, TanStack Start, PostgreSQL.",
+    "homepage": "https://edulims.eu",
+    "has_wiki": false,
+    "has_projects": true,
+    "has_discussions": false
+  }'
+  api required PUT "repos/$REPO/topics" '{
+    "names": ["lims", "laboratory-information-management-system", "laboratory", "education",
+      "edtech", "openehr", "hl7", "hl7v2", "health-it", "life-sciences", "typescript", "react",
+      "tanstack-start", "better-auth", "postgresql", "docker", "slsa", "wcag", "accessibility",
+      "i18n"]
+  }'
+
+  echo "== pages =="
+  api optional POST "repos/$REPO/pages" '{ "build_type": "workflow" }'
+  api required PUT "repos/$REPO/pages" '{ "build_type": "workflow", "cname": "edulims.eu" }'
+  api optional PUT "repos/$REPO/pages" '{ "https_enforced": true }'
+
   echo "== merging =="
   api required PATCH "repos/$REPO" '{
     "allow_squash_merge": true,
