@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { m } from "@/i18n/messages";
 import { paraglideMiddleware } from "@/i18n/server";
 import { ROLES } from "@/lib/roles";
-import { providerLabel, roleLabel } from "./labels";
+import { THEMES } from "@/lib/theme";
+import { providerLabel, roleLabel, themeLabel } from "./labels";
 
 /** Runs `fn` inside a request whose locale cookie is `locale`, as the server entry does. */
 async function inLocale<T>(locale: "en" | "nl", fn: () => T): Promise<T> {
@@ -46,5 +47,16 @@ describe("providerLabel", () => {
   it("shows the operator's KEYCLOAK_LABEL as configured", async () => {
     const provider = { id: "keycloak", label: "Sign in with Campus ID" } as const;
     expect(await inLocale("nl", () => providerLabel(provider))).toBe("Sign in with Campus ID");
+  });
+});
+
+describe("themeLabel", () => {
+  it("names the themes in English and Dutch", async () => {
+    expect(THEMES.map(themeLabel)).toEqual(["Light", "Dark", "System"]);
+    expect(await inLocale("nl", () => THEMES.map(themeLabel))).toEqual([
+      "Licht",
+      "Donker",
+      "Systeem",
+    ]);
   });
 });

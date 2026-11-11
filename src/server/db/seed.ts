@@ -3,21 +3,10 @@
 
 // CLI: `pnpm db:seed`. Creates the dev-login users (idempotent). Refuses to run unless
 // EDULIMS_DEV_LOGIN=true, which env validation in turn refuses in production.
-import type { Role } from "../../lib/roles.ts";
 import { getAuth } from "../auth.ts";
+import { DEV_PASSWORD, DEV_USERS } from "../demo-accounts.ts";
 import { getEnv } from "../env.ts";
 import { getDb } from "./index.ts";
-
-/** Shared password for all dev users; never valid outside a dev/test database. */
-export const DEV_PASSWORD = "eduLIMS-dev-only";
-
-export const DEV_USERS = [
-  { email: "student@example.test", name: "Test Student", role: "student" },
-  { email: "teacher@example.test", name: "Test Teacher", role: "teacher" },
-  { email: "admin@example.test", name: "Test Administrator", role: "admin" },
-  // Changes its saved language in the e2e suite, so the other accounts keep the default.
-  { email: "language@example.test", name: "Language Test Student", role: "student" },
-] as const satisfies readonly { email: string; name: string; role: Role }[];
 
 if (!getEnv().EDULIMS_DEV_LOGIN) {
   console.error("Refusing to seed: EDULIMS_DEV_LOGIN is not enabled.");
