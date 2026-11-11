@@ -3,6 +3,7 @@
 
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { BrandMark } from "@/components/brand-mark";
 import { useApplePlatform, useSwitchPortal } from "@/components/shell/use-switch-portal";
 import {
   DropdownMenu,
@@ -23,14 +24,14 @@ import { m } from "@/i18n/messages";
 import type { PortalNavigation } from "@/lib/navigation";
 import { portalAriaShortcut, portalShortcutLabel } from "@/lib/portal-shortcuts";
 
-/** The square tile with the portal's icon and its name, as in the sidebar-07 team switcher. */
+/**
+ * The logo tile and the current portal's name, as in the sidebar-07 team switcher: the tile is
+ * the eduLIMS Microplate mark, the subtitle the product name.
+ */
 function PortalIdentity({ portal }: Readonly<{ portal: PortalNavigation }>) {
-  const Icon = portal.icon;
   return (
     <>
-      <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-        <Icon aria-hidden="true" className="size-4" />
-      </div>
+      <BrandMark className="aspect-square size-8! shrink-0" />
       <div className="grid flex-1 text-left text-sm leading-tight">
         <span className="truncate font-medium">{portal.label()}</span>
         <span className="truncate text-xs">eduLIMS</span>
@@ -39,7 +40,7 @@ function PortalIdentity({ portal }: Readonly<{ portal: PortalNavigation }>) {
   );
 }
 
-/** The portal's name as a tooltip on the collapsed rail, where only the icon shows. */
+/** The portal's name as a tooltip on the collapsed rail, where only the logo tile shows. */
 function RailTooltip({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   const { isMobile, state } = useSidebar();
   return (

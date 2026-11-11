@@ -4,7 +4,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -14,8 +13,8 @@ import { m } from "@/i18n/messages";
 import { type NavItem, normalizePath, type PortalNavigation } from "@/lib/navigation";
 
 /**
- * The portal navigation (from the sidebar-07 block's `NavMain`): one group per portal given
- * (the current portal), with its overview and sections. The current page carries
+ * The portal navigation (from the sidebar-07 block's `NavMain`): one group per portal given,
+ * without a label because the portal switcher above names the portal. The current page carries
  * `aria-current="page"`; collapsed to icons, every item shows its label as a tooltip.
  */
 export function NavMain({ portals }: Readonly<{ portals: readonly PortalNavigation[] }>) {
@@ -26,7 +25,6 @@ export function NavMain({ portals }: Readonly<{ portals: readonly PortalNavigati
     <nav aria-label={m.main_menu()}>
       {portals.map((portal) => (
         <SidebarGroup key={portal.role}>
-          <SidebarGroupLabel>{portal.label()}</SidebarGroupLabel>
           <SidebarMenu>
             {[portal.overview, ...portal.sections].map((item) => (
               <NavMainItem
