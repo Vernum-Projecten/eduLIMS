@@ -13,6 +13,8 @@ packages:
   - website
 
 permissions:
+  '@tanstack/charts':
+    skills: [build-chart-interactions, compose-marks-and-views, configure-scales-guides-color, coordinate-charts-with-tanstack, debug-and-verify-charts, design-a-chart, design-responsive-charts, extend-tanstack-charts, migrate-to-tanstack-charts, prepare-chart-data, ship-accessible-charts, update-and-animate-charts]
   "@tanstack/react-hotkeys":
     skills: true
   "@tanstack/react-router":
@@ -21,3 +23,7 @@ permissions:
     skills: true
   "@tanstack/react-table":
     skills: true
+
+skills:
+  dirs:
+    - .claude/skills
