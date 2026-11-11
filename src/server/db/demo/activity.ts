@@ -5,7 +5,12 @@
 // sign-ins and sign-outs, failed and refused sign-ins, role changes, blocks and ended sessions.
 // Ids and codes only, as recordAudit accepts them.
 import type { AuditEvent } from "../../audit/events.ts";
-import type { DemoPeople, DemoUser } from "./people.ts";
+import {
+  DEMO_OIDC_PROVIDER,
+  DEMO_SAML_PROVIDER,
+  type DemoPeople,
+  type DemoUser,
+} from "./people.ts";
 import type { DemoRandom } from "./random.ts";
 
 const DAY = 86_400_000;
@@ -71,7 +76,7 @@ function failures(random: DemoRandom, now: Date, users: readonly DemoUser[]): Au
       actor: { type: "anonymous" },
       outcome: "failure",
       reason: random.pick(["access_denied", "state_not_found", "invalid_code"] as const),
-      provider: random.pick(["microsoft", "keycloak"] as const),
+      provider: random.pick([DEMO_OIDC_PROVIDER, DEMO_SAML_PROVIDER] as const),
       occurredAt: at(now, random.int(1, DEMO_ACTIVITY_DAYS), random),
       requestId: requestId(random),
     });
@@ -82,7 +87,7 @@ function failures(random: DemoRandom, now: Date, users: readonly DemoUser[]): Au
       actor: { type: "anonymous" },
       outcome: "refused",
       reason: "no_edulims_role",
-      provider: "keycloak",
+      provider: DEMO_OIDC_PROVIDER,
       occurredAt: at(now, random.int(1, DEMO_ACTIVITY_DAYS), random),
       requestId: requestId(random),
     });

@@ -3,6 +3,7 @@
 
 // The fictional demo people of `pnpm db:seed`: users, their SSO accounts and their sessions,
 // planned from a fixed seed and a reference time, without I/O. Every address is @example.test.
+import { type ProviderId, providerIdOf } from "../../../lib/identity-providers.ts";
 import { formatRoles, type Role } from "../../../lib/roles.ts";
 import { FAMILY_NAMES, GIVEN_NAMES } from "./names.ts";
 import type { DemoRandom } from "./random.ts";
@@ -11,7 +12,11 @@ const DAY = 86_400_000;
 const HOUR = 3_600_000;
 
 /** The SSO providers a demo account comes from; demo people never get a password. */
-export type DemoProvider = "microsoft" | "keycloak";
+export type DemoProvider = ProviderId;
+
+/** The development Keycloak's OIDC and SAML providers, which `pnpm db:seed` registers. */
+export const DEMO_OIDC_PROVIDER = providerIdOf("keycloak");
+export const DEMO_SAML_PROVIDER = providerIdOf("keycloak-saml");
 
 /** How many demo people of each role set the plan creates. */
 export const DEMO_GROUPS = [
@@ -108,7 +113,7 @@ function planUsers(random: DemoRandom, now: Date): DemoUser[] {
         locale: random.pick(["en", "nl", "nl", null] as const),
         lastPortal: multiRole ? random.pick(["teacher", "admin"] as const) : null,
         createdAt: new Date(now.getTime() - random.int(50, 56) * DAY - random.int(0, 8) * HOUR),
-        provider: random.chance(0.65) ? "microsoft" : "keycloak",
+        provider: random.chance(0.65) ? DEMO_OIDC_PROVIDER : DEMO_SAML_PROVIDER,
         ban: null,
       });
     }
@@ -139,7 +144,7 @@ function planAccounts(random: DemoRandom, users: readonly DemoUser[]): DemoAccou
       accounts.push({
         id: random.id(),
         userId: user.id,
-        providerId: user.provider === "microsoft" ? "keycloak" : "microsoft",
+        providerId: user.provider === DEMO_OIDC_PROVIDER ? DEMO_SAML_PROVIDER : DEMO_OIDC_PROVIDER,
         accountId: random.hex(32),
         createdAt: new Date(user.createdAt.getTime() + 2 * DAY),
       });

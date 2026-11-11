@@ -86,7 +86,12 @@ test("switching to Dutch changes the UI and <html lang>, and the choice sticks",
   await expect(page.locator("html")).toHaveAttribute("lang", "nl");
   await expect(page.getByRole("heading", { level: 1, name: dutch("sign_in") })).toBeVisible();
   await expect(page).toHaveTitle(`${dutch("sign_in")} | eduLIMS`);
-  await expect(page.getByRole("button", { name: dutch("login_microsoft") })).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: dutch("login_with_provider", { provider: "Keycloak" }),
+      exact: true,
+    }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: dutch("skip_to_content") })).toBeAttached();
   const dutchTrigger = dutch("language_menu_trigger", { language: "Nederlands" });
   await expect(page.getByRole("button", { name: dutchTrigger })).toBeVisible();

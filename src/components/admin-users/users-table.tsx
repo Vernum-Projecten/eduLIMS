@@ -5,6 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { functionalUpdate, type RowSelectionState, useTable } from "@tanstack/react-table";
 import { GraduationCapIcon, PresentationIcon, ShieldCheckIcon, UsersIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useProviderLabels } from "@/components/admin-users/provider-labels";
 import { STATUS_ICONS } from "@/components/admin-users/user-badges";
 import { UsersBulkActions } from "@/components/admin-users/users-bulk-actions";
 import { usersColumns } from "@/components/admin-users/users-columns";
@@ -177,6 +178,7 @@ export function UsersTable({
   const providers = table.getColumn("providers");
   const status = table.getColumn("status");
   const pages = Math.max(1, table.getPageCount());
+  const labels = useProviderLabels();
   const context = useMemo(() => ({ readAt: page.readAt, selfId }), [page.readAt, selfId]);
 
   return (
@@ -205,7 +207,7 @@ export function UsersTable({
               title={m.admin_users_filter_provider()}
               options={page.providerOptions.map((provider) => ({
                 value: provider,
-                label: signInMethodLabel(provider),
+                label: signInMethodLabel(provider, labels),
               }))}
               counts={page.facets.provider}
             />

@@ -18,11 +18,12 @@ Each significant architecture or technology decision is recorded here in the
 | [0007](0007-node-26-lts-and-pnpm-12.md) | Node.js 26 LTS and pnpm 12 | Accepted |
 | [0008](0008-docker-compose-ghcr-slsa.md) | Docker Compose on one VM, images on GHCR, SLSA Build Level 3 | Accepted |
 | [0009](0009-no-ai-attribution-human-review.md) | No AI attribution; human review of every change | Accepted |
-| [0010](0010-vendor-neutral-oidc-entra-and-keycloak.md) | Vendor-neutral sign-in: Microsoft Entra ID and Keycloak | Accepted |
+| [0010](0010-vendor-neutral-oidc-entra-and-keycloak.md) | Vendor-neutral sign-in: Microsoft Entra ID and Keycloak | Superseded by 0015 |
 | [0011](0011-english-code-and-i18n.md) | English code and an internationalised UI with Paraglide JS | Proposed |
 | [0012](0012-multiple-roles-and-portal-switcher.md) | Multiple roles per user and a portal switcher | Proposed |
 | [0013](0013-internal-transport-security.md) | Transport security inside the Compose stack | Proposed |
 | [0014](0014-session-lifetimes.md) | Session lifetimes: 8 hours sliding, 24 hours at most | Proposed |
+| [0015](0015-runtime-identity-providers.md) | Identity providers at runtime with the better-auth SSO plugin | Proposed |
 | [0016](0016-charts-tanstack-charts.md) | Charts: TanStack Charts, through one accessible wrapper | Proposed |
 
 ## Adding a record

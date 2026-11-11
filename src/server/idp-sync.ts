@@ -3,21 +3,35 @@
 
 import "@tanstack/react-start/server-only";
 import type { BetterAuthOptions } from "better-auth";
-import { NO_ROLE_ERROR, ROLE_CONFLICT_ERROR } from "../lib/identity-providers.ts";
-import { idpRoleSource, LOCAL_ROLE_SOURCE, parseRoleSource } from "../lib/role-source.ts";
-import { formatRoles, type Role, validateRoleValue } from "../lib/roles.ts";
+import {
+  NO_ROLE_ERROR,
+  PROVIDER_DISABLED_ERROR,
+  ROLE_CONFLICT_ERROR,
+  SAML_NAMEID_ERROR,
+} from "../lib/identity-providers.ts";
+import { LOCAL_ROLE_SOURCE, parseRoleSource } from "../lib/role-source.ts";
+import { formatRoles, validateRoleValue } from "../lib/roles.ts";
 import { auditRecorderOf, requestIdOf } from "./audit/better-auth-hooks.ts";
 import { auditProvider } from "./audit/events.ts";
-import { type RoleMap, resolveIdpRoles } from "./idp-roles.ts";
-import { decideSignInRoles, type StoredRoles } from "./role-ownership.ts";
+import type { ProviderSettingsView } from "./idp/registry.ts";
+import { hasPersistentNameId } from "./idp/saml-nameid.ts";
+import { TEST_COMPLETE_ERROR, type TestOutcome } from "./idp/test-flow.ts";
+import { type IdpRoles, resolveIdpRoles } from "./idp-roles.ts";
+import { decideSignInRoles, type SignInRoles, type StoredRoles } from "./role-ownership.ts";
 
 type ValidateUserInfo = NonNullable<NonNullable<BetterAuthOptions["user"]>["validateUserInfo"]>;
+type GateContext = Parameters<ValidateUserInfo>[1];
 
+/** What the sign-in gate reads, injected so it tests without a database. */
 export interface IdpRoleSyncOptions {
-  /** Claim path per OIDC provider id (`microsoft`, `keycloak`). */
-  claimPaths: Readonly<Record<string, string>>;
-  roleMap: RoleMap;
-  defaultRole?: Role | undefined;
+  /** The provider's settings (`identity_provider`), or `null` for one eduLIMS does not know. */
+  settingsOf: (providerId: string) => Promise<ProviderSettingsView | null>;
+  /** Consumes a pending admin grant (#48) for a new user's email through the provider. */
+  consumeAdminGrant?: (email: string, providerId: string) => Promise<boolean>;
+  /** The test this sign-in belongs to (Admin "Test"), or `null` for a real sign-in. */
+  testOf?: (ctx: GateContext, providerId: string) => Promise<string | null>;
+  /** Stores the outcome of a test sign-in. */
+  recordTest?: (test: string, outcome: TestOutcome) => Promise<void>;
 }
 
 function field(value: unknown, key: string): unknown {
@@ -34,41 +48,50 @@ async function storedRolesOf(ctx: unknown, userId: string): Promise<StoredRoles 
   if (typeof find !== "function") return null;
   const found: unknown = await Reflect.apply(find, adapter, [userId]);
   if (typeof found !== "object" || found === null) return null;
-  return { role: field(found, "role"), roleSource: parseRoleSource(field(found, "roleSource")) };
+  return {
+    role: field(found, "role"),
+    roleSource: parseRoleSource(field(found, "roleSource")),
+    emailVerified: field(found, "emailVerified") === true,
+  };
 }
 
 /**
- * Builds better-auth's `user.validateUserInfo` gate for hybrid role ownership (owner decision
- * on #32, ADR 0010, ADR 0012).
+ * Returns the claims the role claim is read from: the verified ID-token claims of an OIDC
+ * provider, read by dot path, or one SAML assertion attribute by its exact name (SAML names
+ * such as `urn:oid:1.3.6.1.4.1.5923.1.1.1.7` contain dots).
+ */
+function roleClaims(
+  settings: ProviderSettingsView,
+  profile: Record<string, unknown>,
+): { claims: Record<string, unknown>; claimPath: string } {
+  if (settings.protocol === "saml") {
+    return { claims: { roles: profile[settings.roleClaim] }, claimPath: "roles" };
+  }
+  return { claims: profile, claimPath: settings.roleClaim };
+}
+
+function testOutcome(decision: SignInRoles, profile: Record<string, unknown>): TestOutcome {
+  const claimNames = Object.keys(profile).sort((a, b) => a.localeCompare(b, "en"));
+  if (decision.kind === "refused") return { outcome: decision.reason, roles: [], claimNames };
+  return { outcome: decision.kind, roles: [...decision.roles], claimNames };
+}
+
+/**
+ * Builds better-auth's `user.validateUserInfo` gate for SSO sign-ins (`sso-oidc`, `sso-saml`)
+ * with hybrid role ownership (owner decision on #32, ADR 0012, ADR 0015).
  *
- * On every OAuth sign-in it resolves the role set from the fresh (verified) ID-token claims.
- * A mapped role is authoritative: the sorted set and the provider as `roleSource` are written
- * to the new user (`create-user`) or synced onto the existing one (`sign-in`, `link-account`).
- * Without one, the user's local roles apply ({@link decideSignInRoles}); a set eduLIMS does not
- * allow, or no role at all, rejects the sign-in. Other methods keep the stored roles.
+ * A disabled or unknown provider is refused (`provider_disabled`). The role set comes from the
+ * provider's role claim and role map: a mapped role is authoritative and stored with the
+ * provider as `roleSource`. Without one, the user's local roles apply, then the provider's
+ * default role, then a pending admin grant for a new user; else `no_edulims_role`. A set
+ * eduLIMS does not allow is `role_conflict`. `emailVerified` follows the provider's
+ * "email is authoritative" setting. Other methods keep the stored roles.
  */
 export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo {
   return async ({ user, source }, ctx) => {
-    if (source.method !== "oauth" || !source.oauth) return;
-    const { providerId } = source.oauth;
-    const claimPath = options.claimPaths[providerId];
-    const roleSource = idpRoleSource(providerId);
-    const fromIdp =
-      claimPath && roleSource
-        ? resolveIdpRoles({
-            claims: source.oauth.profile ?? {},
-            claimPath,
-            roleMap: options.roleMap,
-          })
-        : { kind: "none" as const };
-    const existingId =
-      source.action !== "create-user" && typeof user.id === "string" ? user.id : null;
-    const stored = existingId ? await storedRolesOf(ctx, existingId) : null;
-    // A provider without a claim path is unknown: no default role, no local roles for it.
-    const decision =
-      claimPath && roleSource
-        ? decideSignInRoles(fromIdp, stored, options.defaultRole)
-        : ({ kind: "refused", reason: NO_ROLE_ERROR } as const);
+    if (source.method !== "sso-oidc" && source.method !== "sso-saml") return;
+    const providerId = source.sso?.providerId ?? "";
+    const settings = await options.settingsOf(providerId);
     const recorder = auditRecorderOf(ctx.context);
     const provider = auditProvider(providerId);
     const requestId = requestIdOf(ctx);
@@ -77,6 +100,64 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       ...(provider ? { provider } : {}),
       ...(requestId ? { requestId } : {}),
     };
+    const refuseDisabled = () =>
+      recorder?.record({
+        action: "authn_login_fail",
+        actor: { type: "anonymous" },
+        outcome: "refused",
+        reason: PROVIDER_DISABLED_ERROR,
+        ...known,
+      });
+    if (!settings) {
+      await refuseDisabled();
+      return { error: PROVIDER_DISABLED_ERROR, errorDescription: "Identity provider disabled" };
+    }
+    const profile = source.sso?.profile ?? {};
+    // NOTE: #46 (L8); the NameID is the account key, so only a persistent one may sign in.
+    if (source.method === "sso-saml" && !hasPersistentNameId(field(ctx.body, "SAMLResponse"))) {
+      const test = options.testOf ? await options.testOf(ctx, providerId) : null;
+      if (test !== null) {
+        await options.recordTest?.(test, { outcome: SAML_NAMEID_ERROR, roles: [], claimNames: [] });
+        return { error: TEST_COMPLETE_ERROR, errorDescription: "Test sign-in complete" };
+      }
+      await recorder?.record({
+        action: "authn_login_fail",
+        actor: { type: "anonymous" },
+        outcome: "refused",
+        reason: SAML_NAMEID_ERROR,
+        ...known,
+      });
+      return { error: SAML_NAMEID_ERROR, errorDescription: "SAML NameID is not persistent" };
+    }
+    const fromIdp: IdpRoles = resolveIdpRoles({
+      ...roleClaims(settings, profile),
+      roleMap: settings.roleMap,
+    });
+    const existingId =
+      source.action !== "create-user" && typeof user.id === "string" ? user.id : null;
+    const stored = existingId ? await storedRolesOf(ctx, existingId) : null;
+    let decision = decideSignInRoles(fromIdp, stored, settings.defaultRole);
+    const test = options.testOf ? await options.testOf(ctx, providerId) : null;
+    if (test !== null) {
+      await options.recordTest?.(test, testOutcome(decision, profile));
+      return { error: TEST_COMPLETE_ERROR, errorDescription: "Test sign-in complete" };
+    }
+    if (!settings.enabled) {
+      await refuseDisabled();
+      return { error: PROVIDER_DISABLED_ERROR, errorDescription: "Identity provider disabled" };
+    }
+    const email = typeof user.email === "string" ? user.email : "";
+    // TODO(#28): a pending student invitation for the verified email comes before the grant.
+    if (
+      decision.kind === "refused" &&
+      decision.reason === NO_ROLE_ERROR &&
+      source.action === "create-user" &&
+      settings.emailAuthoritative &&
+      email !== "" &&
+      (await options.consumeAdminGrant?.(email, providerId))
+    ) {
+      decision = { kind: "default", roles: ["admin"] };
+    }
     if (decision.kind === "refused") {
       await recorder?.record({
         action: "authn_login_fail",
@@ -95,21 +176,37 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       }
       return { error: NO_ROLE_ERROR, errorDescription: "No eduLIMS role assigned" };
     }
-    if (decision.kind === "local") return;
-    const role = formatRoles(decision.roles);
-    const nextSource = decision.kind === "idp" && roleSource ? roleSource : LOCAL_ROLE_SOURCE;
+    const emailVerified = settings.emailAuthoritative;
     if (source.action === "create-user") {
-      // NOTE: better-auth 1.7.18 validates the exact record it then inserts; should that change,
-      // the user falls back to the lower admin-plugin default and is synced on the next sign-in.
-      user["role"] = role;
-      user["roleSource"] = nextSource;
+      // NOTE: better-auth 1.7.20 validates the exact record it then inserts
+      // (internal-adapter.mjs createUser), so these fields are stored with the user.
+      user.emailVerified = emailVerified;
+      if (decision.kind !== "local") {
+        user["role"] = formatRoles(decision.roles);
+        user["roleSource"] = decision.kind === "idp" ? settings.providerId : LOCAL_ROLE_SOURCE;
+      }
       return;
     }
     if (!existingId) return;
+    const update: Record<string, unknown> = {};
+    if (stored?.emailVerified !== emailVerified) update["emailVerified"] = emailVerified;
+    if (decision.kind === "local") {
+      if (Object.keys(update).length > 0) {
+        await ctx.context.internalAdapter.updateUser(existingId, update);
+      }
+      return;
+    }
+    const role = formatRoles(decision.roles);
+    const nextSource = decision.kind === "idp" ? settings.providerId : LOCAL_ROLE_SOURCE;
     const previous = validateRoleValue(stored?.role);
     const previousRole = previous.ok ? formatRoles(previous.roles) : undefined;
-    if (previousRole === role && stored?.roleSource === nextSource) return;
-    await ctx.context.internalAdapter.updateUser(existingId, { role, roleSource: nextSource });
+    if (previousRole !== role || stored?.roleSource !== nextSource) {
+      update["role"] = role;
+      update["roleSource"] = nextSource;
+    }
+    if (Object.keys(update).length > 0) {
+      await ctx.context.internalAdapter.updateUser(existingId, update);
+    }
     if (previousRole === role) return;
     await recorder?.record({
       action: "authz_role_change",

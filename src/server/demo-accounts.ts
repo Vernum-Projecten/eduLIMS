@@ -71,6 +71,12 @@ export const DEV_USERS = [
 /** The realm of the development Keycloak (compose.dev.yaml). */
 export const KEYCLOAK_DEMO_REALM = "edulims";
 
+/**
+ * The provider ids `pnpm db:seed` registers for the development Keycloak: its OIDC client and
+ * its SAML client (docker/keycloak/edulims-realm.json).
+ */
+export const KEYCLOAK_DEMO_PROVIDERS = ["keycloak", "keycloak-saml"] as const;
+
 const KEYCLOAK_DEMO_USERS = [
   { roles: ["student"], username: "student", password: "student", grant: "groups" },
   { roles: ["teacher"], username: "teacher", password: "teacher", grant: "groups" },
@@ -110,7 +116,7 @@ export interface DemoAccount {
 export interface DemoAccounts {
   /** The dev-login users, one per allowed role set. */
   devLogin: DemoAccount[];
-  /** The development Keycloak realm's users, or `null` when Keycloak is not configured. */
+  /** The development Keycloak realm's users, or `null` when no Keycloak provider is enabled. */
   keycloak: { realm: string; accounts: DemoAccount[] } | null;
 }
 
@@ -123,7 +129,9 @@ export function demoAccountsFor(
   providers: readonly IdentityProviderOption[],
 ): DemoAccounts | null {
   if (!devLogin) return null;
-  const keycloak = providers.some((provider) => provider.id === "keycloak");
+  const keycloak = providers.some((provider) =>
+    (KEYCLOAK_DEMO_PROVIDERS as readonly string[]).includes(provider.id),
+  );
   return {
     devLogin: DEV_USERS.filter((user) => !("hidden" in user)).map((user) => ({
       roles: [...user.roles],

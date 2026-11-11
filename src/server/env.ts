@@ -5,18 +5,45 @@
 // `.ts` imports so the CLI entry points (migrate, seed) run on plain Node type stripping.
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
-import { ROLES } from "../lib/roles.ts";
-import { parseRoleMap } from "./idp-roles.ts";
 
 const httpUrl = () => z.url({ protocol: /^https?$/ });
-const optionalText = () => z.string().trim().min(1).optional();
 
-/** Default `OIDC_ROLE_MAP`: the same IdP role names for Entra app roles and Keycloak roles. */
-export const DEFAULT_ROLE_MAP =
-  "edulims-student:student,edulims-teacher:teacher,edulims-admin:admin";
+/** A 32-byte AES-256 key, base64 (`openssl rand -base64 32`). */
+const dataKey = () =>
+  z
+    .string()
+    .trim()
+    .refine(
+      (text) => /^[A-Za-z0-9+/]{43}=$/.test(text) && Buffer.from(text, "base64").length === 32,
+      {
+        error: "must be 32 random bytes, base64 (openssl rand -base64 32)",
+      },
+    );
 
-/** Entra ID multi-tenant aliases: only the configured organisation tenant may sign in. */
-const MULTI_TENANT_ALIASES = new Set(["common", "organizations", "consumers"]);
+/**
+ * `EDULIMS_IDP_PRIVATE_ORIGINS`: comma-separated origins of identity providers on a private or
+ * loopback network (an on-premises IdP, the development Keycloak), the only ones an issuer may
+ * resolve to besides public addresses.
+ */
+const originList = () =>
+  z.string().transform((text, ctx) => {
+    const origins: string[] = [];
+    for (const entry of text.split(",")) {
+      const trimmed = entry.trim();
+      if (!trimmed) continue;
+      try {
+        const url = new URL(trimmed);
+        if (url.origin !== trimmed.replace(/\/$/, "") || !/^https?:$/.test(url.protocol)) {
+          throw new Error("not an origin");
+        }
+        origins.push(url.origin);
+      } catch {
+        ctx.addIssue({ code: "custom", message: `"${trimmed}" is not an http(s) origin` });
+        return z.NEVER;
+      }
+    }
+    return origins;
+  });
 
 /** Field schemas without cross-field rules, so subsets can be `.pick()`ed (e.g. by migrate). */
 export const envFields = z.object({
@@ -25,42 +52,15 @@ export const envFields = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   BETTER_AUTH_SECRET: z.string().min(32, "must be at least 32 characters"),
   BETTER_AUTH_URL: httpUrl(),
-  MICROSOFT_CLIENT_ID: optionalText(),
-  MICROSOFT_CLIENT_SECRET: optionalText(),
-  MICROSOFT_TENANT_ID: optionalText().refine(
-    (tenant) => tenant === undefined || !MULTI_TENANT_ALIASES.has(tenant.toLowerCase()),
-    { error: "must be the organisation tenant ID, not a multi-tenant alias" },
-  ),
-  KEYCLOAK_ISSUER: httpUrl().optional(),
-  KEYCLOAK_CLIENT_ID: optionalText(),
-  KEYCLOAK_CLIENT_SECRET: optionalText(),
-  /** Login button text for Keycloak in every locale; unset shows "Sign in with Keycloak", localized. */
-  KEYCLOAK_LABEL: optionalText(),
-  /** Dot path of the roles claim; defaults per provider (`roles`, `realm_access.roles`). */
-  OIDC_ROLE_CLAIM: optionalText(),
-  OIDC_ROLE_MAP: z
-    .string()
-    .default(DEFAULT_ROLE_MAP)
-    .transform((text, ctx) => {
-      try {
-        return parseRoleMap(text);
-      } catch (error) {
-        ctx.addIssue({ code: "custom", message: (error as Error).message });
-        return z.NEVER;
-      }
-    }),
-  OIDC_DEFAULT_ROLE: z.enum(ROLES).optional(),
+  /** The key that encrypts identity-provider secrets at rest (ADR 0015, ASVS V11.3.2). */
+  EDULIMS_DATA_KEY: dataKey().optional(),
+  /** The previous data key while `pnpm idp:rekey` re-encrypts (rotation, V11.1.1). */
+  EDULIMS_DATA_KEY_PREVIOUS: dataKey().optional(),
+  EDULIMS_IDP_PRIVATE_ORIGINS: originList().default([]),
   FERROEHR_BASE_URL: httpUrl(),
   FERROBRIDGE_BASE_URL: httpUrl(),
   EDULIMS_DEV_LOGIN: z.stringbool().default(false),
 });
-
-const PROVIDER_VARS = {
-  microsoft: ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET", "MICROSOFT_TENANT_ID"],
-  keycloak: ["KEYCLOAK_ISSUER", "KEYCLOAK_CLIENT_ID", "KEYCLOAK_CLIENT_SECRET"],
-} as const;
-
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 /**
  * Returns why a production `DATABASE_URL` is refused, or `undefined` when it asks for TLS with
@@ -76,36 +76,20 @@ export function databaseTlsProblem(databaseUrl: string): string | undefined {
 }
 
 export const envSchema = envFields.superRefine((env, ctx) => {
-  for (const vars of Object.values(PROVIDER_VARS)) {
-    const missing = vars.filter((name) => env[name] === undefined);
-    if (missing.length > 0 && missing.length < vars.length) {
-      for (const name of missing) {
-        ctx.addIssue({
-          code: "custom",
-          path: [name],
-          message: `set together with ${vars.join(", ")}`,
-        });
-      }
-    }
-  }
   const production = env.NODE_ENV === "production";
-  if (production && !isMicrosoftConfigured(env) && !isKeycloakConfigured(env)) {
+  if (production && env.EDULIMS_DATA_KEY === undefined) {
     ctx.addIssue({
       code: "custom",
-      path: ["MICROSOFT_CLIENT_ID"],
-      message: "configure at least one identity provider (Microsoft or Keycloak) in production",
+      path: ["EDULIMS_DATA_KEY"],
+      message: "is required when NODE_ENV=production (it encrypts identity-provider secrets)",
     });
   }
-  if (env.KEYCLOAK_ISSUER) {
-    const issuer = new URL(env.KEYCLOAK_ISSUER);
-    const loopbackDev = !production && LOOPBACK_HOSTS.has(issuer.hostname);
-    if (issuer.protocol !== "https:" && !loopbackDev) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["KEYCLOAK_ISSUER"],
-        message: "must use https (http is only allowed on loopback outside production)",
-      });
-    }
+  if (env.EDULIMS_DATA_KEY_PREVIOUS !== undefined && env.EDULIMS_DATA_KEY === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["EDULIMS_DATA_KEY_PREVIOUS"],
+      message: "set only together with EDULIMS_DATA_KEY",
+    });
   }
   const tlsProblem = production ? databaseTlsProblem(env.DATABASE_URL) : undefined;
   if (tlsProblem) ctx.addIssue({ code: "custom", path: ["DATABASE_URL"], message: tlsProblem });
@@ -114,6 +98,15 @@ export const envSchema = envFields.superRefine((env, ctx) => {
       code: "custom",
       path: ["EDULIMS_DEV_LOGIN"],
       message: "dev login must not be enabled when NODE_ENV=production",
+    });
+  }
+  // NOTE: ASVS V12.2.1; a trusted IdP origin over plain http would carry tokens unencrypted.
+  const plain = env.EDULIMS_IDP_PRIVATE_ORIGINS.filter((origin) => origin.startsWith("http:"));
+  if (production && plain.length > 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["EDULIMS_IDP_PRIVATE_ORIGINS"],
+      message: `must list https origins only when NODE_ENV=production (${plain.join(", ")})`,
     });
   }
   if (env.NODE_ENV === "production" && !env.BETTER_AUTH_URL.startsWith("https://")) {
@@ -126,16 +119,6 @@ export const envSchema = envFields.superRefine((env, ctx) => {
 });
 
 export type Env = z.infer<typeof envSchema>;
-
-/** Narrows `env` when all Microsoft Entra ID variables are set. */
-export function isMicrosoftConfigured(env: Pick<Env, (typeof PROVIDER_VARS.microsoft)[number]>) {
-  return PROVIDER_VARS.microsoft.every((name) => env[name] !== undefined);
-}
-
-/** Narrows `env` when all Keycloak variables are set. */
-export function isKeycloakConfigured(env: Pick<Env, (typeof PROVIDER_VARS.keycloak)[number]>) {
-  return PROVIDER_VARS.keycloak.every((name) => env[name] !== undefined);
-}
 
 /** Parses an environment record, throwing one readable error listing every invalid variable. */
 export function parseEnv(source: Record<string, string | undefined>): Env {

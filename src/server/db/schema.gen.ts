@@ -54,16 +54,63 @@ export interface AuditEvent {
   target_type: string | null;
 }
 
+export interface IdentityProvider {
+  attest_pkce: Generated<boolean>;
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  default_role: string | null;
+  email_authoritative: Generated<boolean>;
+  enabled: Generated<boolean>;
+  end_session_endpoint: string | null;
+  icon: Generated<string>;
+  id: Generated<string>;
+  label_en: string;
+  label_nl: string;
+  metadata_url: string | null;
+  protocol: string;
+  provider_id: string;
+  role_claim: string;
+  role_map: Generated<Json>;
+  sort_order: Generated<number>;
+  updated_at: Generated<Timestamp>;
+  updated_by: string | null;
+}
+
+export interface IdentityProviderDomain {
+  domain: string;
+  provider_id: string;
+}
+
+export interface PendingAdminGrant {
+  created_at: Generated<Timestamp>;
+  email: string;
+  expires_at: Timestamp;
+  id: Generated<string>;
+  provider_id: string;
+}
+
 export interface Session {
   createdAt: Generated<Timestamp>;
   expiresAt: Timestamp;
   id: string;
   impersonatedBy: string | null;
   ipAddress: string | null;
+  sign_in_method: string | null;
   token: string;
   updatedAt: Timestamp;
   userAgent: string | null;
   userId: string;
+}
+
+export interface SsoProvider {
+  domain: string;
+  id: string;
+  issuer: string;
+  oidcConfig: string | null;
+  organizationId: string | null;
+  providerId: string;
+  samlConfig: string | null;
+  userId: string | null;
 }
 
 export interface User {
@@ -97,7 +144,11 @@ export interface Verification {
 export interface DB {
   account: Account;
   audit_event: AuditEvent;
+  identity_provider: IdentityProvider;
+  identity_provider_domain: IdentityProviderDomain;
+  pending_admin_grant: PendingAdminGrant;
   session: Session;
+  ssoProvider: SsoProvider;
   user: User;
   verification: Verification;
 }

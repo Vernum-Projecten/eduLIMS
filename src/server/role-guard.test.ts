@@ -3,11 +3,12 @@
 
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createAuth } from "./auth.ts";
+import type { Auth } from "./auth.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
 import { parseEnv } from "./env.ts";
 import { guardRoleValue, isOwnRoleWrite, OWN_ROLES_REFUSED } from "./role-guard.ts";
+import { createTestAuth } from "./test-auth.ts";
 import { VALID_ENV } from "./test-env.ts";
 
 const PASSWORD = "correct-horse-battery";
@@ -26,7 +27,7 @@ afterEach(async () => {
 async function setup() {
   const database = await createTestDb();
   db = database;
-  const auth = createAuth(parseEnv({ ...VALID_ENV, EDULIMS_DEV_LOGIN: "true" }), {
+  const auth = await createTestAuth(parseEnv({ ...VALID_ENV, EDULIMS_DEV_LOGIN: "true" }), {
     db: database,
     type: "postgres",
   });
@@ -43,7 +44,7 @@ async function storedRole(database: Kysely<DB>, email: string) {
 }
 
 /** Creates an administrator and returns the headers of their signed-in session. */
-async function adminHeaders(auth: ReturnType<typeof createAuth>): Promise<Headers> {
+async function adminHeaders(auth: Auth): Promise<Headers> {
   await auth.api.createUser({
     body: {
       email: "admin@example.test",

@@ -3,6 +3,8 @@
 
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
+import { providerIdOf } from "../../lib/identity-providers.ts";
+import { CREDENTIAL_SIGN_IN, type SignInMethod } from "../../lib/sign-in-method.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import {
@@ -14,6 +16,10 @@ import {
   userStatus,
 } from "./queries.ts";
 import type { ListUsersInput } from "./schemas.ts";
+
+const MICROSOFT = providerIdOf("microsoft");
+const KEYCLOAK = providerIdOf("keycloak");
+const CREDENTIAL = CREDENTIAL_SIGN_IN;
 
 const NOW = new Date("2026-11-11T12:00:00Z");
 const DAY = 86_400_000;
@@ -102,9 +108,9 @@ const PEOPLE: Person[] = [
     id: "u1",
     name: "Anna Bakker",
     role: "student",
-    source: "microsoft",
+    source: MICROSOFT,
     lastSignInAt: new Date(NOW.getTime() - DAY),
-    providers: ["microsoft"],
+    providers: [MICROSOFT],
     liveSessions: 2,
   },
   {
@@ -112,9 +118,9 @@ const PEOPLE: Person[] = [
     name: "Bram de Vries",
     role: "teacher",
     lastSignInAt: new Date(NOW.getTime() - 2 * DAY),
-    providers: ["keycloak", "microsoft"],
+    providers: [KEYCLOAK, MICROSOFT],
   },
-  { id: "u3", name: "Cor 100%_Test", role: "teacher,admin", providers: ["keycloak"] },
+  { id: "u3", name: "Cor 100%_Test", role: "teacher,admin", providers: [KEYCLOAK] },
   {
     id: "u4",
     name: "Daan Smit",
@@ -122,7 +128,7 @@ const PEOPLE: Person[] = [
     banned: true,
     banExpires: new Date(NOW.getTime() + 3 * DAY),
     lastSignInAt: new Date(NOW.getTime() - 9 * DAY),
-    providers: ["microsoft"],
+    providers: [MICROSOFT],
   },
   {
     id: "u5",
@@ -179,8 +185,8 @@ describe("listUsers (#34)", () => {
       name: "Anna Bakker",
       email: "u1@example.test",
       roles: ["student"],
-      roleSource: "microsoft",
-      providers: ["microsoft"],
+      roleSource: MICROSOFT,
+      providers: [MICROSOFT],
       status: "active",
       blockedUntil: null,
       lastSignInAt: new Date(NOW.getTime() - DAY).toISOString(),
@@ -190,7 +196,7 @@ describe("listUsers (#34)", () => {
       status: "blocked",
       blockedUntil: new Date(NOW.getTime() + 3 * DAY).toISOString(),
     });
-    expect(page.rows[1]?.providers.sort()).toEqual(["keycloak", "microsoft"]);
+    expect(page.rows[1]?.providers.sort()).toEqual([KEYCLOAK, MICROSOFT]);
   });
 
   it("returns no grade, result or submission field (R-01)", async () => {
@@ -228,7 +234,7 @@ describe("listUsers (#34)", () => {
 
   it("filters on a linked sign-in provider", async () => {
     const database = await seed(PEOPLE);
-    expect(ids(await listUsers(database, { provider: ["keycloak"] }, NOW))).toEqual(["u2", "u3"]);
+    expect(ids(await listUsers(database, { provider: [KEYCLOAK] }, NOW))).toEqual(["u2", "u3"]);
     expect(ids(await listUsers(database, { provider: ["credential"] }, NOW))).toEqual(["u5"]);
   });
 
@@ -242,7 +248,7 @@ describe("listUsers (#34)", () => {
   it("combines filters", async () => {
     const database = await seed(PEOPLE);
     expect(
-      ids(await listUsers(database, { role: ["student"], provider: ["microsoft"], q: "a" }, NOW)),
+      ids(await listUsers(database, { role: ["student"], provider: [MICROSOFT], q: "a" }, NOW)),
     ).toEqual(["u1", "u4"]);
   });
 
@@ -289,7 +295,7 @@ describe("listUsers (#34)", () => {
       id: `p${String(i).padStart(4, "0")}`,
       name: `Person ${i}`,
       role: i % 10 === 0 ? "teacher" : "student",
-      providers: [i % 3 === 0 ? "keycloak" : "microsoft"],
+      providers: [i % 3 === 0 ? KEYCLOAK : MICROSOFT],
       liveSessions: i % 4 === 0 ? 1 : 0,
       lastSignInAt: i % 5 === 0 ? null : new Date(NOW.getTime() - i * 60_000),
     }));
@@ -297,7 +303,7 @@ describe("listUsers (#34)", () => {
     const started = performance.now();
     const page = await listUsers(
       database,
-      { q: "person", status: ["active"], provider: ["microsoft"], sort: "lastSignIn", size: 100 },
+      { q: "person", status: ["active"], provider: [MICROSOFT], sort: "lastSignIn", size: 100 },
       NOW,
     );
     const elapsed = performance.now() - started;
@@ -318,7 +324,7 @@ describe("listUsers with multi-select facets (#58)", () => {
       "u5",
       "u6",
     ]);
-    expect(ids(await listUsers(database, { provider: ["keycloak", "credential"] }, NOW))).toEqual([
+    expect(ids(await listUsers(database, { provider: [KEYCLOAK, "credential"] }, NOW))).toEqual([
       "u2",
       "u3",
       "u5",
@@ -334,7 +340,7 @@ describe("listUsers with multi-select facets (#58)", () => {
     const database = await seed(PEOPLE);
     const page = await listUsers(
       database,
-      { role: ["teacher"], provider: ["keycloak", "microsoft"], status: ["active"] },
+      { role: ["teacher"], provider: [KEYCLOAK, MICROSOFT], status: ["active"] },
       NOW,
     );
     expect(ids(page)).toEqual(["u2"]);
@@ -342,7 +348,7 @@ describe("listUsers with multi-select facets (#58)", () => {
   });
 });
 
-const ALL_PROVIDERS = ["microsoft", "keycloak", "credential"] as const;
+const ALL_PROVIDERS: SignInMethod[] = [MICROSOFT, KEYCLOAK, CREDENTIAL];
 
 describe("userFacets (#58)", () => {
   it("counts every value over all users without filters", async () => {
@@ -370,15 +376,15 @@ describe("userFacets (#58)", () => {
 
   it("counts only the sign-in methods the facet offers", async () => {
     const database = await seed(PEOPLE);
-    const facets = await userFacets(database, {}, NOW, ["keycloak"]);
+    const facets = await userFacets(database, {}, NOW, [KEYCLOAK]);
     expect(facets.provider).toEqual({ keycloak: 2 });
   });
 
   it.each<[string, ListUsersInput]>([
     ["no filter", {}],
     ["a search", { q: "e" }],
-    ["two facets", { role: ["teacher", "student"], provider: ["microsoft"] }],
-    ["every facet", { q: "a", role: ["student"], provider: ["microsoft"], status: ["active"] }],
+    ["two facets", { role: ["teacher", "student"], provider: [MICROSOFT] }],
+    ["every facet", { q: "a", role: ["student"], provider: [MICROSOFT], status: ["active"] }],
   ])("agrees with the list's total for each value, with %s", async (_, input) => {
     const database = await seed(PEOPLE);
     const facets = await userFacets(database, input, NOW, ALL_PROVIDERS);
@@ -410,7 +416,7 @@ describe("userFacets (#58)", () => {
       id: `p${String(i).padStart(4, "0")}`,
       name: `Person ${i}`,
       role: i % 10 === 0 ? "teacher" : "student",
-      providers: [i % 3 === 0 ? "keycloak" : "microsoft"],
+      providers: [i % 3 === 0 ? KEYCLOAK : MICROSOFT],
       lastSignInAt: i % 5 === 0 ? null : new Date(NOW.getTime() - i * 60_000),
     }));
     const database = await seed(many);

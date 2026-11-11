@@ -3,10 +3,10 @@
 
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
-import { createAuth } from "../auth.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { parseEnv } from "../env.ts";
+import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
 import { savedLocale } from "./locale-cookie.ts";
 
@@ -36,7 +36,7 @@ describe("savedLocale", () => {
 async function signInWithSavedLocale(locale: string | null) {
   const database = await createTestDb();
   db = database;
-  const auth = createAuth(parseEnv({ ...VALID_ENV, EDULIMS_DEV_LOGIN: "true" }), {
+  const auth = await createTestAuth(parseEnv({ ...VALID_ENV, EDULIMS_DEV_LOGIN: "true" }), {
     db: database,
     type: "postgres",
   });

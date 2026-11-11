@@ -11,7 +11,12 @@ import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware, isAPIError } from "better-auth/api";
 import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
-import { NO_ROLE_ERROR, ROLE_CONFLICT_ERROR } from "../../lib/identity-providers.ts";
+import {
+  NO_ROLE_ERROR,
+  normalizeSignInError,
+  PROVIDER_DISABLED_ERROR,
+  ROLE_CONFLICT_ERROR,
+} from "../../lib/identity-providers.ts";
 import { formatRoles, validateRoleValue } from "../../lib/roles.ts";
 import { getDb } from "../db/index.ts";
 import type { DB } from "../db/schema.gen.ts";
@@ -67,18 +72,19 @@ export function sessionUserIdOf(ctx: unknown): string | undefined {
   return text(field(field(field(field(ctx, "context"), "session"), "user"), "id"));
 }
 
+/** The sso plugin's OIDC callback and SAML ACS (better-auth 1.7.20), where SSO sign-ins land. */
 const OAUTH_CALLBACKS: ReadonlySet<string> = new Set([
-  "/callback/:id",
-  "/oauth2/callback/:providerId",
+  "/sso/callback/:providerId",
+  "/sso/saml2/sp/acs/:providerId",
 ]);
 
-/** Returns how the request signs in: an OAuth callback's provider, or the development login. */
+/** Returns how the request signs in: an SSO callback's provider, or the development login. */
 export function providerOf(ctx: unknown): AuditProvider | undefined {
   const path = field(ctx, "path");
   if (path === "/sign-in/email") return "credential";
   if (typeof path !== "string" || !OAUTH_CALLBACKS.has(path)) return undefined;
   const params = field(ctx, "params");
-  return auditProvider(field(params, "id") ?? field(params, "providerId"));
+  return auditProvider(field(params, "providerId"));
 }
 
 function actorOf(ctx: unknown): AuditActor {
@@ -114,14 +120,20 @@ function isAdminPath(path: unknown): path is AdminPath {
 }
 
 /** Sign-in refusals idp-sync.ts records itself, with the user id the callback does not carry. */
-const RECORDED_BY_IDP_SYNC: ReadonlySet<string> = new Set([NO_ROLE_ERROR, ROLE_CONFLICT_ERROR]);
+const RECORDED_BY_IDP_SYNC: ReadonlySet<string> = new Set([
+  NO_ROLE_ERROR,
+  ROLE_CONFLICT_ERROR,
+  PROVIDER_DISABLED_ERROR,
+  "idp_test_complete",
+]);
 
 function oauthError(returned: unknown): string | undefined {
   if (!isAPIError(returned)) return undefined;
   const location = returned.headers instanceof Headers ? returned.headers.get("location") : null;
   if (!location) return "oauth_callback_failed";
   try {
-    return text(new URL(location, "http://callback.invalid").searchParams.get("error"));
+    const error = text(new URL(location, "https://callback.invalid").searchParams.get("error"));
+    return error ? normalizeSignInError(error) : undefined;
   } catch {
     return "oauth_callback_failed";
   }

@@ -43,6 +43,11 @@ adding one, and update it instead of duplicating.
   #44); GDPR basis, DPIA, EHR subject and KPI norms stay with the product
   owner; 2026-11-11
 
+- [Runtime identity providers](runtime-identity-providers.md): OIDC and SAML
+  providers in the database, managed in Admin → System with the better-auth
+  SSO plugin; plugin management endpoints off; secrets under
+  EDULIMS_DATA_KEY; first start through the host CLI; #46, ADR 0015
+
 ## Working with the owner
 
 - [No vague later](no-vague-later.md): plan needed work into the current
@@ -68,7 +73,7 @@ adding one, and update it instead of duplicating.
 
 - [Stack decisions](stack-decisions.md): TanStack Start full SSR on Vite 8 and
   Nitro, TypeScript 7 native tsc, React 19, shadcn/ui radix-nova, Biome 2.6,
-  Vitest 5, Kysely on PostgreSQL 18, better-auth with Entra ID or Keycloak, Node 26 LTS,
+  Vitest 5, Kysely on PostgreSQL 18, better-auth with the SSO plugin, Node 26 LTS,
   pnpm 12 with library skills linked into .claude/skills
 - [Charts: TanStack Charts](charts-tanstack.md): every chart through
   EduChart (name, description, table view, shape plus colour, brand chart

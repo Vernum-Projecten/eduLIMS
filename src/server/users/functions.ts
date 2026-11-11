@@ -6,10 +6,17 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { getAuth, identityProviders } from "../auth.ts";
+import { getLocale } from "../../i18n/runtime.js";
+import {
+  CREDENTIAL_SIGN_IN,
+  parseSignInMethod,
+  type SignInMethod,
+} from "../../lib/sign-in-method.ts";
+import { getAuth } from "../auth.ts";
 import type { SessionUser } from "../authz.ts";
 import { getDb } from "../db/index.ts";
 import { getEnv } from "../env.ts";
+import { providerLabels } from "../idp/registry.ts";
 import { requireRole } from "../middleware.ts";
 import {
   type ActionContext,
@@ -34,21 +41,22 @@ import {
 } from "./schemas.ts";
 
 /**
- * Returns one page of the users table, the sign-in methods its provider facet offers (the
- * configured identity providers, and the development login while it is on), and the count of
- * every facet value under the current search and filters.
+ * Returns one page of the users table, the sign-in methods its provider facet offers (every
+ * identity provider, and the development login while it is on) with the providers' names, and
+ * the count of every facet value under the current search and filters.
  */
 export const listAdminUsers = createServerFn({ method: "GET" })
   .middleware([requireRole("admin")])
   .validator(listUsersInput)
   .handler(async ({ data }) => {
     const env = getEnv();
-    const providers = identityProviders(env).map((provider) => provider.id);
-    const providerOptions = env.EDULIMS_DEV_LOGIN
-      ? [...providers, "credential" as const]
+    const db = getDb();
+    const labels = await providerLabels(db, getLocale() === "nl" ? "nl" : "en");
+    const providers = Object.keys(labels).flatMap((id) => parseSignInMethod(id) ?? []);
+    const providerOptions: SignInMethod[] = env.EDULIMS_DEV_LOGIN
+      ? [...providers, CREDENTIAL_SIGN_IN]
       : providers;
     const now = new Date();
-    const db = getDb();
     const [page, facets] = await Promise.all([
       listUsers(db, data, now),
       userFacets(db, data, now, providerOptions),

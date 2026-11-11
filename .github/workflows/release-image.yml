@@ -10,7 +10,8 @@
 #                    tarball's attestation is verified against that lane's
 #                    identity before it enters the build context, so the
 #                    image's provenance chains to an attested input.
-#   edulims-migrate  the `migrate` target, built from the tagged source.
+#   edulims-migrate  the `tools` target (the host CLI, migrations by default),
+#                    built from the tagged source.
 #
 # A reusable workflow for the reason release-build.yml is one: SLSA Build L3
 # keeps the signing identity out of reach of caller-defined steps
@@ -47,7 +48,7 @@ on:
         required: true
         type: string
       target:
-        description: The docker/Dockerfile target to build (runtime or migrate).
+        description: The docker/Dockerfile target to build (runtime or tools).
         required: true
         type: string
       from-tarball:

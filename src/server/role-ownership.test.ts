@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { NO_ROLE_ERROR, ROLE_CONFLICT_ERROR } from "../lib/identity-providers.ts";
+import { NO_ROLE_ERROR, providerIdOf, ROLE_CONFLICT_ERROR } from "../lib/identity-providers.ts";
 import { decideSignInRoles } from "./role-ownership.ts";
 
 const none = { kind: "none" } as const;
@@ -32,7 +32,7 @@ describe("decideSignInRoles (hybrid role ownership, owner decision on #32)", () 
 
   it("does not keep a set the IdP sent before (A07)", () => {
     expect(
-      decideSignInRoles(none, { role: "teacher", roleSource: "microsoft" }, undefined),
+      decideSignInRoles(none, { role: "teacher", roleSource: providerIdOf("entra") }, undefined),
     ).toEqual({
       kind: "refused",
       reason: NO_ROLE_ERROR,

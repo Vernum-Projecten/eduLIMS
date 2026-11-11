@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The last sign-in of a user for the Users screen (#34): its method, through better-auth's
-// last-login-method plugin, and its time, through a session hook of eduLIMS's own.
+// last-login-method plugin, and its time, through a session hook of eduLIMS's own. The same hook
+// stores each session's own sign-in method, which sign-out reads (#46, ADR 0015).
 // Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
 import type { BetterAuthPlugin } from "better-auth";
@@ -18,17 +19,17 @@ function field(value: unknown, key: string): unknown {
 }
 
 /**
- * Returns the sign-in method of a better-auth endpoint context: the provider of an OAuth
- * callback (Entra ID's `/callback/:id`, Keycloak's `/oauth2/callback/:providerId`), `credential`
- * for the development login, else `null`.
+ * Returns the sign-in method of a better-auth endpoint context: the provider of an SSO callback
+ * (`/sso/callback/:providerId`, `/sso/saml2/sp/acs/:providerId`), `credential` for the
+ * development login, else `null`.
  */
 export function signInMethodOf(ctx: unknown): string | null {
   const path = field(ctx, "path");
   const params = field(ctx, "params");
   if (path === "/sign-in/email") return "credential";
-  if (path === "/callback/:id") return parseSignInMethod(field(params, "id"));
-  if (path === "/oauth2/callback/:providerId")
+  if (path === "/sso/callback/:providerId" || path === "/sso/saml2/sp/acs/:providerId") {
     return parseSignInMethod(field(params, "providerId"));
+  }
   return null;
 }
 
@@ -52,16 +53,32 @@ export function lastSignInMethod(baseURL: string) {
 
 /**
  * Returns the plugin that writes `user.last_sign_in_at` whenever better-auth creates a session,
- * which happens only on a sign-in (impersonation is off, R-01).
+ * which happens only on a sign-in (impersonation is off, R-01), and stores the session's sign-in
+ * method in `session.sign_in_method`.
  */
 export function lastSignInTime(db: Kysely<DB>) {
   return {
     id: "edulims-last-sign-in",
+    schema: {
+      session: {
+        fields: {
+          signInMethod: {
+            type: "string",
+            required: false,
+            input: false,
+            fieldName: "sign_in_method",
+          },
+        },
+      },
+    },
     init: () => ({
       options: {
         databaseHooks: {
           session: {
             create: {
+              before: async (session, ctx) => ({
+                data: { ...session, signInMethod: signInMethodOf(ctx) },
+              }),
               after: async (session) => {
                 await db
                   .updateTable("user")

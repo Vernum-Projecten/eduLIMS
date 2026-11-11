@@ -4,6 +4,7 @@
 import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { providerIdOf } from "../../lib/identity-providers.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { type AuditEvent, toReasonCode, toRequestId } from "./events.ts";
@@ -41,7 +42,7 @@ const LOGIN: AuditEvent = {
   actor: { type: "user", id: "u1" },
   outcome: "success",
   target: { type: "user", id: "u1" },
-  provider: "keycloak",
+  provider: providerIdOf("keycloak"),
 };
 
 describe("recordAudit (B4)", () => {
@@ -64,7 +65,7 @@ describe("recordAudit (B4)", () => {
         target_id: "u1",
         outcome: "success",
         reason_code: null,
-        provider: "keycloak",
+        provider: providerIdOf("keycloak"),
         request_id: "req-9",
         metadata: { roles: "student" },
         occurred_at: occurredAt,

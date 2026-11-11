@@ -1,0 +1,1 @@
+Identity-provider client secrets and SAML signing keys are stored encrypted (AES-256-GCM under `EDULIMS_DATA_KEY`), the SSO plugin's own provider-management endpoints are unreachable, and an issuer on a private network is refused unless the operator allows its origin (`EDULIMS_IDP_PRIVATE_ORIGINS`).

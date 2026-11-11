@@ -3,7 +3,7 @@
 
 import { m } from "@/i18n/messages";
 // Display names for domain values that the code stores in English.
-import { type IdentityProviderOption, ROLE_CONFLICT_ERROR } from "@/lib/identity-providers";
+import { ROLE_CONFLICT_ERROR } from "@/lib/identity-providers";
 import { OWN_ROLES_ERROR, type Role } from "@/lib/roles";
 import type { Theme } from "@/lib/theme";
 
@@ -36,12 +36,6 @@ export function roleWriteErrorMessage(message: string | undefined): string | nul
   if (message === OWN_ROLES_ERROR) return m.role_error_own_roles();
   if (message === ROLE_CONFLICT_ERROR) return m.role_error_not_allowed();
   return null;
-}
-
-/** Returns the login button text: the operator's configured label, else the localized default. */
-export function providerLabel(provider: IdentityProviderOption): string {
-  if (provider.label) return provider.label;
-  return provider.id === "microsoft" ? m.login_microsoft() : m.login_keycloak();
 }
 
 /** Returns the display name of the colour theme `theme` in the active locale. */

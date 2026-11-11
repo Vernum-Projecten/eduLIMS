@@ -7,9 +7,9 @@ export const VALID_ENV = {
   DATABASE_URL: "postgres://edulims:edulims@localhost:5432/edulims",
   BETTER_AUTH_SECRET: "test-secret-that-is-at-least-32-characters-long",
   BETTER_AUTH_URL: "http://localhost:3000",
-  MICROSOFT_CLIENT_ID: "00000000-0000-0000-0000-000000000001",
-  MICROSOFT_CLIENT_SECRET: "test-client-secret",
-  MICROSOFT_TENANT_ID: "00000000-0000-0000-0000-000000000002",
+  // A public test-only key: 32 bytes, base64 ("edulims-test-data-key-0123456789").
+  EDULIMS_DATA_KEY: "ZWR1bGltcy10ZXN0LWRhdGEta2V5LTAxMjM0NTY3ODk=",
+  EDULIMS_IDP_PRIVATE_ORIGINS: "http://localhost:8180",
   FERROEHR_BASE_URL: "http://localhost:4001",
   FERROBRIDGE_BASE_URL: "http://localhost:4002",
   EDULIMS_DEV_LOGIN: "true",

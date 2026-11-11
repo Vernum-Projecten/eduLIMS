@@ -26,7 +26,7 @@ export async function expectHydrated(element: Locator): Promise<void> {
 export async function devLogin(page: Page, email: string): Promise<void> {
   await page.goto("/login");
   await expectHydrated(page.getByRole("form", { name: "Sign in with a test account" }));
-  await page.getByLabel("Email address").fill(email);
+  await page.getByLabel("Email address", { exact: true }).fill(email);
   await page.getByLabel("Password").fill(DEV_PASSWORD);
   await page.getByRole("button", { name: "Sign in with a test account" }).click();
 }

@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The `__Host-` prefix on every cookie eduLIMS sets over https (#43, ASVS V3.3.3), read from
-// the Set-Cookie headers of a real sign-in.
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
-import { authCookieOptions, createAuth } from "./auth.ts";
+import { authCookieOptions } from "./auth.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
 import { parseEnv } from "./env.ts";
+import { keyringOf } from "./idp/crypto.ts";
+import { insertTestProvider } from "./idp/test-providers.ts";
+// The `__Host-` prefix on every cookie eduLIMS sets over https (#43, ASVS V3.3.3), read from
+// the Set-Cookie headers of a real sign-in.
+import { createTestAuth } from "./test-auth.ts";
 import { VALID_ENV } from "./test-env.ts";
 
 const PASSWORD = "correct-horse-battery";
@@ -24,7 +27,7 @@ afterEach(async () => {
 async function signInCookies(baseURL: string): Promise<string[]> {
   const database = await createTestDb();
   db = database;
-  const auth = createAuth(parseEnv({ ...VALID_ENV, BETTER_AUTH_URL: baseURL }), {
+  const auth = await createTestAuth(parseEnv({ ...VALID_ENV, BETTER_AUTH_URL: baseURL }), {
     db: database,
     type: "postgres",
   });
@@ -67,16 +70,17 @@ describe("cookies over https (#43, ASVS V3.3.3)", () => {
 
   it("prefixes the OAuth state cookie of an identity provider sign-in too", async () => {
     db = await createTestDb();
+    await insertTestProvider(db, keyringOf(parseEnv(VALID_ENV)), { providerId: "entra" });
     const base = "https://edulims.example";
-    const auth = createAuth(parseEnv({ ...VALID_ENV, BETTER_AUTH_URL: base }), {
+    const auth = await createTestAuth(parseEnv({ ...VALID_ENV, BETTER_AUTH_URL: base }), {
       db,
       type: "postgres",
     });
     const response = await auth.handler(
-      new Request(`${base}/api/auth/sign-in/social`, {
+      new Request(`${base}/api/auth/sign-in/sso`, {
         method: "POST",
         headers: { "content-type": "application/json", origin: base },
-        body: JSON.stringify({ provider: "microsoft", callbackURL: "/" }),
+        body: JSON.stringify({ providerId: "entra", callbackURL: "/" }),
       }),
     );
     const cookies = response.headers.getSetCookie();

@@ -2,17 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  DEFAULT_ROLE_MAP,
-  databaseTlsProblem,
-  envFields,
-  getEnv,
-  isKeycloakConfigured,
-  isMicrosoftConfigured,
-  parseEnv,
-  parseWith,
-} from "./env.ts";
-import { parseRoleMap } from "./idp-roles.ts";
+import { databaseTlsProblem, envFields, getEnv, parseEnv, parseWith } from "./env.ts";
 import { VALID_ENV } from "./test-env.ts";
 
 const VERIFIED_DATABASE_URL =
@@ -26,7 +16,12 @@ describe("parseEnv", () => {
   });
 
   it("defaults to production with dev login disabled", () => {
-    const { NODE_ENV: _, EDULIMS_DEV_LOGIN: __, ...rest } = VALID_ENV;
+    const {
+      NODE_ENV: _,
+      EDULIMS_DEV_LOGIN: __,
+      EDULIMS_IDP_PRIVATE_ORIGINS: ___,
+      ...rest
+    } = VALID_ENV;
     const env = parseEnv({
       ...rest,
       BETTER_AUTH_URL: "https://edulims.example",
@@ -39,13 +34,11 @@ describe("parseEnv", () => {
   it("treats an empty or blank variable as unset, as `VAR=` in an env file means", () => {
     const env = parseEnv({
       ...VALID_ENV,
-      MICROSOFT_CLIENT_ID: "",
-      MICROSOFT_CLIENT_SECRET: "  ",
-      MICROSOFT_TENANT_ID: "",
-      KEYCLOAK_LABEL: "",
+      EDULIMS_DATA_KEY_PREVIOUS: "  ",
+      EDULIMS_IDP_PRIVATE_ORIGINS: "",
     });
-    expect(isMicrosoftConfigured(env)).toBe(false);
-    expect(env.KEYCLOAK_LABEL).toBeUndefined();
+    expect(env.EDULIMS_DATA_KEY_PREVIOUS).toBeUndefined();
+    expect(env.EDULIMS_IDP_PRIVATE_ORIGINS).toEqual([]);
   });
 
   it("still refuses an empty required variable", () => {
@@ -69,8 +62,10 @@ describe("parseEnv", () => {
     ["DATABASE_URL", "mysql://localhost/edulims"],
     ["BETTER_AUTH_SECRET", "too-short"],
     ["BETTER_AUTH_URL", "not a url"],
-    ["MICROSOFT_TENANT_ID", "common"],
-    ["MICROSOFT_TENANT_ID", "Organizations"],
+    ["EDULIMS_DATA_KEY", "too-short"],
+    ["EDULIMS_DATA_KEY", "ZWR1bGltcw=="],
+    ["EDULIMS_IDP_PRIVATE_ORIGINS", "localhost:8180"],
+    ["EDULIMS_IDP_PRIVATE_ORIGINS", "http://localhost:8180/realms/edulims"],
     ["FERROEHR_BASE_URL", "ftp://ferro.example"],
     ["EDULIMS_DEV_LOGIN", "maybe"],
   ])("rejects an invalid %s (%s)", (key, value) => {
@@ -82,92 +77,67 @@ describe("parseEnv", () => {
   });
 });
 
-const KEYCLOAK = {
-  KEYCLOAK_ISSUER: "https://idp.example/realms/edulims",
-  KEYCLOAK_CLIENT_ID: "edulims",
-  KEYCLOAK_CLIENT_SECRET: "kc-secret",
-};
-const NO_MICROSOFT = {
-  MICROSOFT_CLIENT_ID: undefined,
-  MICROSOFT_CLIENT_SECRET: undefined,
-  MICROSOFT_TENANT_ID: undefined,
-};
 const PRODUCTION = {
   NODE_ENV: "production",
   DATABASE_URL: VERIFIED_DATABASE_URL,
   BETTER_AUTH_URL: "https://edulims.example",
   EDULIMS_DEV_LOGIN: "false",
+  EDULIMS_IDP_PRIVATE_ORIGINS: "https://idp.campus.internal",
 };
 
-describe("identity providers", () => {
-  it("accepts Keycloak only, Microsoft only, or both", () => {
-    expect(isKeycloakConfigured(parseEnv({ ...VALID_ENV, ...NO_MICROSOFT, ...KEYCLOAK }))).toBe(
-      true,
-    );
-    const microsoftOnly = parseEnv({ ...VALID_ENV, ...PRODUCTION });
-    expect(isMicrosoftConfigured(microsoftOnly)).toBe(true);
-    expect(isKeycloakConfigured(microsoftOnly)).toBe(false);
-    const both = parseEnv({ ...VALID_ENV, ...KEYCLOAK, ...PRODUCTION });
-    expect(isMicrosoftConfigured(both) && isKeycloakConfigured(both)).toBe(true);
-  });
-
-  it("requires at least one identity provider in production", () => {
-    expect(() => parseEnv({ ...VALID_ENV, ...NO_MICROSOFT, ...PRODUCTION })).toThrow(
-      /at least one identity provider/,
+describe("identity-provider settings (#46, ADR 0015)", () => {
+  it("requires EDULIMS_DATA_KEY in production (ASVS V11.3.2)", () => {
+    const { EDULIMS_DATA_KEY: _, ...rest } = VALID_ENV;
+    expect(() => parseEnv({ ...rest, ...PRODUCTION })).toThrow(/EDULIMS_DATA_KEY/);
+    expect(parseEnv({ ...VALID_ENV, ...PRODUCTION }).EDULIMS_DATA_KEY).toBe(
+      VALID_ENV.EDULIMS_DATA_KEY,
     );
   });
 
-  it("allows no identity provider outside production (dev login only)", () => {
-    expect(isMicrosoftConfigured(parseEnv({ ...VALID_ENV, ...NO_MICROSOFT }))).toBe(false);
+  it("allows no data key outside production", () => {
+    const { EDULIMS_DATA_KEY: _, ...rest } = VALID_ENV;
+    expect(parseEnv(rest).EDULIMS_DATA_KEY).toBeUndefined();
   });
 
-  it.each([
-    ["MICROSOFT_TENANT_ID", { ...VALID_ENV, MICROSOFT_TENANT_ID: undefined }],
-    ["KEYCLOAK_CLIENT_SECRET", { ...VALID_ENV, ...KEYCLOAK, KEYCLOAK_CLIENT_SECRET: undefined }],
-    ["KEYCLOAK_ISSUER", { ...VALID_ENV, KEYCLOAK_CLIENT_ID: "edulims" }],
-  ])("requires all variables of a provider together (missing %s)", (missing, source) => {
-    expect(() => parseEnv(source)).toThrow(new RegExp(`set together[\\s\\S]*${missing}`));
-  });
-
-  it("requires an https Keycloak issuer in production, even on loopback", () => {
-    const issuer = { KEYCLOAK_ISSUER: "http://localhost:8080/realms/edulims" };
-    expect(() => parseEnv({ ...VALID_ENV, ...KEYCLOAK, ...issuer, ...PRODUCTION })).toThrow(
-      /KEYCLOAK_ISSUER/,
+  it("accepts a previous key only beside a current one (rotation)", () => {
+    const { EDULIMS_DATA_KEY: key, ...rest } = VALID_ENV;
+    expect(() => parseEnv({ ...rest, EDULIMS_DATA_KEY_PREVIOUS: key })).toThrow(
+      /EDULIMS_DATA_KEY_PREVIOUS/,
     );
+    expect(
+      parseEnv({ ...VALID_ENV, EDULIMS_DATA_KEY_PREVIOUS: key }).EDULIMS_DATA_KEY_PREVIOUS,
+    ).toBe(key);
   });
 
-  it("allows an http Keycloak issuer only on loopback outside production", () => {
-    for (const host of ["localhost:8080", "127.0.0.1:8080", "[::1]:8080"]) {
-      const env = parseEnv({
-        ...VALID_ENV,
-        ...KEYCLOAK,
-        KEYCLOAK_ISSUER: `http://${host}/realms/x`,
-      });
-      expect(env.KEYCLOAK_ISSUER).toBe(`http://${host}/realms/x`);
-    }
-    const remote = { KEYCLOAK_ISSUER: "http://idp.example/realms/edulims" };
-    expect(() => parseEnv({ ...VALID_ENV, ...KEYCLOAK, ...remote })).toThrow(/KEYCLOAK_ISSUER/);
+  it("parses the private IdP origins, without a path", () => {
+    const env = parseEnv({
+      ...VALID_ENV,
+      EDULIMS_IDP_PRIVATE_ORIGINS: "http://localhost:8180, https://idp.campus.internal",
+    });
+    expect(env.EDULIMS_IDP_PRIVATE_ORIGINS).toEqual([
+      "http://localhost:8180",
+      "https://idp.campus.internal",
+    ]);
   });
 
-  it("leaves the Keycloak label to the UI and defaults the IdP role map", () => {
-    const env = parseEnv({ ...VALID_ENV, ...KEYCLOAK });
-    expect(env.KEYCLOAK_LABEL).toBeUndefined();
-    expect(env.OIDC_ROLE_MAP).toEqual(parseRoleMap(DEFAULT_ROLE_MAP));
-    expect(env.OIDC_DEFAULT_ROLE).toBeUndefined();
+  it("refuses an http private IdP origin in production (L2)", () => {
+    const plain = {
+      ...VALID_ENV,
+      ...PRODUCTION,
+      EDULIMS_IDP_PRIVATE_ORIGINS: "http://localhost:8180",
+    };
+    expect(() => parseEnv(plain)).toThrow(/EDULIMS_IDP_PRIVATE_ORIGINS/);
+    expect(parseEnv({ ...VALID_ENV, ...PRODUCTION }).EDULIMS_IDP_PRIVATE_ORIGINS).toEqual([
+      "https://idp.campus.internal",
+    ]);
   });
 
-  it.each([
-    ["OIDC_ROLE_MAP", "edulims-teacher:superuser"],
-    ["OIDC_ROLE_MAP", "edulims-teacher"],
-    ["OIDC_DEFAULT_ROLE", "superuser"],
-  ])("rejects an invalid %s (%j)", (key, value) => {
-    expect(() => parseEnv({ ...VALID_ENV, [key]: value })).toThrow(new RegExp(key));
-  });
-
-  it("falls back to the default role map when OIDC_ROLE_MAP is empty (#15)", () => {
-    const env = parseEnv({ ...VALID_ENV, OIDC_ROLE_MAP: "" });
-    expect(env.OIDC_ROLE_MAP).toEqual(parseRoleMap(DEFAULT_ROLE_MAP));
-  });
+  it.each(["MICROSOFT_CLIENT_ID", "KEYCLOAK_ISSUER", "OIDC_ROLE_MAP"])(
+    "ignores the retired variable %s (providers live in the database)",
+    (name) => {
+      expect(Object.keys(parseEnv({ ...VALID_ENV, [name]: "x" }))).not.toContain(name);
+    },
+  );
 });
 
 describe("PostgreSQL TLS in production (#40, ASVS V12.3.1)", () => {

@@ -183,10 +183,13 @@ services:
     # The image's HEALTHCHECK runs `ferrobridge healthcheck` (GET
     # /health/readiness on the loopback); compose keeps it.
   # ── eduLIMS schema migrations, a one-shot ─────────────────────────────────
-  # Runs `pnpm db:migrate` and exits. `docker compose up` runs it before the
-  # server on every start, and a migration that is already applied is a no-op.
+  # The tools image (the host CLI, src/server/cli.ts) with `migrate`: it
+  # migrates and exits. `docker compose up` runs it before the server on every
+  # start, and a migration that is already applied is a no-op. The daily
+  # `prune` runs here too (docs/deployment.md).
   edulims-migrate:
     image: ghcr.io/vernum-projecten/edulims-migrate:${EDULIMS_VERSION:?set EDULIMS_VERSION in .env}
+    command: ["migrate"]
     restart: "no"
     depends_on:
       postgres:
@@ -203,6 +206,37 @@ services:
       - /tmp
     networks: [backend]
 
+  # ── the operator commands (profile `tools`, never started by `up`) ─────────
+  # The same tools image for `admin grant|revoke` (#48) and `idp add|list|…`
+  # (#46, ADR 0015): `docker compose run --rm edulims-tools admin grant <email>`.
+  # It reaches the identity provider to discover it (egress) and holds the data
+  # key that seals provider secrets, like the server.
+  edulims-tools:
+    profiles: [tools]
+    image: ghcr.io/vernum-projecten/edulims-migrate:${EDULIMS_VERSION:?set EDULIMS_VERSION in .env}
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${EDULIMS_DB_USER:-edulims}:${EDULIMS_DB_PASSWORD:?set EDULIMS_DB_PASSWORD in .env}@postgres:5432/${EDULIMS_DB_NAME:-edulims}?sslmode=verify-full&sslrootcert=/etc/edulims/postgres-ca.crt
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL in .env}
+      EDULIMS_DATA_KEY: ${EDULIMS_DATA_KEY:?set EDULIMS_DATA_KEY in .env}
+      # Set only while `idp rekey` re-encrypts after a key rotation.
+      EDULIMS_DATA_KEY_PREVIOUS:
+      EDULIMS_IDP_PRIVATE_ORIGINS:
+      # The OIDC client secret for `idp add`, passed with `-e` for one run.
+      EDULIMS_IDP_CLIENT_SECRET:
+    volumes:
+      - ./config/postgres-tls/ca.crt:/etc/edulims/postgres-ca.crt:ro
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks: [backend, egress]
   # ── eduLIMS ───────────────────────────────────────────────────────────────
   edulims:
     image: ghcr.io/vernum-projecten/edulims:${EDULIMS_VERSION:?set EDULIMS_VERSION in .env}
@@ -223,19 +257,12 @@ services:
       DATABASE_URL: postgres://${EDULIMS_DB_USER:-edulims}:${EDULIMS_DB_PASSWORD:?set EDULIMS_DB_PASSWORD in .env}@postgres:5432/${EDULIMS_DB_NAME:-edulims}?sslmode=verify-full&sslrootcert=/etc/edulims/postgres-ca.crt
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL in .env}
-      # Each identity provider is on when its variables are set. A key with
-      # no value passes the variable through from .env only when it is set
-      # there, so an unused provider stays absent rather than empty.
-      MICROSOFT_CLIENT_ID:
-      MICROSOFT_CLIENT_SECRET:
-      MICROSOFT_TENANT_ID:
-      KEYCLOAK_ISSUER:
-      KEYCLOAK_CLIENT_ID:
-      KEYCLOAK_CLIENT_SECRET:
-      KEYCLOAK_LABEL:
-      OIDC_ROLE_CLAIM:
-      OIDC_ROLE_MAP:
-      OIDC_DEFAULT_ROLE:
+      # Identity providers live in the database (ADR 0015); this key seals
+      # their secrets. Only the server and the tools service get it.
+      EDULIMS_DATA_KEY: ${EDULIMS_DATA_KEY:?set EDULIMS_DATA_KEY in .env}
+      # A key with no value passes the variable through from .env only when it
+      # is set there: an on-premises identity provider's origin.
+      EDULIMS_IDP_PRIVATE_ORIGINS:
       FERROEHR_BASE_URL: http://ferroehr:8080/ferroehr/rest/openehr/v1
       FERROBRIDGE_BASE_URL: http://ferrobridge:8080
     volumes:

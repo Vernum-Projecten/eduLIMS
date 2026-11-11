@@ -15,8 +15,10 @@ first ([Quick start](/get-started/quick-start/)).
 ## Sign in through Keycloak
 
 `pnpm dev:db` starts Keycloak with the `edulims` realm from
-`docker/keycloak/edulims-realm.json`. On the eduLIMS sign-in page choose
-**Sign in with Keycloak**, then use one of these. The password is the
+`docker/keycloak/edulims-realm.json`, and `pnpm db:seed` registers it in
+eduLIMS as two identity providers: `keycloak` (OIDC) and `keycloak-saml`
+(SAML 2.0). On the eduLIMS sign-in page choose **Sign in with Keycloak** or
+**Sign in with Keycloak (SAML)**, then use one of these. The password is the
 username.
 
 | Username         | Roles in eduLIMS          | How Keycloak grants them                                  | Lands on   |
@@ -35,8 +37,11 @@ Each group carries one realm role (`Students` has `edulims-student`,
 realm's protocol mapper writes the effective realm roles, direct and from
 groups, to `realm_access.roles` in the ID token, and eduLIMS maps them to its
 own roles at every sign-in. A second mapper writes the group paths to
-`groups`, so `OIDC_ROLE_CLAIM=groups` can be tried as well
-([Identity providers](/operations/identity-providers/)).
+`groups`, so a role claim of `groups` with the group paths in the role map
+can be tried as well, in Admin → System → Identity providers
+([Identity providers](/operations/identity-providers/)). The SAML client sends
+the realm roles in the multi-valued attribute `Role`, the email address, and
+a persistent NameID.
 
 Student is never combined with another role, so `conflict` is refused.
 A teacher-administrator lands on the Teacher portal the first time and on

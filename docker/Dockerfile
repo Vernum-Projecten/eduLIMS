@@ -6,13 +6,14 @@
 #
 #   runtime (the default)  the TanStack Start server: the built `.output/`
 #                          tree on distroless Node.js 26, nothing else.
-#   migrate                a one-shot that runs the database migrations
-#                          (src/server/db/migrate.ts) against DATABASE_URL
-#                          and exits, on the same distroless base.
+#   tools                  the host CLI (src/server/cli.ts) on the same
+#                          distroless base: `migrate` by default, and
+#                          `prune`, `admin grant|revoke` and `idp add|list|…`
+#                          for the operator (docs/deployment.md).
 #
 # Build locally from the repository root:
 #   docker buildx build -f docker/Dockerfile -t edulims:dev .
-#   docker buildx build -f docker/Dockerfile --target migrate -t edulims-migrate:dev .
+#   docker buildx build -f docker/Dockerfile --target tools -t edulims-migrate:dev .
 #
 # The release lane (.github/workflows/release-image.yml) builds the runtime
 # target with OUTPUT=dist: it copies the `.output/` tree from the tarball that
@@ -22,7 +23,7 @@
 #
 # Every stage that runs Node.js code runs on the build platform. `.output/` is
 # plain JavaScript with no native module, so one build serves linux/amd64 and
-# linux/arm64 and the release lane needs no QEMU. The migrate target asks pnpm
+# linux/arm64 and the release lane needs no QEMU. The tools target asks pnpm
 # for the target platform's optional binaries instead.
 
 # Where the runtime target takes `.output/` from: `source` (build it here) or
@@ -62,7 +63,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-# The production dependency tree for the migrate target, with the target
+# The production dependency tree for the tools target, with the target
 # platform's optional native binaries. pnpm names architectures as Node.js
 # does (x64, arm64), and buildx names them as Go does (amd64, arm64).
 ARG TARGETARCH
@@ -84,15 +85,16 @@ COPY dist/.output /src/.output
 # hadolint ignore=DL3006
 FROM output-${OUTPUT} AS output
 
-# ── migrate: the one-shot schema migration ───────────────────────────────────
-# The migrations are TypeScript that Node.js 26 runs directly by stripping the
-# types (`pnpm db:migrate` is `node src/server/db/migrate.ts`). The image
-# runs that file with node itself, so it needs no shell and no package
-# manager, and it shares the runtime target's distroless base: one base to
-# scan and to bump. It holds the production node_modules and the sources
-# from `pnpm deploy`, root-owned, and writes nothing, so compose runs it with
-# a read-only root filesystem.
-FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:33c86a63859efc2ebd88ea0a355863582ec6f1220d048de62baffb2584e709b3 AS migrate
+# ── tools: the host CLI (migrate, prune, admin, idp) ─────────────────────────
+# The CLI is TypeScript that Node.js 26 runs directly by stripping the types
+# (`pnpm db:migrate` is `node src/server/cli.ts migrate`). The image runs that
+# file with node itself, so it needs no shell and no package manager, and it
+# shares the runtime target's distroless base: one base to scan and to bump.
+# It holds the production node_modules and the sources from `pnpm deploy`,
+# root-owned, and writes nothing, so compose runs it with a read-only root
+# filesystem. With no arguments it migrates (CMD); operators pass another
+# command (`docker compose run --rm edulims-migrate admin grant <email>`).
+FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:33c86a63859efc2ebd88ea0a355863582ec6f1220d048de62baffb2584e709b3 AS tools
 
 ARG VERSION=dev
 ARG REVISION=unknown
@@ -105,10 +107,11 @@ ENV NODE_ENV=production
 USER 65532:65532
 
 # The base's entrypoint is /nodejs/bin/node.
-CMD ["/app/src/server/db/migrate.ts"]
+ENTRYPOINT ["/nodejs/bin/node", "/app/src/server/cli.ts"]
+CMD ["migrate"]
 
-LABEL org.opencontainers.image.title="eduLIMS migrate" \
-      org.opencontainers.image.description="Applies the eduLIMS database migrations to DATABASE_URL and exits" \
+LABEL org.opencontainers.image.title="eduLIMS tools" \
+      org.opencontainers.image.description="The eduLIMS host CLI: database migrations (the default), retention, break-glass admin grants and the first identity provider" \
       org.opencontainers.image.source="https://github.com/Vernum-Projecten/eduLIMS" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.vendor="Ruben Talstra" \

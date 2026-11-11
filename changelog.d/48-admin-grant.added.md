@@ -1,0 +1,1 @@
+`admin grant <email> --provider <id>` from the tools image gives the first or a break-glass administrator the admin role, also before that person ever signed in: the grant waits 24 hours for their first sign-in through that provider; `admin revoke` takes it away again, never from the last administrator.

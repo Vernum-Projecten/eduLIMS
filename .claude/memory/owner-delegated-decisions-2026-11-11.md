@@ -51,7 +51,8 @@ authority, this file is the index. Cite the issue number, not this file.
 - `last-login-method`: yes, in the user detail sheet and as a login hint
   (#34). `open-api`: development only (#36).
 - SCIM (#45), the better-auth SSO plugin (#46) and GDPR erasure (#47) each
-  come later in their own issue.
+  have their own issue in milestone v0.1.0; #46 is decided in ADR 0015
+  ([[runtime-identity-providers]]).
 
 ## Security hardening (#39 to #44)
 

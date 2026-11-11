@@ -1,14 +1,17 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// One test per event type of the activity log (B4): each flow writes exactly one row of its
-// action with the expected outcome and reason, and nothing personal.
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createAuth } from "../auth.ts";
+// One test per event type of the activity log (B4): each flow writes exactly one row of its
+// action with the expected outcome and reason, and nothing personal.
+import type { Auth } from "../auth.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { parseEnv } from "../env.ts";
+import { keyringOf } from "../idp/crypto.ts";
+import { insertTestProvider } from "../idp/test-providers.ts";
+import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
 import { auditDatabase, auditRecorderOf, providerOf, requestIdOf } from "./better-auth-hooks.ts";
 import type { AuditAction } from "./events.ts";
@@ -26,12 +29,10 @@ afterEach(async () => {
   db = undefined;
 });
 
-type Auth = ReturnType<typeof createAuth>;
-
 async function setup() {
   const database = await createTestDb();
   db = database;
-  const auth = createAuth(parseEnv({ ...VALID_ENV, EDULIMS_DEV_LOGIN: "true" }), {
+  const auth = await createTestAuth(parseEnv({ ...VALID_ENV, EDULIMS_DEV_LOGIN: "true" }), {
     db: database,
     type: "postgres",
   });
@@ -143,10 +144,11 @@ describe("the activity log of better-auth flows (B4)", () => {
     ]);
   });
 
-  it("records authn_login_fail for a failed OAuth callback", async () => {
+  it("records authn_login_fail for a failed SSO callback", async () => {
     const { auth, database } = await setup();
+    await insertTestProvider(database, keyringOf(parseEnv(VALID_ENV)), { providerId: "entra" });
     const response = await auth.handler(
-      new Request("http://localhost:3000/api/auth/callback/microsoft?code=x"),
+      new Request("http://localhost:3000/api/auth/sso/callback/entra?code=x"),
     );
     expect(response.status).toBe(302);
     expect(await events(database, "authn_login_fail")).toEqual([
@@ -154,7 +156,7 @@ describe("the activity log of better-auth flows (B4)", () => {
         actor_type: "anonymous",
         outcome: "failure",
         reason_code: "state_not_found",
-        provider: "microsoft",
+        provider: "entra",
       }),
     ]);
   });
@@ -303,10 +305,15 @@ describe("the activity log of better-auth flows (B4)", () => {
 describe("context helpers", () => {
   it("reads the provider of a sign-in path", () => {
     expect(providerOf({ path: "/sign-in/email" })).toBe("credential");
-    expect(providerOf({ path: "/callback/:id", params: { id: "microsoft" } })).toBe("microsoft");
+    expect(providerOf({ path: "/sso/callback/:providerId", params: { providerId: "entra" } })).toBe(
+      "entra",
+    );
     expect(
-      providerOf({ path: "/oauth2/callback/:providerId", params: { providerId: "keycloak" } }),
-    ).toBe("keycloak");
+      providerOf({
+        path: "/sso/saml2/sp/acs/:providerId",
+        params: { providerId: "keycloak-saml" },
+      }),
+    ).toBe("keycloak-saml");
     expect(providerOf({ path: "/callback/:id", params: { id: "github" } })).toBeUndefined();
     expect(providerOf(null)).toBeUndefined();
   });

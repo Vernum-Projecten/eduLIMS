@@ -263,7 +263,7 @@ test("roles from an identity provider and the administrator's own roles cannot b
     sheet.getByText(/manages these roles and sets them again at every sign-in/),
   ).toBeVisible();
   await expect(sheet.getByRole("group", { name: "Change roles" })).toHaveCount(0);
-  await expect(sheet.getByText(/^From (Keycloak|Microsoft Entra ID)$/)).toBeVisible();
+  await expect(sheet.getByText(/^From Keycloak( \(SAML\))?$/)).toBeVisible();
 
   const own = await openUser(page, "Test Administrator");
   await expect(

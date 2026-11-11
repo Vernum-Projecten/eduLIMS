@@ -16,17 +16,23 @@ afterEach(async () => {
 });
 
 describe("signInMethodOf", () => {
-  it("names the provider of an OAuth callback and the development login", () => {
-    expect(signInMethodOf({ path: "/callback/:id", params: { id: "microsoft" } })).toBe(
-      "microsoft",
-    );
+  it("names the provider of an SSO callback or ACS and the development login", () => {
     expect(
-      signInMethodOf({ path: "/oauth2/callback/:providerId", params: { providerId: "keycloak" } }),
-    ).toBe("keycloak");
+      signInMethodOf({ path: "/sso/callback/:providerId", params: { providerId: "entra" } }),
+    ).toBe("entra");
+    expect(
+      signInMethodOf({
+        path: "/sso/saml2/sp/acs/:providerId",
+        params: { providerId: "keycloak-saml" },
+      }),
+    ).toBe("keycloak-saml");
     expect(signInMethodOf({ path: "/sign-in/email" })).toBe("credential");
   });
 
   it("returns null for other paths and unknown providers", () => {
+    expect(
+      signInMethodOf({ path: "/sso/callback/:providerId", params: { providerId: "Not A Slug" } }),
+    ).toBeNull();
     expect(signInMethodOf({ path: "/callback/:id", params: { id: "github" } })).toBeNull();
     expect(signInMethodOf({ path: "/get-session" })).toBeNull();
     expect(signInMethodOf(null)).toBeNull();

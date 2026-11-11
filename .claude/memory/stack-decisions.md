@@ -1,6 +1,6 @@
 ---
 name: stack-decisions
-description: "The eduLIMS stack as bootstrapped (commit 506a3b1): TanStack Start full SSR on Vite 8 + Nitro, TypeScript 7 native tsc, React 19, TanStack Router/Query/Form/Table, Tailwind 4, shadcn/ui radix-nova, Biome 2.6, Vitest 5, Kysely on PostgreSQL 18, better-auth with Entra ID or Keycloak, Node 26 LTS, pnpm 12"
+description: "The eduLIMS stack as bootstrapped (commit 506a3b1): TanStack Start full SSR on Vite 8 + Nitro, TypeScript 7 native tsc, React 19, TanStack Router/Query/Form/Table, Tailwind 4, shadcn/ui radix-nova, Biome 2.6, Vitest 5, Kysely on PostgreSQL 18, better-auth with the SSO plugin (runtime OIDC and SAML providers), Node 26 LTS, pnpm 12"
 metadata:
   type: project
 ---
@@ -31,7 +31,7 @@ The bootstrap settled the frontend and backend framework:
   <https://edulims.eu>, English everywhere plus Dutch user guides; chosen over
   Ferro's mdBook for i18n, accessibility and the pnpm toolchain. No axe scan in
   its CI workflow (too slow); run `check:a11y` locally.
-- **Auth:** better-auth with Microsoft Entra ID or Keycloak over OIDC (ADR 0010).
+- **Auth:** better-auth with the SSO plugin: OIDC and SAML providers managed at runtime (ADR 0015, superseding ADR 0010); see [[runtime-identity-providers]].
 - **Runtime:** Node 26.13.0 LTS, pnpm 12.18.0, both pinned in `package.json`
   `devEngines` and `.node-version`; exact versions (`save-exact=true`).
 - **Library skills:** pnpm 12 links the agent skills that TanStack Router,

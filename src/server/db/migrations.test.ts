@@ -24,7 +24,8 @@ describe("migrations", () => {
   it("match the schema better-auth expects (no drift)", async () => {
     db = await createTestDb();
     const auth = createAuth(parseEnv(VALID_ENV), { db, type: "postgres" });
-    const plan = await getMigrations(auth.options);
+    // The migration planner reads a Kysely database, not the encrypting adapter around it.
+    const plan = await getMigrations({ ...auth.options, database: { db, type: "postgres" } });
     // On failure this prints the SQL to add as a new migration.
     const sql = await plan.compileMigrations();
     expect(sql.trim(), sql).toBe(";");
@@ -58,6 +59,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0008_identity_provider", "Success"],
       ["0007_user_role_source", "Success"],
       ["0006_session_absolute_lifetime", "Success"],
       ["0005_audit_event", "Success"],
@@ -76,6 +78,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0008_identity_provider", "Success"],
       ["0007_user_role_source", "Success"],
       ["0006_session_absolute_lifetime", "Success"],
       ["0005_audit_event", "Success"],
@@ -94,6 +97,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0008_identity_provider", "Success"],
       ["0007_user_role_source", "Success"],
       ["0006_session_absolute_lifetime", "Success"],
       ["0005_audit_event", "Success"],
@@ -136,6 +140,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0008_identity_provider", "Success"],
       ["0007_user_role_source", "Success"],
       ["0006_session_absolute_lifetime", "Success"],
     ]);
@@ -143,5 +148,32 @@ describe("migrations", () => {
       new Date("2026-11-20T08:00:00Z"),
     );
     expect((await migrator.migrateToLatest()).error).toBeUndefined();
+  });
+
+  it("0008_identity_provider refuses a reserved or malformed provider id and reverts", async () => {
+    db = await createTestDb();
+    const insert = (database: Kysely<DB>, providerId: string) =>
+      database
+        .insertInto("ssoProvider")
+        .values({
+          id: `p-${providerId}`,
+          issuer: "https://idp.example",
+          oidcConfig: "{}",
+          providerId,
+          domain: "x.provider.invalid",
+        })
+        .execute();
+    const migrator = createMigrator(db);
+    const down = await migrator.migrateTo("0007_user_role_source");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0008_identity_provider", "Success"],
+    ]);
+    const tables = (await db.introspection.getTables()).map((t) => t.name);
+    expect(tables).not.toContain("ssoProvider");
+    expect(tables).not.toContain("identity_provider");
+    const up = await migrator.migrateToLatest();
+    expect(up.error).toBeUndefined();
+    // Last: a refused statement aborts the test transaction.
+    await expect(insert(db, "Not A Slug")).rejects.toThrow(/check constraint/);
   });
 });

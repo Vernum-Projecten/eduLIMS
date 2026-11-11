@@ -8,7 +8,7 @@ import { z } from "zod";
 import { m } from "@/i18n/messages";
 import { dayIn } from "@/lib/app-day";
 import { ROLES, validateRoleSet } from "@/lib/roles";
-import { SIGN_IN_METHODS } from "@/lib/sign-in-method";
+import { parseSignInMethod, type SignInMethod } from "@/lib/sign-in-method";
 
 /** The user statuses the table filters on and shows. */
 export const USER_STATUSES = ["active", "blocked", "never"] as const;
@@ -49,6 +49,32 @@ function searchValues<const T extends readonly [string, ...string[]]>(values: T)
     .catch(undefined);
 }
 
+/** The most sign-in methods a filter can name: the providers are rows, not a fixed list. */
+const MAX_SIGN_IN_METHODS = 40;
+
+/** A sign-in method in the input: an identity provider id or `credential` (ADR 0015). */
+const signInMethod = z.string().transform((value, ctx): SignInMethod => {
+  const method = parseSignInMethod(value);
+  if (method === null) {
+    ctx.addIssue({ code: "custom", message: "not a sign-in method" });
+    return z.NEVER;
+  }
+  return method;
+});
+
+/** The provider facet in the URL: like {@link searchValues}, for provider ids. */
+const signInMethodSearch = z
+  .preprocess(
+    (value) => (typeof value === "string" ? [value] : value),
+    z.array(z.unknown()).max(MAX_SIGN_IN_METHODS * 2),
+  )
+  .transform((list) => {
+    const known = [...new Set(list.flatMap((value) => parseSignInMethod(value) ?? []))];
+    return known.length > 0 ? known.slice(0, MAX_SIGN_IN_METHODS) : undefined;
+  })
+  .optional()
+  .catch(undefined);
+
 /**
  * The table state in the URL search params. Every key falls back to its default instead of
  * failing, so a hand-edited or old link still opens the list. The facets are arrays: a user
@@ -64,7 +90,7 @@ export const userListSearchSchema = z.object({
     .optional()
     .catch(undefined),
   role: searchValues(ROLES),
-  provider: searchValues(SIGN_IN_METHODS),
+  provider: signInMethodSearch,
   status: searchValues(USER_STATUSES),
   sort: z.enum(USER_SORT_FIELDS).optional().catch(undefined),
   dir: z.enum(["asc", "desc"]).optional().catch(undefined),
@@ -84,7 +110,12 @@ function inputValues<const T extends readonly [string, ...string[]]>(values: T) 
 export const listUsersInput = z.strictObject({
   q: z.string().max(SEARCH_MAX_LENGTH).optional(),
   role: inputValues(ROLES),
-  provider: inputValues(SIGN_IN_METHODS),
+  provider: z
+    .array(signInMethod)
+    .min(1)
+    .max(MAX_SIGN_IN_METHODS)
+    .refine((list) => new Set(list).size === list.length)
+    .optional(),
   status: inputValues(USER_STATUSES),
   sort: z.enum(USER_SORT_FIELDS).optional(),
   dir: z.enum(["asc", "desc"]).optional(),

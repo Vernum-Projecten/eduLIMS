@@ -72,7 +72,7 @@ describe("seedDemoData", () => {
     expect(first.blockedUsers).toBe(3);
     expect(first.activeSessions).toBeGreaterThan(10);
     expect(first.expiredSessions).toBeGreaterThan(10);
-    expect(Object.keys(first.accountsByProvider)).toEqual(["keycloak", "microsoft"]);
+    expect(Object.keys(first.accountsByProvider)).toEqual(["keycloak", "keycloak-saml"]);
   });
 
   it("gives the demo people no password", async () => {

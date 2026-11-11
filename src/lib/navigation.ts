@@ -17,6 +17,7 @@ import {
   MicroscopeIcon,
   PresentationIcon,
   SendIcon,
+  Settings2Icon,
   ShieldCheckIcon,
   TestTubesIcon,
   UsersIcon,
@@ -190,6 +191,13 @@ const ADMIN = {
       icon: ActivityIcon,
       label: m.nav_activity_log,
       description: m.section_admin_activity,
+    },
+    {
+      id: "system",
+      to: "/admin/system",
+      icon: Settings2Icon,
+      label: m.nav_system,
+      description: m.section_admin_system,
     },
   ],
 } as const satisfies PortalNavigation;

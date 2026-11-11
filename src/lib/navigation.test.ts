@@ -60,7 +60,7 @@ describe("navigationFor (B1: a user sees only the screens of their role)", () =>
       "grading",
       "kpi-dashboard",
     ]);
-    expect(ids("admin")).toEqual(["users", "classes", "integrations", "activity"]);
+    expect(ids("admin")).toEqual(["users", "classes", "integrations", "activity", "system"]);
   });
 
   it("keeps every path unique", () => {

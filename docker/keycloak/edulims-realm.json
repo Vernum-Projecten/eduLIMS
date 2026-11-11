@@ -28,15 +28,27 @@
     ]
   },
   "groups": [
-    { "name": "Students", "path": "/Students", "realmRoles": ["edulims-student"] },
-    { "name": "Teachers", "path": "/Teachers", "realmRoles": ["edulims-teacher"] },
-    { "name": "Administrators", "path": "/Administrators", "realmRoles": ["edulims-admin"] }
+    {
+      "name": "Students",
+      "path": "/Students",
+      "realmRoles": ["edulims-student"]
+    },
+    {
+      "name": "Teachers",
+      "path": "/Teachers",
+      "realmRoles": ["edulims-teacher"]
+    },
+    {
+      "name": "Administrators",
+      "path": "/Administrators",
+      "realmRoles": ["edulims-admin"]
+    }
   ],
   "clients": [
     {
       "clientId": "edulims",
       "name": "eduLIMS",
-      "description": "The eduLIMS server (better-auth), development only",
+      "description": "The eduLIMS server's OIDC provider `keycloak` (pnpm db:seed), development only; any localhost port, because each e2e run picks a free one",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -47,11 +59,11 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "frontchannelLogout": true,
-      "redirectUris": ["http://localhost:3000/api/auth/callback/keycloak"],
-      "webOrigins": ["http://localhost:3000"],
+      "redirectUris": ["http://localhost:*"],
+      "webOrigins": ["http://localhost:3000", "http://localhost:3100"],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:3000/*"
+        "post.logout.redirect.uris": "+"
       },
       "defaultClientScopes": ["openid", "profile", "email", "roles", "web-origins", "basic"],
       "optionalClientScopes": ["offline_access"],
@@ -135,6 +147,82 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "http://localhost:3000/api/auth/sso/saml2/sp/metadata?providerId=keycloak-saml",
+      "name": "eduLIMS (SAML)",
+      "description": "The eduLIMS server's SAML provider `keycloak-saml` (pnpm db:seed), development only",
+      "enabled": true,
+      "protocol": "saml",
+      "publicClient": false,
+      "frontchannelLogout": true,
+      "fullScopeAllowed": true,
+      "redirectUris": [
+        "http://localhost:3000/api/auth/sso/saml2/sp/acs/keycloak-saml",
+        "http://localhost:3000/api/auth/sso/saml2/sp/slo/keycloak-saml"
+      ],
+      "attributes": {
+        "saml.assertion.signature": "true",
+        "saml.server.signature": "true",
+        "saml.client.signature": "false",
+        "saml.encrypt": "false",
+        "saml.authnstatement": "true",
+        "saml_force_name_id_format": "true",
+        "saml_name_id_format": "persistent",
+        "saml.signature.algorithm": "RSA_SHA256",
+        "saml_signature_canonicalization_method": "http://www.w3.org/2001/10/xml-exc-c14n#",
+        "saml_assertion_consumer_url_post": "http://localhost:3000/api/auth/sso/saml2/sp/acs/keycloak-saml",
+        "saml_single_logout_service_url_redirect": "http://localhost:3000/api/auth/sso/saml2/sp/slo/keycloak-saml",
+        "saml_single_logout_service_url_post": "http://localhost:3000/api/auth/sso/saml2/sp/slo/keycloak-saml"
+      },
+      "defaultClientScopes": ["role_list"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "realm roles (Role, multivalued)",
+          "protocol": "saml",
+          "protocolMapper": "saml-role-list-mapper",
+          "consentRequired": false,
+          "config": {
+            "single": "true",
+            "attribute.nameformat": "Basic",
+            "attribute.name": "Role"
+          }
+        },
+        {
+          "name": "email",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "email",
+            "attribute.nameformat": "Basic",
+            "attribute.name": "email"
+          }
+        },
+        {
+          "name": "givenName",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "firstName",
+            "attribute.nameformat": "Basic",
+            "attribute.name": "givenName"
+          }
+        },
+        {
+          "name": "surname",
+          "protocol": "saml",
+          "protocolMapper": "saml-user-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "lastName",
+            "attribute.nameformat": "Basic",
+            "attribute.name": "surname"
+          }
+        }
+      ]
     }
   ],
   "users": [
@@ -145,7 +233,13 @@
       "firstName": "Test",
       "lastName": "Student",
       "enabled": true,
-      "credentials": [{ "type": "password", "value": "student", "temporary": false }],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "student",
+          "temporary": false
+        }
+      ],
       "groups": ["/Students"]
     },
     {
@@ -155,7 +249,13 @@
       "firstName": "Test",
       "lastName": "Teacher",
       "enabled": true,
-      "credentials": [{ "type": "password", "value": "teacher", "temporary": false }],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "teacher",
+          "temporary": false
+        }
+      ],
       "groups": ["/Teachers"]
     },
     {
@@ -165,7 +265,13 @@
       "firstName": "Test",
       "lastName": "Administrator",
       "enabled": true,
-      "credentials": [{ "type": "password", "value": "admin", "temporary": false }],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
       "realmRoles": ["edulims-admin"]
     },
     {
@@ -175,7 +281,13 @@
       "firstName": "Test",
       "lastName": "Coordinator",
       "enabled": true,
-      "credentials": [{ "type": "password", "value": "coordinator", "temporary": false }],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "coordinator",
+          "temporary": false
+        }
+      ],
       "groups": ["/Teachers", "/Administrators"]
     },
     {
@@ -185,7 +297,13 @@
       "firstName": "Test",
       "lastName": "Direct Teacher",
       "enabled": true,
-      "credentials": [{ "type": "password", "value": "teacher-direct", "temporary": false }],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "teacher-direct",
+          "temporary": false
+        }
+      ],
       "realmRoles": ["edulims-teacher"]
     },
     {
@@ -195,7 +313,13 @@
       "firstName": "Test",
       "lastName": "Mixed Coordinator",
       "enabled": true,
-      "credentials": [{ "type": "password", "value": "mixed", "temporary": false }],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "mixed",
+          "temporary": false
+        }
+      ],
       "realmRoles": ["edulims-admin"],
       "groups": ["/Teachers"]
     },
@@ -206,7 +330,13 @@
       "firstName": "Test",
       "lastName": "Conflict",
       "enabled": true,
-      "credentials": [{ "type": "password", "value": "conflict", "temporary": false }],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "conflict",
+          "temporary": false
+        }
+      ],
       "groups": ["/Students", "/Teachers"]
     },
     {
@@ -216,7 +346,13 @@
       "firstName": "Test",
       "lastName": "No Role",
       "enabled": true,
-      "credentials": [{ "type": "password", "value": "norole", "temporary": false }]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "norole",
+          "temporary": false
+        }
+      ]
     }
   ]
 }

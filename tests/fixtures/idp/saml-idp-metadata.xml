@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Ruben Talstra -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- A synthetic SAML 2.0 identity provider for the tests (#46): a self-signed test certificate for idp.example.test, no real service. -->
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" entityID="https://idp.example.test/saml">
+  <md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:KeyDescriptor use="signing">
+      <ds:KeyInfo>
+        <ds:X509Data>
+          <ds:X509Certificate>MIIC9jCCAd6gAwIBAgIUNGDOXnQY4jyoF6WxX1egLu1hKlswDQYJKoZIhvcNAQELBQAwGzEZMBcGA1UEAwwQaWRwLmV4YW1wbGUudGVzdDAeFw0yNjExMTExOTQ0MzFaFw0zNjExMDgxOTQ0MzFaMBsxGTAXBgNVBAMMEGlkcC5leGFtcGxlLnRlc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC2JduUPgdmYtaU3Ks04Q4gViRj7l19KxqI/E9qmwttjtmpguUXv6nxl57NxmgoclBu0APF27G+kd5W7nQY1XOKAQIhm0LrWFn3zoIuVWE3NkeB3fu9nqsdZL1xMNklkpIsaytzEKx00a7IU9tc8xIMGanjN1x1tXQiGvBAItap/4ZuziDE8+IbWmxlgMbEOJoN/Uq+ykR2POIeHb31t1xrau2HGZ8XPsabj/aR3h2BULbTgKGvDjI/Ar/Ywh6V5bpL3DTSlT4S/gkkQlWc+731rUoPEzDbraA+GnlVWxiakWohFYnOBH2PP5f4ZOeBoN5NGnwvvBoq/xxZ8JTS10LnAgMBAAGjMjAwMB0GA1UdDgQWBBQHl/OCvT+zreQ019mTBXa4YjKlfTAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQBWIpzK2zPoN/xfA3IC2cnDPKZLCbqGdJUeH+a12cWj/bryx/wNJ1tTToaQv9Yk4kharfQ4qPXYrsaPC3S5KicXEHv8eZ1/Kp0VjvHMrxEv9mlwg9ObghlJurxhY+vNLkRmuPxTocp+RCc/lor0E1JRdZg+MOAfrG3KmfpYeu7THusy9i12jesXxxj+8J0WCNRHtWoQpN47ctxfvtCY7S1kgGzCqj+Iw1btKcZDD1hnyuFyEdLqqf6ifkvRvSTugkMW2XsBowvmyL4bVFEcovGcgX4CrEl5QFLIer5hN2ZCFUK9lMm20yYnzRRarEaGnVGfh3AYRMqC7ri5vVyr/bqx</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.test/saml/logout"/>
+    <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</md:NameIDFormat>
+    <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat>
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.test/saml/sso"/>
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp.example.test/saml/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>
