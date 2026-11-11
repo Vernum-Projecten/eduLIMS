@@ -1,0 +1,176 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# The release build, as a reusable workflow: the SLSA Build Level 3 lane
+# (SLSA v1.2).
+#
+# Why a separate file: SLSA Build L3 requires that the material used to sign
+# the provenance "MUST NOT be accessible to the environment running the
+# user-defined build steps"
+# (https://slsa.dev/spec/v1.2/build-requirements, "Provenance is Unforgeable").
+# Every step of one job shares a runner VM, so an attestation step in an
+# ordinary job does not meet that. GitHub's documented remedy is to put the
+# build and its attestation in a reusable workflow, which runs on its own VM
+# and to which a caller can add no step
+# (https://docs.github.com/actions/security-guides/using-artifact-attestations-and-reusable-workflows-to-achieve-slsa-v1-build-level-3).
+# The Fulcio certificate then names this file as the signer, and a consumer
+# can require it:
+#
+#   gh attestation verify edulims-<tag>.tar.gz \
+#     --repo Vernum-Projecten/eduLIMS \
+#     --signer-workflow Vernum-Projecten/eduLIMS/.github/workflows/release-build.yml
+#
+# What it produces for one release, attached to the draft release:
+#   edulims-<tag>.tar.gz                    the built `.output/` tree
+#   edulims-<tag>.tar.gz.sha256sum          a plain checksum
+#   edulims-<tag>.cdx.json                  CycloneDX SBOM of the production
+#                                           dependencies (pnpm sbom, from the
+#                                           lockfile the build installed)
+#   edulims-<tag>.tar.gz.sigstore.json      the provenance bundle
+#   edulims-<tag>.tar.gz.sbom.sigstore.json the SBOM attestation bundle
+#   edulims-<tag>.tar.gz.intoto.jsonl       the provenance, one DSSE envelope
+name: Release build (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The vX.Y.Z tag being built.
+        required: true
+        type: string
+      sha:
+        description: The commit the tag points at.
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # attach the assets to the draft release
+      id-token: write # Sigstore, for the provenance and SBOM attestations
+      attestations: write # store them against this repository
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.sha }}
+
+      # A publishing lane restores no cache: nothing an earlier run could have
+      # poisoned may reach the artifact this job signs. setup-node turns its
+      # cache on by itself when package.json names a package manager, so it is
+      # turned off by name.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+
+      # Node.js 25 removed corepack, so pnpm comes from npm at the version
+      # package.json pins, checked against the integrity the script pins.
+      - name: Install pnpm at the pinned version
+        run: bash scripts/release/install-pnpm.sh
+
+      - name: Install the locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Package
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          out="edulims-${TAG}.tar.gz"
+          # Fixed owner, mode and order, and the commit time as every mtime, so
+          # the tarball's bytes depend on the tree alone.
+          epoch="$(git log -1 --format=%ct)"
+          tar --sort=name --owner=0 --group=0 --numeric-owner \
+            --mtime="@${epoch}" --mode='u+rwX,go+rX,go-w' \
+            -czf "$out" .output
+          sha256sum "$out" > "${out}.sha256sum"
+          cat "${out}.sha256sum"
+          echo "ASSET=$out" >> "$GITHUB_ENV"
+          echo "CHECKSUM=${out}.sha256sum" >> "$GITHUB_ENV"
+
+      # `.output/` is a bundle: the server's dependencies are inlined into its
+      # chunks, so a scanner reading the tarball finds no package.json to
+      # name them by. The SBOM comes from the lockfile the build installed,
+      # production dependencies only, which is what the bundle draws from.
+      - name: Generate the dependency SBOM
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          sbom="edulims-${TAG}.cdx.json"
+          pnpm sbom --sbom-format cyclonedx --sbom-type application --prod \
+            --sbom-authors "Ruben Talstra" --out "$sbom"
+          jq -e '.bomFormat == "CycloneDX" and (.components | length) > 0' "$sbom" > /dev/null || {
+            echo "::error::${sbom} is not a CycloneDX document with components"
+            exit 1
+          }
+          echo "SBOM=$sbom" >> "$GITHUB_ENV"
+
+      # `actions/attest` with no SBOM input attests provenance; with
+      # `sbom-path` it attests the SBOM.
+      - name: Attest build provenance
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ env.ASSET }}
+      - name: Attest the SBOM
+        id: sbom-attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ env.ASSET }}
+          sbom-path: ${{ env.SBOM }}
+
+      # The attestations live in GitHub's attestations API, which `gh
+      # attestation verify` reads. The bundles as release assets add offline
+      # verification, and the OpenSSF Scorecard signed-releases check reads
+      # the `.sigstore.json` and `.intoto.jsonl` suffixes.
+      - name: Write the attestations as release assets
+        env:
+          ASSET_NAME: ${{ env.ASSET }}
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+          SBOM_BUNDLE: ${{ steps.sbom-attestation.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          cp "$PROVENANCE_BUNDLE" "${ASSET_NAME}.sigstore.json"
+          cp "$SBOM_BUNDLE" "${ASSET_NAME}.sbom.sigstore.json"
+          jq -c '.dsseEnvelope' "$PROVENANCE_BUNDLE" > "${ASSET_NAME}.intoto.jsonl"
+          payload_type="$(jq -r '.payloadType' "${ASSET_NAME}.intoto.jsonl")"
+          [ "$payload_type" = "application/vnd.in-toto+json" ] || {
+            echo "::error::the provenance envelope is not in-toto (payloadType=${payload_type})"
+            exit 1
+          }
+          predicate="$(jq -r '.payload' "${ASSET_NAME}.intoto.jsonl" | base64 -d | jq -r '.predicateType')"
+          [ "$predicate" = "https://slsa.dev/provenance/v1" ] || {
+            echo "::error::the provenance predicate is not SLSA v1 (${predicate})"
+            exit 1
+          }
+
+      # The image lane takes the tarball from this run's artifacts and verifies
+      # its attestation before it copies `.output/` into the image.
+      - name: Hand the tarball to the image lane
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: edulims-${{ inputs.tag }}
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+          retention-days: 1
+
+      # The release stays a draft here: release.yml publishes it once every
+      # asset is attached, and a published release is immutable.
+      - name: Attach the assets to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+            "$ASSET" "$CHECKSUM" "$SBOM" \
+            "${ASSET}.sigstore.json" "${ASSET}.sbom.sigstore.json" "${ASSET}.intoto.jsonl"

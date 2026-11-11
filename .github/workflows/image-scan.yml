@@ -1,0 +1,159 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# Scheduled vulnerability scan of the published images.
+#
+# The release gate (scan-and-tag.yml) scans an image when it is built, which
+# catches what was known that day. A CVE published a week later applies to the
+# image the lab host is running, so this lane scans the `latest` tag every
+# week. The risk analysis names vulnerable libraries in the containers as a
+# risk and asks for monthly image updates; a weekly scan means a finding waits
+# at most a week for someone to see it, and the monthly update
+# (docs/deployment.md) ships the fix.
+#
+# The adjudications carry over: trivy.yaml brings .trivyignore.yaml,
+# `ignore-unfixed` and the HIGH/CRITICAL floor, and every OpenVEX document
+# under security/vex/ is passed as `--vex`.
+#
+# The run is red only when the probe fails (an image that cannot be pulled, a
+# Trivy crash, output jq cannot read). A finding files or updates one tracking
+# issue and the run stays green: the issue is the alert. An image not yet
+# published at `latest` is named in the summary and skipped.
+name: Published image scan
+
+on:
+  schedule:
+    # Mondays 05:23 UTC, off the hour.
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      report_only:
+        description: "Report findings without filing or updating an issue"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: image-scan
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  SCAN_TAG: latest
+  # The one Trivy version the release lane runs too.
+  TRIVY_VERSION: "0.76.2"
+
+jobs:
+  scan:
+    name: scan published images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read # pull the published images
+      issues: write # file or update the tracking issue
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # No cache: this lane decides whether published artifacts are safe, so
+      # nothing an earlier run could have poisoned may influence its answer.
+      - name: Install Trivy from its GitHub release, checked by sha256
+        run: bash scripts/release/install-trivy.sh "$TRIVY_VERSION" "$RUNNER_TEMP/trivy-bin"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Scan every published image
+        id: scan
+        run: |
+          set -euo pipefail
+          vex_args=()
+          for doc in security/vex/*.json; do
+            [ -e "$doc" ] || continue
+            vex_args+=(--vex "$doc")
+          done
+          echo "VEX documents applied: $(( ${#vex_args[@]} / 2 ))"
+
+          total=0
+          : > findings.md
+          for image in edulims edulims-migrate; do
+            ref="ghcr.io/vernum-projecten/${image}:${SCAN_TAG}"
+            if ! digest=$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}' 2> inspect.err); then
+              if grep -q 'not found' inspect.err; then
+                echo "::warning::${ref} is not published yet; skipped"
+                echo "| \`${image}\` | | not published at \`${SCAN_TAG}\` | skipped |" >> findings.md
+                continue
+              fi
+              cat inspect.err >&2
+              exit 1
+            fi
+            for platform in linux/amd64 linux/arm64; do
+              arch=${platform##*/}
+              echo "::group::${image} ${platform} (${digest})"
+              trivy image --config trivy.yaml --scanners vuln --platform "$platform" \
+                "${vex_args[@]}" -f json -o "${image}.${arch}.json" "${ref%:*}@${digest}"
+              count=$(jq '[.Results[]?.Vulnerabilities // [] | .[]] | length' "${image}.${arch}.json")
+              jq -r '.Results[]? | .Target as $t | (.Vulnerabilities // [])[]
+                | "\($t) | \(.PkgName) \(.InstalledVersion) \(.VulnerabilityID) \(.Severity) -> \(.FixedVersion)"' \
+                "${image}.${arch}.json"
+              echo "::endgroup::"
+              echo "| \`${image}\` | \`${platform}\` | \`${digest}\` | ${count} |" >> findings.md
+              total=$((total + count))
+            done
+          done
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+          # shellcheck disable=SC2016 # the backticks are Markdown in the summary, not a command
+          {
+            printf '## Published image scan\n\n'
+            printf 'Tag `%s`, Trivy %s, HIGH/CRITICAL with a fix available, VEX applied.\n\n' \
+              "$SCAN_TAG" "$TRIVY_VERSION"
+            printf '| image | platform | digest | findings |\n|---|---|---|---|\n'
+            cat findings.md
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "total findings: $total"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: image-scan-reports
+          path: "*.json"
+          if-no-files-found: warn
+          retention-days: 30
+
+      # The findings have a fix, so the remedy is a rebuild and a patch
+      # release; the issue says so.
+      - name: File or update the tracking issue
+        if: steps.scan.outputs.total != '0' && !inputs.report_only
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TOTAL: ${{ steps.scan.outputs.total }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          title="security(images): the published images carry fixable HIGH/CRITICAL findings"
+          # shellcheck disable=SC2016 # the backticks are Markdown in the issue body, not a command
+          {
+            printf 'The scheduled scan of the published images found **%s** fixable HIGH/CRITICAL findings.\n\n' "$TOTAL"
+            printf '| image | platform | digest | findings |\n|---|---|---|---|\n'
+            cat findings.md
+            printf '\nThe reports are attached to the run as `image-scan-reports`: %s\n' "$RUN_URL"
+            printf '\nThese findings have a fix, so the remedy is a rebuild on the fixed base'
+            printf ' image or a dependency bump, and a patch release (docs/release.md). A finding'
+            printf ' that does not affect eduLIMS gets an OpenVEX statement under `security/vex/`'
+            printf ' (`security/vex/README.md`).\n'
+          } > body.md
+          open=$(gh issue list --state open --search "$title in:title" \
+            --json number --jq '.[0].number // empty')
+          if [[ -n "$open" ]]; then
+            gh issue comment "$open" --body-file body.md
+          else
+            gh issue create --title "$title" --body-file body.md --label security
+          fi

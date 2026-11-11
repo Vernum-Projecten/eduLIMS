@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# hadolint configuration, read by a local `hadolint docker/Dockerfile` and by
+# CI. Every Dockerfile in the repository meets the same bar: a FROM pinned by
+# digest from a trusted registry, and no ignored rule without a reason written
+# beside the instruction it covers.
+failure-threshold: warning
+trustedRegistries:
+  - docker.io
+  - gcr.io
+  - ghcr.io
