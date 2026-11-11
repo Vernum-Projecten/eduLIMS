@@ -20,7 +20,11 @@ the env-configured Entra ID and Keycloak of ADR 0010 outright (greenfield):
 - The provider id is an immutable slug; it is also the role source, the
   sign-in method, the audit `provider` and, for #45, the SCIM connection id.
 - PKCE, the scopes and the ID token as claim source are fixed; SAML needs
-  signed assertions and a persistent NameID.
+  signed assertions, a persistent NameID and signed single logout.
+- PKCE must be advertised in discovery or attested per provider
+  (`attest_pkce`, off by default, logged): security review of #46 (H1).
+- `trustedOrigins` = app origin + `EDULIMS_IDP_PRIVATE_ORIGINS` only (https in
+  production); disabling a provider ends its users' sessions.
 - Secrets: AES-256-GCM per field under `EDULIMS_DATA_KEY` (not
   `BETTER_AUTH_SECRET`), through the wrapped Kysely adapter.
 - First start: `idp add` and `admin grant` (pending grant for 24 hours, bound
@@ -28,7 +32,8 @@ the env-configured Entra ID and Keycloak of ADR 0010 outright (greenfield):
   setup page. Operators run every command as `docker compose run` against the
   tools image (published as `edulims-migrate`); pnpm is the developer form.
 - No plaintext IdP token at rest: an account before-hook drops the access and
-  refresh tokens and seals the ID token (kept only for `id_token_hint`).
+  refresh tokens; the adapter seals the ID token bound to its account row
+  (kept only for `id_token_hint` of the session's own provider).
 - Known gap: no OIDC nonce in the plugin (V10.5.1 partial, #74).
 
 **Why:** administrators must switch a provider off without a redeploy, SAML

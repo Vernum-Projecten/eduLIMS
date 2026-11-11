@@ -197,14 +197,29 @@ switch for them:
 - **OIDC:** the authorization code flow with PKCE (S256) and the scopes
   `openid email profile` (no refresh token). The issuer is discovered once,
   when the provider is saved: the discovery document must name exactly that
-  issuer, and its authorization, token and key endpoints must be on the
-  issuer's own origin. Claims come from the verified ID token only, never
-  from the UserInfo endpoint.
+  issuer, its authorization, token and key endpoints must be on the issuer's
+  own origin, and it must list `S256` in `code_challenge_methods_supported`.
+  Claims come from the verified ID token only, never from the UserInfo
+  endpoint. eduLIMS keeps no access or refresh token; the ID token is stored
+  encrypted for the sign-out hint only. The sso plugin sends no `nonce` yet
+  (#74), so PKCE is the protection against an injected authorization code:
+  that is why eduLIMS insists the IdP enforces it.
+- **PKCE attestation:** some IdPs enforce PKCE but leave
+  `code_challenge_methods_supported` out of their discovery document. Saving
+  such a provider is refused with "does not offer PKCE with S256" until an
+  administrator switches on "This provider enforces PKCE with S256", which
+  the activity log records. Switch it on only when the IdP's own
+  documentation says it refuses a sign-in without PKCE for this client;
+  otherwise an authorization code stolen from a redirect can sign someone in,
+  and eduLIMS has no second check to stop it.
 - **SAML:** signed assertions, timestamps (`NotBefore`, `NotOnOrAfter`),
   InResponseTo checks, no IdP-initiated sign-in, no deprecated algorithms
   (SHA-1, RSA 1.5, 3DES) and a **persistent NameID**: the account is keyed on
   the NameID, so a transient one would make a new account at every sign-in.
-  Ask the federation which NameID formats and attributes it releases.
+  The IdP's metadata must list the persistent `NameIDFormat`, and a response
+  whose NameID has another format is refused. Single-logout requests and
+  responses must be signed by the IdP. Ask the federation which NameID
+  formats and attributes it releases.
 - **Secrets:** the OIDC client secret and a SAML signing key are write-only:
   stored encrypted (below, "Data key") and never shown again.
 
@@ -234,7 +249,12 @@ them to users or groups. Add the optional claim `email` to the ID token: Entra
 ID does not send it by default, and eduLIMS refuses a sign-in without an
 email. In eduLIMS add an OIDC provider with the issuer
 `https://login.microsoftonline.com/<tenant id>/v2.0`; the exact issuer check
-keeps the sign-in to that one tenant.
+keeps the sign-in to that one tenant. Leave "This provider's email addresses
+are verified" off: Microsoft documents the `email` claim as mutable and not
+verified ("Email addresses", below). When the tenant's discovery document
+does not list `code_challenge_methods_supported`, saving the provider is
+refused until an administrator gives the PKCE attestation above, after
+checking that the app registration enforces PKCE.
 
 ### Keycloak
 
@@ -267,8 +287,11 @@ Every issuer and metadata URL is fetched from the server, so eduLIMS refuses
 one that resolves to a private, loopback or link-local address: an
 administrator cannot point the server at the internal network (SSRF). An
 identity provider that really runs on-premises is allowed by listing its
-origin in `EDULIMS_IDP_PRIVATE_ORIGINS` (comma-separated, `https` in
-production). Only the host operator can set it.
+origin in `EDULIMS_IDP_PRIVATE_ORIGINS` (comma-separated). In production
+eduLIMS refuses to start with an `http` origin there. Only the host operator
+can set it. These origins, and the app's own, are the only ones better-auth
+trusts; every other IdP endpoint is resolved and checked again each time
+eduLIMS fetches it.
 
 ### One account per provider
 
@@ -313,15 +336,20 @@ they would give, and signs nobody in.
 ### Email addresses
 
 "This provider's email addresses are verified" marks the email a provider
-sends as verified. Turn it on only for a provider that controls every address
-it sends (the institution's own tenant), never for one where users choose
-their address: pending administrator grants and class invitations match a
-verified address only.
+sends as verified. Turn it on only for a single-tenant provider whose policy
+verifies every address before it sends it, such as a Keycloak realm that
+requires email verification and does not let users edit their address. Leave
+it off for Microsoft Entra ID and for any provider where users or tenant
+administrators set the address without a check: pending administrator grants
+and class invitations match a verified address only, so an unverified address
+there would let its owner claim someone else's grant. `admin grant` also
+refuses an existing user whose address no provider verified.
 
 ## Data key
 
 `EDULIMS_DATA_KEY` encrypts the identity-provider secrets in the database
-with AES-256-GCM, each bound to its provider and field. It is 32 random
+with AES-256-GCM, each bound to its provider and field, and the ID token each
+account keeps for the sign-out hint, bound to its account row. It is 32 random
 bytes, base64:
 
 ```sh
@@ -337,8 +365,8 @@ providers cannot be read. A secret that does not decrypt fails closed and logs
 `crypt_decrypt_fail`.
 
 To rotate the key: move the current value to `EDULIMS_DATA_KEY_PREVIOUS`, set
-a new `EDULIMS_DATA_KEY`, restart, re-encrypt every provider, then remove the
-previous key and restart again.
+a new `EDULIMS_DATA_KEY`, restart, re-encrypt every provider secret and ID
+token, then remove the previous key and restart again.
 
 ```sh
 docker compose up -d --wait
@@ -352,8 +380,10 @@ setup page: a first-run page on a freshly exposed host would be a race to
 claim the instance. The host operator, who already has host access, adds
 the first provider and the first administrator with the tools image:
 
-1. Write the provider as JSON (the fields of the Admin screen; the client
-   secret comes from the environment, never from the file or a flag):
+1. Write the provider as JSON (the fields of the Admin screen). The client
+   secret comes from `EDULIMS_IDP_CLIENT_SECRET`, never from a flag, which the
+   shell history and `ps` would keep; the command does not prompt for it, so
+   it never shows on the terminal:
 
    ```json
    {
@@ -371,16 +401,23 @@ the first provider and the first administrator with the tools image:
          { "value": "edulims-admin", "role": "admin" }
        ],
        "defaultRole": null,
-       "emailAuthoritative": true,
+       "emailAuthoritative": false,
        "domains": ["example.edu"]
      },
      "oidc": {
        "issuer": "https://login.microsoftonline.com/<tenant id>/v2.0",
        "clientId": "<application id>",
-       "clientSecret": ""
+       "clientSecret": "",
+       "attestPkce": false
      }
    }
    ```
+
+   `emailAuthoritative` is off because Entra ID does not verify the `email`
+   claim. `attestPkce` stays off unless the provider is refused with
+   `no_pkce` and you have checked that it enforces PKCE (both under "Identity
+   providers" above). `idp add` with flags takes `--attest-pkce` and
+   `--email-authoritative`.
 
    A SAML provider has `"protocol": "saml"` and
    `"saml": { "metadataXml": "", "metadataUrl": "<metadata URL>", "spPrivateKey": "" }`
@@ -398,7 +435,11 @@ the first provider and the first administrator with the tools image:
    The same validation, discovery, encryption and activity-log row as the
    screen apply (actor `system`). `idp enable <id>` and `idp disable <id>`
    switch a provider; on the host the last enabled provider can be switched
-   off, which the screen refuses.
+   off, which the screen refuses. Disabling a provider also ends every
+   session of the users who have an account there. A running eduLIMS caches
+   provider settings for up to 30 seconds per process, so a change made with
+   the tools image reaches the sign-in page within 30 seconds; a change in
+   the Admin screen applies at once in that process.
 
 3. Make the first administrator. Either the provider's role map maps an IdP
    role or group to `admin`, or grant the role from the host:
@@ -410,7 +451,9 @@ the first provider and the first administrator with the tools image:
    An existing user gets the admin role at once (as a local role set). For an
    email that has not signed in yet, the grant waits for 24 hours and is
    applied at that email's first sign-in through the named provider, which
-   must be marked "email addresses are verified". `admin revoke <email>`
+   must be marked "email addresses are verified". With the Entra ID example
+   above, whose addresses are not verified, make the first administrator
+   through the `edulims-admin` app role instead. `admin revoke <email>`
    takes the role away again and ends that user's sessions; it never removes
    the last administrator. Both write the activity log with actor `system`.
    The same command is the break-glass path when the identity provider is

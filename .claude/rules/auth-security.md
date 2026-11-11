@@ -42,19 +42,30 @@ both.
 - **Fixed security settings, never options:** PKCE S256 and the scopes
   `openid email profile`; no UserInfo endpoint, so role claims come from the
   verified ID token; signed SAML assertions, timestamps, InResponseTo, no
-  IdP-initiated sign-in, a persistent NameID. A disabled provider is refused
-  at the start, the callback and the ACS, and again in the sign-in gate.
+  IdP-initiated sign-in, a persistent NameID (in the metadata and in every
+  response), signed single-logout messages. A disabled provider is refused
+  at the start, the callback, the ACS and single logout, and again in the
+  sign-in gate; disabling it ends its users' sessions in the same
+  transaction.
+- **PKCE enforced, not only sent:** with no `nonce` yet (#74), a provider is
+  saved only when its discovery lists `S256` or an administrator attests it
+  (`attest_pkce`, logged). Never default the attestation on. An edit that
+  moves the issuer to another origin needs a new client secret.
 - **Secrets at rest:** client secrets and SAML keys are sealed with
   AES-256-GCM under `EDULIMS_DATA_KEY` (`src/server/idp/crypto.ts`) by the
   wrapped adapter (`src/server/idp/encrypted-adapter.ts`); they are
   write-only in the UI and never leave the server. A decrypt failure fails
   closed and logs `crypt_decrypt_fail`. No IdP token is kept in the clear:
   the account hooks (`src/server/idp/account-tokens.ts`) drop the access and
-  refresh tokens and seal the ID token for `id_token_hint`.
-- **SSRF:** an issuer or metadata URL is fetched only after
-  `checkFetchOrigin` (https in production, no private address unless the
-  operator lists the origin in `EDULIMS_IDP_PRIVATE_ORIGINS`).
-  `trustedOrigins` is the app origin, the stored https issuers and that list.
+  refresh tokens, and the wrapped adapter seals the ID token for
+  `id_token_hint`, bound to its account row; `idp rekey` re-seals both.
+- **SSRF:** an issuer or metadata URL is fetched only after the origin
+  check (https in production, no private address by `net.BlockList`,
+  tunnelled IPv4 forms included, unless the operator lists the origin in
+  `EDULIMS_IDP_PRIVATE_ORIGINS`, which must be https in production). The
+  metadata fetch resolves once and checks at connect time. `trustedOrigins`
+  is the app origin and that list only, never a stored issuer, so the sso
+  plugin's fetch-time DNS check applies to every other IdP.
 - The better-auth handler is mounted as a server route under `/api/auth/*`;
   the session lives in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie. No
   token is ever stored in `localStorage` or exposed to client code.

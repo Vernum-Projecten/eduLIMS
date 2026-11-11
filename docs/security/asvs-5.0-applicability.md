@@ -108,7 +108,7 @@ Text: [vendor/asvs/en/0x10-V1-Encoding-and-Sanitization.md](vendor/asvs/en/0x10-
 | V1.3.3 | 2 | yes | planned for the Gen5 upload (S4) and AQL parameters (`.claude/rules/integration.md`) | unit tests with the S4 parser | planned |
 | V1.3.4 | 2 | no | no SVG upload; uploads are `.xlsx` only (S4) | none | n-a |
 | V1.3.5 | 2 | no | no user-supplied Markdown, CSS or templates | none | n-a |
-| V1.3.6 | 2 | partly | FerroEHR and FerroBRIDGE base URLs come only from configuration (`src/server/env.ts`); identity-provider issuers and SAML metadata URLs an administrator enters are refused on a private, loopback or link-local address unless the operator lists the origin in `EDULIMS_IDP_PRIVATE_ORIGINS` (`src/server/idp/validate.ts`, ADR 0015); the integration client is not built yet (S3, S4) | unit `src/server/idp/validate.test.ts`, `src/server/env.test.ts` | partial |
+| V1.3.6 | 2 | partly | FerroEHR and FerroBRIDGE base URLs come only from configuration (`src/server/env.ts`); identity-provider issuers and SAML metadata URLs an administrator enters are refused on a private, loopback, link-local or special-purpose address, IPv4-mapped, NAT64 and 6to4 forms included (`net.BlockList`, `src/server/idp/addresses.ts`), unless the operator lists the origin in `EDULIMS_IDP_PRIVATE_ORIGINS`; the metadata fetch resolves once and checks at connect time, follows no redirect and stops at 100 KB; `trustedOrigins` holds only the app and the private origins, so the sso plugin checks every other IdP endpoint again at fetch time (`src/server/idp/validate.ts`, `src/server/auth.ts`, ADR 0015); the integration client is not built yet (S3, S4) | unit `src/server/idp/validate.test.ts`, `src/server/auth.test.ts`, `src/server/env.test.ts` | partial |
 | V1.3.7 | 2 | no | no server-side templates built from input; React renders | none | n-a |
 | V1.3.8 | 2 | no | no JNDI (Node.js) | none | n-a |
 | V1.3.9 | 2 | no | no memcache | none | n-a |
@@ -440,7 +440,7 @@ Text: [vendor/asvs/en/0x16-V7-Session-Management.md](vendor/asvs/en/0x16-V7-Sess
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V7.4.1 | 1 | yes | sign-out deletes the server session (better-auth) and ends the Keycloak session (RP-initiated logout, `src/server/auth.ts`) | e2e `tests/e2e/app.spec.ts`, unit `src/server/auth.test.ts` | met |
-| V7.4.2 | 1 | partly | a refused IdP sign-in revokes the user's sessions (`src/server/idp-sync.ts`); disabling a user in the Admin portal comes with B1 | unit `src/server/idp-sync.test.ts` | partial |
+| V7.4.2 | 1 | partly | a refused IdP sign-in revokes the user's sessions (`src/server/idp-sync.ts`); disabling an identity provider ends every session of its users in the same transaction (`src/server/idp/lifecycle.ts`); disabling a user in the Admin portal comes with B1 | unit `src/server/idp-sync.test.ts`, `src/server/idp/review-fixes.test.ts` | partial |
 | V7.4.3 | 2 | no | no authentication factor is managed in eduLIMS | none | n-a |
 | V7.4.4 | 2 | yes | the user menu in the app shell offers sign-out on every authenticated page (`src/components/shell/nav-user.tsx`) | e2e `tests/e2e/shell.spec.ts` | met |
 | V7.4.5 | 2 | partly | the better-auth admin plugin has session revocation endpoints; no Admin portal screen yet (B1) | unit tests with B1 | planned |
@@ -533,7 +533,7 @@ Text: [vendor/asvs/en/0x19-V10-OAuth-and-OIDC.md](vendor/asvs/en/0x19-V10-OAuth-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V10.2.1 | 2 | yes | PKCE S256 and `state` forced on every OIDC provider (`pkce: true` in `src/server/idp/provider-config.ts`; a provider without S256 is refused, `src/server/idp/validate.ts`) | unit `src/server/account-linking.test.ts` (`code_challenge_method=S256`), `src/server/idp/validate.test.ts` | met |
+| V10.2.1 | 2 | yes | `state` and PKCE S256 are sent on every OIDC sign-in (`pkce: true` in `src/server/idp/provider-config.ts`); `state` alone meets the requirement. A provider is saved only when its discovery document lists `S256`, or when an administrator attests that the IdP enforces it (`attest_pkce`, logged); eduLIMS cannot verify an attestation, so PKCE protects only as far as the IdP enforces it (ADR 0015) | unit `src/server/account-linking.test.ts` (`code_challenge_method=S256`), `src/server/idp/validate.test.ts`, `src/server/idp/review-fixes.test.ts` | met |
 | V10.2.2 | 2 | yes | one callback path per provider (`/sso/callback/<provider id>`, no shared redirect URI), the discovery document must name exactly the configured issuer, and the ID token's `iss` must equal it (ADR 0015); the `iss` response parameter is not read | unit `src/server/idp/validate.test.ts` (issuer mismatch), `src/server/account-linking.test.ts` (another issuer refused) | met |
 | V10.2.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -572,7 +572,7 @@ Text: [vendor/asvs/en/0x19-V10-OAuth-and-OIDC.md](vendor/asvs/en/0x19-V10-OAuth-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V10.5.1 | 2 | partly | the sso plugin (1.7.20) sends and checks no `nonce`; a replayed ID token is mitigated by PKCE, `state` and the back-channel code exchange (ADR 0015, "Known gaps"; #74 tracks it and the upstream report) | review | partial |
+| V10.5.1 | 2 | partly | the sso plugin (1.7.20) sends and checks no `nonce`. `state` and the back-channel code exchange bind the response to the sign-in; PKCE stops an injected code only at an IdP that enforces it, which eduLIMS requires to be advertised or attested but cannot check (ADR 0015, "Known gaps"; #74 tracks it and the upstream report) | review | partial |
 | V10.5.2 | 2 | yes | accounts are keyed on provider id plus the verified ID token's `sub` (SAML: the persistent NameID), never the e-mail (ADR 0015) | unit `src/server/account-linking.test.ts`; integration `tests/integration/sso-sign-in.test.ts` | met |
 | V10.5.3 | 2 | yes | issuers are discovered when a provider is saved, over https in production, with an exact issuer match, and the ID token's `iss` must equal it (`src/server/idp/validate.ts`) | unit `src/server/idp/validate.test.ts`, `src/server/account-linking.test.ts` | met |
 | V10.5.4 | 2 | yes | the sso plugin requires `aud` to equal the provider's client id | unit `src/server/account-linking.test.ts` (another audience refused) | met |
@@ -601,7 +601,7 @@ Text: [vendor/asvs/en/0x20-V11-Cryptography.md](vendor/asvs/en/0x20-V11-Cryptogr
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V11.1.1 | 2 | yes | `EDULIMS_DATA_KEY` (provider secrets) is documented with its generation, storage, rotation (`EDULIMS_DATA_KEY_PREVIOUS`, `idp rekey`) and loss (`docs/deployment.md`, "Data key"); no policy yet for `BETTER_AUTH_SECRET` and the database passwords | review | partial |
+| V11.1.1 | 2 | yes | `EDULIMS_DATA_KEY` (provider secrets and the accounts' sealed ID tokens) is documented with its generation, storage, rotation (`EDULIMS_DATA_KEY_PREVIOUS`, `idp rekey`, `src/server/idp/rekey.test.ts`) and loss (`docs/deployment.md`, "Data key"); no policy yet for `BETTER_AUTH_SECRET` and the database passwords | review | partial |
 | V11.1.2 | 2 | yes | the AES-256-GCM data key is recorded in ADR 0015; no full cryptographic inventory yet (TLS at the proxy, HMAC cookies, IdP signatures, Sigstore) | review | partial |
 | V11.1.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V11.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -674,7 +674,7 @@ Text: [vendor/asvs/en/0x21-V12-Secure-Communication.md](vendor/asvs/en/0x21-V12-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V12.2.1 | 1 | yes | `BETTER_AUTH_URL` must be `https` in production (`src/server/env.ts`); HSTS; the proxy terminates TLS | unit `src/server/env.test.ts` | met |
+| V12.2.1 | 1 | yes | `BETTER_AUTH_URL` and every `EDULIMS_IDP_PRIVATE_ORIGINS` entry must be `https` in production (`src/server/env.ts`); HSTS; the proxy terminates TLS | unit `src/server/env.test.ts` | met |
 | V12.2.2 | 1 | yes | the operator installs a publicly trusted certificate on the proxy (`docs/deployment.md`) | manual, operator | partial |
 
 #### V12.3 General Service to Service Communication Security
