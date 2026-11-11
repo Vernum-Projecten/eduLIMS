@@ -16,7 +16,14 @@ let db: Database | undefined;
 
 /** Shared connection pool, also handed to better-auth. Created lazily on first use. */
 export function getPool(): Pool {
-  pool ??= new Pool({ connectionString: getEnv().DATABASE_URL, max: 10 });
+  if (pool === undefined) {
+    pool = new Pool({ connectionString: getEnv().DATABASE_URL, max: 10 });
+    // NOTE: node-postgres docs, "Pool: error". An idle client the server drops (a restart, an
+    // administrator's terminate) emits here; unhandled, it crashes the process. The pool replaces it.
+    pool.on("error", (error) => {
+      console.error("Idle database connection lost:", error.message);
+    });
+  }
   return pool;
 }
 

@@ -11,26 +11,19 @@ import {
   Outlet,
   Scripts,
   useRouteContext,
-  useRouter,
 } from "@tanstack/react-router";
-import { CircleAlertIcon, CompassIcon } from "lucide-react";
+import { CompassIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/shell/app-shell";
 import { PublicLayout } from "@/components/shell/public-layout";
+import { RouteErrorState, StatusPage } from "@/components/shell/route-error";
 import { ThemeProvider, useThemeState } from "@/components/theme/theme-provider";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-} from "@/components/ui/empty";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { m } from "@/i18n/messages";
 import { getLocale } from "@/lib/i18n/locale";
-import { getSession } from "@/lib/session.functions";
+import { sessionQueryOptions } from "@/lib/session.query-options";
 import { themeClass } from "@/lib/theme";
 import appCss from "@/styles/app.css?url";
 
@@ -39,8 +32,11 @@ export interface RouterContext {
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
-  // Resolved on the server for every navigation, so role changes apply immediately.
-  beforeLoad: async () => ({ user: await getSession() }),
+  // NOTE: no requirement governs this: our own design. The session query is always stale, so
+  // every navigation asks the server and role changes apply at once; guards read the answer.
+  beforeLoad: async ({ context }) => ({
+    user: await context.queryClient.fetchQuery(sessionQueryOptions()),
+  }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -91,28 +87,6 @@ function Chrome({ children }: Readonly<{ children: ReactNode }>) {
   );
 }
 
-function StatusPage({
-  icon,
-  title,
-  body,
-  children,
-}: Readonly<{ icon: ReactNode; title: string; body: ReactNode; children: ReactNode }>) {
-  return (
-    <section aria-labelledby="page-title" className="flex flex-1">
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">{icon}</EmptyMedia>
-          <h1 id="page-title" className="text-2xl font-semibold tracking-tight">
-            {title}
-          </h1>
-          <EmptyDescription>{body}</EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent className="flex-row flex-wrap justify-center">{children}</EmptyContent>
-      </Empty>
-    </section>
-  );
-}
-
 function NotFound() {
   return (
     <Chrome>
@@ -130,27 +104,9 @@ function NotFound() {
 }
 
 function RouteError({ reset }: ErrorComponentProps) {
-  const router = useRouter();
   return (
     <Chrome>
-      <StatusPage
-        icon={<CircleAlertIcon aria-hidden="true" />}
-        title={m.error_title()}
-        body={<span role="alert">{m.error_body()}</span>}
-      >
-        <Button
-          type="button"
-          onClick={() => {
-            reset();
-            void router.invalidate();
-          }}
-        >
-          {m.error_retry()}
-        </Button>
-        <Button asChild variant="outline">
-          <Link to="/">{m.back_to_home()}</Link>
-        </Button>
-      </StatusPage>
+      <RouteErrorState reset={reset} />
     </Chrome>
   );
 }

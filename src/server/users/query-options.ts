@@ -11,6 +11,7 @@ import {
   type QueryKey,
   queryOptions,
 } from "@tanstack/react-query";
+import { STALE_TIME } from "../../lib/query-config.ts";
 import type { Role } from "../../lib/roles.ts";
 import type { AdminActionError, AdminActionResult, BulkActionResult } from "./actions.ts";
 import type { UserDetail } from "./detail.ts";
@@ -33,12 +34,16 @@ export const usersKeys = {
 /**
  * One page of the users table, keyed by the whole table state. While the next page or filter
  * loads, the previous page stays on screen (`keepPreviousData`), so the table never flashes empty.
+ * A failure with no page to show throws to the route's error state; a failed background
+ * refetch keeps the page.
  */
 export function adminUsersQueryOptions(input: ListUsersInput) {
   return queryOptions({
     queryKey: usersKeys.list(input),
     queryFn: () => listAdminUsers({ data: input }),
+    staleTime: STALE_TIME.adminUsersList,
     placeholderData: keepPreviousData,
+    throwOnError: (_error, query) => query.state.data === undefined,
   });
 }
 
@@ -50,6 +55,7 @@ export function adminUserQueryOptions(userId: string) {
   return queryOptions({
     queryKey: usersKeys.detail(userId),
     queryFn: () => getAdminUser({ data: { userId } }),
+    staleTime: STALE_TIME.adminUserDetail,
   });
 }
 

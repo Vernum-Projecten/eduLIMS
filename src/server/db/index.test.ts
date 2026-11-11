@@ -21,6 +21,17 @@ describe("database connection", () => {
     expect(getDb()).toBe(getDb());
   });
 
+  it("survives an idle connection the server drops, instead of crashing the process", () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect(getPool().listenerCount("error")).toBe(1);
+    getPool().emit("error", new Error("terminating connection due to administrator command"));
+    expect(logged).toHaveBeenCalledWith(
+      "Idle database connection lost:",
+      "terminating connection due to administrator command",
+    );
+    logged.mockRestore();
+  });
+
   it("reports an unreachable database as not ready", async () => {
     expect(await pingDatabase()).toBe(false);
   });

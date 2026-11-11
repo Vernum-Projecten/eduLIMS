@@ -4,9 +4,10 @@
 import { useDebouncer } from "@tanstack/react-pacer";
 import type { RowData } from "@tanstack/react-table";
 import { SearchIcon, XIcon } from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, type RefObject, useId, useRef, useState } from "react";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import type { DataTableColumn, DataTableInstance } from "@/components/data-table/features";
+import { useRegisterSearchShortcut } from "@/components/shortcuts/use-register-search-shortcut";
 import { Button } from "@/components/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { m } from "@/i18n/messages";
@@ -23,7 +24,15 @@ function DataTableSearch<TData extends RowData>({
   column,
   label,
   maxLength,
-}: Readonly<{ column: DataTableColumn<TData>; label: string; maxLength: number }>) {
+  inputRef,
+  keyShortcuts,
+}: Readonly<{
+  column: DataTableColumn<TData>;
+  label: string;
+  maxLength: number;
+  inputRef?: RefObject<HTMLInputElement | null>;
+  keyShortcuts?: string | undefined;
+}>) {
   const id = useId();
   const applied =
     typeof column.getFilterValue() === "string" ? String(column.getFilterValue()) : "";
@@ -50,6 +59,8 @@ function DataTableSearch<TData extends RowData>({
         {label}
       </label>
       <InputGroupInput
+        ref={inputRef}
+        aria-keyshortcuts={keyShortcuts}
         id={id}
         type="search"
         value={text}
@@ -71,6 +82,17 @@ function DataTableSearch<TData extends RowData>({
   );
 }
 
+/** The search of a toolbar as the page's primary search: `/` and Mod+K focus it (#63). */
+function ShortcutSearch<TData extends RowData>(
+  props: Readonly<{ column: DataTableColumn<TData>; label: string; maxLength: number }>,
+) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const shortcut = useRegisterSearchShortcut(inputRef);
+  return (
+    <DataTableSearch {...props} inputRef={inputRef} keyShortcuts={shortcut["aria-keyshortcuts"]} />
+  );
+}
+
 /**
  * The toolbar of a data table (#58), the shadcn pattern in one row that wraps on narrow
  * screens: a search that filters while typing, the faceted filters (`children`), "Reset" while
@@ -82,7 +104,8 @@ export function DataTableToolbar<TData extends RowData>({
   children,
 }: Readonly<{
   table: DataTableInstance<TData>;
-  search?: { columnId: string; label: string; maxLength: number };
+  /** The search field; with `shortcut`, it is the page's primary search that `/` and Mod+K focus. */
+  search?: { columnId: string; label: string; maxLength: number; shortcut?: boolean };
   children?: ReactNode;
 }>) {
   const searchColumn = search ? table.getColumn(search.columnId) : undefined;
@@ -90,13 +113,21 @@ export function DataTableToolbar<TData extends RowData>({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <search className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        {search && searchColumn && (
-          <DataTableSearch
-            column={searchColumn}
-            label={search.label}
-            maxLength={search.maxLength}
-          />
-        )}
+        {search &&
+          searchColumn &&
+          (search.shortcut ? (
+            <ShortcutSearch
+              column={searchColumn}
+              label={search.label}
+              maxLength={search.maxLength}
+            />
+          ) : (
+            <DataTableSearch
+              column={searchColumn}
+              label={search.label}
+              maxLength={search.maxLength}
+            />
+          ))}
         {children}
         {filtered && (
           <Button

@@ -4,8 +4,8 @@
 import type { RowData } from "@tanstack/react-table";
 import { type ReactNode, useId } from "react";
 import type { DataTableInstance } from "@/components/data-table/features";
+import { UpdatingIndicator } from "@/components/shell/updating-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -53,16 +53,7 @@ export function DataTable<TData extends RowData>({
   const columnCount = table.getVisibleLeafColumns().length;
   return (
     <div className="relative">
-      <span
-        aria-hidden="true"
-        className={cn(
-          "pointer-events-none absolute top-1.5 right-2 z-20 flex items-center gap-1.5 rounded-md border bg-background px-2 py-0.5 text-xs text-muted-foreground shadow-sm",
-          !busy && "invisible",
-        )}
-      >
-        {busy && <Spinner className="size-3" />}
-        {m.data_table_updating()}
-      </span>
+      <UpdatingIndicator active={busy} />
       {/* biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region must be reachable by keyboard (WCAG 2.1.1). */}
       <section aria-labelledby={captionId} tabIndex={0} className={SCROLL_CONTAINER}>
         <Table aria-busy={busy || undefined} className={cn(busy && "opacity-70")}>

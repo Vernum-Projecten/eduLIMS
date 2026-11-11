@@ -41,6 +41,7 @@
   "admin_users_created": "Account created",
   "admin_users_description": "Find people, see where their roles come from, end their sessions and block or unblock them.",
   "admin_users_detail": "User",
+  "admin_users_detail_loading": "Loading the user…",
   "admin_users_device": "{browser} on {os}",
   "admin_users_device_unknown": "Unknown device",
   "admin_users_empty": "No users yet",

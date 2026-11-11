@@ -41,6 +41,7 @@
   "admin_users_created": "Account aangemaakt",
   "admin_users_description": "Zoek mensen op, zie waar hun rollen vandaan komen, beëindig hun sessies en blokkeer of deblokkeer ze.",
   "admin_users_detail": "Gebruiker",
+  "admin_users_detail_loading": "De gebruiker wordt geladen…",
   "admin_users_device": "{browser} op {os}",
   "admin_users_device_unknown": "Onbekend apparaat",
   "admin_users_empty": "Nog geen gebruikers",

@@ -1,6 +1,6 @@
 ---
 name: new-route
-description: Scaffolds a TanStack Start route for one of the portals with its role guard, a GET server function with session, role and ownership checks and Zod input validation, a query-options factory, a loader that warms the cache with ensureQueryData, a useSuspenseQuery component with a translated title from the i18n layer, and the unit and role-isolation tests. Use when adding a page or screen to the Student, Teacher or Admin portal.
+description: Scaffolds a TanStack Start route for one of the portals with its role guard, a GET server function with session, role and ownership checks and Zod input validation, a key factory with colocated query and mutation options, a loader that warms the cache with ensureQueryData, a useSuspenseQuery component with a translated title from the i18n layer and the loading, error, empty and updating states, and the unit and role-isolation tests. Use when adding a page or screen to the Student, Teacher or Admin portal.
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash
 argument-hint: "<portal>/<path> e.g. teacher/practicals/$practicalId"
 ---
@@ -68,46 +68,97 @@ export const getPractical = createServerFn({ method: "GET" })
   });
 ```
 
-**`src/server/practicals/queries.ts`**: the query-options factory.
+**`src/server/practicals/query-options.ts`**: the Query layer of the area
+(`tanstack.md` §Query conventions; `src/server/users/query-options.ts` is the
+reference). One key factory from wide to narrow, the `queryOptions` of each
+read with its `staleTime` from `STALE_TIME` (`src/lib/query-config.ts`; add
+the domain there and to the table in the rule), and a `mutationOptions`
+factory per write that invalidates only the keys it changed.
 
 ```ts
-import { queryOptions } from "@tanstack/react-query";
-import { getPractical } from "./functions";
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
 
-export const practicalQueryOptions = (practicalId: string) =>
-  queryOptions({
-    queryKey: ["practicals", practicalId],
+import { mutationOptions, type QueryClient, queryOptions } from "@tanstack/react-query";
+import { STALE_TIME } from "../../lib/query-config.ts";
+import { getPractical } from "./functions.ts";
+
+/** The query keys of the practicals, from the widest to the narrowest. */
+export const practicalsKeys = {
+  all: ["practicals"] as const,
+  details: () => [...practicalsKeys.all, "detail"] as const,
+  detail: (practicalId: string) => [...practicalsKeys.details(), practicalId] as const,
+};
+
+/** One practical of the signed-in teacher. */
+export function practicalQueryOptions(practicalId: string) {
+  return queryOptions({
+    queryKey: practicalsKeys.detail(practicalId),
     queryFn: () => getPractical({ data: { practicalId } }),
+    staleTime: STALE_TIME.practicals,
   });
+}
+
+/** Renames a practical; invalidates that practical and nothing else. */
+export function renamePracticalMutationOptions(queryClient: QueryClient, call: RenameCall) {
+  return mutationOptions({
+    mutationFn: (data: RenameInput) => call({ data }),
+    onSettled: (_result, _error, data) =>
+      queryClient.invalidateQueries({ queryKey: practicalsKeys.detail(data.practicalId) }),
+  });
+}
 ```
 
-**The route file**: loader warms the cache, the component reads it with
-`useSuspenseQuery`, the head sets a translated title. No user-visible string
-is hard-coded.
+**The route file**: the loader warms the cache, the component reads it with
+`useSuspenseQuery`, the head sets a translated title, and the route has all
+four states. No user-visible string is hard-coded.
 
 ```tsx
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { RouteErrorState } from "@/components/shell/route-error";
+import { UpdatingIndicator } from "@/components/shell/updating-indicator";
 import { m } from "@/i18n/messages";
-import { practicalQueryOptions } from "@/server/practicals/queries";
+import { practicalQueryOptions } from "@/server/practicals/query-options";
 
 export const Route = createFileRoute("/_authed/teacher/practicals/$practicalId")({
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(practicalQueryOptions(params.practicalId)),
   head: () => ({ meta: [{ title: m.practical_page_title() }] }),
+  pendingComponent: PracticalSkeleton, // loading: shadcn Skeleton in the page's layout
+  errorComponent: RouteErrorState, // error: an alert and "Try again"
   component: PracticalPage,
 });
 
 function PracticalPage() {
   const { practicalId } = Route.useParams();
-  const { data } = useSuspenseQuery(practicalQueryOptions(practicalId));
+  const { data, isFetching } = useSuspenseQuery(practicalQueryOptions(practicalId));
   return (
-    <main id="main" className="mx-auto max-w-5xl p-6">
-      <h1 className="text-2xl font-semibold">{data.title}</h1>
-    </main>
+    <div className="relative" aria-busy={isFetching || undefined}>
+      <UpdatingIndicator active={isFetching} />
+      {/* empty: shadcn Empty with a translated title and description when there is nothing */}
+    </div>
   );
 }
 ```
+
+The four states, every data route:
+
+- **Loading:** a `pendingComponent` with shadcn `Skeleton` in the shape of
+  the page (`PageSkeleton`, `DataTableSkeleton`).
+- **Error:** `errorComponent: RouteErrorState` (or, inside a sheet or
+  dialog, a component that calls `useRouteRetry(reset)`), so the retry
+  resets the Query error boundary and runs the loader again. A list read with
+  `useQuery` sets `throwOnError` when it has no data to show.
+- **Empty:** shadcn `Empty` with a translated title and description.
+- **Background refetch:** `UpdatingIndicator` from `isFetching` in a slot
+  that is always there, so nothing moves; the region gets `aria-busy`.
+  A paginated or filtered list uses `placeholderData: keepPreviousData`
+  and the `cause: "stay"` loader of `src/routes/_authed/admin/users.tsx`.
+
+Never write a key array outside the factory, never call
+`invalidateQueries()` without a key, and keep server data out of React
+state, context and stores: the cache is the only copy.
 
 Every hand-written file gets the SPDX header. Do not touch
 `src/routeTree.gen.ts`; run `pnpm dev` or `pnpm build` and the plugin adds
@@ -121,8 +172,14 @@ the route.
 - **Role isolation**, one case per refusal: a student gets 403; a teacher
   asking for another teacher's practical gets 404; an anonymous call is
   refused. Cite the requirement in the test name (D3).
+- **Query layer** (`src/server/practicals/query-options.test.ts`): one case
+  per mutation that it invalidates only its keys, and one per optimistic
+  update that it rolls back on a server error, with the helpers in
+  `src/lib/test-query-client.ts`.
 - **E2E** (`tests/e2e/`): the page renders for its role, the axe scan finds
-  zero WCAG 2.1 A/AA violations, and the main task works with the keyboard.
+  zero WCAG 2.1 A/AA violations, the main task works with the keyboard, and
+  a forced 500 on the read shows the error state whose retry recovers
+  (`tests/e2e/query-states.spec.ts`).
 
 ## Finish
 

@@ -10,6 +10,7 @@ import { BlockUserDialog } from "@/components/admin-users/block-user-dialog";
 import { RoleBadges, RoleSourceText, StatusBadge } from "@/components/admin-users/user-badges";
 import { UserRolesEditor } from "@/components/admin-users/user-roles-editor";
 import { UserSessions } from "@/components/admin-users/user-sessions";
+import { UpdatingIndicator } from "@/components/shell/updating-indicator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -67,8 +68,14 @@ function rolesExplanation(user: UserDetail): string {
   return m.admin_users_roles_idp_help({ source: roleSourceLabel(user.roleSource) });
 }
 
-/** The content of the user detail sheet (#34): its header and one section per topic. */
-export function UserDetailContent({ user }: Readonly<{ user: UserDetail }>) {
+/**
+ * The content of the user detail sheet (#34): its header and one section per topic. While
+ * `updating` (a background refetch after an action), "Updating…" shows in the header.
+ */
+export function UserDetailContent({
+  user,
+  updating = false,
+}: Readonly<{ user: UserDetail; updating?: boolean }>) {
   const queryClient = useQueryClient();
   const callUnblock = useServerFn(unblockAdminUser);
   const unblock = useUsersMutation(unblockUserMutationOptions(queryClient, callUnblock), () =>
@@ -76,7 +83,11 @@ export function UserDetailContent({ user }: Readonly<{ user: UserDetail }>) {
   );
   return (
     <>
-      <SheetHeader className="flex-row items-center gap-3 border-b pr-12">
+      <SheetHeader
+        aria-busy={updating || undefined}
+        className="flex-row items-center gap-3 border-b pr-28"
+      >
+        <UpdatingIndicator active={updating} className="top-11 right-3" />
         <Avatar size="lg">
           <AvatarFallback aria-hidden="true" className="text-foreground">
             {initials(user.name)}
