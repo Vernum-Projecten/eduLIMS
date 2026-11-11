@@ -60,6 +60,15 @@ describe("createTestDb", () => {
     }
   });
 
+  it("releases its connection and the test lock on destroy, even when no query ran", async () => {
+    const idle = await createTestDb();
+    await idle.destroy();
+    // A held lock would block this second instance until the test times out.
+    db = await createTestDb();
+    const result = await sql<{ one: number }>`select 1 as one`.execute(db);
+    expect(result.rows).toEqual([{ one: 1 }]);
+  });
+
   it("rolls back what a test wrote", async () => {
     const first = await createTestDb();
     await first

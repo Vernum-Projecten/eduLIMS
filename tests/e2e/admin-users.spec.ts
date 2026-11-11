@@ -12,7 +12,7 @@ import {
   signInAsAdmin,
   usersTable,
 } from "./admin-users-helpers";
-import { devLogin } from "./fixtures";
+import { devLogin, expectHydrated } from "./fixtures";
 import { appUrl } from "./run-env";
 
 const SEARCH = "Search by name or email address";
@@ -40,7 +40,10 @@ test("the users table searches while typing, filters, sorts and pages on the ser
 
   // Search while typing: no button, the URL follows after the debounce.
   await expect(page.getByRole("button", { name: "Search", exact: true })).toHaveCount(0);
-  await page.getByRole("searchbox", { name: SEARCH }).fill("teacher-admin@example");
+  // The server HTML takes input before hydration, and hydration then resets the field.
+  const searchbox = page.getByRole("searchbox", { name: SEARCH });
+  await expectHydrated(searchbox);
+  await searchbox.fill("teacher-admin@example");
   await expect(page).toHaveURL(/q=teacher-admin%40example/);
   await expect(
     usersTable(page).getByRole("link", { name: "Test Coordinator", exact: true }),
@@ -102,7 +105,9 @@ test("the users table searches while typing, filters, sorts and pages on the ser
 
   // An older single-value link still filters; sort through the header menu.
   await page.goto("/admin/users?provider=keycloak");
-  await page.getByRole("button", { name: "Name", exact: true }).click();
+  const nameHeader = page.getByRole("button", { name: "Name", exact: true });
+  await expectHydrated(nameHeader);
+  await nameHeader.click();
   await page.getByRole("menuitem", { name: "Descending" }).click();
   await expect(page).toHaveURL(/dir=desc/);
   await expect(page.getByRole("columnheader", { name: /^Name/ })).toHaveAttribute(
@@ -126,7 +131,9 @@ test("the users table searches while typing, filters, sorts and pages on the ser
 
   // Rows per page, then next, last, previous and first page; the page survives a reload.
   await page.goto("/admin/users");
-  await page.getByRole("combobox", { name: "Rows per page" }).click();
+  const pageSize = page.getByRole("combobox", { name: "Rows per page" });
+  await expectHydrated(pageSize);
+  await pageSize.click();
   await page.getByRole("option", { name: "10", exact: true }).click();
   await expect(page).toHaveURL(/size=10/);
   await page.getByRole("button", { name: "Next page" }).click();
@@ -134,7 +141,9 @@ test("the users table searches while typing, filters, sorts and pages on the ser
   await expect(page.getByText(/^Showing 11 to 20 of \d+ users$/)).toBeVisible();
   await page.reload();
   await expect(page.getByText(/^Showing 11 to 20 of \d+ users$/)).toBeVisible();
-  await page.getByRole("button", { name: "Last page" }).click();
+  const lastPage = page.getByRole("button", { name: "Last page" });
+  await expectHydrated(lastPage);
+  await lastPage.click();
   await expect(page.getByRole("button", { name: "Next page" })).toBeDisabled();
   await expect(page.getByText(/^Page (\d+) of \1$/)).toBeVisible();
   await page.getByRole("button", { name: "First page" }).click();
@@ -280,6 +289,7 @@ test("the user sheet is deep-linkable and works with the keyboard alone", async 
   await signInAsAdmin(page);
   await page.goto("/admin/users");
   const search = page.getByLabel("Search by name or email address");
+  await expectHydrated(search);
   await search.focus();
   await page.keyboard.type("Test Teacher");
   await page.keyboard.press("Enter");
@@ -338,7 +348,10 @@ test.describe("in the dark theme and in Dutch", () => {
     await expect(page.getByRole("columnheader", { name: /^Naam/ })).toBeVisible();
     await axe(page);
 
-    await usersTable(page).getByRole("link", { name: "Test Student", exact: true }).click();
+    // Before hydration the link loads the sheet as a new document, whose buttons do nothing yet.
+    const studentLink = usersTable(page).getByRole("link", { name: "Test Student", exact: true });
+    await expectHydrated(studentLink);
+    await studentLink.click();
     const sheet = page.getByRole("dialog", { name: "Test Student" });
     await expect(
       sheet.getByRole("heading", { name: dutch("admin_users_section_profile") }),

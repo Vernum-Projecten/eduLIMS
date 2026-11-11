@@ -497,6 +497,7 @@ jobs:
           bash scripts/checks/pin-freshness.sh --self-test
           bash scripts/checks/no-devtools.sh --self-test
           bash scripts/dev/env-sync.sh --self-test
+          bash scripts/dev/compose.sh --self-test
 
   # The brand palette's contrast, measured from assets/brand/tokens.css: a
   # token's `safe:` claim or a row of the brand README that stops matching its

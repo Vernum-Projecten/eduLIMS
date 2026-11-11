@@ -22,6 +22,30 @@ export async function expectHydrated(element: Locator): Promise<void> {
     .toBe(true);
 }
 
+/**
+ * Presses `key` until `target` has focus, at most `maxPresses` times, waiting after each press
+ * until the focus has left the element it was on.
+ *
+ * A Radix menu moves its roving focus in a `setTimeout` after the key event, so reading
+ * `document.activeElement` right after a press still sees the old item under load, and the next
+ * press then moves from that old item again.
+ */
+export async function pressUntilFocused(
+  page: Page,
+  key: string,
+  target: Locator,
+  maxPresses = 4,
+): Promise<void> {
+  for (let presses = 0; presses < maxPresses; presses += 1) {
+    if (await target.evaluate((el) => el === document.activeElement)) return;
+    const before = await page.evaluateHandle(() => document.activeElement);
+    await page.keyboard.press(key);
+    await expect.poll(() => before.evaluate((el) => el !== document.activeElement)).toBe(true);
+    await before.dispose();
+  }
+  await expect(target).toBeFocused();
+}
+
 /** Signs in with a seeded dev account through the English login form. */
 export async function devLogin(page: Page, email: string): Promise<void> {
   await page.goto("/login");

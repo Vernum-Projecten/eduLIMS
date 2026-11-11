@@ -45,8 +45,8 @@ export function testDatabaseUrl(): string {
   return inject("testDatabaseUrl");
 }
 
-// NOTE: no requirement governs this: our own design. One key for every database test,
-// held for the whole test transaction, so tests in parallel files run one at a time.
+// NOTE: no requirement governs this: our own design. Held per test transaction, it runs the
+// tests of one run one at a time; PostgreSQL scopes it to the run's own database.
 const TEST_LOCK_KEY = 7_212_026_018;
 
 /**
@@ -163,10 +163,9 @@ export async function createTestDb(): Promise<Kysely<DB>> {
     throw error;
   }
   const pinned = pinnedClient(client);
-  const pool: PostgresPool = {
-    options: {},
-    connect: async () => pinned,
-    end: async () => {
+  let ended: Promise<void> | undefined;
+  const end = () => {
+    ended ??= (async () => {
       try {
         // A query the test did not await finishes first, so the rollback never queues behind it.
         await pinned.idle();
@@ -174,7 +173,26 @@ export async function createTestDb(): Promise<Kysely<DB>> {
       } finally {
         await client.end();
       }
-    },
+    })();
+    return ended;
   };
-  return new Kysely<DB>({ dialect: new RollbackDialect(pool) });
+  const pool: PostgresPool = { options: {}, connect: async () => pinned, end };
+  return new TestKysely(pool, end);
+}
+
+/** A Kysely instance whose `destroy()` always ends the test connection. */
+class TestKysely extends Kysely<DB> {
+  readonly #end: () => Promise<void>;
+
+  constructor(pool: PostgresPool, end: () => Promise<void>) {
+    super({ dialect: new RollbackDialect(pool) });
+    this.#end = end;
+  }
+
+  // NOTE: no requirement governs this: our own design. Kysely ends the pool only once it has
+  // acquired a connection, so a test without a query kept the connection and the test lock.
+  override async destroy(): Promise<void> {
+    await super.destroy();
+    await this.#end();
+  }
 }
