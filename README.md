@@ -9,10 +9,15 @@
   <img src="assets/brand/edulims-lockup-light.svg" alt="eduLIMS" width="290">
 </picture>
 
-</div>
+**The open-source laboratory information management system for practical laboratory education.**
 
-# eduLIMS
+[Documentation](https://edulims.eu) ·
+[Quick start](#quick-start) ·
+[Architecture](docs/architecture.md) ·
+[Decisions](docs/adr/README.md) ·
+[Citing eduLIMS](#citation)
 
+**Project**<br>
 [![Release](https://img.shields.io/github/v/release/Vernum-Projecten/eduLIMS?sort=semver&logo=github&label=release)](https://github.com/Vernum-Projecten/eduLIMS/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/Vernum-Projecten/eduLIMS/ci.yml?branch=main&logo=githubactions&logoColor=white&label=CI)](https://github.com/Vernum-Projecten/eduLIMS/actions/workflows/ci.yml)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/Vernum-Projecten/eduLIMS/codeql.yml?branch=main&logo=github&label=CodeQL)](https://github.com/Vernum-Projecten/eduLIMS/actions/workflows/codeql.yml)
@@ -21,12 +26,14 @@
 [![Docs build](https://img.shields.io/github/actions/workflow/status/Vernum-Projecten/eduLIMS/docs.yml?branch=main&logo=githubactions&logoColor=white&label=docs)](https://github.com/Vernum-Projecten/eduLIMS/actions/workflows/docs.yml)
 [![GHCR](https://img.shields.io/badge/ghcr.io-edulims-2496ED?logo=docker&logoColor=white)](https://github.com/Vernum-Projecten/eduLIMS/pkgs/container/edulims)
 
+**Quality and security**<br>
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Vernum-Projecten/eduLIMS/badge)](https://scorecard.dev/viewer/?uri=github.com/Vernum-Projecten/eduLIMS)
 [![Signed releases](https://img.shields.io/badge/releases-signed-brightgreen?logo=github)](docs/release.md)
 [![SLSA Build Level 3](https://slsa.dev/images/gh-badge-level3.svg)](docs/release.md)
 [![REUSE](https://img.shields.io/badge/REUSE-compliant-green)](REUSE.toml)
 [![WCAG 2.1 AA](https://img.shields.io/badge/WCAG-2.1%20AA-005A9C)](docs/requirements.md)
 
+**Stack**<br>
 [![Node.js 26 LTS](https://img.shields.io/badge/Node.js-26%20LTS-5FA04E?logo=nodedotjs&logoColor=white)](.node-version)
 [![pnpm 12](https://img.shields.io/badge/pnpm-12-F69220?logo=pnpm&logoColor=white)](package.json)
 [![TypeScript 7](https://img.shields.io/badge/TypeScript-7-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
@@ -39,6 +46,8 @@
 [![openEHR](https://img.shields.io/badge/openEHR-FerroEHR-0E7C86)](docs/architecture.md)
 [![Biome](https://img.shields.io/badge/lint-Biome-60A5FA?logo=biome&logoColor=white)](biome.json)
 
+</div>
+
 eduLIMS is an open-source laboratory information management system (LIMS) for
 practical laboratory education. Students register samples, run measurements on the lab analysers, check their results
 and submit a lab report. Teachers set up a practical, grade it with a rubric
@@ -46,10 +55,8 @@ and follow their classes on a KPI dashboard. Measurement data is stored as
 openEHR compositions in FerroEHR; everything about teaching and grading stays
 in the eduLIMS database.
 
-[Architecture](docs/architecture.md) ·
 [Requirements](docs/requirements.md) ·
 [Test strategy](docs/test-strategy.md) ·
-[Decisions](docs/adr/README.md) ·
 [Versions](docs/VERSIONS.md)
 
 ## Why it exists
