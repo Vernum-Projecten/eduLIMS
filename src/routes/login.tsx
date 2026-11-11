@@ -11,6 +11,7 @@ import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/com
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
 import { safeRedirectPath } from "@/lib/guards";
+import { type IdentityProviderId, NO_ROLE_ERROR } from "@/lib/identity-providers";
 import { getLoginOptions } from "@/lib/session.functions";
 import { portalPathFor } from "@/server/authz";
 
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { devLogin } = Route.useLoaderData();
+  const { providers, devLogin } = Route.useLoaderData();
   const search = Route.useSearch();
 
   return (
@@ -48,10 +49,24 @@ function LoginPage() {
           <FieldGroup>
             {search.error && (
               <p role="alert" className="text-sm text-destructive">
-                Inloggen is mislukt. Probeer het opnieuw of neem contact op met een beheerder.
+                {search.error === NO_ROLE_ERROR
+                  ? "Je account heeft (nog) geen rol in eduLIMS. Neem contact op met een beheerder."
+                  : "Inloggen is mislukt. Probeer het opnieuw of neem contact op met een beheerder."}
               </p>
             )}
-            <MicrosoftLoginButton redirectTo={search.redirect} />
+            {providers.map((provider) => (
+              <ProviderLoginButton
+                key={provider.id}
+                providerId={provider.id}
+                label={provider.label}
+                redirectTo={search.redirect}
+              />
+            ))}
+            {providers.length === 0 && !devLogin && (
+              <p className="text-sm text-muted-foreground">
+                Er is geen inlogmethode ingesteld. Neem contact op met een beheerder.
+              </p>
+            )}
             {devLogin && (
               <>
                 <FieldSeparator>Alleen voor ontwikkeling</FieldSeparator>
@@ -65,24 +80,28 @@ function LoginPage() {
   );
 }
 
-function MicrosoftLoginButton({ redirectTo }: Readonly<{ redirectTo: string | undefined }>) {
+function ProviderLoginButton({
+  providerId,
+  label,
+  redirectTo,
+}: Readonly<{ providerId: IdentityProviderId; label: string; redirectTo: string | undefined }>) {
   const [pending, setPending] = useState(false);
 
   async function signIn() {
     setPending(true);
     const callback = redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : "/login";
     const { error } = await authClient.signIn.social({
-      provider: "microsoft",
+      provider: providerId,
       callbackURL: callback,
-      errorCallbackURL: "/login?error=microsoft",
+      errorCallbackURL: "/login",
     });
-    // On success the browser is already navigating to Microsoft.
+    // On success the browser is already navigating to the identity provider.
     if (error) setPending(false);
   }
 
   return (
     <Button type="button" size="lg" onClick={() => void signIn()} disabled={pending}>
-      Inloggen met Hanze-account
+      {label}
     </Button>
   );
 }

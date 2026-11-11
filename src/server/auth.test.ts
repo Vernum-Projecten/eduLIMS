@@ -3,7 +3,7 @@
 
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
-import { createAuth } from "./auth.ts";
+import { createAuth, identityProviders } from "./auth.ts";
 import { parseRoles } from "./authz.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
@@ -66,5 +66,39 @@ describe("auth", () => {
     await expect(
       auth.api.signInEmail({ body: { email: "student@example.test", password: PASSWORD } }),
     ).rejects.toThrow();
+  });
+});
+
+describe("identityProviders", () => {
+  const keycloak = {
+    KEYCLOAK_ISSUER: "https://idp.example/realms/edulims",
+    KEYCLOAK_CLIENT_ID: "edulims",
+    KEYCLOAK_CLIENT_SECRET: "kc-secret",
+  };
+
+  it("lists one login button per configured provider", () => {
+    const env = parseEnv({ ...VALID_ENV, ...keycloak, KEYCLOAK_LABEL: "Inloggen met Hanze-IdP" });
+    expect(identityProviders(env)).toEqual([
+      { id: "microsoft", label: "Inloggen met Hanze-account (Microsoft)" },
+      { id: "keycloak", label: "Inloggen met Hanze-IdP" },
+    ]);
+  });
+
+  it("lists nothing when no provider is configured", () => {
+    const env = parseEnv({
+      ...VALID_ENV,
+      MICROSOFT_CLIENT_ID: undefined,
+      MICROSOFT_CLIENT_SECRET: undefined,
+      MICROSOFT_TENANT_ID: undefined,
+    });
+    expect(identityProviders(env)).toEqual([]);
+  });
+
+  it("registers Keycloak as an OAuth provider next to Microsoft", async () => {
+    db = await createTestDb({ migrate: false });
+    const auth = createAuth(parseEnv({ ...VALID_ENV, ...keycloak }), { db, type: "postgres" });
+    const ids = auth.options.plugins.map((plugin) => plugin.id);
+    expect(ids).toContain("generic-oauth");
+    expect(Object.keys(auth.options.socialProviders)).toEqual(["microsoft"]);
   });
 });

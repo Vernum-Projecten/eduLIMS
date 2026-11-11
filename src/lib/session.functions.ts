@@ -4,6 +4,7 @@
 // Server functions callable from loaders/beforeLoad on both sides; bodies run on the server.
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import { identityProviders } from "@/server/auth";
 import { getEnv } from "@/server/env";
 import { getSessionUser } from "@/server/session";
 
@@ -13,6 +14,7 @@ export const getSession = createServerFn({ method: "GET" }).handler(() =>
 );
 
 /** Which sign-in methods the login page may offer. */
-export const getLoginOptions = createServerFn({ method: "GET" }).handler(() => ({
-  devLogin: getEnv().EDULIMS_DEV_LOGIN,
-}));
+export const getLoginOptions = createServerFn({ method: "GET" }).handler(() => {
+  const env = getEnv();
+  return { providers: identityProviders(env), devLogin: env.EDULIMS_DEV_LOGIN };
+});
