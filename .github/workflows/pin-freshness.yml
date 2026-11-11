@@ -6,6 +6,8 @@
 # and the docker/ base images. scripts/checks/pin-freshness.sh reads the pins
 # it does not (Node.js, pnpm, the PostgreSQL service image, actionlint,
 # zizmor, shellcheck) and this workflow opens one issue when one is behind.
+# The vendored-owasp job re-fetches the OWASP trees under docs/security/vendor/
+# at their pins and opens one issue when a tree or a tag drifted.
 #
 # It opens an issue and does not fail: a weekly red job trains a maintainer to
 # ignore red jobs, and a newer upstream release is not a broken build.
@@ -80,3 +82,71 @@ jobs:
           # the issue lands with its labels alone and triage sets the three.
           bash scripts/gh/fields.sh new task low low \
             --title "$TITLE" --body-file body.md --label ci --label dependencies
+
+  # The vendored OWASP trees (docs/security/vendor/) against their pins: each
+  # scripts/vendor/owasp-*.sh --check re-fetches its files at the pinned
+  # commit, verifies every sha256, diffs the committed tree, and checks that
+  # the pinned tag still names the pinned commit. It needs the network, so it
+  # runs here and not on every pull request.
+  vendored-owasp:
+    name: vendored OWASP copies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Re-fetch every vendored OWASP tree and diff it with the commit
+        id: check
+        run: |
+          set -uo pipefail
+          drift=false
+          broken=false
+          for script in scripts/vendor/owasp-*.sh; do
+            status=0
+            bash "$script" --check >> vendor-check.txt 2>&1 || status=$?
+            # 0 matches, 1 a sum, a tag or the tree differs, 2 a fetch failed.
+            case "$status" in
+              0) ;;
+              1) drift=true ;;
+              *) broken=true ;;
+            esac
+          done
+          cat vendor-check.txt
+          if [ "$broken" = true ]; then
+            echo "a vendored tree could not be fetched; the comparison is incomplete" >&2
+            exit 1
+          fi
+          echo "drift=$drift" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue when a vendored copy drifted
+        if: steps.check.outputs.drift == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: A vendored OWASP document no longer matches its pinned upstream
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          open="$(gh issue list --state open --limit 500 --json title \
+            --jq "[.[] | select(.title == \"$TITLE\")] | length")"
+          if [ "$open" -ne 0 ]; then
+            echo "an open issue already carries this report; not opening a second"
+            exit 0
+          fi
+          {
+            echo "A \`scripts/vendor/owasp-*.sh --check\` run found a vendored tree that differs from its pin."
+            echo
+            echo "Re-resolve the tag and commit with \`gh api\`, update the script and \`docs/VERSIONS.md\` (see Updating in \`docs/security/README.md\`), and re-run it."
+            echo
+            echo '```text'
+            cat vendor-check.txt
+            echo '```'
+            echo
+            echo "Reported by [this run]($RUN_URL)."
+          } > body.md
+          bash scripts/gh/fields.sh new task low low \
+            --title "$TITLE" --body-file body.md --label documentation --label security
