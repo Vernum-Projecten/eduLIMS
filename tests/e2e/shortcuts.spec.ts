@@ -5,6 +5,7 @@
 import { readFileSync } from "node:fs";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { devLogin, expectNoA11yViolations } from "./fixtures";
+import { appUrl } from "./run-env";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
   readFileSync(new URL("../../messages/nl.json", import.meta.url), "utf8"),
@@ -167,9 +168,7 @@ test("? does nothing while a menu is open", async ({ page }) => {
 test.describe("axe with the shortcuts dialog open", () => {
   for (const theme of ["light", "dark"] as const) {
     test(`is clean in the ${theme} theme`, async ({ page, context }) => {
-      await context.addCookies([
-        { name: "EDULIMS_THEME", value: theme, url: "http://localhost:3100" },
-      ]);
+      await context.addCookies([{ name: "EDULIMS_THEME", value: theme, url: appUrl() }]);
       await signIn(page);
       await pressQuestionMark(page);
       await expect(page.getByRole("dialog", { name: "Keyboard shortcuts" })).toBeVisible();
@@ -180,9 +179,7 @@ test.describe("axe with the shortcuts dialog open", () => {
 
   test("is translated and clean in Dutch", async ({ page, context }) => {
     await signIn(page);
-    await context.addCookies([
-      { name: "EDULIMS_LOCALE", value: "nl", url: "http://localhost:3100" },
-    ]);
+    await context.addCookies([{ name: "EDULIMS_LOCALE", value: "nl", url: appUrl() }]);
     await page.goto("/teacher");
     await expect(page.locator("html")).toHaveAttribute("lang", "nl");
     await pressQuestionMark(page);
