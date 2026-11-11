@@ -163,9 +163,11 @@ test("filters on a user found by name and opens their user sheet (#36)", async (
   await expect(page).toHaveURL(/from=(\d{4}-\d{2}-\d{2}).*to=\1/);
   await axe(page);
   await page.keyboard.press("Escape");
-  await expect(bodyRows(page).first()).toContainText("Signed in");
+  // Other journeys act as this administrator in parallel, so the newest row need not be a sign-in.
+  const signIn = bodyRows(page).filter({ hasText: "Signed in" }).first();
+  await expect(signIn).toBeVisible();
 
-  await bodyRows(page).first().getByRole("link", { name: "Test Administrator" }).first().click();
+  await signIn.getByRole("link", { name: "Test Administrator" }).first().click();
   await expect(page).toHaveURL(/\/admin\/users\/[^/?]+/);
   await expect(page.getByRole("dialog", { name: "Test Administrator" })).toBeVisible();
 });
