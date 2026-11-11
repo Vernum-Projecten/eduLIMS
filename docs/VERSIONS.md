@@ -41,11 +41,24 @@ this file in the same change.
 | `@tanstack/react-table` | 9.3.1 |
 | `@tanstack/charts` | 1.5.0 |
 | `@tanstack/react-hotkeys` | 0.23.1 |
+| `@tanstack/react-virtual` | 3.14.26 |
 | `react`, `react-dom` | 19.3.1 |
 | `@types/react`, `@types/react-dom` | 19.3.0 |
 | `vite` | 8.3.7 |
 | `@vitejs/plugin-react` | 6.3.0 |
 | `nitro` | 3.0.261103-rc |
+
+## Development tools
+
+Development dependencies, loaded only by `pnpm dev`; a production build carries
+none of them (`scripts/checks/no-devtools.sh`).
+
+| Package | Pin |
+|---|---|
+| `@tanstack/react-devtools` | 0.10.14 |
+| `@tanstack/react-router-devtools` | 1.167.3 |
+| `@tanstack/react-query-devtools` | 5.107.1 |
+| `@tanstack/react-form-devtools` | 0.2.34 |
 
 ## UI
 
