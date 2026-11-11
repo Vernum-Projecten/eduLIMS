@@ -9,6 +9,8 @@ import { AuthError } from "../middleware.ts";
 import {
   assertAdmin,
   blockUser,
+  bulkBlockUsers,
+  bulkEndAllSessions,
   endAllSessions,
   endSession,
   setLocalRoles,
@@ -81,6 +83,11 @@ describe("the actions refuse callers without the admin role (A01)", () => {
     await expect(setLocalRoles(ctx, { userId: target, roles: ["teacher"] })).rejects.toThrow(
       AuthError,
     );
+    await expect(bulkEndAllSessions(ctx, { userIds: [target] })).rejects.toThrow(AuthError);
+    await expect(
+      bulkBlockUsers(ctx, { userIds: [target], reason: "x", until: "" }),
+    ).rejects.toThrow(AuthError);
+    expect(await sessionsOf(database, target)).toEqual([]);
   });
 
   it("a teacher-admin acts as an administrator: they hold the admin role", async () => {
@@ -335,5 +342,85 @@ describe("setLocalRoles (hybrid role ownership, owner decision on #32)", () => {
       ok: false,
       error: "not_found",
     });
+  });
+});
+
+describe("bulk actions (#58)", () => {
+  it("ends every session of each selected user, with one activity-log row per session", async () => {
+    const { auth, db: database, admin } = await setup();
+    const first = await createUser(auth, "first@example.test", ["student"]);
+    const second = await createUser(auth, "second@example.test", ["teacher"]);
+    await signIn(auth, "first@example.test");
+    await signIn(auth, "second@example.test");
+    await signIn(auth, "second@example.test");
+    expect(await bulkEndAllSessions(admin, { userIds: [first, second, first] })).toEqual({
+      done: [first, second],
+      refused: [],
+    });
+    expect(await sessionsOf(database, first)).toEqual([]);
+    expect(await sessionsOf(database, second)).toEqual([]);
+    const revoked = await events(database, "session_revoked");
+    expect(revoked).toHaveLength(3);
+    for (const row of revoked) expect(row).toMatchObject({ actor_id: admin.actor.id });
+  });
+
+  it("keeps the administrator's current session when their own account is selected", async () => {
+    const { auth, db: database, admin } = await setup();
+    await signIn(auth, "admin@example.test");
+    const current = (await auth.api.getSession({ headers: admin.headers }))?.session.id;
+    expect(await bulkEndAllSessions(admin, { userIds: [admin.actor.id] })).toEqual({
+      done: [admin.actor.id],
+      refused: [],
+    });
+    expect(await sessionsOf(database, admin.actor.id)).toEqual([{ id: current }]);
+  });
+
+  it("blocks each selected user with one reason and logs one row per user", async () => {
+    const { auth, db: database, admin } = await setup();
+    const first = await createUser(auth, "first@example.test", ["student"]);
+    const second = await createUser(auth, "second@example.test", ["student"]);
+    const until = tomorrowPlus(2);
+    expect(
+      await bulkBlockUsers(admin, { userIds: [first, second], reason: "Exam fraud", until }),
+    ).toEqual({ done: [first, second], refused: [] });
+    const rows = await database
+      .selectFrom("user")
+      .select(["id", "banned", "banReason"])
+      .where("id", "in", [first, second])
+      .orderBy("id")
+      .execute();
+    for (const row of rows) expect(row).toMatchObject({ banned: true, banReason: "Exam fraud" });
+    const banned = await events(database, "user_banned");
+    expect(banned.map((row) => row.target_id).sort()).toEqual([first, second].sort());
+  });
+
+  it("refuses the administrator's own account and unknown users, and blocks the rest", async () => {
+    const { auth, db: database, admin } = await setup();
+    const target = await createUser(auth, "target@example.test", ["student"]);
+    expect(
+      await bulkBlockUsers(admin, {
+        userIds: [admin.actor.id, "nobody", target],
+        reason: "x",
+        until: "",
+      }),
+    ).toEqual({
+      done: [target],
+      refused: [
+        { userId: admin.actor.id, error: "cannot_block_self" },
+        { userId: "nobody", error: "not_found" },
+      ],
+    });
+    const self = await database
+      .selectFrom("user")
+      .select("banned")
+      .where("id", "=", admin.actor.id)
+      .executeTakeFirstOrThrow();
+    expect(self.banned).not.toBe(true);
+    expect(await events(database, "user_banned")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ outcome: "refused", reason_code: "cannot_block_self" }),
+        expect.objectContaining({ outcome: "success", target_id: target }),
+      ]),
+    );
   });
 });

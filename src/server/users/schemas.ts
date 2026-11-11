@@ -31,18 +31,41 @@ const pageSize = z.coerce
   .refine((value) => (USER_PAGE_SIZES as readonly number[]).includes(value));
 
 /**
+ * A multi-select filter in the URL: an array of known values (a single string from an older or
+ * hand-written link counts as one). Unknown values are dropped and duplicates removed; nothing
+ * left means no filter.
+ */
+function searchValues<const T extends readonly [string, ...string[]]>(values: T) {
+  return z
+    .preprocess(
+      (value) => (typeof value === "string" ? [value] : value),
+      z.array(z.unknown()).max(values.length * 2),
+    )
+    .transform((list) => {
+      const known = values.filter((value): value is T[number] => list.includes(value));
+      return known.length > 0 ? known : undefined;
+    })
+    .optional()
+    .catch(undefined);
+}
+
+/**
  * The table state in the URL search params. Every key falls back to its default instead of
- * failing, so a hand-edited or old link still opens the list.
+ * failing, so a hand-edited or old link still opens the list. The facets are arrays: a user
+ * matches when they have any of the chosen values (OR), and the facets combine with AND.
  */
 export const userListSearchSchema = z.object({
   q: z
     .string()
-    .transform((value) => value.trim().slice(0, SEARCH_MAX_LENGTH))
+    .transform((value) => {
+      const text = value.trim().slice(0, SEARCH_MAX_LENGTH);
+      return text === "" ? undefined : text;
+    })
     .optional()
     .catch(undefined),
-  role: z.enum(ROLES).optional().catch(undefined),
-  provider: z.enum(SIGN_IN_METHODS).optional().catch(undefined),
-  status: z.enum(USER_STATUSES).optional().catch(undefined),
+  role: searchValues(ROLES),
+  provider: searchValues(SIGN_IN_METHODS),
+  status: searchValues(USER_STATUSES),
   sort: z.enum(USER_SORT_FIELDS).optional().catch(undefined),
   dir: z.enum(["asc", "desc"]).optional().catch(undefined),
   page: z.coerce.number().int().min(1).max(100_000).optional().catch(undefined),
@@ -50,12 +73,19 @@ export const userListSearchSchema = z.object({
 });
 export type UserListSearch = z.infer<typeof userListSearchSchema>;
 
+/** The search params that narrow the list: the search text and the facets. */
+export const USER_FILTER_KEYS = ["q", "role", "provider", "status"] as const;
+
+function inputValues<const T extends readonly [string, ...string[]]>(values: T) {
+  return z.array(z.enum(values)).min(1).max(values.length).optional();
+}
+
 /** The input of `listAdminUsers`: the search params, strictly (a server function is an API). */
 export const listUsersInput = z.strictObject({
   q: z.string().max(SEARCH_MAX_LENGTH).optional(),
-  role: z.enum(ROLES).optional(),
-  provider: z.enum(SIGN_IN_METHODS).optional(),
-  status: z.enum(USER_STATUSES).optional(),
+  role: inputValues(ROLES),
+  provider: inputValues(SIGN_IN_METHODS),
+  status: inputValues(USER_STATUSES),
   sort: z.enum(USER_SORT_FIELDS).optional(),
   dir: z.enum(["asc", "desc"]).optional(),
   page: z.number().int().min(1).max(100_000).optional(),
@@ -67,6 +97,18 @@ const userId = z.string().min(1).max(128);
 
 /** The input of the reads and actions about one user. */
 export const userIdInput = z.strictObject({ userId });
+
+// NOTE: no requirement governs this: our own design. One page at the largest page size.
+export const BULK_MAX_USERS = 100;
+
+const userIds = z
+  .array(userId)
+  .min(1)
+  .max(BULK_MAX_USERS)
+  .transform((ids) => [...new Set(ids)]);
+
+/** The input of a bulk action: the selected users of one page. */
+export const bulkUsersInput = z.strictObject({ userIds });
 
 /** The input of "End session": the session's id, never its token. */
 export const revokeSessionInput = z.strictObject({ userId, sessionId: z.string().min(1).max(128) });
@@ -101,6 +143,9 @@ export type BlockUserForm = z.infer<typeof blockUserFormSchema>;
 
 /** The input of `blockAdminUser`: the block form and the user. */
 export const blockUserInput = blockUserFormSchema.extend({ userId });
+
+/** The input of the bulk block: one reason and end date for every selected user. */
+export const bulkBlockUsersInput = blockUserFormSchema.extend({ userIds });
 
 /** The role editor (owner decision on #32: local role sets only, ADR 0012 sets). */
 export const userRolesFormSchema = z.object({

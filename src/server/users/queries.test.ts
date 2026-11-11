@@ -5,7 +5,15 @@ import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
-import { containsPattern, listUsers, roleValuesWith, userStatus } from "./queries.ts";
+import {
+  containsPattern,
+  listUsers,
+  roleValuesWith,
+  roleValuesWithAny,
+  userFacets,
+  userStatus,
+} from "./queries.ts";
+import type { ListUsersInput } from "./schemas.ts";
 
 const NOW = new Date("2026-11-11T12:00:00Z");
 const DAY = 86_400_000;
@@ -137,6 +145,11 @@ describe("pure helpers", () => {
     expect(roleValuesWith("student")).toEqual(["student"]);
   });
 
+  it("roleValuesWithAny lists the stored sets holding any of the roles, once each", () => {
+    expect(roleValuesWithAny(["teacher", "admin"])).toEqual(["teacher", "teacher,admin", "admin"]);
+    expect(roleValuesWithAny(["student"])).toEqual(["student"]);
+  });
+
   it("containsPattern escapes LIKE wildcards (A05)", () => {
     expect(containsPattern("100%_a\\b")).toBe("%100\\%\\_a\\\\b%");
   });
@@ -209,27 +222,27 @@ describe("listUsers (#34)", () => {
 
   it("filters on a role inside a role set", async () => {
     const database = await seed(PEOPLE);
-    expect(ids(await listUsers(database, { role: "teacher" }, NOW))).toEqual(["u2", "u3"]);
-    expect(ids(await listUsers(database, { role: "admin" }, NOW))).toEqual(["u3", "u5"]);
+    expect(ids(await listUsers(database, { role: ["teacher"] }, NOW))).toEqual(["u2", "u3"]);
+    expect(ids(await listUsers(database, { role: ["admin"] }, NOW))).toEqual(["u3", "u5"]);
   });
 
   it("filters on a linked sign-in provider", async () => {
     const database = await seed(PEOPLE);
-    expect(ids(await listUsers(database, { provider: "keycloak" }, NOW))).toEqual(["u2", "u3"]);
-    expect(ids(await listUsers(database, { provider: "credential" }, NOW))).toEqual(["u5"]);
+    expect(ids(await listUsers(database, { provider: ["keycloak"] }, NOW))).toEqual(["u2", "u3"]);
+    expect(ids(await listUsers(database, { provider: ["credential"] }, NOW))).toEqual(["u5"]);
   });
 
   it("filters on the status, an expired ban counting as not blocked", async () => {
     const database = await seed(PEOPLE);
-    expect(ids(await listUsers(database, { status: "blocked" }, NOW))).toEqual(["u4", "u6"]);
-    expect(ids(await listUsers(database, { status: "never" }, NOW))).toEqual(["u3"]);
-    expect(ids(await listUsers(database, { status: "active" }, NOW))).toEqual(["u1", "u2", "u5"]);
+    expect(ids(await listUsers(database, { status: ["blocked"] }, NOW))).toEqual(["u4", "u6"]);
+    expect(ids(await listUsers(database, { status: ["never"] }, NOW))).toEqual(["u3"]);
+    expect(ids(await listUsers(database, { status: ["active"] }, NOW))).toEqual(["u1", "u2", "u5"]);
   });
 
   it("combines filters", async () => {
     const database = await seed(PEOPLE);
     expect(
-      ids(await listUsers(database, { role: "student", provider: "microsoft", q: "a" }, NOW)),
+      ids(await listUsers(database, { role: ["student"], provider: ["microsoft"], q: "a" }, NOW)),
     ).toEqual(["u1", "u4"]);
   });
 
@@ -284,13 +297,132 @@ describe("listUsers (#34)", () => {
     const started = performance.now();
     const page = await listUsers(
       database,
-      { q: "person", status: "active", provider: "microsoft", sort: "lastSignIn", size: 100 },
+      { q: "person", status: ["active"], provider: ["microsoft"], sort: "lastSignIn", size: 100 },
       NOW,
     );
     const elapsed = performance.now() - started;
     expect(page.rows).toHaveLength(100);
     expect(page.total).toBeGreaterThan(500);
     // The query is one part of a page load; the e2e suite times the whole page.
+    expect(elapsed).toBeLessThan(500);
+  });
+});
+
+describe("listUsers with multi-select facets (#58)", () => {
+  it("matches any of the chosen values of one facet", async () => {
+    const database = await seed(PEOPLE);
+    expect(ids(await listUsers(database, { role: ["student", "admin"] }, NOW))).toEqual([
+      "u1",
+      "u3",
+      "u4",
+      "u5",
+      "u6",
+    ]);
+    expect(ids(await listUsers(database, { provider: ["keycloak", "credential"] }, NOW))).toEqual([
+      "u2",
+      "u3",
+      "u5",
+    ]);
+    expect(ids(await listUsers(database, { status: ["blocked", "never"] }, NOW))).toEqual([
+      "u3",
+      "u4",
+      "u6",
+    ]);
+  });
+
+  it("combines facets with AND and counts a user with two providers once", async () => {
+    const database = await seed(PEOPLE);
+    const page = await listUsers(
+      database,
+      { role: ["teacher"], provider: ["keycloak", "microsoft"], status: ["active"] },
+      NOW,
+    );
+    expect(ids(page)).toEqual(["u2"]);
+    expect(page.total).toBe(1);
+  });
+});
+
+const ALL_PROVIDERS = ["microsoft", "keycloak", "credential"] as const;
+
+describe("userFacets (#58)", () => {
+  it("counts every value over all users without filters", async () => {
+    const database = await seed(PEOPLE);
+    expect(await userFacets(database, {}, NOW, ALL_PROVIDERS)).toEqual({
+      role: { student: 3, teacher: 2, admin: 2 },
+      provider: { microsoft: 3, keycloak: 2, credential: 1 },
+      status: { active: 3, blocked: 2, never: 1 },
+    });
+  });
+
+  it("applies the search and the other facets, never the facet's own choice", async () => {
+    const database = await seed(PEOPLE);
+    const facets = await userFacets(
+      database,
+      { q: "a", role: ["student"], status: ["blocked"] },
+      NOW,
+      ALL_PROVIDERS,
+    );
+    // Search "a": every name but "Cor 100%_Test" has an "a". Role ignores its own choice.
+    expect(facets.role).toEqual({ student: 2, teacher: 0, admin: 0 });
+    expect(facets.status).toEqual({ active: 1, blocked: 2, never: 0 });
+    expect(facets.provider).toEqual({ microsoft: 1, keycloak: 0, credential: 0 });
+  });
+
+  it("counts only the sign-in methods the facet offers", async () => {
+    const database = await seed(PEOPLE);
+    const facets = await userFacets(database, {}, NOW, ["keycloak"]);
+    expect(facets.provider).toEqual({ keycloak: 2 });
+  });
+
+  it.each<[string, ListUsersInput]>([
+    ["no filter", {}],
+    ["a search", { q: "e" }],
+    ["two facets", { role: ["teacher", "student"], provider: ["microsoft"] }],
+    ["every facet", { q: "a", role: ["student"], provider: ["microsoft"], status: ["active"] }],
+  ])("agrees with the list's total for each value, with %s", async (_, input) => {
+    const database = await seed(PEOPLE);
+    const facets = await userFacets(database, input, NOW, ALL_PROVIDERS);
+    for (const role of ["student", "teacher", "admin"] as const) {
+      const page = await listUsers(database, { ...input, role: [role] }, NOW);
+      expect(facets.role[role], role).toBe(page.total);
+    }
+    for (const provider of ALL_PROVIDERS) {
+      const page = await listUsers(database, { ...input, provider: [provider] }, NOW);
+      expect(facets.provider[provider], provider).toBe(page.total);
+    }
+    for (const status of ["active", "blocked", "never"] as const) {
+      const page = await listUsers(database, { ...input, status: [status] }, NOW);
+      expect(facets.status[status], status).toBe(page.total);
+    }
+  });
+
+  it("returns counts only, no field about a person (R-01)", async () => {
+    const database = await seed(PEOPLE);
+    const facets = await userFacets(database, {}, NOW, ALL_PROVIDERS);
+    expect(Object.keys(facets).sort()).toEqual(["provider", "role", "status"]);
+    for (const values of Object.values(facets)) {
+      for (const count of Object.values(values)) expect(typeof count).toBe("number");
+    }
+  });
+
+  it("counts the facets of 1,200 users well within 2 s (Q-PERF-1)", async () => {
+    const many: Person[] = Array.from({ length: 1200 }, (_, i) => ({
+      id: `p${String(i).padStart(4, "0")}`,
+      name: `Person ${i}`,
+      role: i % 10 === 0 ? "teacher" : "student",
+      providers: [i % 3 === 0 ? "keycloak" : "microsoft"],
+      lastSignInAt: i % 5 === 0 ? null : new Date(NOW.getTime() - i * 60_000),
+    }));
+    const database = await seed(many);
+    const input: ListUsersInput = { q: "person", role: ["student"], status: ["active"] };
+    const started = performance.now();
+    const [page, facets] = await Promise.all([
+      listUsers(database, { ...input, size: 100 }, NOW),
+      userFacets(database, input, NOW, ALL_PROVIDERS),
+    ]);
+    const elapsed = performance.now() - started;
+    expect(page.rows).toHaveLength(100);
+    expect(facets.role.student + facets.role.teacher).toBeGreaterThan(900);
     expect(elapsed).toBeLessThan(500);
   });
 });

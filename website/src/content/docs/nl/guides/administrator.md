@@ -65,15 +65,27 @@ rij toont de naam en het e-mailadres, de rollen en waar ze vandaan komen
 en het aantal actieve sessies. Het scherm toont geen cijfers, resultaten of
 inleveringen.
 
-- **Zoek** op een deel van een naam of e-mailadres en druk op **Enter** of
-  kies **Zoeken**.
-- **Filter** op een rol, een aanmeldmethode of een status. De zoekopdracht en
-  de filters staan in het adres, dus je kunt een gefilterde weergave als
-  bladwijzer bewaren of delen. **Zoekopdracht en filters wissen** toont
-  iedereen weer.
-- **Sorteer** op naam of op laatste aanmelding met de kolomkoppen en blader
-  met **Vorige pagina** en **Volgende pagina**. **Rijen per pagina** toont
-  10, 25, 50 of 100 gebruikers.
+- **Zoek** op een deel van een naam of e-mailadres: de lijst volgt terwijl
+  je typt.
+- **Filter** met **Rol**, **Aanmeldmethode** en **Status**. Elk filter opent
+  een lijst met zijn waarden en het aantal gebruikers per waarde; kies een of
+  meer waarden (een gebruiker past bij elk van die waarden) en combineer de
+  filters. De gekozen waarden staan op de knop. **Wissen** wist de
+  zoekopdracht en elk filter. De zoekopdracht en de filters staan in het
+  adres, dus je kunt een gefilterde weergave als bladwijzer bewaren of delen.
+- **Sorteer** met het menu van de kolomkop **Naam** of **Laatst
+  aangemeld** (**Oplopend** of **Aflopend**). **Kolom verbergen** in een
+  kolommenu, of **Weergave**, verbergt en toont kolommen; deze browser
+  onthoudt de keuze.
+- **Rijen per pagina** toont 10, 25, 50 of 100 gebruikers; de knoppen ernaast
+  gaan naar de eerste, vorige, volgende en laatste pagina.
+- **Het rijmenu** (de knop aan het eind van elke rij) opent de gegevens,
+  beëindigt alle sessies van de gebruiker, of blokkeert of deblokkeert die.
+- **Selecteer rijen** met hun selectievakje, of elke rij van de pagina met
+  het vakje in de kop, om ze in één keer te behandelen: **Sessies
+  beëindigen** meldt de gekozen gebruikers overal af, **Blokkeren** blokkeert
+  ze met één reden en een optionele laatste dag. Je eigen account kun je niet
+  selecteren.
 
 Kies een naam om de gegevens van die gebruiker naast de lijst te openen. De
 gegevens hebben een eigen adres, dus je kunt een link naar één gebruiker

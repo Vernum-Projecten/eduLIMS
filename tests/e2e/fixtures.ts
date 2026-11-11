@@ -10,6 +10,11 @@ export const DEV_PASSWORD = "eduLIMS-dev-only";
 /** Signs in with a seeded dev account through the English login form. */
 export async function devLogin(page: Page, email: string): Promise<void> {
   await page.goto("/login");
+  // The fields are controlled: text typed before React hydrates them is lost under load.
+  await page.waitForFunction(() => {
+    const input = document.querySelector("input[name=email]");
+    return input !== null && Object.keys(input).some((key) => key.startsWith("__reactProps"));
+  });
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(DEV_PASSWORD);
   await page.getByRole("button", { name: "Sign in with a test account" }).click();

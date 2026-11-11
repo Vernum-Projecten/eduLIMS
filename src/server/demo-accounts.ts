@@ -47,6 +47,25 @@ export const DEV_USERS = [
     hidden: true,
   },
   { email: "roles@example.test", name: "Roles Test Teacher", roles: ["teacher"], hidden: true },
+  // The data table's e2e journeys (#58): bulk actions, and optimistic updates rolled back.
+  {
+    email: "bulk-one@example.test",
+    name: "Bulk Test Student One",
+    roles: ["student"],
+    hidden: true,
+  },
+  {
+    email: "bulk-two@example.test",
+    name: "Bulk Test Student Two",
+    roles: ["student"],
+    hidden: true,
+  },
+  {
+    email: "rollback@example.test",
+    name: "Rollback Test Teacher",
+    roles: ["teacher"],
+    hidden: true,
+  },
 ] as const satisfies readonly DevUser[];
 
 /** The realm of the development Keycloak (compose.dev.yaml). */

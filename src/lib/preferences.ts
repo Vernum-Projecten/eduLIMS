@@ -7,6 +7,7 @@
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { hostCookieName, readCookie } from "@/lib/cookies";
+import { columnsCookieName, parseHiddenColumns } from "@/lib/table-columns";
 import {
   parseSidebarOpen,
   parseTheme,
@@ -30,3 +31,12 @@ export const readSidebarOpen = createIsomorphicFn()
     parseSidebarOpen(getCookie(hostCookieName(SIDEBAR_COOKIE, isSecureOrigin()))),
   )
   .client((): boolean => parseSidebarOpen(clientPreference(SIDEBAR_COOKIE)));
+
+/** Reads the hidden column ids of data table `tableId` from its preference cookie (#58). */
+export const readHiddenColumns = createIsomorphicFn()
+  .server((tableId: string): string[] =>
+    parseHiddenColumns(getCookie(hostCookieName(columnsCookieName(tableId), isSecureOrigin()))),
+  )
+  .client((tableId: string): string[] =>
+    parseHiddenColumns(clientPreference(columnsCookieName(tableId))),
+  );

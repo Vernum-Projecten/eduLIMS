@@ -276,3 +276,52 @@ export async function setLocalRoles(
   }
   return outcome;
 }
+
+/** The outcome of a bulk action: the users it was done for, and each refusal with its code. */
+export interface BulkActionResult {
+  done: string[];
+  refused: { userId: string; error: AdminActionError }[];
+}
+
+/**
+ * Runs a single-user action for each of `userIds` in turn, so every user gets the same checks,
+ * refusals and activity-log rows as one action on its own (B4). A refusal does not stop the rest.
+ */
+async function forEachUser(
+  ctx: ActionContext,
+  userIds: readonly string[],
+  action: (userId: string) => Promise<AdminActionResult>,
+): Promise<BulkActionResult> {
+  assertAdmin(ctx.actor);
+  const result: BulkActionResult = { done: [], refused: [] };
+  for (const userId of new Set(userIds)) {
+    const outcome = await action(userId);
+    if (outcome.ok) result.done.push(userId);
+    else result.refused.push({ userId, error: outcome.error });
+  }
+  return result;
+}
+
+/**
+ * Ends every session of each selected user (#58), as {@link endAllSessions} does for one: on
+ * the administrator's own account every session but the current one.
+ */
+export function bulkEndAllSessions(
+  ctx: ActionContext,
+  input: { userIds: readonly string[] },
+): Promise<BulkActionResult> {
+  return forEachUser(ctx, input.userIds, (userId) => endAllSessions(ctx, { userId }));
+}
+
+/**
+ * Blocks each selected user with one reason and end date (#58), as {@link blockUser} does for
+ * one: the administrator's own account is refused with `cannot_block_self` and logged.
+ */
+export function bulkBlockUsers(
+  ctx: ActionContext,
+  input: { userIds: readonly string[]; reason: string; until: string },
+): Promise<BulkActionResult> {
+  return forEachUser(ctx, input.userIds, (userId) =>
+    blockUser(ctx, { userId, reason: input.reason, until: input.until }),
+  );
+}

@@ -66,7 +66,8 @@ export function RoleSourceText({ source }: Readonly<{ source: RoleSource | null 
   );
 }
 
-const STATUS_ICONS: Record<UserStatusValue, LucideIcon> = {
+/** The icon of each user status, beside its text (WCAG 1.4.1). */
+export const STATUS_ICONS: Record<UserStatusValue, LucideIcon> = {
   active: CircleCheckIcon,
   blocked: BanIcon,
   never: CircleDashedIcon,
