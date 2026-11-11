@@ -4,7 +4,9 @@
 import "@tanstack/react-start/server-only";
 import type { BetterAuthOptions } from "better-auth";
 import { NO_ROLE_ERROR, ROLE_CONFLICT_ERROR } from "../lib/identity-providers.ts";
-import { formatRoles, type Role } from "../lib/roles.ts";
+import { formatRoles, type Role, validateRoleValue } from "../lib/roles.ts";
+import { auditRecorderOf, requestIdOf } from "./audit/better-auth-hooks.ts";
+import { auditProvider } from "./audit/events.ts";
 import { type RoleMap, resolveIdpRoles } from "./idp-roles.ts";
 
 type ValidateUserInfo = NonNullable<NonNullable<BetterAuthOptions["user"]>["validateUserInfo"]>;
@@ -38,7 +40,22 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
           defaultRole: options.defaultRole,
         })
       : { kind: "none" as const };
+    const recorder = auditRecorderOf(ctx.context);
+    const provider = auditProvider(providerId);
+    const requestId = requestIdOf(ctx);
+    const known = {
+      ...(typeof user.id === "string" ? { target: { type: "user" as const, id: user.id } } : {}),
+      ...(provider ? { provider } : {}),
+      ...(requestId ? { requestId } : {}),
+    };
     if (resolved.kind !== "roles") {
+      await recorder?.record({
+        action: "authn_login_fail",
+        actor: { type: "anonymous" },
+        outcome: "refused",
+        reason: resolved.kind === "conflict" ? ROLE_CONFLICT_ERROR : NO_ROLE_ERROR,
+        ...known,
+      });
       // NOTE: A07; a role the IdP took away ends the live access too, not only the next sign-in.
       if (typeof user.id === "string")
         await ctx.context.internalAdapter.deleteUserSessions(user.id);
@@ -58,6 +75,17 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
     }
     if (typeof user.id === "string" && user["role"] !== role) {
       await ctx.context.internalAdapter.updateUser(user.id, { role });
+      const previous = validateRoleValue(user["role"]);
+      await recorder?.record({
+        action: "authz_role_change",
+        actor: { type: "system" },
+        outcome: "success",
+        metadata: {
+          roles: role,
+          ...(previous.ok ? { previous_roles: formatRoles(previous.roles) } : {}),
+        },
+        ...known,
+      });
     }
   };
 }

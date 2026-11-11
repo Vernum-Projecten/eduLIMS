@@ -56,8 +56,9 @@ describe("migrations", () => {
         })
         .execute();
     const migrator = createMigrator(db);
-    const down = await migrator.migrateDown();
+    const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0005_audit_event", "Success"],
       ["0004_user_role_check", "Success"],
     ]);
     await expect(insert(db, "student,admin")).resolves.toBeDefined();
@@ -73,6 +74,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0005_audit_event", "Success"],
       ["0004_user_role_check", "Success"],
       ["0003_user_last_portal", "Success"],
     ]);
@@ -88,6 +90,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0005_audit_event", "Success"],
       ["0004_user_role_check", "Success"],
       ["0003_user_last_portal", "Success"],
       ["0002_user_locale", "Success"],

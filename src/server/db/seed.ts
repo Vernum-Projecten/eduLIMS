@@ -1,16 +1,24 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// CLI: `pnpm db:seed`. Creates the dev-login users (idempotent). Refuses to run unless
-// EDULIMS_DEV_LOGIN=true, which env validation in turn refuses in production.
+// CLI: `pnpm db:seed`. Creates the dev-login users and the fictional demo set (both
+// idempotent). Refuses to run unless EDULIMS_DEV_LOGIN=true, which env validation in turn
+// refuses in production. Prints e-mail addresses of the public dev-login users and counts only.
 import { getAuth } from "../auth.ts";
 import { DEV_PASSWORD, DEV_USERS } from "../demo-accounts.ts";
 import { getEnv } from "../env.ts";
+import { seedDemoData, seedSummary } from "./demo/seed-demo.ts";
 import { getDb } from "./index.ts";
 
 if (!getEnv().EDULIMS_DEV_LOGIN) {
   console.error("Refusing to seed: EDULIMS_DEV_LOGIN is not enabled.");
   process.exit(1);
+}
+
+function counts(record: Record<string, number>): string {
+  return Object.entries(record)
+    .map(([key, n]) => `${key} ${n}`)
+    .join(", ");
 }
 
 const db = getDb();
@@ -31,6 +39,21 @@ try {
     });
     process.stdout.write(`created ${user.email} (${user.roles.join(",")})\n`);
   }
+
+  const now = new Date();
+  const created = await seedDemoData(db, now);
+  const summary = await seedSummary(db, now);
+  process.stdout.write(
+    `${created ? "created" : "exists "} demo data\n` +
+      `  users by role:       ${counts(summary.usersByRole)}\n` +
+      `  accounts:            ${counts(summary.accountsByProvider)}\n` +
+      `  sessions:            ${summary.activeSessions} active, ${summary.expiredSessions} expired\n` +
+      `  blocked users:       ${summary.blockedUsers}\n` +
+      `  activity-log events: ${summary.auditEvents}\n` +
+      "The demo people sign in through Entra ID or Keycloak only: they have no password and are " +
+      "not in the development Keycloak realm, so they cannot sign in locally. Use the dev-login " +
+      "and Keycloak demo accounts above.\n",
+  );
 } finally {
   await db.destroy();
 }

@@ -8,6 +8,7 @@ import { genericOAuth, keycloak } from "better-auth/plugins/generic-oauth";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import type { IdentityProviderId, IdentityProviderOption } from "../lib/identity-providers.ts";
 import { ADMIN_ROLE, accessControl, DEFAULT_ROLE, roles } from "../lib/roles.ts";
+import { auditDatabase, auditLog } from "./audit/better-auth-hooks.ts";
 import { getPool } from "./db/index.ts";
 import { type Env, getEnv, isKeycloakConfigured, isMicrosoftConfigured } from "./env.ts";
 import { createIdpRoleSync } from "./idp-sync.ts";
@@ -105,6 +106,8 @@ export function createAuth(env: Env, database: BetterAuthOptions["database"] = g
     plugins: [
       admin({ ac: accessControl, roles, defaultRole: DEFAULT_ROLE, adminRoles: [ADMIN_ROLE] }),
       genericOAuth({ config: keycloakProviders(env) }),
+      // The activity log (B4): sign-ins, sign-outs, sessions, users and the admin endpoints.
+      auditLog(auditDatabase(database)),
       // Must stay last: forwards better-auth Set-Cookie headers through TanStack Start.
       tanstackStartCookies(),
     ],
