@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Reads the display preferences from their cookies on either side: the request's cookies during
-// SSR, `document.cookie` in the browser. Both read the same cookie, so hydration matches.
+// SSR, `document.cookie` in the browser. Both read the same cookie name (`__Host-` over https:
+// the server knows it from BETTER_AUTH_URL, the browser from the page), so hydration matches.
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
-import { readCookie } from "@/lib/cookies";
+import { hostCookieName, readCookie } from "@/lib/cookies";
 import {
   parseSidebarOpen,
   parseTheme,
@@ -13,11 +14,19 @@ import {
   THEME_COOKIE,
   type Theme,
 } from "@/lib/theme";
+import { isSecureOrigin } from "@/server/cookie-security";
+
+/** Reads preference cookie `base` from `document.cookie` in the browser. */
+function clientPreference(base: string): string | undefined {
+  return readCookie(document.cookie, hostCookieName(base, window.location.protocol === "https:"));
+}
 
 export const readThemePreference = createIsomorphicFn()
-  .server((): Theme => parseTheme(getCookie(THEME_COOKIE)))
-  .client((): Theme => parseTheme(readCookie(document.cookie, THEME_COOKIE)));
+  .server((): Theme => parseTheme(getCookie(hostCookieName(THEME_COOKIE, isSecureOrigin()))))
+  .client((): Theme => parseTheme(clientPreference(THEME_COOKIE)));
 
 export const readSidebarOpen = createIsomorphicFn()
-  .server((): boolean => parseSidebarOpen(getCookie(SIDEBAR_COOKIE)))
-  .client((): boolean => parseSidebarOpen(readCookie(document.cookie, SIDEBAR_COOKIE)));
+  .server((): boolean =>
+    parseSidebarOpen(getCookie(hostCookieName(SIDEBAR_COOKIE, isSecureOrigin()))),
+  )
+  .client((): boolean => parseSidebarOpen(clientPreference(SIDEBAR_COOKIE)));

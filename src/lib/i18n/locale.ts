@@ -5,13 +5,13 @@
 // browser reads the one the server rendered, so hydration never switches language.
 import {
   defineCustomClientStrategy,
-  extractLocaleFromCookie,
   getLocale,
   type Locale,
   locales,
   setLocale,
   toLocale,
 } from "@/i18n/runtime";
+import { LOCALE_COOKIE_STRATEGY, localeCookie, localeFromCookies } from "@/lib/i18n/locale-cookie";
 
 export { getLocale, type Locale, locales };
 
@@ -25,6 +25,27 @@ export function documentLocale(): Locale | undefined {
   if (typeof document === "undefined") return undefined;
   return toLocale(document.documentElement.lang);
 }
+
+/** Tells whether the page is served over https, so the locale cookie carries `__Host-`. */
+function secureDocument(): boolean {
+  return globalThis.location?.protocol === "https:";
+}
+
+/** Reads the locale cookie in the browser, or `undefined` outside one. */
+function cookieLocale(): Locale | undefined {
+  if (typeof document === "undefined") return undefined;
+  return localeFromCookies(document.cookie, secureDocument());
+}
+
+defineCustomClientStrategy(LOCALE_COOKIE_STRATEGY, {
+  getLocale: cookieLocale,
+  setLocale: (value) => {
+    const locale = toLocale(value);
+    if (!locale || typeof document === "undefined") return;
+    // biome-ignore lint/suspicious/noDocumentCookie: the server reads it on the next request; the Cookie Store API is not in every supported browser
+    document.cookie = localeCookie(locale, secureDocument());
+  },
+});
 
 defineCustomClientStrategy("custom-documentLang", {
   getLocale: documentLocale,
@@ -43,8 +64,8 @@ export function localeName(locale: Locale): string {
  * server renders the whole page in that language.
  */
 export function cookieLocaleDiffersFromDocument(): boolean {
-  const cookieLocale = extractLocaleFromCookie();
-  return cookieLocale !== undefined && cookieLocale !== documentLocale();
+  const saved = cookieLocale();
+  return saved !== undefined && saved !== documentLocale();
 }
 
 /** Stores `locale` in the locale cookie and reloads the page so the server renders it. */

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { LanguageMenu } from "@/components/language-menu";
 import { AppBreadcrumb } from "@/components/shell/app-breadcrumb";
 import { AppSidebar } from "@/components/shell/app-sidebar";
@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { m } from "@/i18n/messages";
 import { readSidebarOpen } from "@/lib/preferences";
+import { sidebarCookie } from "@/lib/theme";
 import type { SessionUser } from "@/server/authz";
 
 /**
@@ -38,11 +39,18 @@ function ShellSidebarTrigger() {
 /**
  * The signed-in layout (the sidebar-07 block's page): the sidebar, a top bar with the sidebar
  * toggle, the breadcrumb and the language menu, and the page in `main`. The sidebar's
- * open state comes from its cookie on both sides, so the server renders it without a flash.
+ * open state comes from its cookie on both sides, so the server renders it without a flash, and
+ * eduLIMS stores it in its own `__Host-` cookie over https.
  */
 export function AppShell({ user, children }: Readonly<{ user: SessionUser; children: ReactNode }>) {
+  const [open, setOpen] = useState(() => readSidebarOpen());
+  const changeOpen = (next: boolean) => {
+    // biome-ignore lint/suspicious/noDocumentCookie: the server reads it on the next request; the Cookie Store API is not in every supported browser
+    document.cookie = sidebarCookie(next, window.location.protocol === "https:");
+    setOpen(next);
+  };
   return (
-    <SidebarProvider defaultOpen={readSidebarOpen()}>
+    <SidebarProvider open={open} onOpenChange={changeOpen}>
       <SkipLink />
       <AppSidebar user={user} />
       <div className="flex min-w-0 flex-1 flex-col">

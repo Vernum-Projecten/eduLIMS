@@ -68,9 +68,9 @@ moves a row to `met` in the same pull request.
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 172 |
 | Status met | 81 |
-| Status partial | 49 |
+| Status partial | 50 |
 | Status planned | 30 |
-| Status open | 12 |
+| Status open | 11 |
 | Status n-a | 173 |
 
 ### V1 Encoding and Sanitization
@@ -193,7 +193,7 @@ Text: [vendor/asvs/en/0x12-V3-Web-Frontend-Security.md](vendor/asvs/en/0x12-V3-W
 |---|---|---|---|---|---|
 | V3.3.1 | 1 | yes | better-auth sets `Secure` and the `__Secure-` prefix on an `https` base URL; `src/server/env.ts` requires `https` in production | unit `src/server/env.test.ts` | met |
 | V3.3.2 | 2 | yes | session cookie `SameSite=Lax` (better-auth default); preference cookies in `src/lib/cookies.ts` | review | met |
-| V3.3.3 | 2 | partly | better-auth uses `__Secure-`, not `__Host-`; `advanced.cookiePrefix` or `useSecureCookies` settings to be evaluated | review | open |
+| V3.3.3 | 2 | partly | over https every better-auth cookie is `__Host-better-auth.*` (`authCookieOptions` in `src/server/auth.ts`) and the locale, theme and sidebar cookies are `__Host-EDULIMS_*` (`src/lib/cookies.ts`, #43); the vendored shadcn sidebar still writes an unread, unprefixed `sidebar_state` | unit `src/server/auth-cookies.test.ts`, `src/lib/cookies.test.ts` | partial |
 | V3.3.4 | 2 | yes | session cookie `HttpOnly`; `getSessionUser` returns no token (`src/server/session.ts`) | unit `src/server/middleware.test.ts` | met |
 | V3.3.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
