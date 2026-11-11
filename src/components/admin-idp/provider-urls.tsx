@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { m } from "@/i18n/messages";
 import type { ProviderDetail } from "@/server/idp/queries";
 
-function CopyField({ label, value }: Readonly<{ label: string; value: string }>) {
+/** A read-only value with a copy button. */
+export function CopyField({ label, value }: Readonly<{ label: string; value: string }>) {
   const id = useId();
   async function copy() {
     try {

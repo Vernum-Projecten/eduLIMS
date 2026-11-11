@@ -4,7 +4,7 @@
 import { Link } from "@tanstack/react-router";
 import { useContext } from "react";
 import { useProviderLabels } from "@/components/admin-users/provider-labels";
-import { RoleBadges, StatusBadge } from "@/components/admin-users/user-badges";
+import { ProvisioningText, RoleBadges, StatusBadge } from "@/components/admin-users/user-badges";
 import { UserRowActions } from "@/components/admin-users/user-row-actions";
 import { UsersTableContext } from "@/components/admin-users/users-table-context";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
@@ -34,6 +34,7 @@ function NameCell({ row }: Readonly<{ row: UserRow }>) {
         {row.name}
       </Link>
       <span className="text-muted-foreground">{row.email}</span>
+      <ProvisioningText provisioning={row.provisioning} />
     </div>
   );
 }

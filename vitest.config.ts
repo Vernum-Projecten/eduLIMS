@@ -31,12 +31,13 @@ export default defineConfig({
         "src/**/test-*.ts",
         "src/server/db/schema.gen.ts",
         // Host CLI commands, exercised by `pnpm db:migrate`, `db:seed`, `db:reset`, `db:prune`,
-        // `idp:*` and e2e setup; the dispatcher (src/server/cli.ts) has its own tests.
+        // `idp:*`, `scim:*` and e2e setup; the dispatcher (src/server/cli.ts) has its own tests.
         "src/server/db/migrate.ts",
         "src/server/db/seed.ts",
         "src/server/db/reset.ts",
         "src/server/db/prune.ts",
         "src/server/idp/command.ts",
+        "src/server/scim/command.ts",
       ],
       thresholds: { lines: 70, functions: 70, branches: 70, statements: 70 },
     },

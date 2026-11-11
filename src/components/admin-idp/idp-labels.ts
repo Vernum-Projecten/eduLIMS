@@ -35,6 +35,7 @@ const REFUSALS: Readonly<Record<string, () => string>> = {
   not_found: m.idp_refused_not_found,
   exists: m.idp_refused_exists,
   has_accounts: m.idp_refused_has_accounts,
+  has_provisioned_users: m.idp_refused_has_provisioned_users,
   last_enabled: m.idp_refused_last_enabled,
   domain_taken: m.idp_refused_domain_taken,
   client_secret_required: m.idp_refused_client_secret_required,

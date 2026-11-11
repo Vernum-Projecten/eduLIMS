@@ -29,6 +29,11 @@ export interface ProviderSettingsView {
   defaultRole: Role | undefined;
   emailAuthoritative: boolean;
   endSessionEndpoint: string | null;
+  /**
+   * The ID-token claim (OIDC) or assertion attribute (SAML) that carries the directory's SCIM
+   * `externalId` (#45), or `null` for the account key itself (`sub`, the NameID).
+   */
+  scimExternalIdClaim: string | null;
 }
 
 /** How long a cached read stays valid; a change through the service drops it at once. */
@@ -89,6 +94,7 @@ export async function providerSettings(
         "default_role",
         "email_authoritative",
         "end_session_endpoint",
+        "scim_external_id_claim",
       ])
       .where("provider_id", "=", id)
       .executeTakeFirst();
@@ -102,6 +108,7 @@ export async function providerSettings(
       defaultRole: isRole(row.default_role) ? row.default_role : undefined,
       emailAuthoritative: row.email_authoritative,
       endSessionEndpoint: row.end_session_endpoint,
+      scimExternalIdClaim: row.scim_external_id_claim,
     };
   };
   return options.fresh ? load() : cached(`settings:${id}`, load);

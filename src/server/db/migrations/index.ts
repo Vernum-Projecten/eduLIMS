@@ -12,6 +12,7 @@ import * as m0005 from "./0005_audit_event.ts";
 import * as m0006 from "./0006_session_absolute_lifetime.ts";
 import * as m0007 from "./0007_user_role_source.ts";
 import * as m0008 from "./0008_identity_provider.ts";
+import * as m0013 from "./0013_scim.ts";
 
 export const migrations: Record<string, Migration> = {
   "0001_auth": m0001,
@@ -22,6 +23,7 @@ export const migrations: Record<string, Migration> = {
   "0006_session_absolute_lifetime": m0006,
   "0007_user_role_source": m0007,
   "0008_identity_provider": m0008,
+  "0013_scim": m0013,
 };
 
 export const migrationProvider: MigrationProvider = {

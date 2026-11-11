@@ -55,4 +55,72 @@ describe("decideSignInRoles (hybrid role ownership, owner decision on #32)", () 
       reason: NO_ROLE_ERROR,
     });
   });
+
+  describe("a user the provider provisioned over SCIM (#45)", () => {
+    const campus = providerIdOf("campus");
+
+    it("keeps the set its SCIM groups mapped when the sign-in carries no mapped role", () => {
+      expect(
+        decideSignInRoles(
+          none,
+          { role: "teacher", roleSource: campus, provisionedBy: campus },
+          "student",
+          campus,
+        ),
+      ).toEqual({ kind: "idp", roles: ["teacher"] });
+    });
+
+    it("has no roles, and no default role, until the directory or an administrator gives one", () => {
+      expect(
+        decideSignInRoles(
+          none,
+          { role: null, roleSource: "local", provisionedBy: campus },
+          "student",
+          campus,
+        ),
+      ).toEqual({ kind: "refused", reason: NO_ROLE_ERROR });
+      expect(
+        decideSignInRoles(
+          none,
+          { role: null, roleSource: campus, provisionedBy: campus },
+          "student",
+          campus,
+        ),
+      ).toEqual({ kind: "refused", reason: NO_ROLE_ERROR });
+    });
+
+    it("keeps a local set an administrator assigned", () => {
+      expect(
+        decideSignInRoles(
+          none,
+          { role: "student", roleSource: "local", provisionedBy: campus },
+          undefined,
+          campus,
+        ),
+      ).toEqual({ kind: "local", roles: ["student"] });
+    });
+
+    it("lets a mapped claim of the same provider replace the set", () => {
+      expect(
+        decideSignInRoles(
+          { kind: "roles", roles: ["admin"] },
+          { role: "teacher", roleSource: campus, provisionedBy: campus },
+          undefined,
+          campus,
+        ),
+      ).toEqual({ kind: "idp", roles: ["admin"] });
+    });
+
+    it("treats a sign-in through another provider like any other user", () => {
+      const other = providerIdOf("other");
+      expect(
+        decideSignInRoles(
+          none,
+          { role: "teacher", roleSource: campus, provisionedBy: campus },
+          "student",
+          other,
+        ),
+      ).toEqual({ kind: "default", roles: ["student"] });
+    });
+  });
 });

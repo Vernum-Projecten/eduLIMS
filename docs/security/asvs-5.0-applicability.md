@@ -166,7 +166,7 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V2.4.1 | 2 | partly | better-auth's built-in rate limit on `/api/auth/*` in production; none on server functions or uploads yet | review | partial |
+| V2.4.1 | 2 | partly | better-auth's built-in rate limit on `/api/auth/*` in production; the SCIM endpoint has its own limit per token (600 a minute) and a 1 MiB body cap in every environment (`src/server/scim/gate.ts`, #45); none on server functions or uploads yet | unit `src/server/scim/gate.test.ts`; integration `tests/integration/scim-provisioning.test.ts` (413) | partial |
 | V2.4.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V3 Web Frontend Security
@@ -402,7 +402,7 @@ Text: [vendor/asvs/en/0x15-V6-Authentication.md](vendor/asvs/en/0x15-V6-Authenti
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V6.8.1 | 2 | yes | account linking is off for every SSO provider (`account.accountLinking.enabled: false`, no `trustedProviders`, no domain verification; `src/server/auth.ts`, #39, ADR 0015): a second provider's sign-in with an existing user's e-mail is refused with `account_not_linked`; `docs/deployment.md`, "One account per provider" | unit `src/server/account-linking.test.ts`; integration `tests/integration/sso-sign-in.test.ts` (OIDC then SAML) | met |
+| V6.8.1 | 2 | yes | account linking is off for every SSO provider (`account.accountLinking.enabled: false`, no `trustedProviders`, no domain verification; `src/server/auth.ts`, #39, ADR 0015): a second provider's sign-in with an existing user's e-mail is refused with `account_not_linked`; `docs/deployment.md`, "One account per provider". A SCIM-provisioned user is linked only on that same provider's directory id, never on e-mail (`src/server/scim/sign-in.ts`, ADR 0017) | unit `src/server/account-linking.test.ts`; integration `tests/integration/sso-sign-in.test.ts` (OIDC then SAML), `tests/integration/scim-sign-in.test.ts` | met |
 | V6.8.2 | 2 | yes | the sso plugin verifies the ID token signature against the provider's JWKS, and SAML assertions must be signed (`wantAssertionsSigned` forced, `src/server/idp/provider-config.ts`) | unit `src/server/account-linking.test.ts` (signed stub ID token, tampered claims refused); integration `tests/integration/sso-sign-in.test.ts` (OIDC and SAML against the dev Keycloak) | met |
 | V6.8.3 | 2 | yes | SAML providers (ADR 0015): InResponseTo validation on, IdP-initiated sign-in off, required timestamps, and the sso plugin's used-assertion store against replay (`src/server/auth.ts`) | integration `tests/integration/sso-sign-in.test.ts`; replay is the plugin's, not proven by a test of ours | partial |
 | V6.8.4 | 2 | partly | eduLIMS reads no `acr` or `amr` claim; MFA strength is not verified (see V6.3.3) | review | open |
@@ -704,7 +704,7 @@ Text: [vendor/asvs/en/0x22-V13-Configuration.md](vendor/asvs/en/0x22-V13-Configu
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); how eduLIMS authenticates to FerroEHR and FerroBRIDGE is not built yet (S3, S4) | review | partial |
+| V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); how eduLIMS authenticates to FerroEHR and FerroBRIDGE is not built yet (S3, S4); an identity provider authenticates to the SCIM endpoint with a bearer token per provider that expires after 180 days, hashed, rotated with a one-hour overlap and revocable at once (ADR 0017, owner decision on #45); not short-term, because the providers' SCIM clients take a static secret | review; unit `src/server/scim/tokens.test.ts` | partial |
 | V13.2.2 | 2 | yes | one database role per service (`docker/postgres/init/20-edulims.sh`); containers run non-root with `cap_drop: [ALL]` (`compose.yaml`, `docker/Dockerfile`) | review | met |
 | V13.2.3 | 2 | yes | Compose refuses to start without each password (`${VAR:?}` in `compose.yaml`) | review | met |
 | V13.2.4 | 2 | partly | outbound targets are configured URLs only (`src/server/env.ts`); no egress allowlist at the network level | review | partial |
@@ -715,7 +715,7 @@ Text: [vendor/asvs/en/0x22-V13-Configuration.md](vendor/asvs/en/0x22-V13-Configu
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V13.3.1 | 2 | partly | secrets live in the host's `.env` and GitHub environments; identity-provider secrets live in the database, encrypted under `EDULIMS_DATA_KEY`, which only the `edulims` and `edulims-tools` services receive; no vault (`docs/deployment.md`) | unit `src/server/idp/crypto.test.ts`, review | partial |
+| V13.3.1 | 2 | partly | secrets live in the host's `.env` and GitHub environments; identity-provider secrets live in the database, encrypted under `EDULIMS_DATA_KEY`, which only the `edulims` and `edulims-tools` services receive; SCIM tokens are stored as SHA-256 digests only and shown once (`src/server/scim/tokens.ts`); no vault (`docs/deployment.md`) | unit `src/server/idp/crypto.test.ts`, `src/server/scim/tokens.test.ts`, review | partial |
 | V13.3.2 | 2 | yes | each container receives only its own secrets (`compose.yaml`) | review | met |
 | V13.3.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V13.3.4 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -833,7 +833,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts` | met |
+| V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`); every SCIM write and every refused SCIM token too (`src/server/scim/gate.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts`; integration `tests/integration/scim-provisioning.test.ts` | met |
 | V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts` | met |
 | V16.3.3 | 2 | yes | rejected uploads (S4) and refused access belong in the B4 audit log | unit tests with S4 and B4 | planned |
 | V16.3.4 | 2 | yes | unexpected errors and an unreachable FerroEHR or FerroBRIDGE (B3, within 5 minutes) | unit tests with B3 | planned |

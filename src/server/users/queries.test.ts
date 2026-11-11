@@ -10,6 +10,7 @@ import { createTestDb } from "../db/test-db.ts";
 import {
   containsPattern,
   listUsers,
+  provisioningOf,
   roleValuesWith,
   roleValuesWithAny,
   userFacets,
@@ -191,6 +192,7 @@ describe("listUsers (#34)", () => {
       blockedUntil: null,
       lastSignInAt: new Date(NOW.getTime() - DAY).toISOString(),
       activeSessions: 2,
+      provisioning: null,
     });
     expect(page.rows[3]).toMatchObject({
       status: "blocked",
@@ -211,6 +213,7 @@ describe("listUsers (#34)", () => {
         "lastSignInAt",
         "name",
         "providers",
+        "provisioning",
         "roleSource",
         "roles",
         "status",
@@ -430,5 +433,23 @@ describe("userFacets (#58)", () => {
     expect(page.rows).toHaveLength(100);
     expect(facets.role.student + facets.role.teacher).toBeGreaterThan(900);
     expect(elapsed).toBeLessThan(500);
+  });
+});
+
+describe("provisioningOf (#45)", () => {
+  it("names the provider that provisioned a user and when the directory deactivated them", () => {
+    const at = new Date("2026-11-10T09:00:00Z");
+    expect(provisioningOf({ provisioned_by: "campus", deprovisioned_at: at })).toEqual({
+      providerId: "campus",
+      deprovisionedAt: at.toISOString(),
+    });
+    expect(provisioningOf({ provisioned_by: "campus", deprovisioned_at: null })).toEqual({
+      providerId: "campus",
+      deprovisionedAt: null,
+    });
+  });
+
+  it("is null for a user no provider provisioned", () => {
+    expect(provisioningOf({ provisioned_by: null, deprovisioned_at: null })).toBeNull();
   });
 });

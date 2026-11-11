@@ -37,6 +37,8 @@ export const SECURITY_LOG_FIELDS = [
   "removed_audit_events",
   "removed_sessions",
   "removed_admin_grants",
+  "token_expires_at",
+  "previous_token_valid_until",
   "kind",
   "status",
 ] as const;
@@ -133,6 +135,8 @@ export function auditLogFields(event: AuditEvent): SecurityLogFields {
     removed_audit_events: event.metadata?.removed_audit_events,
     removed_sessions: event.metadata?.removed_sessions,
     removed_admin_grants: event.metadata?.removed_admin_grants,
+    token_expires_at: event.metadata?.token_expires_at,
+    previous_token_valid_until: event.metadata?.previous_token_valid_until,
   };
 }
 

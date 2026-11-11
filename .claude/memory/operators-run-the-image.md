@@ -18,7 +18,8 @@ shell and no pnpm inside.
 **How to apply:**
 - An operator command (migrate, grant the admin role, add an identity
   provider, prune) is a subcommand of the CLI in the tools image, run as
-  `docker compose run --rm edulims-migrate <subcommand>`. The `pnpm …`
+  `docker compose run --rm edulims-tools <subcommand>`; `edulims-migrate` is
+  the one-shot migration service that runs at start-up. The `pnpm …`
   scripts call the same entry point and are for developers only.
 - Anything that has to happen regularly (retention pruning) runs on its own
   inside the app container, not from a host cron job.

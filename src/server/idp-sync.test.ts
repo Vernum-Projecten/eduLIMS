@@ -58,6 +58,7 @@ function provider(
     defaultRole: undefined,
     emailAuthoritative: false,
     endSessionEndpoint: null,
+    scimExternalIdClaim: null,
     ...extra,
   };
 }

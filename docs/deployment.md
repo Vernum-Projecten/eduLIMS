@@ -347,6 +347,123 @@ and class invitations match a verified address only, so an unverified address
 there would let its owner claim someone else's grant. `admin grant` also
 refuses an existing user whose address no provider verified.
 
+## Provisioning with SCIM
+
+An identity provider can push users and groups to eduLIMS over SCIM 2.0
+(RFC 7643, RFC 7644) before anyone signs in, and deactivate leavers. eduLIMS
+is the SCIM service provider; each identity provider is one SCIM connection
+with its own bearer token
+([ADR 0017](adr/0017-scim-provisioning.md)). SCIM is optional: sign-in works
+the same without it.
+
+| What the identity provider asks for | Value |
+|---|---|
+| Tenant URL (SCIM endpoint) | `<BETTER_AUTH_URL>/api/auth/scim/v2` |
+| Secret token | the token from the provider's page (below) |
+
+What a SCIM request does in eduLIMS:
+
+- **Create** makes an eduLIMS user with no roles, shown on the Users screen
+  as "Provisioned by <provider>" and "Never signed in". eduLIMS never
+  matches an existing user on email; it links a new SCIM user to an existing
+  one only when that user already signed in through the same provider with
+  an account key equal to the SCIM `externalId`.
+- **Roles** come from the provider's role map. A SCIM group whose
+  `externalId` or display name is a key in the role map, or a value in the
+  user's `roles` attribute, gives that role and makes the provider the
+  source of the role set. Without a mapped group the user keeps the roles an
+  administrator gave them in eduLIMS, and has none until then. A group the
+  role map does not name gives nothing, so SCIM never makes anyone an
+  administrator unless the role map maps a group to `admin`.
+- **`active: false`** or **delete** ends every session of that user at once
+  and refuses every new sign-in with "Your institution's directory has
+  deactivated your account". eduLIMS keeps the user and their records;
+  erasing a person is a separate step. `active: true`, or a new
+  create with the same `externalId`, lets the user sign in again.
+- **Sign-in** finds the provisioned user through the directory id: by
+  default the account key (the OIDC `sub`, the SAML NameID). When the
+  directory sends another value as `externalId`, set "Claim with the
+  directory ID" on the provider's page to the ID-token claim or SAML
+  attribute that carries the same value.
+
+Every SCIM write and every refused token is in the activity log with ids and
+codes only. The endpoint takes at most 600 requests per minute per token and
+request bodies up to 1 MiB; more gets `429` or `413`. It answers `501` when
+the installation cannot run SCIM (the provider's page says so).
+
+### The token
+
+On the provider's page in **Admin → System → Identity providers**, the
+section "Provisioning (SCIM)" shows the tenant URL and creates, replaces and
+revokes the provider's token. A token is shown once: eduLIMS stores only its
+SHA-256 digest, so a lost token is replaced, never recovered.
+
+- A token works for **180 days**. The page shows its expiry date and warns
+  from 14 days before; an expired token is refused (and the refusal is in the
+  activity log), so replace it in time.
+- **Replacing** a token keeps the previous one working for one more hour, so
+  the identity provider can be switched to the new token without a gap.
+- **Revoking** ends every token of the provider at once, the one a
+  replacement left running included.
+- A disabled provider's token is refused until the provider is enabled again.
+
+From the host:
+
+```sh
+docker compose run --rm edulims-tools scim token create <provider id>
+docker compose run --rm edulims-tools scim token rotate <provider id>
+docker compose run --rm edulims-tools scim token revoke <provider id>
+docker compose run --rm edulims-tools scim external-id <provider id> oid
+docker compose run --rm edulims-tools scim external-id <provider id> --account-key
+```
+
+`scim token create` and `rotate` print the token once on standard output,
+with its expiry date (and, after a rotation, until when the previous token
+works); nothing else stores it in the clear. Every change is in the activity
+log. A provider that provisioned users cannot be deleted; disable it
+instead.
+
+### Microsoft Entra ID provisioning
+
+In the Entra admin center open the enterprise application of the eduLIMS
+app registration, choose **Provisioning**, set the mode to **Automatic**,
+and enter the tenant URL and the secret token above; **Test connection**
+must succeed. Under **Mappings**:
+
+- map the user's `objectId` to `externalId`, and set "Claim with the
+  directory ID" on the eduLIMS provider to `oid`: the OIDC `sub` Entra ID
+  sends eduLIMS is pairwise per application, so it never equals the object
+  ID;
+- keep `userPrincipalName` to `userName` and `mail` to the work email;
+- map `Switch([IsSoftDeleted], , "False", "True", "True", "False")` to
+  `active`, as the default mapping does;
+- provision groups if roles come from groups: their `objectId` goes to the
+  group's `externalId`, which is the key the role map uses, the same object
+  ID the `groups` claim would carry.
+
+Assign the users and groups to provision to the enterprise application, then
+start provisioning. Entra ID runs a cycle about every 40 minutes; "Provision
+on demand" sends one user at once to check the setup. Automatic provisioning
+to a non-gallery application may need a licence the institution has; ask its
+identity team.
+
+### Keycloak provisioning
+
+Keycloak has no SCIM client of its own. A Keycloak extension (an SPI) that
+pushes users and groups to a SCIM 2.0 service provider does it: install the
+extension's JAR in Keycloak's `providers` directory, rebuild Keycloak, and
+configure the extension in the realm with the tenant URL and the token as a
+bearer token. Choose an extension that sends the Keycloak user id as
+`externalId`; it is the OIDC `sub`, so the provider keeps the account key
+(no claim to set). Restart the service after installing it:
+
+```sh
+COMPOSE_PROFILES=keycloak docker compose up -d --wait --force-recreate keycloak
+```
+
+The extension, its version and its supply-chain review are the operator's
+choice; eduLIMS does not ship one.
+
 ## Data key
 
 `EDULIMS_DATA_KEY` encrypts the identity-provider secrets in the database

@@ -21,6 +21,8 @@ export const AUTH_AUDIT_ACTIONS = [
   "user_deleted",
   "user_banned",
   "user_unbanned",
+  "user_deprovisioned",
+  "user_reprovisioned",
 ] as const;
 
 /** Actions reserved for eduLIMS's own flows: classes and invitations (#28), uploads (S4). */
@@ -46,6 +48,16 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "admin_grant_created",
   "admin_grant_applied",
   "admin_grant_revoked",
+  "scim_token_created",
+  "scim_token_rotated",
+  "scim_token_revoked",
+  "scim_token_refused",
+  "scim_user_created",
+  "scim_user_updated",
+  "scim_user_deleted",
+  "scim_group_created",
+  "scim_group_updated",
+  "scim_group_deleted",
 ] as const;
 
 /** Actions eduLIMS records about itself, with no target: the scheduled retention prune (B4). */
@@ -68,6 +80,8 @@ export const AUDIT_TARGET_TYPES = [
   "upload",
   "identity_provider",
   "admin_grant",
+  "scim_user",
+  "scim_group",
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
@@ -86,7 +100,13 @@ export type AuditTargetOf<A extends AuditAction> = A extends `sys_${string}`
             ? "identity_provider"
             : A extends `admin_grant_${string}`
               ? "admin_grant"
-              : "user";
+              : A extends `scim_token_${string}`
+                ? "identity_provider"
+                : A extends `scim_user_${string}`
+                  ? "scim_user"
+                  : A extends `scim_group_${string}`
+                    ? "scim_group"
+                    : "user";
 
 /**
  * Returns the target type an action is about (the runtime form of {@link AuditTargetOf}), or
@@ -100,6 +120,9 @@ export function targetTypeOf(action: AuditAction): AuditTargetType | null {
   if (action.startsWith("upload_")) return "upload";
   if (action.startsWith("idp_")) return "identity_provider";
   if (action.startsWith("admin_grant_")) return "admin_grant";
+  if (action.startsWith("scim_token_")) return "identity_provider";
+  if (action.startsWith("scim_user_")) return "scim_user";
+  if (action.startsWith("scim_group_")) return "scim_group";
   return "user";
 }
 
@@ -128,7 +151,7 @@ export const auditMetadataSchema = z.strictObject({
   roles: z.string().regex(ROLE_SET).optional(),
   previous_roles: z.string().regex(ROLE_SET).optional(),
   ban_expires_at: z.iso.datetime({ offset: true }).optional(),
-  /** The identity provider an `idp_*` or `admin_grant_*` event is about. */
+  /** The identity provider an `idp_*`, `admin_grant_*` or `scim_*` event is about. */
   provider_id: z.string().regex(PROVIDER_ID_PATTERN).optional(),
   protocol: z.enum(PROVIDER_PROTOCOLS).optional(),
   /** The names of the settings an `idp_updated` changed: never their values. */
@@ -152,6 +175,10 @@ export const auditMetadataSchema = z.strictObject({
   removed_audit_events: z.number().int().min(0).optional(),
   removed_sessions: z.number().int().min(0).optional(),
   removed_admin_grants: z.number().int().min(0).optional(),
+  /** When the SCIM token a `scim_token_created` or `scim_token_rotated` issued expires (#45). */
+  token_expires_at: z.iso.datetime({ offset: true }).optional(),
+  /** Until when the token a `scim_token_rotated` replaced keeps working (#45). */
+  previous_token_valid_until: z.iso.datetime({ offset: true }).optional(),
 });
 export type AuditMetadata = z.infer<typeof auditMetadataSchema>;
 

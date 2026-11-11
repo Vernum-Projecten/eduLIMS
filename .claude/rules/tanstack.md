@@ -132,6 +132,7 @@ a new domain adds its row here and there.
 | Users table page (`usersKeys.list`) | 30 s | Other administrators change it, rarely within a minute; every action invalidates it anyway. |
 | User detail sheet (`usersKeys.detail`) | 15 s | Its active sessions change on every sign-in. |
 | Login page options (`loginKeys.options`) | 30 s | Providers change rarely; a callback, a language switch or a sign-out starts from an empty cache anyway. |
+| A provider's SCIM section (`scimKeys.detail`) | 15 s | Its token's last use moves with every directory sync. |
 | Anything else (the `QueryClient` default) | 30 s | A fallback only; every factory sets its own. |
 
 ### Four states on every data route
