@@ -72,7 +72,6 @@ function Field({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
   return (
-    // biome-ignore lint/a11y/useSemanticElements: shadcn/ui groups a label with its control; a fieldset would add an unwanted legend requirement.
     <div
       role="group"
       data-slot="field"
