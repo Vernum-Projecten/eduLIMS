@@ -282,5 +282,21 @@
   "ui_more": "More",
   "ui_command_title": "Command menu",
   "ui_command_description": "Search for a command to run.",
-  "ui_notifications": "Notifications"
+  "ui_notifications": "Notifications",
+  "chart_view_as_table": "View as table",
+  "chart_legend": "Legend",
+  "dev_charts_title": "Chart examples",
+  "dev_charts_intro": "A development-only page that shows the shared chart foundation with fictional demo data. It is not available in production.",
+  "dev_charts_scatter_heading": "Practicals: submissions and average grade",
+  "dev_charts_scatter_label": "Scatter plot of {count} fictional practicals: submissions against average grade",
+  "dev_charts_scatter_description": "Each point is one practical. Further right means more submissions, higher means a higher average grade, and a larger point a larger class. The academic year shows as a circle (year 1), a hexagon (year 2) or a ring (year 3). Use the arrow keys to move between points.",
+  "dev_charts_table_caption": "Fictional practicals with their submissions, average grade, class size and academic year",
+  "dev_charts_practical": "Practical",
+  "dev_charts_submissions": "Submissions",
+  "dev_charts_average_grade": "Average grade",
+  "dev_charts_class_size": "Class size",
+  "dev_charts_academic_year": "Academic year",
+  "dev_charts_year": "Year {year}",
+  "dev_charts_focused": "Focused: {practical}, {submissions} submissions, average grade {grade}, class size {size}, year {year}.",
+  "dev_charts_focused_none": "No point is focused. Move the pointer over a point, or tab to the chart and use the arrow keys."
 }

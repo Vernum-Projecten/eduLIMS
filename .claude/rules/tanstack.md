@@ -148,6 +148,20 @@ export const registerSample = createServerFn({ method: "POST" })
   in a preference cookie (`src/lib/table-columns.ts`), and facet counts from
   the server computed with the other filters applied.
 
+## Charts
+
+- Charts are TanStack Charts (`@tanstack/charts`, ADR 0016) rendered through
+  `EduChart` (`react-ui.md` §4). The package ships its docs in
+  `node_modules/@tanstack/charts/docs/`; read the installed version.
+- `defineChart` with marks from the core (`dot`, `lineY`, `barY`, …), the
+  compact scales from `@tanstack/charts/scales/*` with inferred domains, and
+  `tooltip` from `@tanstack/charts/tooltip`; the React `Chart` is
+  `@tanstack/charts/react`. No `d3-scale`: a non-linear mapping is a helper
+  in `src/lib/charts/`.
+- The adapter server-renders the SVG at `initialWidth` and adopts it after
+  hydration. Keep the definition deterministic and memoized; pass the data
+  the loader returned, never fetch inside a chart.
+
 ## SSR hygiene
 
 - No `window`, `document` or `localStorage` at module scope or during

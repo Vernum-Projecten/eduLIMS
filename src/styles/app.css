@@ -29,6 +29,7 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-chart-6: var(--chart-6);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -87,11 +88,14 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* The chart palette on light (--edulims-chart-light-*, assets/brand/tokens.css):
+     each at least 4.5:1 on the light background. */
+  --chart-1: #3730a3;
+  --chart-2: #b45309;
+  --chart-3: #0f766e;
+  --chart-4: #be185d;
+  --chart-5: #4d7c0f;
+  --chart-6: #0369a1;
   --radius: 0.625rem;
   --brand-tile: #3730a3;
   --brand-rim: #a5b4fc;
@@ -109,6 +113,21 @@
 
 :root {
   color-scheme: light;
+}
+
+/* TanStack Charts reads its categorical palette and tooltip chrome from these variables
+   (src/components/charts/), so every chart follows the theme without a new definition. */
+:root {
+  --ts-chart-1: var(--chart-1);
+  --ts-chart-2: var(--chart-2);
+  --ts-chart-3: var(--chart-3);
+  --ts-chart-4: var(--chart-4);
+  --ts-chart-5: var(--chart-5);
+  --ts-chart-6: var(--chart-6);
+  --ts-chart-tooltip-background: var(--popover);
+  --ts-chart-tooltip-color: var(--popover-foreground);
+  --ts-chart-tooltip-border: 1px solid var(--border);
+  --ts-chart-tooltip-border-radius: var(--radius);
 }
 
 :root {
@@ -135,11 +154,13 @@
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+    /* The chart palette on dark (--edulims-chart-dark-*): each at least 7:1 on the background. */
+    --chart-1: #a5b4fc;
+    --chart-2: #fbbf24;
+    --chart-3: #2dd4bf;
+    --chart-4: #f472b6;
+    --chart-5: #a3e635;
+    --chart-6: #38bdf8;
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.488 0.243 264.376);

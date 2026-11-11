@@ -14,9 +14,11 @@
 # WCAG 2.1 asks 4.5:1 for body text and 3:1 for a graphical object or large text
 # (SC 1.4.3, SC 1.4.11). Every core token carries a `safe:` comment naming what
 # it may be used for on each ground; a comment or README row that stops matching
-# the measurement fails here. It also measures the application theme's
-# destructive colour (src/styles/app.css) as a label on its own tints, in light
-# and dark. BRAND_ROOT points the check at another tree (the self-test uses it).
+# the measurement fails here. The chart palette (`--edulims-chart-light-*` and
+# `--edulims-chart-dark-*`) must reach 3:1 on the ground it is drawn on, and the
+# application theme's destructive colour (src/styles/app.css) is measured as a
+# label on its own tints, in light and dark. BRAND_ROOT points the check at
+# another tree (the self-test uses it).
 set -euo pipefail
 
 self_test() {
@@ -37,7 +39,7 @@ self_test() {
 EOF
   }
   write_readme() {
-    BRAND_ROOT="$scratch" bash "$script" --table >"$scratch/assets/brand/README.md"
+    BRAND_ROOT="$scratch" bash "$script" --table >"$scratch/assets/brand/README.md" 2>/dev/null
   }
   # A theme with the given light and dark --destructive, on shadcn's neutral surfaces.
   write_theme() {
@@ -116,6 +118,23 @@ EOF
   BRAND_ROOT="$scratch" bash "$script" >/dev/null 2>&1 || status=$?
   [[ $status -ne 0 ]] || {
     echo "self-test: a token without a claim passed" >&2
+    return 1
+  }
+
+  # A chart colour under 3:1 on its own ground fails, even when its claim is true.
+  cat >"$scratch/assets/brand/tokens.css" <<EOF
+:root {
+  --edulims-indigo: #3730a3; /* safe: light: text, dark: neither, tile: neither */
+  --edulims-night: #0b1220; /* safe: light: text, dark: neither, tile: neither */
+  --edulims-surface: #ffffff; /* safe: light: neither, dark: text, tile: text */
+  --edulims-chart-light-1: #fbbf24; /* safe: light: neither, dark: text, tile: text */
+}
+EOF
+  write_readme
+  status=0
+  BRAND_ROOT="$scratch" bash "$script" >/dev/null 2>&1 || status=$?
+  [[ $status -ne 0 ]] || {
+    echo "self-test: a chart colour under 3:1 on its ground passed" >&2
     return 1
   }
 
@@ -311,6 +330,17 @@ while IFS=$'\t' read -r name value claim; do
   tile=$(measure "$value" "$TILE")
   measured="light: $(verdict "$light"), dark: $(verdict "$dark"), tile: $(verdict "$tile")"
   table+="| \`--edulims-$name\` | \`$value\` | $light | $dark | $tile | $measured |"$'\n'
+  # A chart series colour must reach the graphics threshold on the ground it is drawn on
+  # (SC 1.4.11): chart-light-* on the light surface, chart-dark-* on the dark background.
+  case "$name" in
+    chart-light-*) ground=light ratio=$light ;;
+    chart-dark-*) ground=dark ratio=$dark ;;
+    *) ground="" ratio="" ;;
+  esac
+  if [[ -n "$ground" && "$(verdict "$ratio")" == "neither" ]]; then
+    echo "brand-contrast: --edulims-$name is a chart colour for $ground and measures $ratio:1 there, under 3:1" >&2
+    failures=$((failures + 1))
+  fi
   if [[ -z "$claim" ]]; then
     echo "brand-contrast: --edulims-$name carries no 'safe:' comment; it measures $measured" >&2
     failures=$((failures + 1))

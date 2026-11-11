@@ -56,9 +56,9 @@ is a wish, so every rule below names what enforces it.
 - **Vendored shadcn/ui code** (`src/components/ui/**`, `src/hooks/use-mobile.ts`)
   is formatted and linted, but one `overrides` entry in `biome.json` turns off
   the rules its upstream code breaks by design (ARIA roles on `div`s, index
-  keys, the calendar's hook factories, the sidebar cookie, the chart's
-  `<style>` injection). The files stay identical to the registry so a
-  `shadcn add --overwrite` update is a clean diff; the rendered result is held
+  keys, the calendar's hook factories, the sidebar cookie). The files stay
+  identical to the registry so a `shadcn add --overwrite` update is a clean
+  diff; the rendered result is held
   to WCAG by the axe scans. That override is the only one: never extend it to
   app code, where every one of those rules stays an error.
 - **Local changes to the vendored files** (re-apply them after a

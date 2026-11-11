@@ -68,6 +68,18 @@ the mark, a rule or an icon, never a label.
 | `--edulims-mist` | `#f1f5f9` | 1.05 | 17.09 | 9.07 | light: neither, dark: text, tile: text |
 | `--edulims-night` | `#0b1220` | 17.89 | 1.00 | 1.88 | light: text, dark: neither, tile: neither |
 | `--edulims-surface` | `#f8fafc` | 1.00 | 17.89 | 9.49 | light: neither, dark: text, tile: text |
+| `--edulims-chart-light-1` | `#3730a3` | 9.49 | 1.88 | 1.00 | light: text, dark: neither, tile: neither |
+| `--edulims-chart-light-2` | `#b45309` | 4.80 | 3.73 | 1.98 | light: text, dark: graphics, tile: neither |
+| `--edulims-chart-light-3` | `#0f766e` | 5.23 | 3.42 | 1.81 | light: text, dark: graphics, tile: neither |
+| `--edulims-chart-light-4` | `#be185d` | 5.77 | 3.10 | 1.65 | light: text, dark: graphics, tile: neither |
+| `--edulims-chart-light-5` | `#4d7c0f` | 4.77 | 3.75 | 1.99 | light: text, dark: graphics, tile: neither |
+| `--edulims-chart-light-6` | `#0369a1` | 5.67 | 3.16 | 1.67 | light: text, dark: graphics, tile: neither |
+| `--edulims-chart-dark-1` | `#a5b4fc` | 1.91 | 9.39 | 4.98 | light: neither, dark: text, tile: text |
+| `--edulims-chart-dark-2` | `#fbbf24` | 1.60 | 11.22 | 5.95 | light: neither, dark: text, tile: text |
+| `--edulims-chart-dark-3` | `#2dd4bf` | 1.78 | 10.06 | 5.34 | light: neither, dark: text, tile: text |
+| `--edulims-chart-dark-4` | `#f472b6` | 2.53 | 7.07 | 3.75 | light: neither, dark: text, tile: graphics |
+| `--edulims-chart-dark-5` | `#a3e635` | 1.44 | 12.42 | 6.59 | light: neither, dark: text, tile: text |
+| `--edulims-chart-dark-6` | `#38bdf8` | 2.05 | 8.74 | 4.64 | light: neither, dark: text, tile: text |
 
 What the table decides:
 
@@ -96,6 +108,24 @@ badge) over the page, card, popover and muted surfaces, in light and dark, and
 fails below 4.5:1. The `brand` CI job runs both on every change, and
 checks that the icons the application and the documentation site serve are
 byte-identical to the ones here.
+
+## Chart palette
+
+Charts draw their series in six categorical colours per scheme, the
+`--edulims-chart-light-*` set on the light surface and the
+`--edulims-chart-dark-*` set on the dark background. The light set starts at
+the brand indigo and the dark set at the light indigo and the amber, and the
+other hues are spread around the wheel so neighbouring series differ in hue as
+well as lightness. Every one reaches at least 4.5:1 on its own ground (the
+rows above), more than the 3:1 a graphical object needs
+([SC 1.4.11](https://www.w3.org/TR/WCAG21/#non-text-contrast)), so a series
+also stays readable as a thin line or a small point. `brand-contrast.sh`
+fails when a chart colour drops under 3:1 on the ground it is drawn on.
+
+Colour is never the only signal: every chart also tells its series apart by
+shape or label, and every chart can be read as a table
+(`src/components/charts/`). The application maps the two sets onto the theme
+tokens `--chart-1` to `--chart-6` in `src/styles/app.css`.
 
 ## Files
 

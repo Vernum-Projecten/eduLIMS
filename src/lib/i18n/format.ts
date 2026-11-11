@@ -73,12 +73,18 @@ export function formatRelativeTime(
   return format.format(0, "second");
 }
 
-/** Formats a number with the decimal and grouping separators of the locale. */
+/**
+ * Formats a number with the decimal and grouping separators of the locale, with at most two
+ * decimals unless `maximumFractionDigits` says otherwise; `minimumFractionDigits` pads (a grade
+ * of 7 reads "7.0").
+ */
 export function formatNumber(
   value: number,
-  options: FormatOptions & { maximumFractionDigits?: number } = {},
+  options: FormatOptions & { minimumFractionDigits?: number; maximumFractionDigits?: number } = {},
 ): string {
+  const minimum = options.minimumFractionDigits ?? 0;
   return new Intl.NumberFormat(options.locale ?? getLocale(), {
-    maximumFractionDigits: options.maximumFractionDigits ?? 2,
+    minimumFractionDigits: minimum,
+    maximumFractionDigits: Math.max(options.maximumFractionDigits ?? 2, minimum),
   }).format(value);
 }

@@ -725,7 +725,7 @@ Text: [vendor/asvs/en/0x22-V13-Configuration.md](vendor/asvs/en/0x22-V13-Configu
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V13.4.1 | 1 | yes | the image holds the build output only (`pnpm deploy --prod`, distroless runtime in `docker/Dockerfile`) | CI `image-scan.yml`, review | met |
-| V13.4.2 | 2 | yes | `NODE_ENV=production` in the image; the dev login is refused in production (`src/server/env.ts`) | unit `src/server/env.test.ts` | met |
+| V13.4.2 | 2 | yes | `NODE_ENV=production` in the image; the dev login (`src/server/env.ts`) and the development pages under `/dev/` (`src/server/dev-tools.ts`) are refused in production | unit `src/server/env.test.ts`, `src/server/dev-tools.test.ts` | met |
 | V13.4.3 | 2 | yes | Nitro serves the built assets only, without directory listings | review | met |
 | V13.4.4 | 2 | yes | TRACE is answered by no handler; the reverse proxy should refuse it too | review | partial |
 | V13.4.5 | 2 | yes | only `/api/health` and `/api/ready` are public and return no internals (`src/routes/api/`) | review | met |

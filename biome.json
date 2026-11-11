@@ -95,9 +95,6 @@
           "suspicious": {
             "noArrayIndexKey": "off",
             "noDocumentCookie": "off"
-          },
-          "security": {
-            "noDangerouslySetInnerHtml": "off"
           }
         }
       }

@@ -67,6 +67,9 @@ adding one, and update it instead of duplicating.
   Nitro, TypeScript 7 native tsc, React 19, shadcn/ui radix-nova, Biome 2.6,
   Vitest 5, Kysely on PostgreSQL 18, better-auth with Entra ID or Keycloak, Node 26 LTS,
   pnpm 12 with library skills linked into .claude/skills
+- [Charts: TanStack Charts](charts-tanstack.md): every chart through
+  EduChart (name, description, table view, shape plus colour, brand chart
+  palette checked at 3:1); recharts removed; owner 2026-11-11 (#59)
 
 ## Family rules (carried from the Ferro repositories)
 
