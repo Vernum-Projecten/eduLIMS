@@ -1,0 +1,45 @@
+{
+  "mcpServers": {
+    "shadcn": {
+      "command": "pnpm",
+      "args": ["exec", "shadcn", "mcp"]
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/readonly",
+      "headers": {
+        "Authorization": "Bearer ${EDULIMS_GITHUB_MCP_TOKEN:-}"
+      }
+    },
+    "playwright": {
+      "command": "pnpm",
+      "args": ["dlx", "@playwright/mcp@0.0.84", "--isolated"]
+    },
+    "tanstack": {
+      "type": "http",
+      "url": "https://tanstack.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${EDULIMS_TANSTACK_MCP_KEY:-}"
+      }
+    },
+    "better-auth": {
+      "type": "http",
+      "url": "https://mcp.better-auth.com/mcp"
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "postgres": {
+      "command": "pnpm",
+      "args": ["dlx", "@toolbox-sdk/server@1.15.0", "--prebuilt=postgres", "--stdio"],
+      "env": {
+        "POSTGRES_HOST": "${EDULIMS_MCP_PGHOST:-localhost}",
+        "POSTGRES_PORT": "${EDULIMS_MCP_PGPORT:-5432}",
+        "POSTGRES_DATABASE": "${EDULIMS_MCP_PGDATABASE:-edulims}",
+        "POSTGRES_USER": "${EDULIMS_MCP_PGUSER:-edulims_readonly}",
+        "POSTGRES_PASSWORD": "${EDULIMS_MCP_PGPASSWORD:-}"
+      }
+    }
+  }
+}

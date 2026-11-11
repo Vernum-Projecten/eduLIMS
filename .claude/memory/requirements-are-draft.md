@@ -1,0 +1,32 @@
+---
+name: requirements-are-draft
+description: "The requirements (S1 to S9, D1 to D8, B1 to B4, the NFRs, acceptance criteria, KPIs and their norms) are a working draft under discussion; cite IDs, flag gaps and conflicts, ask the owner, never invent or complete a requirement; owner 2026-11-11"
+metadata:
+  type: feedback
+---
+
+<!-- SPDX-FileCopyrightText: Ruben Talstra -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
+The requirements in `docs/requirements.md` come from the owner's
+requirements analysis and plan of approach (Dutch, MoSCoW). They are **not
+final**: the owner is still discussing them with the product owner, the
+docenten and the students.
+
+**Why:** the owner, 2026-11-11, during the bootstrap: the requirements are a
+working draft, not the oracle. Building from them as fixed truth would bake
+open questions into code and tests.
+
+**How to apply:**
+
+- Cite the requirement IDs an issue, a test or a PR serves; that keeps the
+  trace.
+- When a requirement is unclear, missing, or conflicts with what is being
+  built, flag it and ask the owner (a comment on the issue, a question in the
+  plan or the report). Do not pick a number, a rule or a scope yourself.
+- An owner decision recorded on an issue is newer than the document.
+- The external specifications stay authoritative in their own domain: openEHR
+  and HL7 for the integrations, WCAG 2.1 AA for accessibility, OWASP for
+  security.
+- Related: [[github-not-azure-devops]] (the documents also still say Azure
+  DevOps).

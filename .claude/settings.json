@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install)",
+      "Bash(pnpm install --frozen-lockfile)",
+      "Bash(pnpm dev)",
+      "Bash(pnpm build)",
+      "Bash(pnpm start)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm fix)",
+      "Bash(pnpm fix *)",
+      "Bash(pnpm format)",
+      "Bash(pnpm format *)",
+      "Bash(pnpm test)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm test:coverage)",
+      "Bash(pnpm test:coverage *)",
+      "Bash(pnpm test:e2e)",
+      "Bash(pnpm test:e2e *)",
+      "Bash(pnpm check)",
+      "Bash(pnpm db:migrate)",
+      "Bash(pnpm db:generate-types)",
+      "Bash(pnpm exec biome *)",
+      "Bash(pnpm exec tsc *)",
+      "Bash(pnpm exec vitest *)",
+      "Bash(pnpm exec playwright test *)",
+      "Bash(pnpm exec shadcn add *)",
+      "Bash(pnpm exec shadcn view *)",
+      "Bash(pnpm exec shadcn search *)",
+      "Bash(pnpm list *)",
+      "Bash(pnpm why *)",
+      "Bash(pnpm outdated *)",
+      "Bash(pnpm view *)",
+      "Bash(shellcheck *)",
+      "Bash(actionlint *)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(git fetch *)",
+      "Bash(git switch *)",
+      "Bash(git add *)",
+      "Bash(git rev-parse *)",
+      "Bash(git ls-files *)",
+      "Bash(git check-ignore *)",
+      "Bash(git worktree list)",
+      "Bash(gh issue list *)",
+      "Bash(gh issue view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(gh repo view *)",
+      "Bash(gh release list *)",
+      "Bash(gh release view *)",
+      "Bash(gh auth status)",
+      "Bash(gh pr merge * --auto)",
+      "Bash(gh pr merge * --auto *)",
+      "Bash(.claude/hooks/session_start_issues.sh)"
+    ],
+    "deny": [
+      "Bash(sudo *)",
+      "Bash(su *)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf ~/*)",
+      "Bash(gh pr merge *--admin*)",
+      "Bash(gh pr merge *-R *)",
+      "Bash(gh pr merge *--repo*)",
+      "Bash(git push --force *main*)",
+      "Bash(git push -f *main*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(!.env.example)",
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Edit(!.env.example)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "shadcn",
+    "github",
+    "playwright",
+    "tanstack",
+    "better-auth",
+    "context7",
+    "postgres"
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/no_attribution_guard.sh\""
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/block_dangerous.sh\""
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/conflict_markers_guard.sh\""
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/env_guard.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/env_guard.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/generated_file_guard.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/biome_check.sh\""
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/versions_guard.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/session_start_issues.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
