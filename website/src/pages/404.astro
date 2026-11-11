@@ -1,0 +1,19 @@
+---
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+---
+
+<StarlightPage
+  frontmatter={{
+    title: "Page not found",
+    template: "splash",
+    editUrl: false,
+    pagefind: false,
+    hero: {
+      title: "Page not found",
+      tagline: "The page you asked for does not exist. Search the documentation, or start from the home page.",
+      actions: [{ text: "Go to the home page", link: "/", icon: "right-arrow" }],
+    },
+  }}
+/>

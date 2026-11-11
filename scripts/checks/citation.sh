@@ -15,7 +15,7 @@
 #   * `date-released` == `publication_date`, both present or both absent, and
 #     once released, .zenodo.json's isSupplementTo is the tag's tree URL;
 #   * .zenodo.json is a software deposit with open access, documented by
-#     <url>/docs/.
+#     <url>/ (the documentation site root).
 #
 # scripts/release/version.sh writes every one of these release facts.
 #
@@ -114,7 +114,7 @@ readonly AGREEMENT='
           | if $s != [{identifier: $tree, relation: "isSupplementTo", resource_type: "software"}]
               then ".zenodo.json needs exactly one isSupplementTo, the tag tree \($tree)" else empty end
         end),
-    (($c.url | rtrimstr("/")) + "/docs/") as $docs
+    (($c.url | rtrimstr("/")) + "/") as $docs
       | (if any($rel[]; .relation == "isDocumentedBy" and .identifier == $docs) | not
           then ".zenodo.json has no isDocumentedBy \($docs)" else empty end),
     (if $z.upload_type != "software" then ".zenodo.json upload_type is not software" else empty end),

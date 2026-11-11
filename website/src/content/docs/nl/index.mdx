@@ -1,0 +1,66 @@
+---
+title: eduLIMS
+description: Een opensource laboratoriuminformatiesysteem voor het laboratoriumonderwijs.
+template: splash
+editUrl: false
+lastUpdated: false
+hero:
+  title: eduLIMS
+  tagline: Een opensource laboratoriuminformatiesysteem (LIMS) voor het laboratoriumonderwijs.
+  image:
+    file: ../../../assets/logo.svg
+    alt: ""
+  actions:
+    - text: Handleiding voor studenten
+      link: /nl/guides/student/
+      icon: right-arrow
+    - text: Bekijk op GitHub
+      link: https://github.com/Vernum-Projecten/eduLIMS
+      icon: github
+      variant: minimal
+---
+
+{/* SPDX-FileCopyrightText: Ruben Talstra */}
+{/* SPDX-License-Identifier: Apache-2.0 */}
+
+import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+:::caution[In ontwikkeling]
+eduLIMS is nog in ontwikkeling en de requirements zijn een concept. Gebruik
+het alleen met testgegevens.
+:::
+
+## Wat het doet
+
+<CardGrid>
+  <Card title="Monsters met een herleidbaar ID" icon="seti:db">
+    Studenten registreren monsters en krijgen een uniek monster-ID, zodat elke
+    meting terug te voeren is op het apparaat, het monster en de student.
+  </Card>
+  <Card title="Resultaten direct van de apparaten" icon="random">
+    HL7 v2-resultaten komen binnen via FerroBRIDGE, en exports van de
+    platereader worden bij het uploaden gecontroleerd. Metingen worden als
+    openEHR-composities opgeslagen in FerroEHR.
+  </Card>
+  <Card title="Beoordelen met een rubric" icon="approve-check">
+    Docenten zetten een practicum klaar met opdracht, protocol, deadline en
+    rubric, beoordelen elk labverslag per criterium en volgen hun klassen op
+    een KPI-dashboard.
+  </Card>
+  <Card title="Inloggen via je eigen instelling" icon="seti:lock">
+    Gebruikers loggen in met Microsoft Entra ID of Keycloak. De rol komt uit de
+    identity provider, en de server controleert bij elke aanvraag rol en
+    eigendom.
+  </Card>
+</CardGrid>
+
+## Handleidingen
+
+<CardGrid>
+  <LinkCard title="Student" href="/nl/guides/student/" description="Inloggen en een practicum volgen." />
+  <LinkCard title="Docent" href="/nl/guides/teacher/" description="Practica klaarzetten en labverslagen beoordelen." />
+  <LinkCard title="Beheerder" href="/nl/guides/administrator/" description="Gebruikers een rol geven en de koppelingen bewaken." />
+</CardGrid>
+
+De documentatie voor installatie, beheer van de server en ontwikkeling is in
+het Engels.

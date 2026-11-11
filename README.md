@@ -7,6 +7,8 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/Vernum-Projecten/eduLIMS/ci.yml?branch=main&logo=githubactions&logoColor=white&label=CI)](https://github.com/Vernum-Projecten/eduLIMS/actions/workflows/ci.yml)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/Vernum-Projecten/eduLIMS/codeql.yml?branch=main&logo=github&label=CodeQL)](https://github.com/Vernum-Projecten/eduLIMS/actions/workflows/codeql.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-edulims.eu-blue?logo=astro&logoColor=white)](https://edulims.eu)
+[![Docs build](https://img.shields.io/github/actions/workflow/status/Vernum-Projecten/eduLIMS/docs.yml?branch=main&logo=githubactions&logoColor=white&label=docs)](https://github.com/Vernum-Projecten/eduLIMS/actions/workflows/docs.yml)
 [![GHCR](https://img.shields.io/badge/ghcr.io-edulims-2496ED?logo=docker&logoColor=white)](https://github.com/Vernum-Projecten/eduLIMS/pkgs/container/edulims)
 
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Vernum-Projecten/eduLIMS/badge)](https://scorecard.dev/viewer/?uri=github.com/Vernum-Projecten/eduLIMS)
@@ -109,8 +111,8 @@ behind each choice are in the [decision records](docs/adr/README.md).
 
 ## Documentation
 
-The documentation site is <https://edulims.eu/docs/>; the project's landing
-page is <https://edulims.eu>. The sources in this repository:
+The documentation site, with its landing page, is <https://edulims.eu>.
+The sources in this repository:
 
 - [Architecture](docs/architecture.md): principles, integrations, data split,
   portals and roles, deployment, and quality requirements.

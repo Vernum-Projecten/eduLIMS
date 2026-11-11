@@ -9,6 +9,9 @@
 # in minimumReleaseAgeExclude, with the advisory in the pull request.
 minimumReleaseAge: 1440
 
+packages:
+  - website
+
 permissions:
   "@tanstack/react-router":
     skills: true

@@ -1,0 +1,74 @@
+---
+title: eduLIMS
+description: An open-source laboratory information management system for practical laboratory education.
+template: splash
+editUrl: false
+lastUpdated: false
+hero:
+  title: eduLIMS
+  tagline: An open-source laboratory information management system for practical laboratory education.
+  image:
+    file: ../../assets/logo.svg
+    alt: ""
+  actions:
+    - text: Read the introduction
+      link: /get-started/introduction/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/Vernum-Projecten/eduLIMS
+      icon: github
+      variant: minimal
+---
+
+{/* SPDX-FileCopyrightText: Ruben Talstra */}
+{/* SPDX-License-Identifier: Apache-2.0 */}
+
+import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+:::caution[Pre-release]
+eduLIMS is in development and its requirements are a working draft. Use it
+with test data only.
+:::
+
+## What it does
+
+<CardGrid>
+  <Card title="Samples with a traceable ID" icon="seti:db">
+    Students register samples and get a unique sample ID, so every
+    measurement traces back to the analyser, the sample and the student.
+  </Card>
+  <Card title="Results straight from the analysers" icon="random">
+    HL7 v2 results arrive through FerroBRIDGE, and plate-reader exports are
+    validated on upload. Measurements are stored as openEHR compositions in
+    FerroEHR.
+  </Card>
+  <Card title="Grading with a rubric" icon="approve-check">
+    Teachers set up a practical with an assignment, a protocol, a deadline
+    and a rubric, grade each lab report per criterion, and follow their
+    classes on a KPI dashboard.
+  </Card>
+  <Card title="Sign-in and roles you control" icon="seti:lock">
+    Users sign in with Microsoft Entra ID or Keycloak through OpenID Connect.
+    Roles come from the identity provider, and every server function checks
+    role and ownership.
+  </Card>
+  <Card title="Signed releases" icon="seti:shell">
+    Container images on GHCR with SLSA Build Level 3 provenance and signed
+    SBOMs, deployed with Docker Compose on one Linux host.
+  </Card>
+  <Card title="Open source" icon="open-book">
+    Apache License 2.0. The requirements, architecture and decisions are
+    published with the code.
+  </Card>
+</CardGrid>
+
+## Guides
+
+<CardGrid>
+  <LinkCard title="Student" href="/guides/student/" description="Sign in and follow a practical." />
+  <LinkCard title="Teacher" href="/guides/teacher/" description="Set up practicals and grade lab reports." />
+  <LinkCard title="Administrator" href="/guides/administrator/" description="Give users their role and watch the integrations." />
+  <LinkCard title="Operations" href="/operations/install/" description="Install, configure, upgrade and back up eduLIMS." />
+  <LinkCard title="Quick start for developers" href="/get-started/quick-start/" description="Run eduLIMS on your own machine." />
+  <LinkCard title="Architecture" href="/development/architecture/" description="Integrations, data split, portals and roles." />
+</CardGrid>
