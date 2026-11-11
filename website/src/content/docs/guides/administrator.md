@@ -65,14 +65,25 @@ shows the name and e-mail address, the roles with where they come from
 number of active sessions. The screen shows no grades, results or
 submissions.
 
-- **Search** by part of a name or an e-mail address, then press **Enter** or
-  choose **Search**.
-- **Filter** on a role, a sign-in method or a status. The search and the
-  filters are part of the address, so you can bookmark or share a filtered
-  view. **Clear search and filters** shows everyone again.
-- **Sort** by name or by last sign-in with the column headers, and page
-  through the list with **Previous page** and **Next page**. **Rows per page**
-  shows 10, 25, 50 or 100 users.
+- **Search** by part of a name or an e-mail address: the list follows while
+  you type.
+- **Filter** with **Role**, **Sign-in method** and **Status**. Each opens a
+  list of its values with the number of users for each; choose one or more
+  values (a user matches any of them), and combine the filters. The chosen
+  values show on the button. **Reset** clears the search and every filter.
+  The search and the filters are part of the address, so you can bookmark or
+  share a filtered view.
+- **Sort** with the menu of the **Name** or **Last sign-in** header
+  (**Ascending** or **Descending**). **Hide column** in a header menu, or
+  **View**, hides and shows columns; this browser remembers the choice.
+- **Rows per page** shows 10, 25, 50 or 100 users; the buttons beside it go
+  to the first, previous, next and last page.
+- **The row menu** (the button at the end of each row) opens the details,
+  ends all sessions of the user, or blocks or unblocks them.
+- **Select rows** with their checkboxes, or every row of the page with the
+  checkbox in the header, to act on them at once: **End sessions** signs the
+  selected users out everywhere, **Block** blocks them with one reason and
+  an optional last day. Your own account cannot be selected.
 
 Choose a name to open the user's details beside the list. The details have
 their own address, so you can share a link to one user. They show:

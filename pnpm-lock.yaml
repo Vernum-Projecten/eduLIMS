@@ -172,6 +172,9 @@ importers:
       '@tanstack/react-form':
         specifier: 1.33.5
         version: 1.33.5(@tanstack/react-start@1.169.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.18)(supports-color@7.2.0)(vite@8.3.7(@types/node@26.6.6)(jiti@2.7.0)(yaml@2.9.1)))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@tanstack/react-pacer':
+        specifier: 0.24.1
+        version: 0.24.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@tanstack/react-query':
         specifier: 5.107.1
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
@@ -2419,6 +2422,10 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  '@tanstack/devtools-event-client@0.5.1':
+    resolution: {integrity: sha512-MiBx6Ybr65MFatCnk8IJzhGxd4hvsvEap4aT0gXOC274rV4hm0UPNHxznB5KGYtu84aXrIAsJEBElqzdPe+eeg==}
+    engines: {node: '>=18'}
+
   '@tanstack/form-core@1.33.5':
     resolution: {integrity: sha512-3dfx9MBP0aq5sXKteikG629X9oviptrQj0IFRk9YGcb+lB7Kv5x8S17oOSk1wUWgjQZ4xVJEMbKwOAODymocgA==}
 
@@ -2429,6 +2436,10 @@ packages:
   '@tanstack/pacer-lite@0.1.1':
     resolution: {integrity: sha512-y/xtNPNt/YeyoVxE/JCx+T7yjEzpezmbb+toK8DDD1P4m7Kzs5YR956+7OKexG3f8aXgC3rLZl7b1V+yNUSy5w==}
     engines: {node: '>=18'}
+
+  '@tanstack/pacer@0.23.1':
+    resolution: {integrity: sha512-ROZj19aPPGYebeRPhFZNRlqNaR2e4vkcLbgiXfbi5uJu8WiW/etsYmkcAcoSQRGOwGZbbioWRX7xssewDRVRhw==}
+    engines: {node: '>=20'}
 
   '@tanstack/query-core@5.107.1':
     resolution: {integrity: sha512-PSyAik11oQBEVOiVy5hjZWHmoUqOXqK1WYy4v55mcxozEfKaQgpUMsgnXhWjuESzSht8JfzqMS1m6M/9CpNgvg==}
@@ -2441,6 +2452,13 @@ packages:
     peerDependenciesMeta:
       '@tanstack/react-start':
         optional: true
+
+  '@tanstack/react-pacer@0.24.1':
+    resolution: {integrity: sha512-VjztEJmrNtLVdRrRaIsqx/+uX5qLHLp57dk19gVC/wLEu8ykU9twq6SKzhHSsajDEpNMauo7+bsFWAgjd+7Uiw==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
 
   '@tanstack/react-query@5.107.1':
     resolution: {integrity: sha512-udCOOLp3ZAheUrIHLCe+ZZge6nr2ZUrGMSWcCuXsjY1Bf2JeeE09oxst97PILiCY6N8xo/7bIo3Hvz13zh06FA==}
@@ -7958,6 +7976,8 @@ snapshots:
 
   '@tanstack/devtools-event-client@0.4.4': {}
 
+  '@tanstack/devtools-event-client@0.5.1': {}
+
   '@tanstack/form-core@1.33.5':
     dependencies:
       '@tanstack/devtools-event-client': 0.4.4
@@ -7967,6 +7987,11 @@ snapshots:
   '@tanstack/history@1.162.5': {}
 
   '@tanstack/pacer-lite@0.1.1': {}
+
+  '@tanstack/pacer@0.23.1':
+    dependencies:
+      '@tanstack/devtools-event-client': 0.5.1
+      '@tanstack/store': 0.11.2
 
   '@tanstack/query-core@5.107.1': {}
 
@@ -7979,6 +8004,13 @@ snapshots:
       '@tanstack/react-start': 1.169.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(rolldown@1.2.18)(supports-color@7.2.0)(vite@8.3.7(@types/node@26.6.6)(jiti@2.7.0)(yaml@2.9.1))
     transitivePeerDependencies:
       - react-dom
+
+  '@tanstack/react-pacer@0.24.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+    dependencies:
+      '@tanstack/pacer': 0.23.1
+      '@tanstack/react-store': 0.11.2(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
 
   '@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1)':
     dependencies:

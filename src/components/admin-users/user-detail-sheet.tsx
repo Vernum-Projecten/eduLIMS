@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { LockOpenIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { ConfirmButton, useAdminAction } from "@/components/admin-users/admin-action";
+import { ConfirmButton, useUsersMutation } from "@/components/admin-users/admin-action";
 import { BlockUserDialog } from "@/components/admin-users/block-user-dialog";
 import { RoleBadges, RoleSourceText, StatusBadge } from "@/components/admin-users/user-badges";
 import { UserRolesEditor } from "@/components/admin-users/user-roles-editor";
@@ -25,6 +27,7 @@ import {
 } from "@/lib/i18n/user-labels";
 import type { UserDetail } from "@/server/users/detail";
 import { unblockAdminUser } from "@/server/users/functions";
+import { unblockUserMutationOptions } from "@/server/users/query-options";
 
 /** Returns up to two initials of a name, for the avatar. */
 export function initials(name: string): string {
@@ -66,7 +69,9 @@ function rolesExplanation(user: UserDetail): string {
 
 /** The content of the user detail sheet (#34): its header and one section per topic. */
 export function UserDetailContent({ user }: Readonly<{ user: UserDetail }>) {
-  const unblock = useAdminAction(unblockAdminUser, () =>
+  const queryClient = useQueryClient();
+  const callUnblock = useServerFn(unblockAdminUser);
+  const unblock = useUsersMutation(unblockUserMutationOptions(queryClient, callUnblock), () =>
     m.admin_users_unblock_done({ name: user.name }),
   );
   return (
@@ -130,12 +135,7 @@ export function UserDetailContent({ user }: Readonly<{ user: UserDetail }>) {
             <p>{rolesExplanation(user)}</p>
           </div>
           {user.rolesEditable && (
-            <UserRolesEditor
-              key={user.roles.join(",")}
-              userId={user.id}
-              name={user.name}
-              roles={user.roles}
-            />
+            <UserRolesEditor key={user.id} userId={user.id} name={user.name} roles={user.roles} />
           )}
         </Section>
         <Separator />

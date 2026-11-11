@@ -6,15 +6,23 @@
 // on the provider (`account`), on the status (ban and last sign-in together) and on a role in a
 // role set, and counts live sessions. No column with grades, results or submissions (R-01).
 import "@tanstack/react-start/server-only";
-import { type Expression, type Kysely, type SelectQueryBuilder, type SqlBool, sql } from "kysely";
+import {
+  type Expression,
+  type ExpressionBuilder,
+  type Kysely,
+  type SelectQueryBuilder,
+  type SqlBool,
+  sql,
+} from "kysely";
 import { parseRoleSource, type RoleSource } from "../../lib/role-source.ts";
-import { ALLOWED_ROLE_SETS, formatRoles, type Role } from "../../lib/roles.ts";
+import { ALLOWED_ROLE_SETS, formatRoles, ROLES, type Role } from "../../lib/roles.ts";
 import { parseSignInMethod, type SignInMethod } from "../../lib/sign-in-method.ts";
 import { sessionRoles } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
 import {
   DEFAULT_USER_PAGE_SIZE,
   type ListUsersInput,
+  USER_STATUSES,
   type UserSortField,
   type UserStatus,
 } from "./schemas.ts";
@@ -24,6 +32,11 @@ export function roleValuesWith(role: Role): string[] {
   return ALLOWED_ROLE_SETS.filter((set) => (set as readonly Role[]).includes(role)).map((set) =>
     formatRoles(set),
   );
+}
+
+/** Returns the stored role values of every allowed set with any of `roles`. */
+export function roleValuesWithAny(roles: readonly Role[]): string[] {
+  return [...new Set(roles.flatMap(roleValuesWith))];
 }
 
 /** Returns `text` as a `LIKE` pattern that matches it anywhere, with `%`, `_` and `\` escaped. */
@@ -70,10 +83,83 @@ const SORT_COLUMNS = {
   lastSignIn: "user.last_sign_in_at",
 } as const satisfies Record<UserSortField, string>;
 
+type UserExpressions = ExpressionBuilder<DB, "user">;
+
+/** The facets of the users table: the filters that offer a list of values with counts. */
+export type UserFacet = "role" | "provider" | "status";
+
+/** The condition that a user's name or e-mail address contains `search`. */
+function searchCondition(eb: UserExpressions, search: string): Expression<SqlBool> {
+  const pattern = containsPattern(search);
+  return eb.or([eb("user.name", "ilike", pattern), eb("user.email", "ilike", pattern)]);
+}
+
+/** The condition that a user holds any of `roles`, alone or in a role set. */
+function roleCondition(eb: UserExpressions, roles: readonly Role[]): Expression<SqlBool> {
+  return eb("user.role", "in", roleValuesWithAny(roles));
+}
+
+/** The condition that a user has an account with any of `providers`. */
+function providerCondition(
+  eb: UserExpressions,
+  providers: readonly SignInMethod[],
+): Expression<SqlBool> {
+  return eb.exists(
+    eb
+      .selectFrom("account")
+      .select("account.id")
+      .whereRef("account.userId", "=", "user.id")
+      .where("account.providerId", "in", [...providers]),
+  );
+}
+
+/** The condition that a user has any of `statuses` at `now` (the SQL form of {@link userStatus}). */
+function statusCondition(
+  eb: UserExpressions,
+  statuses: readonly UserStatus[],
+  now: Date,
+): Expression<SqlBool> {
+  const blocked: Expression<SqlBool> = eb.and([
+    eb("user.banned", "=", true),
+    eb.or([eb("user.banExpires", "is", null), eb("user.banExpires", ">", now)]),
+  ]);
+  return eb.or(
+    statuses.map((status) => {
+      if (status === "blocked") return blocked;
+      const signedIn =
+        status === "never"
+          ? eb("user.last_sign_in_at", "is", null)
+          : eb("user.last_sign_in_at", "is not", null);
+      return eb.and([eb.not(blocked), signedIn]);
+    }),
+  );
+}
+
+/**
+ * The conditions of the search and every facet in `input`, all but the facet `except`. Values of
+ * one facet combine with OR, the search and the facets with AND.
+ */
+function filterConditions(
+  eb: UserExpressions,
+  input: ListUsersInput,
+  now: Date,
+  except?: UserFacet,
+): Expression<SqlBool>[] {
+  const conditions: Expression<SqlBool>[] = [];
+  const search = input.q?.trim();
+  if (search) conditions.push(searchCondition(eb, search));
+  if (input.role && except !== "role") conditions.push(roleCondition(eb, input.role));
+  if (input.provider && except !== "provider") {
+    conditions.push(providerCondition(eb, input.provider));
+  }
+  if (input.status && except !== "status") conditions.push(statusCondition(eb, input.status, now));
+  return conditions;
+}
+
 /**
  * Reads one page of users for the administrator's table: search on name and e-mail (contains,
- * case-insensitive), filters on role, sign-in provider and status, one sort column with the id
- * as tie-break, and `limit`/`offset` pagination with the total count.
+ * case-insensitive), the role, sign-in method and status facets (any of the chosen values), one
+ * sort column with the id as tie-break, and `limit`/`offset` pagination with the total count.
  */
 export async function listUsers(
   db: Kysely<DB>,
@@ -84,42 +170,8 @@ export async function listUsers(
   const page = input.page ?? 1;
   const sort = input.sort ?? "name";
   const dir = input.dir ?? "asc";
-  const search = input.q?.trim();
 
-  let query = db.selectFrom("user");
-  if (search) {
-    const pattern = containsPattern(search);
-    query = query.where((eb) =>
-      eb.or([eb("user.name", "ilike", pattern), eb("user.email", "ilike", pattern)]),
-    );
-  }
-  if (input.role) query = query.where("user.role", "in", roleValuesWith(input.role));
-  if (input.provider) {
-    const provider = input.provider;
-    query = query.where((eb) =>
-      eb.exists(
-        eb
-          .selectFrom("account")
-          .select("account.id")
-          .whereRef("account.userId", "=", "user.id")
-          .where("account.providerId", "=", provider),
-      ),
-    );
-  }
-  if (input.status) {
-    query = query.where((eb) => {
-      const blocked: Expression<SqlBool> = eb.and([
-        eb("user.banned", "=", true),
-        eb.or([eb("user.banExpires", "is", null), eb("user.banExpires", ">", now)]),
-      ]);
-      if (input.status === "blocked") return blocked;
-      const signedIn =
-        input.status === "never"
-          ? eb("user.last_sign_in_at", "is", null)
-          : eb("user.last_sign_in_at", "is not", null);
-      return eb.and([eb.not(blocked), signedIn]);
-    });
-  }
+  const query = db.selectFrom("user").where((eb) => eb.and(filterConditions(eb, input, now)));
 
   const rows = await query
     .select((eb) => [
@@ -186,4 +238,64 @@ async function countUsers(query: SelectQueryBuilder<DB, "user", {}>): Promise<nu
     .select((eb) => eb.fn.countAll<string>().as("n"))
     .executeTakeFirstOrThrow();
   return Number(row.n);
+}
+
+/** How many users each value of each facet would show. */
+export interface UserFacets {
+  role: Record<Role, number>;
+  provider: Partial<Record<SignInMethod, number>>;
+  status: Record<UserStatus, number>;
+}
+
+/**
+ * Counts, for every value of every facet, the users the list would show with that value chosen:
+ * the search and the other facets apply, the facet's own choice does not, so a facet keeps
+ * offering its other values. One query, one `count(*) filter (…)` per value. `providers` are the
+ * sign-in methods the facet offers.
+ */
+export async function userFacets(
+  db: Kysely<DB>,
+  input: ListUsersInput,
+  now: Date,
+  providers: readonly SignInMethod[],
+): Promise<UserFacets> {
+  const row = await db
+    .selectFrom("user")
+    .select((eb) => {
+      const count = (facet: UserFacet, value: Expression<SqlBool>, alias: string) =>
+        eb.fn
+          .countAll<string>()
+          .filterWhere(eb.and([...filterConditions(eb, input, now, facet), value]))
+          .as(alias);
+      return [
+        ...ROLES.map((role) => count("role", roleCondition(eb, [role]), `role:${role}`)),
+        ...providers.map((provider) =>
+          count("provider", providerCondition(eb, [provider]), `provider:${provider}`),
+        ),
+        ...USER_STATUSES.map((status) =>
+          count("status", statusCondition(eb, [status], now), `status:${status}`),
+        ),
+      ];
+    })
+    .where((eb) => {
+      const search = input.q?.trim();
+      return search ? searchCondition(eb, search) : eb.lit(true);
+    })
+    .executeTakeFirstOrThrow();
+  const read = (alias: string) => Number(Reflect.get(row, alias) ?? 0);
+  return {
+    role: {
+      student: read("role:student"),
+      teacher: read("role:teacher"),
+      admin: read("role:admin"),
+    },
+    provider: Object.fromEntries(
+      providers.map((provider) => [provider, read(`provider:${provider}`)]),
+    ),
+    status: {
+      active: read("status:active"),
+      blocked: read("status:blocked"),
+      never: read("status:never"),
+    },
+  };
 }

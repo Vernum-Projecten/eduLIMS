@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useForm } from "@tanstack/react-form";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { SaveIcon } from "lucide-react";
-import { useState } from "react";
-import { useAdminAction } from "@/components/admin-users/admin-action";
+import { useEffect, useState } from "react";
+import { useUsersMutation } from "@/components/admin-users/admin-action";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +32,7 @@ import { roleLabel, rolesLabel } from "@/lib/i18n/labels";
 import { adminActionErrorMessage } from "@/lib/i18n/user-labels";
 import { ROLES, type Role, sortRoles } from "@/lib/roles";
 import { setAdminUserRoles } from "@/server/users/functions";
+import { actionErrorCode, setRolesMutationOptions } from "@/server/users/query-options";
 import { userRolesFormSchema } from "@/server/users/schemas";
 
 /**
@@ -54,7 +57,11 @@ export function UserRolesEditor({
 }: Readonly<{ userId: string; name: string; roles: readonly Role[] }>) {
   const [pending, setPending] = useState<Role[] | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
-  const save = useAdminAction(setAdminUserRoles, () => m.admin_users_roles_saved({ name }));
+  const queryClient = useQueryClient();
+  const callSave = useServerFn(setAdminUserRoles);
+  const save = useUsersMutation(setRolesMutationOptions(queryClient, callSave), () =>
+    m.admin_users_roles_saved({ name }),
+  );
   const form = useForm({
     defaultValues: { roles: [...roles] },
     validators: { onSubmit: userRolesFormSchema },
@@ -64,10 +71,22 @@ export function UserRolesEditor({
     },
   });
 
+  // The saved set changes on an optimistic update, its rollback and a refetch; the form follows
+  // it without remounting, so a refusal stays shown at the field.
+  const saved = roles.join(",");
+  useEffect(() => {
+    const held = saved.split(",");
+    form.reset({ roles: ROLES.filter((role) => held.includes(role)) });
+  }, [form, saved]);
+
   async function confirm(next: Role[]) {
     setPending(null);
-    const result = await save.mutateAsync({ userId, roles: next });
-    setServerError(result.ok ? null : adminActionErrorMessage(result.error));
+    try {
+      await save.mutateAsync({ userId, roles: next });
+      setServerError(null);
+    } catch (error) {
+      setServerError(adminActionErrorMessage(actionErrorCode(error)));
+    }
   }
 
   return (

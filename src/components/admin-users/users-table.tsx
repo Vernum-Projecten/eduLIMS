@@ -1,191 +1,245 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { Link } from "@tanstack/react-router";
-import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react";
-import type { ReactNode } from "react";
-import { RoleBadges, StatusBadge } from "@/components/admin-users/user-badges";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { functionalUpdate, type RowSelectionState, useTable } from "@tanstack/react-table";
+import { GraduationCapIcon, PresentationIcon, ShieldCheckIcon, UsersIcon } from "lucide-react";
+import { useMemo, useState } from "react";
+import { STATUS_ICONS } from "@/components/admin-users/user-badges";
+import { UsersBulkActions } from "@/components/admin-users/users-bulk-actions";
+import { usersColumns } from "@/components/admin-users/users-columns";
+import { UsersTableContext } from "@/components/admin-users/users-table-context";
+import { DataTable } from "@/components/data-table/data-table";
 import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DataTableFacetedFilter,
+  type FacetOption,
+} from "@/components/data-table/data-table-faceted-filter";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
+import { DataTableBulkBar } from "@/components/data-table/data-table-selection";
+import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
+import { dataTableFeatures } from "@/components/data-table/features";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { m } from "@/i18n/messages";
-import { formatDateTime, formatNumber, formatRelativeTime } from "@/lib/i18n/format";
-import { signInMethodLabel } from "@/lib/i18n/user-labels";
-import type { UserRow } from "@/server/users/queries";
-import type { UserListSearch, UserSortField } from "@/server/users/schemas";
+import { formatNumber } from "@/lib/i18n/format";
+import { roleLabel } from "@/lib/i18n/labels";
+import { signInMethodLabel, userStatusLabel } from "@/lib/i18n/user-labels";
+import { readHiddenColumns } from "@/lib/preferences";
+import { ROLES, type Role } from "@/lib/roles";
+import {
+  hiddenColumnsCookie,
+  hiddenFromVisibility,
+  visibilityFromHidden,
+} from "@/lib/table-columns";
+import type { AdminUsersPage } from "@/server/users/query-options";
+import {
+  SEARCH_MAX_LENGTH,
+  USER_PAGE_SIZES,
+  USER_STATUSES,
+  type UserListSearch,
+} from "@/server/users/schemas";
+import {
+  hasUserFilters,
+  listInputFromSearch,
+  nextUsersSearch,
+  onlySearchTextChanged,
+  type UsersTableChange,
+  usersTableState,
+} from "@/server/users/table-state";
 
-const features = tableFeatures({});
-const helper = createColumnHelper<typeof features, UserRow>();
+/** The id of the users table's hidden-columns preference cookie. */
+const TABLE_ID = "admin-users";
 
-const columns = helper.columns([
-  helper.display({ id: "user", header: () => m.admin_users_col_user() }),
-  helper.display({ id: "roles", header: () => m.admin_users_col_roles() }),
-  helper.display({ id: "providers", header: () => m.admin_users_col_providers() }),
-  helper.display({ id: "status", header: () => m.admin_users_col_status() }),
-  helper.display({ id: "lastSignIn", header: () => m.admin_users_col_last_sign_in() }),
-  helper.display({ id: "sessions", header: () => m.admin_users_col_sessions() }),
-]);
+const ROLE_ICONS = {
+  student: GraduationCapIcon,
+  teacher: PresentationIcon,
+  admin: ShieldCheckIcon,
+} as const satisfies Record<Role, unknown>;
 
-const SORTABLE: Readonly<Record<string, UserSortField>> = {
-  user: "name",
-  lastSignIn: "lastSignIn",
-};
+const NO_SELECTION: RowSelectionState = {};
 
-/** The id of a user's name link, where focus returns when the detail sheet closes. */
-export function userLinkId(userId: string): string {
-  return `user-link-${userId}`;
+function roleOptions(): FacetOption[] {
+  return ROLES.map((role) => ({
+    value: role,
+    label: roleLabel(role),
+    icon: ROLE_ICONS[role],
+  }));
 }
 
-function sortLabel(field: UserSortField): string {
-  return field === "name" ? m.admin_users_col_user() : m.admin_users_col_last_sign_in();
+function statusOptions(): FacetOption[] {
+  return USER_STATUSES.map((status) => ({
+    value: status,
+    label: userStatusLabel(status),
+    icon: STATUS_ICONS[status],
+  }));
 }
 
-function SortHeader({
-  field,
-  search,
-  children,
-}: Readonly<{ field: UserSortField; search: UserListSearch; children: ReactNode }>) {
-  const active = (search.sort ?? "name") === field;
-  const dir = search.dir ?? "asc";
-  const next = active && dir === "asc" ? "desc" : "asc";
-  const Icon = active ? (dir === "asc" ? ArrowUpIcon : ArrowDownIcon) : ArrowUpDownIcon;
+function caption(search: UserListSearch, page: number, pages: number): string {
+  const column =
+    (search.sort ?? "name") === "name"
+      ? m.admin_users_col_user()
+      : m.admin_users_col_last_sign_in();
+  const values = { column, page: formatNumber(page), pages: formatNumber(pages) };
+  return search.dir === "desc"
+    ? m.admin_users_caption_desc(values)
+    : m.admin_users_caption_asc(values);
+}
+
+function UsersEmpty({ filtered }: Readonly<{ filtered: boolean }>) {
   return (
-    <Link
-      to="/admin/users"
-      search={(prev) => ({ ...prev, sort: field, dir: next, page: undefined })}
-      className="-mx-1 inline-flex items-center gap-1 rounded-sm px-1 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-      aria-label={
-        next === "asc"
-          ? m.admin_users_sort_asc({ column: sortLabel(field) })
-          : m.admin_users_sort_desc({ column: sortLabel(field) })
-      }
-    >
-      {children}
-      <Icon aria-hidden="true" className="size-3.5" />
-    </Link>
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <UsersIcon aria-hidden="true" />
+        </EmptyMedia>
+        <EmptyTitle>
+          <h2>{filtered ? m.admin_users_empty_filtered() : m.admin_users_empty()}</h2>
+        </EmptyTitle>
+        <EmptyDescription>
+          {filtered ? m.admin_users_empty_filtered_body() : m.admin_users_empty_body()}
+        </EmptyDescription>
+      </EmptyHeader>
+      {filtered && (
+        <EmptyContent>
+          <Button variant="outline" asChild>
+            <Link to="/admin/users" search={{}}>
+              {m.admin_users_clear_filters()}
+            </Link>
+          </Button>
+        </EmptyContent>
+      )}
+    </Empty>
   );
-}
-
-function ariaSort(field: UserSortField | undefined, search: UserListSearch) {
-  if (!field || (search.sort ?? "name") !== field) return undefined;
-  return search.dir === "desc" ? "descending" : "ascending";
-}
-
-function Cell({ row, column, readAt }: Readonly<{ row: UserRow; column: string; readAt: string }>) {
-  switch (column) {
-    case "user":
-      return (
-        <div className="flex min-w-48 flex-col">
-          <Link
-            id={userLinkId(row.id)}
-            to="/admin/users/$userId"
-            params={{ userId: row.id }}
-            search={(prev) => prev}
-            className="font-medium underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
-          >
-            {row.name}
-          </Link>
-          <span className="text-muted-foreground">{row.email}</span>
-        </div>
-      );
-    case "roles":
-      return <RoleBadges roles={row.roles} source={row.roleSource} />;
-    case "providers":
-      return row.providers.length === 0 ? (
-        <span className="text-muted-foreground">{m.admin_users_none()}</span>
-      ) : (
-        <ul>
-          {row.providers.map((provider) => (
-            <li key={provider}>{signInMethodLabel(provider)}</li>
-          ))}
-        </ul>
-      );
-    case "status":
-      return <StatusBadge status={row.status} blockedUntil={row.blockedUntil} />;
-    case "lastSignIn":
-      return row.lastSignInAt ? (
-        <div className="flex flex-col">
-          <time dateTime={row.lastSignInAt}>{formatRelativeTime(row.lastSignInAt, readAt)}</time>
-          <span className="text-muted-foreground">{formatDateTime(row.lastSignInAt)}</span>
-        </div>
-      ) : (
-        <span className="text-muted-foreground">{m.admin_users_never()}</span>
-      );
-    case "sessions":
-      return <span className="tabular-nums">{formatNumber(row.activeSessions)}</span>;
-    default:
-      return null;
-  }
 }
 
 /**
- * The users table: TanStack Table v9 with the shadcn `Table`, one server-side page of rows.
- * Sorting and paging are links that change the URL search params; the server sorts.
+ * The users table (#34, #58) on the reusable data table: TanStack Table v9 with sorting,
+ * filtering, pagination, column visibility and row selection, all processed on the server
+ * (`manual*` with the server's `rowCount`). Sorting, filters and the page are controlled by the
+ * route's search params; hidden columns by a preference cookie; the selection is local and
+ * cleared whenever the list changes.
  */
 export function UsersTable({
-  rows,
-  readAt,
+  page,
   search,
-  caption,
-}: Readonly<{ rows: UserRow[]; readAt: string; search: UserListSearch; caption: string }>) {
-  const table = useTable({ features, columns, data: rows, getRowId: (row) => row.id });
-  return (
-    <Table>
-      <TableCaption className="sr-only">{caption}</TableCaption>
-      <TableHeader>
-        {table.getHeaderGroups().map((group) => (
-          <TableRow key={group.id}>
-            {group.headers.map((header) => {
-              const field = SORTABLE[header.column.id];
-              return (
-                <TableHead key={header.id} scope="col" aria-sort={ariaSort(field, search)}>
-                  {field ? (
-                    <SortHeader field={field} search={search}>
-                      <table.FlexRender header={header} />
-                    </SortHeader>
-                  ) : (
-                    <table.FlexRender header={header} />
-                  )}
-                </TableHead>
-              );
-            })}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows.map((row) => (
-          <TableRow key={row.id}>
-            {row.getAllCells().map((cell) => (
-              <TableCell key={cell.id} className="align-top">
-                <Cell row={row.original} column={cell.column.id} readAt={readAt} />
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
+  selfId,
+  fetching,
+}: Readonly<{ page: AdminUsersPage; search: UserListSearch; selfId: string; fetching: boolean }>) {
+  const navigate = useNavigate({ from: "/admin/users" });
+  const state = useMemo(() => usersTableState(search), [search]);
+  const [hidden, setHidden] = useState(() => readHiddenColumns(TABLE_ID));
+  const columnVisibility = useMemo(() => visibilityFromHidden(hidden), [hidden]);
+  const listKey = JSON.stringify(listInputFromSearch(search));
+  const [selection, setSelection] = useState({ key: listKey, value: NO_SELECTION });
+  const rowSelection = selection.key === listKey ? selection.value : NO_SELECTION;
 
-/** The loading state of the users table: its header and skeleton rows. */
-export function UsersTableSkeleton() {
+  function change(update: UsersTableChange) {
+    const next = nextUsersSearch(search, update);
+    void navigate({ search: next, replace: onlySearchTextChanged(search, next) });
+  }
+
+  const table = useTable({
+    features: dataTableFeatures,
+    columns: usersColumns,
+    data: page.rows,
+    rowCount: page.total,
+    getRowId: (row) => row.id,
+    manualSorting: true,
+    manualFiltering: true,
+    manualPagination: true,
+    enableMultiSort: false,
+    enableSortingRemoval: false,
+    enableRowSelection: (row) => row.original.id !== selfId,
+    state: { ...state, columnVisibility, rowSelection },
+    onSortingChange: (updater) => change({ sorting: functionalUpdate(updater, state.sorting) }),
+    onColumnFiltersChange: (updater) =>
+      change({ columnFilters: functionalUpdate(updater, state.columnFilters) }),
+    onPaginationChange: (updater) =>
+      change({ pagination: functionalUpdate(updater, state.pagination) }),
+    onColumnVisibilityChange: (updater) => {
+      const next = hiddenFromVisibility(functionalUpdate(updater, columnVisibility));
+      setHidden(next);
+      // biome-ignore lint/suspicious/noDocumentCookie: the server reads it on the next request; the Cookie Store API is not in every supported browser
+      document.cookie = hiddenColumnsCookie(TABLE_ID, next, window.location.protocol === "https:");
+    },
+    onRowSelectionChange: (updater) =>
+      setSelection({ key: listKey, value: functionalUpdate(updater, rowSelection) }),
+  });
+
+  const roles = table.getColumn("roles");
+  const providers = table.getColumn("providers");
+  const status = table.getColumn("status");
+  const pages = Math.max(1, table.getPageCount());
+  const context = useMemo(() => ({ readAt: page.readAt, selfId }), [page.readAt, selfId]);
+
   return (
-    <div className="flex flex-col gap-3" aria-busy="true">
-      <span className="sr-only" role="status">
-        {m.loading()}
-      </span>
-      {Array.from({ length: 6 }, (_, index) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: placeholder rows have no identity.
-        <Skeleton key={index} className="h-12 w-full" />
-      ))}
-    </div>
+    <UsersTableContext value={context}>
+      <div className="flex flex-col gap-4">
+        <DataTableToolbar
+          table={table}
+          search={{
+            columnId: "name",
+            label: m.admin_users_search_label(),
+            maxLength: SEARCH_MAX_LENGTH,
+          }}
+        >
+          {roles && (
+            <DataTableFacetedFilter
+              column={roles}
+              title={m.admin_users_filter_role()}
+              options={roleOptions()}
+              counts={page.facets.role}
+            />
+          )}
+          {providers && (
+            <DataTableFacetedFilter
+              column={providers}
+              title={m.admin_users_filter_provider()}
+              options={page.providerOptions.map((provider) => ({
+                value: provider,
+                label: signInMethodLabel(provider),
+              }))}
+              counts={page.facets.provider}
+            />
+          )}
+          {status && (
+            <DataTableFacetedFilter
+              column={status}
+              title={m.admin_users_filter_status()}
+              options={statusOptions()}
+              counts={page.facets.status}
+            />
+          )}
+        </DataTableToolbar>
+        <p role="status" className="sr-only">
+          {m.admin_users_results({ total: formatNumber(page.total) })}
+        </p>
+        <DataTableBulkBar table={table}>
+          <UsersBulkActions
+            userIds={table.getSelectedRowIds()}
+            onDone={() => table.resetRowSelection(true)}
+          />
+        </DataTableBulkBar>
+        <DataTable
+          table={table}
+          caption={caption(search, state.pagination.pageIndex + 1, pages)}
+          busy={fetching}
+          empty={<UsersEmpty filtered={hasUserFilters(search)} />}
+        />
+        <DataTablePagination
+          table={table}
+          label={m.admin_users_pagination()}
+          pageSizes={USER_PAGE_SIZES}
+          range={(range) => m.admin_users_range(range)}
+        />
+      </div>
+    </UsersTableContext>
   );
 }

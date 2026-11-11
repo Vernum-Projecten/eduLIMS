@@ -14,15 +14,19 @@ import { requireRole } from "../middleware.ts";
 import {
   type ActionContext,
   blockUser,
+  bulkBlockUsers,
+  bulkEndAllSessions,
   endAllSessions,
   endSession,
   setLocalRoles,
   unblockUser,
 } from "./actions.ts";
 import { getUserDetail } from "./detail.ts";
-import { listUsers } from "./queries.ts";
+import { listUsers, userFacets } from "./queries.ts";
 import {
   blockUserInput,
+  bulkBlockUsersInput,
+  bulkUsersInput,
   listUsersInput,
   revokeSessionInput,
   setUserRolesInput,
@@ -30,20 +34,26 @@ import {
 } from "./schemas.ts";
 
 /**
- * Returns one page of the users table and the sign-in methods its provider filter offers:
- * the configured identity providers, and the development login while it is on.
+ * Returns one page of the users table, the sign-in methods its provider facet offers (the
+ * configured identity providers, and the development login while it is on), and the count of
+ * every facet value under the current search and filters.
  */
 export const listAdminUsers = createServerFn({ method: "GET" })
   .middleware([requireRole("admin")])
   .validator(listUsersInput)
   .handler(async ({ data }) => {
     const env = getEnv();
-    const page = await listUsers(getDb(), data, new Date());
     const providers = identityProviders(env).map((provider) => provider.id);
-    return {
-      ...page,
-      providerOptions: env.EDULIMS_DEV_LOGIN ? [...providers, "credential" as const] : providers,
-    };
+    const providerOptions = env.EDULIMS_DEV_LOGIN
+      ? [...providers, "credential" as const]
+      : providers;
+    const now = new Date();
+    const db = getDb();
+    const [page, facets] = await Promise.all([
+      listUsers(db, data, now),
+      userFacets(db, data, now, providerOptions),
+    ]);
+    return { ...page, providerOptions, facets };
   });
 
 /** Returns the user detail sheet of one user; throws `notFound` for an unknown id. */
@@ -95,3 +105,15 @@ export const setAdminUserRoles = createServerFn({ method: "POST" })
   .middleware([requireRole("admin")])
   .validator(setUserRolesInput)
   .handler(async ({ data, context }) => setLocalRoles(actionContext(context.user), data));
+
+/** Ends every session of each selected user (#58); the per-user rules of a single action apply. */
+export const bulkEndAdminUserSessions = createServerFn({ method: "POST" })
+  .middleware([requireRole("admin")])
+  .validator(bulkUsersInput)
+  .handler(async ({ data, context }) => bulkEndAllSessions(actionContext(context.user), data));
+
+/** Blocks each selected user with one reason (#58); the administrator's own account is refused. */
+export const bulkBlockAdminUsers = createServerFn({ method: "POST" })
+  .middleware([requireRole("admin")])
+  .validator(bulkBlockUsersInput)
+  .handler(async ({ data, context }) => bulkBlockUsers(actionContext(context.user), data));

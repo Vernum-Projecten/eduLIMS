@@ -5,7 +5,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { UserDetailContent } from "@/components/admin-users/user-detail-sheet";
-import { userLinkId } from "@/components/admin-users/users-table";
+import { userLinkId } from "@/components/admin-users/users-columns";
 import {
   Sheet,
   SheetContent,

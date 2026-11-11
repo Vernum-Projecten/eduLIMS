@@ -1,14 +1,20 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { LogOutIcon, MonitorSmartphoneIcon } from "lucide-react";
-import { ConfirmButton, useAdminAction } from "@/components/admin-users/admin-action";
+import { ConfirmButton, useUsersMutation } from "@/components/admin-users/admin-action";
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/i18n/messages";
 import { formatDateTime } from "@/lib/i18n/format";
 import type { DeviceSummary } from "@/lib/user-agent";
 import type { UserSession } from "@/server/users/detail";
 import { endAdminUserSession, endAllAdminUserSessions } from "@/server/users/functions";
+import {
+  endAllSessionsMutationOptions,
+  endSessionMutationOptions,
+} from "@/server/users/query-options";
 
 function deviceLabel(device: DeviceSummary): string {
   if (device.browser && device.os)
@@ -27,8 +33,13 @@ export function UserSessions({
   self,
   sessions,
 }: Readonly<{ userId: string; name: string; self: boolean; sessions: UserSession[] }>) {
-  const endOne = useAdminAction(endAdminUserSession, () => m.admin_users_session_ended());
-  const endAll = useAdminAction(endAllAdminUserSessions, () =>
+  const queryClient = useQueryClient();
+  const callEndOne = useServerFn(endAdminUserSession);
+  const callEndAll = useServerFn(endAllAdminUserSessions);
+  const endOne = useUsersMutation(endSessionMutationOptions(queryClient, callEndOne), () =>
+    m.admin_users_session_ended(),
+  );
+  const endAll = useUsersMutation(endAllSessionsMutationOptions(queryClient, callEndAll), () =>
     self ? m.admin_users_other_sessions_ended() : m.admin_users_sessions_ended({ name }),
   );
   const endable = sessions.filter((session) => !session.current).length;

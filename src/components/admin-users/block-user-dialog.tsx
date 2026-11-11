@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useForm } from "@tanstack/react-form";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { BanIcon, CalendarIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { nl } from "react-day-picker/locale";
-import { useAdminAction } from "@/components/admin-users/admin-action";
+import { useUsersMutation } from "@/components/admin-users/admin-action";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -26,7 +28,12 @@ import { getLocale } from "@/i18n/runtime";
 import { dayIn, endOfDayIn } from "@/lib/app-day";
 import { formatDate } from "@/lib/i18n/format";
 import { blockAdminUser } from "@/server/users/functions";
-import { BLOCK_REASON_MAX_LENGTH, blockUserFormSchema } from "@/server/users/schemas";
+import { blockUserMutationOptions } from "@/server/users/query-options";
+import {
+  BLOCK_REASON_MAX_LENGTH,
+  type BlockUserForm,
+  blockUserFormSchema,
+} from "@/server/users/schemas";
 
 /** Returns a `YYYY-MM-DD` day as a local `Date` at noon, as the calendar shows days. */
 function dayToDate(day: string): Date {
@@ -50,20 +57,41 @@ function labelDayButton(date: Date, modifiers: { today?: boolean; selected?: boo
   return modifiers.selected ? m.calendar_selected({ date: named }) : named;
 }
 
+/** Where a block dialog opens from: its own trigger, or a parent that controls it. */
+export type DialogControl =
+  | { trigger: ReactNode }
+  | {
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+      onCloseAutoFocus?: (event: Event) => void;
+    };
+
 /**
- * The block action (owner decision on #32): an `AlertDialog` with the reason and an optional
- * last day, confirming that the user is signed out and refused at every sign-in.
+ * The block form (owner decision on #32) in an `AlertDialog`: the reason and an optional last
+ * day, confirming that the users are signed out and refused at every sign-in. `onBlock`
+ * returns whether the dialog may close.
  */
-export function BlockUserDialog({ userId, name }: Readonly<{ userId: string; name: string }>) {
-  const [open, setOpen] = useState(false);
+export function BlockDialog({
+  title,
+  description,
+  control,
+  onBlock,
+}: Readonly<{
+  title: string;
+  description: ReactNode;
+  control: DialogControl;
+  onBlock: (value: BlockUserForm) => Promise<boolean>;
+}>) {
+  const [ownOpen, setOwnOpen] = useState(false);
+  const controlled = "open" in control;
+  const open = controlled ? control.open : ownOpen;
+  const setOpen = controlled ? control.onOpenChange : setOwnOpen;
   const [pickerOpen, setPickerOpen] = useState(false);
-  const block = useAdminAction(blockAdminUser, () => m.admin_users_block_done({ name }));
   const form = useForm({
     defaultValues: { reason: "", until: "" },
     validators: { onSubmit: blockUserFormSchema },
     onSubmit: async ({ value }) => {
-      const result = await block.mutateAsync({ userId, ...value });
-      if (result.ok) {
+      if (await onBlock(value)) {
         setOpen(false);
         form.reset();
       }
@@ -73,13 +101,11 @@ export function BlockUserDialog({ userId, name }: Readonly<{ userId: string; nam
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <BanIcon aria-hidden="true" data-icon="inline-start" className="text-destructive" />
-          {m.admin_users_block()}
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent className="data-[size=default]:sm:max-w-md">
+      {!controlled && <AlertDialogTrigger asChild>{control.trigger}</AlertDialogTrigger>}
+      <AlertDialogContent
+        className="data-[size=default]:sm:max-w-md"
+        onCloseAutoFocus={controlled ? control.onCloseAutoFocus : undefined}
+      >
         <form
           noValidate
           className="flex flex-col gap-4"
@@ -89,8 +115,8 @@ export function BlockUserDialog({ userId, name }: Readonly<{ userId: string; nam
           }}
         >
           <AlertDialogHeader>
-            <AlertDialogTitle>{m.admin_users_block_title({ name })}</AlertDialogTitle>
-            <AlertDialogDescription>{m.admin_users_block_description()}</AlertDialogDescription>
+            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertDialogDescription>{description}</AlertDialogDescription>
           </AlertDialogHeader>
           <FieldGroup>
             <form.Field name="reason">
@@ -193,5 +219,41 @@ export function BlockUserDialog({ userId, name }: Readonly<{ userId: string; nam
         </form>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+/** Returns the trigger of the block dialog in the user detail sheet (an element Radix can slot). */
+function blockUserTrigger() {
+  return (
+    <Button variant="outline" size="sm">
+      <BanIcon aria-hidden="true" data-icon="inline-start" className="text-destructive" />
+      {m.admin_users_block()}
+    </Button>
+  );
+}
+
+/** Blocks one user, from the detail sheet (its own trigger) or a row menu (`control`). */
+export function BlockUserDialog({
+  userId,
+  name,
+  control = { trigger: blockUserTrigger() },
+}: Readonly<{ userId: string; name: string; control?: DialogControl }>) {
+  const queryClient = useQueryClient();
+  const call = useServerFn(blockAdminUser);
+  const block = useUsersMutation(blockUserMutationOptions(queryClient, call), () =>
+    m.admin_users_block_done({ name }),
+  );
+  return (
+    <BlockDialog
+      title={m.admin_users_block_title({ name })}
+      description={m.admin_users_block_description()}
+      control={control}
+      onBlock={(value) =>
+        block.mutateAsync({ userId, ...value }).then(
+          () => true,
+          () => false,
+        )
+      }
+    />
   );
 }

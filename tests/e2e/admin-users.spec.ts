@@ -1,60 +1,22 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The Users and roles screen and the user detail sheet (#34, B1).
-import { readFileSync } from "node:fs";
-import { type Browser, expect, type Page, test } from "@playwright/test";
-import { devLogin, expectNoA11yViolations } from "./fixtures";
+// The Users and roles screen and the user detail sheet (#34, B1). The data table's own
+// journeys (#58) are in admin-users-table.spec.ts.
+import { expect, test } from "@playwright/test";
+import {
+  axe,
+  dutch,
+  openUser,
+  signedInElsewhere,
+  signInAsAdmin,
+  usersTable,
+} from "./admin-users-helpers";
+import { devLogin } from "./fixtures";
 
-const nl: Readonly<Record<string, string>> = JSON.parse(
-  readFileSync(new URL("../../messages/nl.json", import.meta.url), "utf8"),
-);
+const SEARCH = "Search by name or email address";
 
-function dutch(key: string): string {
-  const message = nl[key];
-  if (message === undefined) throw new Error(`messages/nl.json has no "${key}"`);
-  return message;
-}
-
-const ADMIN = "admin@example.test";
-
-/** Runs the axe scan once every animation (a sheet, a dialog, a toast) has finished. */
-async function axe(page: Page): Promise<void> {
-  await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
-  );
-  await expectNoA11yViolations(page);
-}
-
-async function signInAsAdmin(page: Page): Promise<void> {
-  await devLogin(page, ADMIN);
-  await expect(page).toHaveURL(/\/admin$/);
-}
-
-function usersTable(page: Page) {
-  return page.getByRole("table");
-}
-
-/** Opens the detail sheet of the seeded user `name` through a search. */
-async function openUser(page: Page, name: string) {
-  await page.goto(`/admin/users?q=${encodeURIComponent(name)}`);
-  await usersTable(page).getByRole("link", { name }).click();
-  const sheet = page.getByRole("dialog", { name });
-  await expect(sheet).toBeVisible();
-  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
-  return sheet;
-}
-
-/** Signs `email` in, in a browser context of its own, and returns that page. */
-async function signedInElsewhere(browser: Browser, email: string): Promise<Page> {
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  await devLogin(page, email);
-  await expect(page).not.toHaveURL(/\/login/);
-  return page;
-}
-
-test("the users table lists, searches, filters, sorts and pages on the server (B1)", async ({
+test("the users table searches while typing, filters, sorts and pages on the server (B1, #58)", async ({
   page,
 }) => {
   await signInAsAdmin(page);
@@ -62,7 +24,7 @@ test("the users table lists, searches, filters, sorts and pages on the server (B
   await page.goto("/admin/users");
   await expect(page.getByRole("heading", { level: 1, name: "Users and roles" })).toBeVisible();
   await expect(usersTable(page).getByRole("row").nth(1)).toBeVisible();
-  // NOTE: Q-PERF-1, a page loads within 2 seconds; the seeded set has 80 users.
+  // NOTE: Q-PERF-1, a page loads within 2 seconds; the DB test times 1,200 users.
   expect(Date.now() - started).toBeLessThan(2000);
   await expect(page).toHaveTitle("Users and roles | Admin portal | eduLIMS");
   for (const name of ["Name", "Roles", "Sign-in methods", "Status", "Last sign-in"]) {
@@ -75,8 +37,9 @@ test("the users table lists, searches, filters, sorts and pages on the server (B
   await expect(page.getByText(/^Showing 1 to 25 of \d+ users$/)).toBeVisible();
   await axe(page);
 
-  await page.getByLabel("Search by name or email address").fill("teacher-admin@example");
-  await page.getByRole("button", { name: "Search" }).click();
+  // Search while typing: no button, the URL follows after the debounce.
+  await expect(page.getByRole("button", { name: "Search", exact: true })).toHaveCount(0);
+  await page.getByRole("searchbox", { name: SEARCH }).fill("teacher-admin@example");
   await expect(page).toHaveURL(/q=teacher-admin%40example/);
   await expect(
     usersTable(page).getByRole("link", { name: "Test Coordinator", exact: true }),
@@ -85,33 +48,96 @@ test("the users table lists, searches, filters, sorts and pages on the server (B
     "Users found: 1.",
   );
 
-  await page.getByRole("button", { name: "Clear search and filters" }).click();
-  await page.getByLabel("Status", { exact: true }).selectOption("blocked");
-  await expect(page).toHaveURL(/status=blocked/);
+  // Reset clears the search and every facet.
+  await page.getByRole("button", { name: "Reset search and filters" }).click();
+  await expect(page).not.toHaveURL(/q=/);
+  await expect(page.getByRole("searchbox", { name: SEARCH })).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Reset search and filters" })).toHaveCount(0);
+
+  // A facet: multi-select with a count per value; the button shows the choice.
+  await page.getByRole("search").getByRole("button", { name: "Status", exact: true }).click();
+  const statusList = page.getByRole("listbox", { name: "Status" });
+  await expect(statusList.getByRole("option", { name: /^Blocked \d+$/ })).toBeVisible();
+  await axe(page);
+  await statusList.getByRole("option", { name: /^Blocked/ }).click();
+  await expect(statusList.getByRole("option", { name: /^Blocked/ })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/status=%5B%22blocked%22%5D/);
+  await expect(page.getByRole("button", { name: /^Status 1 selected: Blocked$/ })).toBeVisible();
   const rows = usersTable(page).locator("tbody tr");
   await expect(rows.first()).toBeVisible();
   for (const row of await rows.all()) await expect(row).toContainText("Blocked");
 
-  await page.getByLabel("Role", { exact: true }).selectOption("teacher");
-  await expect(page).toHaveURL(/role=teacher/);
+  // Two values of one facet are OR; facets combine with AND.
+  await page
+    .getByRole("search")
+    .getByRole("button", { name: /^Status/ })
+    .click();
+  await page
+    .getByRole("listbox", { name: "Status" })
+    .getByRole("option", { name: /^Never signed in/ })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: /^Status 2 selected: Blocked Never signed in$/ }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Role", exact: true }).click();
+  await page
+    .getByRole("listbox", { name: "Role" })
+    .getByRole("option", { name: /^Administrator/ })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/role=%5B%22admin%22%5D/);
+  await expect(rows.first()).toBeVisible();
+  for (const row of await rows.all()) {
+    await expect(row).toContainText(/Blocked|Never signed in/);
+    await expect(row).toContainText("Administrator");
+  }
+  await page.getByRole("searchbox", { name: SEARCH }).fill("nobody-matches-this");
   await expect(page.getByRole("heading", { level: 2, name: "No users match" })).toBeVisible();
   await axe(page);
 
+  // An older single-value link still filters; sort through the header menu.
   await page.goto("/admin/users?provider=keycloak");
-  await page.getByRole("link", { name: "Name: sort in descending order" }).click();
+  await page.getByRole("button", { name: "Name", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Descending" }).click();
   await expect(page).toHaveURL(/dir=desc/);
   await expect(page.getByRole("columnheader", { name: /^Name/ })).toHaveAttribute(
     "aria-sort",
     "descending",
   );
   for (const row of await rows.all()) await expect(row).toContainText("Keycloak");
+  await page.getByRole("button", { name: "Last sign-in", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Ascending" }).click();
+  await expect(page).toHaveURL(/sort=lastSignIn/);
+  await expect(page.getByRole("columnheader", { name: /^Last sign-in/ })).toHaveAttribute(
+    "aria-sort",
+    "ascending",
+  );
+  await expect(page.getByRole("columnheader", { name: /^Name/ })).not.toHaveAttribute(
+    "aria-sort",
+    /./,
+  );
 
-  await page.goto("/admin/users?size=10");
-  await page.getByRole("link", { name: "Next page" }).click();
+  // Rows per page, then next, last, previous and first page; the page survives a reload.
+  await page.goto("/admin/users");
+  await page.getByRole("combobox", { name: "Rows per page" }).click();
+  await page.getByRole("option", { name: "10", exact: true }).click();
+  await expect(page).toHaveURL(/size=10/);
+  await page.getByRole("button", { name: "Next page" }).click();
   await expect(page).toHaveURL(/page=2/);
   await expect(page.getByText(/^Showing 11 to 20 of \d+ users$/)).toBeVisible();
   await page.reload();
   await expect(page.getByText(/^Showing 11 to 20 of \d+ users$/)).toBeVisible();
+  await page.getByRole("button", { name: "Last page" }).click();
+  await expect(page.getByRole("button", { name: "Next page" })).toBeDisabled();
+  await expect(page.getByText(/^Page (\d+) of \1$/)).toBeVisible();
+  await page.getByRole("button", { name: "First page" }).click();
+  await expect(page.getByText(/^Showing 1 to 10 of \d+ users$/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Previous page" })).toBeDisabled();
 });
 
 test("an administrator ends one session and all sessions of a user", async ({ page, browser }) => {

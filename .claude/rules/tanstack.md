@@ -69,6 +69,47 @@ routes for what a server function does. A server route (`server.handlers`)
 is for a real HTTP contract: the better-auth handler under `/api/auth/*`, a
 health check for B3, a file download such as the CSV export (D6).
 
+## Query conventions
+
+The Users screen (`src/server/users/query-options.ts`, #58) is the
+reference; every area follows it.
+
+- **One key factory per area**, from wide to narrow: `usersKeys.all`,
+  `.lists()`, `.list(filters)`, `.details()`, `.detail(id)`. Never write a
+  key array by hand outside the factory.
+- **Options live beside the keys:** `queryOptions` for each read and a
+  `mutationOptions` factory for each write, taking the `QueryClient` and the
+  `useServerFn` caller. Cache logic (optimistic writes, rollback,
+  invalidation) belongs in the factory; UI feedback (the toast) in the
+  component (`useUsersMutation` wraps the factory's callbacks).
+- **Targeted invalidation only:** a write invalidates `detail(id)` of each
+  user it touched and `lists()`, in `onSettled`. Never a bare
+  `invalidateQueries()` and never the area root unless every entry changed.
+- **Lists keep the previous page** (`placeholderData: keepPreviousData`). The
+  route loader awaits the list on `cause: "enter"` (SSR and first visit) and
+  only starts it on `cause: "stay"` (a new sort, filter or page), so the
+  table stays on screen; the component reads it with `useQuery` and shows a
+  translated "Updating…" from `isFetching && isPlaceholderData` in a slot
+  that does not move the layout.
+- **Optimistic updates** where the result is certain (ending a session,
+  editing a local role set): `onMutate` cancels the affected queries, writes
+  the change into every cached list page and the detail, and returns the
+  snapshot; `onError` restores it; the mutation function throws a refusal
+  (`AdminActionRefused`) so a refused action rolls back like a failed one.
+  An e2e journey forces a 500 on the write (`failServerWrites`) to prove the
+  rollback.
+- **Server data lives only in the Query cache:** no copy in React state,
+  context or a store. Local state is for UI only (an open dialog, the row
+  selection, a typed search before its debounce).
+
+## Pacer
+
+- Debounce and throttle with TanStack Pacer (`@tanstack/react-pacer`), never
+  a hand-written timer. `useDebouncer(fn, { wait })` when the caller needs
+  `flush()` (Enter applies a search at once) or `cancel()`;
+  `useDebouncedCallback` or `useDebouncedValue` otherwise. The data table's
+  search debounces 300 ms (`SEARCH_DEBOUNCE_MS`).
+
 ## Server functions
 
 ```ts
@@ -100,6 +141,12 @@ export const registerSample = createServerFn({ method: "POST" })
 - Tables are TanStack Table v9 rendered with the shadcn `Table` primitives.
   Sorting, filtering and pagination of large sets run on the server; the URL
   search params hold the table state so a teacher can share a filtered view.
+- Every list uses the reusable data table in `src/components/data-table/`
+  (#58): the shared `dataTableFeatures`, `manualSorting`, `manualFiltering`
+  and `manualPagination` with the server's `rowCount`, the slices controlled
+  from `validateSearch` through `src/lib/data-table-state.ts`, hidden columns
+  in a preference cookie (`src/lib/table-columns.ts`), and facet counts from
+  the server computed with the other filters applied.
 
 ## SSR hygiene
 
