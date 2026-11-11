@@ -103,6 +103,14 @@ both.
   (`src/server/role-ownership.ts`). Only a local set is editable in the
   Admin portal (`setLocalRoles`, which writes its `authz_role_change` row in
   the same transaction).
+- **One role set, three writers, one channel each** (#45, ADR 0017):
+  `user.role_channel` records whether an ID-token claim (`claim`), SCIM
+  (`scim`) or eduLIMS (`local`) wrote the set. Only a set SCIM wrote survives
+  a sign-in without a mapped claim; a set a claim wrote is gone at the next
+  sign-in without it, admin included. A SCIM write never removes a set a
+  claim gave, and a sign-in never removes a set SCIM gave. When both give
+  roles, the claim's set wins at a sign-in and SCIM's at a SCIM write. Every
+  writer of `role_source` writes `role_channel` with it.
 - **A user holds a role set, not a ranking** (ADR 0012). The allowed sets
   are {student}, {teacher}, {admin} and {teacher, admin}; student is never
   combined with another role. `validateRoleSet` (`src/lib/roles.ts`) is the

@@ -55,9 +55,11 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "scim_user_created",
   "scim_user_updated",
   "scim_user_deleted",
+  "scim_user_read",
   "scim_group_created",
   "scim_group_updated",
   "scim_group_deleted",
+  "scim_group_read",
 ] as const;
 
 /** Actions eduLIMS records about itself, with no target: the scheduled retention prune (B4). */

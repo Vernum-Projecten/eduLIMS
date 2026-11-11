@@ -132,6 +132,14 @@ describe.skipIf(!ready)("SSO sign-in of a SCIM-provisioned user (#45)", () => {
       .where("accountId", "=", first.accountId)
       .executeTakeFirstOrThrow();
     expect(account.userId).toBe(provisioned.userId);
+    // The sign-in stored its directory id on the account (M1): here the account key.
+    const stored = await db
+      .selectFrom("account")
+      .select("directory_id")
+      .where("providerId", "=", "keycloak")
+      .where("accountId", "=", first.accountId)
+      .executeTakeFirstOrThrow();
+    expect(stored.directory_id).toBe(first.accountId);
 
     const off = {
       schemas: ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],

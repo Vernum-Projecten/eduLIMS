@@ -17,7 +17,8 @@ export type ProviderEnabled = (providerId: string) => Promise<boolean>;
  * projection so session tokens and other internals are never serialised to the client. A
  * stored role set that is not allowed (ADR 0012) yields no roles. A session past its absolute
  * lifetime (24 hours after sign-in, #42), or signed in through a provider that is disabled or
- * gone (ASVS V7.4.2, #92), is revoked and yields no user.
+ * gone (ASVS V7.4.2, #92), or of a user the directory deprovisioned over SCIM (#45, M3), is
+ * revoked and yields no user.
  */
 export async function resolveSessionUser(
   auth: Auth,
@@ -32,7 +33,12 @@ export async function resolveSessionUser(
     typeof method === "string" &&
     method !== CREDENTIAL_SIGN_IN &&
     !(await isProviderEnabled(method));
-  if (viaDisabledProvider || isPastAbsoluteLifetime(new Date(session.session.createdAt), now)) {
+  const deprovisioned = Reflect.get(session.user, "deprovisionedAt") != null;
+  if (
+    viaDisabledProvider ||
+    deprovisioned ||
+    isPastAbsoluteLifetime(new Date(session.session.createdAt), now)
+  ) {
     const context = await auth.$context;
     await context.internalAdapter.deleteSession(session.session.token);
     return null;

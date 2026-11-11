@@ -115,6 +115,25 @@ describe("the SCIM section", () => {
     });
   });
 
+  it.each(["email", "preferred_username", "upn", "a b"])(
+    "refuses the changeable claim %s as invalid (H4, V6.8.1)",
+    async (claim) => {
+      const admin = user("admin-1", ["admin"]);
+      expect(await scimHandlers.setExternalIdClaim(admin, { ...PROVIDER, claim }, deps)).toEqual({
+        ok: false,
+        error: "invalid",
+      });
+    },
+  );
+
+  it.each(["oid", "sub", "objectGUID"])("accepts the immutable claim %s", async (claim) => {
+    const admin = user("admin-1", ["admin"]);
+    expect(await scimHandlers.setExternalIdClaim(admin, { ...PROVIDER, claim }, deps)).toEqual({
+      ok: true,
+      providerId: "campus",
+    });
+  });
+
   it("refuses a claim with spaces or other characters (invalid), and an unknown provider", async () => {
     const admin = user("admin-1", ["admin"]);
     expect(

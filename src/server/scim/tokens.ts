@@ -10,14 +10,15 @@
 import "@tanstack/react-start/server-only";
 import { createHash, randomBytes } from "node:crypto";
 import type { Kysely, Transaction } from "kysely";
-import { type AuditActor, auditProvider } from "../audit/events.ts";
-import { recordAudit, recordCommittedAudit } from "../audit/record.ts";
+import type { AuditActor } from "../audit/events.ts";
+import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 
 /** The prefix every eduLIMS SCIM token starts with, so a leaked one is recognisable in a scan. */
 export const SCIM_TOKEN_PREFIX = "edulims_scim_";
 
-const TOKEN_PATTERN = /^edulims_scim_[A-Za-z0-9_-]{43}$/;
+/** The shape of an eduLIMS SCIM token. */
+export const TOKEN_PATTERN = /^edulims_scim_[A-Za-z0-9_-]{43}$/;
 const DAY_MS = 86_400_000;
 
 // NOTE: owner decision on #45; a token lives 180 days, the screen warns 14 days before, and a
@@ -28,9 +29,6 @@ export const SCIM_TOKEN_LIFETIME_MS = 180 * DAY_MS;
 export const SCIM_TOKEN_WARNING_MS = 14 * DAY_MS;
 /** How long the previous token keeps working after a rotation. */
 export const SCIM_ROTATION_OVERLAP_MS = 60 * 60_000;
-
-/** How often `last_used_at` is written at most, so every SCIM request is not a write. */
-const LAST_USED_INTERVAL_MS = 5 * 60_000;
 
 /** Returns a new token: the prefix and 256 random bits, base64url. */
 export function generateScimToken(): string {
@@ -114,8 +112,20 @@ async function refusable<T>(
     return await run();
   } catch (error) {
     if (error instanceof TokenRefusal) return { ok: false, error: error.kind };
+    // A concurrent create won the one-current-token index (M4): this one already exists.
+    if (isUniqueViolation(error)) return { ok: false, error: "exists" };
     throw error;
   }
+}
+
+/** Returns whether `error` is PostgreSQL's unique violation (SQLSTATE 23505). */
+export function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    Reflect.get(error, "code") === "23505"
+  );
 }
 
 /** Returns the current (not superseded, not revoked) token row of a provider, locked. */
@@ -142,6 +152,13 @@ async function issue(
   const token = generateScimToken();
   const expiresAt = new Date(now.getTime() + SCIM_TOKEN_LIFETIME_MS);
   return ctx.db.transaction().execute(async (trx) => {
+    // NOTE: #45 (M4); the provider row lock serialises two token changes of one provider.
+    await trx
+      .selectFrom("identity_provider")
+      .select("provider_id")
+      .where("provider_id", "=", providerId)
+      .forUpdate()
+      .executeTakeFirst();
     const current = await currentToken(trx, providerId);
     const live = current !== undefined && current.expires_at > now;
     if (action === "scim_token_created" && live) throw new TokenRefusal("exists");
@@ -286,70 +303,4 @@ export async function scimTokenStatus(
     expired: left <= 0,
     previousValidUntil,
   };
-}
-
-/** A token that authenticated: its row and the provider whose SCIM connection it opens. */
-export interface VerifiedScimToken {
-  tokenId: string;
-  providerId: string;
-  expiresAt: Date;
-}
-
-/**
- * Returns the provider a bearer token belongs to, or `null` for a malformed, unknown, revoked
- * or expired token and for a token of a disabled provider. Looks the token up by its digest
- * only. An expired token is logged as `scim_token_refused` with reason `token_expired`.
- */
-export async function verifyScimToken(
-  db: Kysely<DB>,
-  token: string,
-  now: Date = new Date(),
-): Promise<VerifiedScimToken | null> {
-  if (!TOKEN_PATTERN.test(token)) return null;
-  const row = await db
-    .selectFrom("scim_token")
-    .innerJoin("identity_provider", "identity_provider.provider_id", "scim_token.provider_id")
-    .select([
-      "scim_token.id",
-      "scim_token.provider_id",
-      "scim_token.expires_at",
-      "scim_token.last_used_at",
-    ])
-    .where("scim_token.token_hash", "=", hashScimToken(token))
-    .where("scim_token.revoked_at", "is", null)
-    .where("identity_provider.enabled", "=", true)
-    .executeTakeFirst();
-  if (!row) return null;
-  if (row.expires_at <= now) {
-    const provider = auditProvider(row.provider_id);
-    await recordCommittedAudit(db, {
-      action: "scim_token_refused",
-      actor: { type: "anonymous" },
-      outcome: "refused",
-      reason: "token_expired",
-      target: { type: "identity_provider", id: row.provider_id },
-      ...(provider ? { provider } : {}),
-      metadata: { provider_id: row.provider_id },
-    });
-    return null;
-  }
-  if (!row.last_used_at || now.getTime() - row.last_used_at.getTime() > LAST_USED_INTERVAL_MS) {
-    await db
-      .updateTable("scim_token")
-      .set({ last_used_at: now })
-      .where("id", "=", row.id)
-      .execute();
-  }
-  return { tokenId: row.id, providerId: row.provider_id, expiresAt: row.expires_at };
-}
-
-/** Returns the provider of a token without the enabled check or a write; for the activity log. */
-export async function providerOfScimToken(db: Kysely<DB>, token: string): Promise<string | null> {
-  if (!TOKEN_PATTERN.test(token)) return null;
-  const row = await db
-    .selectFrom("scim_token")
-    .select("provider_id")
-    .where("token_hash", "=", hashScimToken(token))
-    .executeTakeFirst();
-  return row?.provider_id ?? null;
 }

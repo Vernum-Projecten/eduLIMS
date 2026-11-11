@@ -16,7 +16,7 @@ import {
   createScimToken,
   generateScimToken,
   hashScimToken,
-  providerOfScimToken,
+  isUniqueViolation,
   revokeScimToken,
   rotateScimToken,
   SCIM_ROTATION_OVERLAP_MS,
@@ -24,8 +24,8 @@ import {
   SCIM_TOKEN_PREFIX,
   SCIM_TOKEN_WARNING_MS,
   scimTokenStatus,
-  verifyScimToken,
 } from "./tokens.ts";
+import { inspectScimToken, verifyScimToken } from "./verify.ts";
 
 let db: Kysely<DB>;
 const admin = () => ({ db, actor: { type: "user" as const, id: "admin-1" } });
@@ -64,6 +64,15 @@ async function auditActions(): Promise<string[]> {
     .execute();
   return rows.map((row) => `${row.action}:${row.actor_id}:${row.target_id}`);
 }
+
+describe("isUniqueViolation (M4)", () => {
+  it("recognises PostgreSQL's unique violation only", () => {
+    expect(isUniqueViolation({ code: "23505" })).toBe(true);
+    expect(isUniqueViolation({ code: "23503" })).toBe(false);
+    expect(isUniqueViolation(new Error("x"))).toBe(false);
+    expect(isUniqueViolation(null)).toBe(false);
+  });
+});
 
 describe("generateScimToken", () => {
   it("returns the prefix and 256 random bits, different every time", () => {
@@ -181,21 +190,29 @@ describe("token lifetime (owner decision on #45)", () => {
     expect(await verifyScimToken(db, token, at(SCIM_TOKEN_LIFETIME_MS))).toBeNull();
   });
 
-  it("logs the refusal of an expired token as scim_token_refused (token_expired)", async () => {
+  it("says why an expired, revoked, unknown or missing token is refused, writing nothing", async () => {
     const token = await issuedAt(t0);
-    await verifyScimToken(db, token, at(SCIM_TOKEN_LIFETIME_MS + 1));
-    const row = await db
-      .selectFrom("audit_event")
-      .select(["action", "outcome", "reason_code", "target_id", "actor_type"])
-      .where("action", "=", "scim_token_refused")
-      .executeTakeFirstOrThrow();
-    expect(row).toEqual({
-      action: "scim_token_refused",
-      outcome: "refused",
-      reason_code: "token_expired",
-      target_id: "campus",
-      actor_type: "anonymous",
+    expect(await inspectScimToken(db, token, at(SCIM_TOKEN_LIFETIME_MS + 1))).toEqual({
+      ok: false,
+      reason: "token_expired",
+      providerId: "campus",
     });
+    expect(await inspectScimToken(db, generateScimToken(), t0)).toEqual({
+      ok: false,
+      reason: "token_unknown",
+      providerId: null,
+    });
+    expect(await inspectScimToken(db, null, t0)).toEqual({
+      ok: false,
+      reason: "token_missing",
+      providerId: null,
+    });
+    await revokeScimToken(admin(), "campus", at(1));
+    expect(await inspectScimToken(db, token, at(2))).toMatchObject({ reason: "token_revoked" });
+    expect(await db.selectFrom("audit_event").select("action").execute()).toEqual([
+      { action: "scim_token_created" },
+      { action: "scim_token_revoked" },
+    ]);
   });
 
   it("warns from 14 days before the expiry, and says when it has expired", async () => {
@@ -238,14 +255,18 @@ describe("verifyScimToken", () => {
     await issued();
     expect(await verifyScimToken(db, "not-a-token")).toBeNull();
     expect(await verifyScimToken(db, generateScimToken())).toBeNull();
-    expect(await providerOfScimToken(db, "not-a-token")).toBeNull();
+    expect(await inspectScimToken(db, "not-a-token")).toMatchObject({ reason: "token_unknown" });
   });
 
   it("refuses the token of a disabled provider, which still names its provider for the log", async () => {
     const token = await issued();
     await db.updateTable("identity_provider").set({ enabled: false }).execute();
     expect(await verifyScimToken(db, token)).toBeNull();
-    expect(await providerOfScimToken(db, token)).toBe("campus");
+    expect(await inspectScimToken(db, token)).toEqual({
+      ok: false,
+      reason: "provider_disabled",
+      providerId: "campus",
+    });
   });
 
   it("records the last use at most every five minutes", async () => {

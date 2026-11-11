@@ -12,47 +12,69 @@ const CAMPUS = providerIdOf("campus");
 const MAP = parseRoleMap("grp-teachers:teacher,Students:student,grp-admins:admin");
 
 describe("mapScimFacts", () => {
-  it("maps a group by its externalId first, then its display name", () => {
-    expect(mapScimFacts([{ keys: ["grp-teachers", "Staff"] }], MAP)).toEqual(["teacher"]);
-    expect(mapScimFacts([{ keys: ["unmapped", "Students"] }], MAP)).toEqual(["student"]);
+  it("maps a group with an externalId on it alone, never on its display name (M2)", () => {
+    expect(mapScimFacts([{ keys: ["grp-teachers"] }], MAP)).toEqual(["teacher"]);
+    // A renamed group called "Students" does not become the student group.
+    expect(mapScimFacts([{ keys: ["unmapped"] }], MAP)).toEqual([]);
+  });
+
+  it("maps a group without an externalId on its display name", () => {
+    expect(mapScimFacts([{ keys: ["Students"] }], MAP)).toEqual(["student"]);
   });
 
   it("maps nothing the role map does not name, admin included", () => {
-    expect(mapScimFacts([{ keys: ["admin", "Administrators"] }], MAP)).toEqual([]);
+    expect(mapScimFacts([{ keys: ["admin"] }, { keys: [] }], MAP)).toEqual([]);
   });
 });
 
-describe("decideScimRoles", () => {
-  it("stores a mapped set with the provider as its source", () => {
-    expect(decideScimRoles(["admin", "teacher"], { roleSource: "local" }, CAMPUS)).toEqual({
+describe("decideScimRoles (B1: the channel that wrote the set)", () => {
+  const local = { roleSource: "local" as const, roleChannel: "local" };
+
+  it("stores a mapped set with the provider as its source and scim as its channel", () => {
+    expect(decideScimRoles(["admin", "teacher"], local, CAMPUS)).toEqual({
       kind: "set",
       role: "teacher,admin",
       roleSource: CAMPUS,
+      roleChannel: "scim",
     });
   });
 
+  it("replaces a set a claim gave when SCIM maps one (SCIM's on a SCIM write)", () => {
+    expect(
+      decideScimRoles(["teacher"], { roleSource: CAMPUS, roleChannel: "claim" }, CAMPUS),
+    ).toMatchObject({ kind: "set", role: "teacher", roleChannel: "scim" });
+  });
+
   it("leaves no roles for a conflicting set (student with teacher)", () => {
-    expect(decideScimRoles(["student", "teacher"], { roleSource: "local" }, CAMPUS)).toEqual({
+    expect(decideScimRoles(["student", "teacher"], local, CAMPUS)).toEqual({
       kind: "set",
       role: null,
       roleSource: CAMPUS,
+      roleChannel: "scim",
       reason: "role_conflict",
     });
   });
 
-  it("takes away a set this provider once sent (A07)", () => {
-    expect(decideScimRoles([], { roleSource: CAMPUS }, CAMPUS)).toEqual({
+  it("takes away a set SCIM once wrote (A07)", () => {
+    expect(decideScimRoles([], { roleSource: CAMPUS, roleChannel: "scim" }, CAMPUS)).toEqual({
       kind: "set",
       role: null,
       roleSource: "local",
+      roleChannel: "local",
+    });
+  });
+
+  it("never removes a set an ID-token claim gave (B1)", () => {
+    expect(decideScimRoles([], { roleSource: CAMPUS, roleChannel: "claim" }, CAMPUS)).toEqual({
+      kind: "unchanged",
     });
   });
 
   it("keeps a local set, or a set another provider owns", () => {
-    expect(decideScimRoles([], { roleSource: "local" }, CAMPUS)).toEqual({ kind: "unchanged" });
-    expect(decideScimRoles([], { roleSource: providerIdOf("other") }, CAMPUS)).toEqual({
-      kind: "unchanged",
-    });
+    expect(decideScimRoles([], local, CAMPUS)).toEqual({ kind: "unchanged" });
+    expect(
+      decideScimRoles([], { roleSource: providerIdOf("other"), roleChannel: "scim" }, CAMPUS),
+    ).toEqual({ kind: "unchanged" });
   });
 });
 

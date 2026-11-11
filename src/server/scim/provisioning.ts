@@ -23,9 +23,10 @@ import type { AuditEvent } from "../audit/events.ts";
 import { recordCommittedAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { providerSettings } from "../idp/registry.ts";
+import { logSecurityEvent } from "../security-log.ts";
 import { decideScimRoles, mapScimFacts, type ScimRoleFact } from "./roles.ts";
 import type { ScimSupport } from "./support.ts";
-import { verifyScimToken } from "./tokens.ts";
+import { verifyScimToken } from "./verify.ts";
 
 /** Every scope a token grants: the connection reads and writes Users and Groups. */
 const ALL_SCOPES = [
@@ -44,8 +45,18 @@ function text(value: unknown): string | undefined {
 }
 
 /** Writes an activity-log row once the SCIM transaction has committed (B4). */
-async function auditAfterCommit(db: Kysely<DB>, event: AuditEvent): Promise<void> {
-  await queueAfterTransactionHook(() => recordCommittedAudit(db, event));
+export async function auditAfterCommit(db: Kysely<DB>, event: AuditEvent): Promise<void> {
+  await queueAfterTransactionHook(() => recordCommittedAudit(db, event), {
+    // NOTE: B4 (L3); the SCIM change has committed and cannot be undone, so a failed log
+    // write goes to the security stream with the action and target id, and the request goes on.
+    onError: () =>
+      logSecurityEvent("error", "audit_write_failed", {
+        outcome: "failure",
+        reason: event.action,
+        target_type: event.target?.type,
+        target_id: event.target?.id,
+      }),
+  });
 }
 
 /** Returns the `roles` values of the stored SCIM User rows (`serializedAttributes.roles`). */
@@ -95,24 +106,42 @@ async function reconcileRoles(
   const fromValues = state.active
     ? mapScimFacts(await sourceRoleFacts(database, state), settings.roleMap)
     : [];
-  const user = await database.findOne<{ role?: unknown; roleSource?: unknown }>({
+  const user = await database.findOne<{
+    role?: unknown;
+    roleSource?: unknown;
+    roleChannel?: unknown;
+  }>({
     model: "user",
     where: [{ field: "id", value: state.userId }],
   });
   if (!user) return;
   const decision = decideScimRoles(
     [...grants, ...fromValues],
-    { roleSource: parseRoleSource(user.roleSource) },
+    {
+      roleSource: parseRoleSource(user.roleSource),
+      roleChannel: typeof user.roleChannel === "string" ? user.roleChannel : null,
+    },
     providerId,
   );
   if (decision.kind === "unchanged") return;
   const previous = validateRoleValue(user.role);
   const previousRole = previous.ok ? formatRoles(previous.roles) : null;
-  if (previousRole === decision.role && user.roleSource === decision.roleSource) return;
+  if (
+    previousRole === decision.role &&
+    user.roleSource === decision.roleSource &&
+    user.roleChannel === decision.roleChannel
+  ) {
+    return;
+  }
   await database.update({
     model: "user",
     where: [{ field: "id", value: state.userId }],
-    update: { role: decision.role, roleSource: decision.roleSource, updatedAt: new Date() },
+    update: {
+      role: decision.role,
+      roleSource: decision.roleSource,
+      roleChannel: decision.roleChannel,
+      updatedAt: new Date(),
+    },
   });
   if (decision.role === null) {
     // NOTE: A07; a role the directory took away ends the live access too.
@@ -198,19 +227,31 @@ export function scimOptions(db: Kysely<DB>): SCIMOptions {
     identity: {
       // NOTE: #45 and ASVS V6.8.1; a SCIM User links to an existing user only through that
       // provider's own account key, never through an email address.
+      // The directory id a sign-in stored on the account (M1), else the account key itself
+      // when the provider links on it: either way the same provider's own value.
       async resolveUser(input, context) {
         const externalId = input.resource.externalId;
         if (!externalId) return { action: "create" };
         const settings = await providerSettings(db, input.connectionId);
-        if (!settings || settings.scimExternalIdClaim !== null) return { action: "create" };
-        const account = await context.database.findOne<{ userId?: unknown }>({
+        if (!settings) return { action: "create" };
+        const byDirectoryId = await context.database.findOne<{ userId?: unknown }>({
           model: "account",
           where: [
             { field: "providerId", value: input.connectionId },
-            { field: "accountId", value: externalId },
+            { field: "directoryId", value: externalId },
           ],
         });
-        const userId = text(account?.userId);
+        const byAccountKey =
+          byDirectoryId === null && settings.scimExternalIdClaim === null
+            ? await context.database.findOne<{ userId?: unknown }>({
+                model: "account",
+                where: [
+                  { field: "providerId", value: input.connectionId },
+                  { field: "accountId", value: externalId },
+                ],
+              })
+            : null;
+        const userId = text((byDirectoryId ?? byAccountKey)?.userId);
         return userId ? { action: "link", userId, profile: "manage" } : { action: "create" };
       },
       reconcileUser: (state, context) => reconcileLifecycle(db, state, context.database),
@@ -221,10 +262,7 @@ export function scimOptions(db: Kysely<DB>): SCIMOptions {
           const settings = await providerSettings(db, input.connectionId);
           if (!settings) return [];
           const { externalId, displayName } = input.source;
-          return mapScimFacts(
-            [{ keys: externalId ? [externalId, displayName] : [displayName] }],
-            settings.roleMap,
-          );
+          return mapScimFacts([{ keys: [externalId ?? displayName] }], settings.roleMap);
         },
         exists: (input) => isRole(input.role),
       },

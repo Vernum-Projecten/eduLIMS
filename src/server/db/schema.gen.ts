@@ -28,6 +28,7 @@ export interface Account {
   accessTokenExpiresAt: Timestamp | null;
   accountId: string;
   createdAt: Generated<Timestamp>;
+  directory_id: string | null;
   id: string;
   idToken: string | null;
   password: string | null;
@@ -244,6 +245,7 @@ export interface User {
   name: string;
   provisioned_by: string | null;
   role: string | null;
+  role_channel: Generated<string>;
   role_source: Generated<string>;
   updatedAt: Generated<Timestamp>;
 }

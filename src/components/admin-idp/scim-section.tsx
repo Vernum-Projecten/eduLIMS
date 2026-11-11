@@ -31,6 +31,7 @@ import {
   scimErrorCode,
   setExternalIdClaimMutationOptions,
 } from "@/server/scim/query-options";
+import { isExternalIdClaim } from "@/server/scim/schemas";
 
 /** Returns the message of a refused SCIM change. */
 export function scimErrorMessage(code: ScimChangeError): string {
@@ -78,7 +79,7 @@ function claimFormSchema() {
     claim: z
       .string()
       .trim()
-      .regex(/^[A-Za-z0-9_.:/#-]{0,200}$/, m.scim_claim_invalid()),
+      .refine((value) => value === "" || isExternalIdClaim(value), m.scim_claim_invalid()),
   });
 }
 
@@ -98,6 +99,8 @@ function ExternalIdClaimForm({
     validators: { onSubmit: claimFormSchema() },
     onSubmit: async ({ value }) => {
       const trimmed = value.claim.trim();
+      // The schema above already refused anything else.
+      if (trimmed !== "" && !isExternalIdClaim(trimmed)) return;
       await save.mutateAsync({ providerId, claim: trimmed === "" ? null : trimmed });
     },
   });

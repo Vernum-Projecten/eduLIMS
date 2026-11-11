@@ -11,14 +11,25 @@ import { PROVIDER_ID_PATTERN } from "../../lib/identity-providers.ts";
 export const CLAIM_INVALID = "scim_claim_invalid";
 
 /**
- * A claim name: an ID-token claim by dot path (`oid`, `ext.employee_id`) or a SAML attribute
- * name (`urn:oid:0.9.2342.19200300.100.1.1`, a URL); `null` is the account key.
+ * The claims whose value never changes for a person, so they may link a sign-in to a SCIM
+ * user (#45, H4, ASVS V6.8.1): Entra ID's object id (`oid`), the OIDC subject (`sub`) and
+ * Active Directory's `objectGUID`. `null` is the account key: the OIDC `sub` or the SAML
+ * persistent NameID. A mutable claim (`email`, `preferred_username`, `upn`) is refused.
  */
+export const IMMUTABLE_EXTERNAL_ID_CLAIMS = ["oid", "sub", "objectGUID"] as const;
+
+/** The claim that carries the directory id: one of {@link IMMUTABLE_EXTERNAL_ID_CLAIMS}, or `null`. */
 export const externalIdClaimSchema = z
-  .string()
-  .trim()
-  .regex(/^[A-Za-z0-9_.:/#-]{1,200}$/, CLAIM_INVALID)
+  .enum(IMMUTABLE_EXTERNAL_ID_CLAIMS, { error: CLAIM_INVALID })
   .nullable();
+
+/** A configured directory-id claim; `null` is the account key. */
+export type ExternalIdClaim = z.infer<typeof externalIdClaimSchema>;
+
+/** Returns whether `value` is an allowed directory-id claim (the form's narrowing). */
+export function isExternalIdClaim(value: string): value is NonNullable<ExternalIdClaim> {
+  return (IMMUTABLE_EXTERNAL_ID_CLAIMS as readonly string[]).includes(value);
+}
 
 /** The provider a SCIM token action is about. */
 export const scimProviderInput = z.object({

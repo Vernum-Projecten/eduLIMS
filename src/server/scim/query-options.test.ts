@@ -101,7 +101,7 @@ describe("refusals", () => {
       ok: false,
       error: "invalid",
     }));
-    const result = await runMutation(queryClient, claim, { providerId: "c", claim: "a b" });
+    const result = await runMutation(queryClient, claim, { providerId: "c", claim: "oid" });
     expect(scimErrorCode(result.error)).toBe("invalid");
   });
 
