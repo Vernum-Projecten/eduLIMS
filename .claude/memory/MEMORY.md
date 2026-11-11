@@ -34,6 +34,9 @@ adding one, and update it instead of duplicating.
   switcher, portal in the URL, last portal saved; owner 2026-11-11
 - [Supply-chain release age](supply-chain-release-age.md): pnpm
   `minimumReleaseAge: 1440`, strict; Dependabot cooldown 7 days
+- [OWASP baseline](owasp-baseline.md): ASVS 5.0 Level 2 from the copies
+  vendored in docs/security/vendor/; every ASVS id judged in the
+  applicability table; cite ids, never the web; 2026-11-11
 
 ## Working with the owner
 

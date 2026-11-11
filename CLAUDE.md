@@ -50,7 +50,8 @@ the current requirements draft is `docs/requirements.md`. Write all prose to
 - `docker/`: the Compose stack (eduLIMS, PostgreSQL 18, FerroEHR,
   FerroBRIDGE) and its configuration.
 - `docs/`: `requirements.md` (the draft), `architecture.md`, `ci-cd.md`,
-  `release.md`, the operator and handover guides.
+  `release.md`, the operator and handover guides, and `security/` (the OWASP
+  baseline and its vendored copies under `security/vendor/`).
 - `.github/`: workflows (CI, release), Dependabot, templates.
 - `scripts/`: repository helpers, among them `scripts/gh/` (issue fields,
   relationships, the board) and `scripts/release/`.
@@ -116,8 +117,10 @@ pnpm check                # the local gate: typecheck, lint, test
 - **The external specifications are authoritative in their domain:** the
   openEHR ITS-REST 1.1.0 and AQL specifications and the CKM archetypes for
   FerroEHR, HL7 v2 for the Afinion messages (`.claude/rules/integration.md`),
-  WCAG 2.1 AA for accessibility, the OWASP Top 10:2025 for security. Read the
-  section before you implement it; cite it in the PR.
+  WCAG 2.1 AA for accessibility, OWASP ASVS 5.0 Level 2 and the Top 10:2025
+  for security, read from the copies in `docs/security/vendor/`
+  (`docs/security/README.md`). Read the section before you implement it;
+  cite it in the PR.
 - **Privacy: never real personal data.** Code, fixtures, seeds, logs,
   screenshots, issues and PRs use the fixed pseudonymised test set only. Only
   pseudonyms reach FerroEHR: no name, student number or e-mail address in a
@@ -215,7 +218,7 @@ always. Read the relevant one before working in an area.
   functions, SSR hygiene.
 - `rules/react-ui.md`: shadcn/ui, the TanStack Form pattern, WCAG 2.1 AA.
 - `rules/auth-security.md`: better-auth with Entra ID and Keycloak, roles and ownership,
-  privacy, the OWASP checklist, uploads.
+  privacy, the OWASP baseline (ASVS 5.0 L2) and checklist, uploads.
 - `rules/database.md`: Kysely, PostgreSQL 18, migrations, schema rules.
 - `rules/integration.md`: FerroEHR (openEHR REST and AQL), FerroBRIDGE (HL7
   v2), the Gen5 upload.
@@ -226,6 +229,7 @@ always. Read the relevant one before working in an area.
   the tracker.
 - **Skills:** `/next-task`, `/phase-done`, `/phase-status` (the issue loop),
   `/requirement-lookup` (the draft requirement with its gaps flagged),
+  `/owasp-lookup` (the vendored ASVS requirement or cheat sheet, quoted),
   `/new-route`, `/new-form`, `/db-migration` (scaffolds), `/ui-gates` (the
   UI battery), `/release` (the cut, pointing at `docs/release.md`).
 - **Library skills:** pnpm 12 links the agent skills that TanStack Router,
@@ -284,6 +288,8 @@ headers.
   <https://specifications.openehr.org/releases/ITS-REST/Release-1.1.0>
 - AQL 1.1.0: <https://specifications.openehr.org/releases/QUERY/Release-1.1.0/AQL.html>
 - WCAG 2.1: <https://www.w3.org/TR/WCAG21/>
-- OWASP Top 10:2025: <https://owasp.org/Top10/2025/>
+- OWASP ASVS 5.0, Top 10:2025, API Security Top 10 2023 and the cheat
+  sheets, vendored: `docs/security/README.md`; the ASVS status of eduLIMS:
+  `docs/security/asvs-5.0-applicability.md`.
 
 @.claude/memory/MEMORY.md

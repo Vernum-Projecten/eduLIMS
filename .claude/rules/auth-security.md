@@ -104,49 +104,72 @@ both.
 - The audit log (B4, and the KPI dashboard's "opening the dashboard and
   every export are logged") records who did what, with the user id.
 
-## OWASP Top 10 checklist for every change
+## The OWASP baseline for every change
 
-Hold each server-side change to the OWASP Top 10:2025
-(<https://owasp.org/Top10/2025/>); the `security-reviewer` agent checks a
-diff against it.
+The baseline is **OWASP ASVS 5.0 Level 2**, read from the copies in
+`docs/security/vendor/` (never the web; `docs/security/README.md`). The
+status of every requirement is in `docs/security/asvs-5.0-applicability.md`:
+a change that meets a row moves it to `met` and cites its test. Look a
+requirement or a cheat sheet up with `/owasp-lookup`; the `security-reviewer`
+agent checks a diff against the same copies. Cheat sheets below are files in
+`docs/security/vendor/cheatsheets/` without `_Cheat_Sheet.md`.
 
-- **A01 Broken Access Control:** session, role and ownership checked in the
-  handler; no IDOR through a guessable id; deny by default. The FerroEHR and
-  FerroBRIDGE base URLs come from configuration, never from a request (SSRF
-  is part of A01 in this edition).
-- **A02 Security Misconfiguration:** security headers (CSP, HSTS,
-  `X-Content-Type-Options`, `frame-ancestors`), no default credentials in
-  Compose, no debug endpoints in a production build.
-- **A03 Software Supply Chain Failures:** exact versions, the frozen
-  lockfile, Dependabot, pinned action SHAs and image digests, the image scan
-  in CI (`ci-cd.md`).
-- **A04 Cryptographic Failures:** HTTPS only (the reverse proxy terminates
-  TLS); secrets only in the environment; cookies `Secure`.
-- **A05 Injection:** SQL only through Kysely's query builder or `sql`
-  template tags with bound parameters, never string concatenation; AQL
-  parameters through the `query_parameters` of the openEHR REST API, never
-  interpolated (`integration.md`); React escapes output, and
-  `dangerouslySetInnerHTML` is banned.
-- **A06 Insecure Design:** irreversible actions (submitting a lab report, S6;
-  finalising a grade, D4) are explicit, confirmed, and enforced on the server
-  (a submitted report rejects edits even from a crafted request).
-- **A07 Authentication Failures:** SSO only, session rotation on sign-in,
-  sign-out invalidates the server session.
-- **A08 Software or Data Integrity Failures:** CSRF protection on every
-  non-GET server function (TanStack Start's `createCsrfMiddleware` or
-  better-auth's origin check); uploads are parsed, never executed.
-- **A09 Security Logging and Alerting Failures:** failed sign-ins, refused
-  authorisation and rejected uploads are logged (without personal data); B3
-  shows an unreachable FerroEHR or FerroBRIDGE within 5 minutes.
-- **A10 Mishandling of Exceptional Conditions:** a failure fails closed (an
-  unreachable FerroEHR never shows another student's cached data, a failed
-  role lookup denies); no stack trace or SQL text reaches the client.
+The Top 10:2025 (`docs/security/vendor/top10/`, mapped in
+`docs/security/top-10-2025-mapping.md`) as the checklist, with the ASVS ids
+each point answers:
 
-## Uploads (S4)
+- **A01 Broken Access Control (V8.2, V8.3.1, V8.4.1):** session, role and
+  ownership checked in the handler; no IDOR through a guessable id; deny by
+  default. The FerroEHR and FerroBRIDGE base URLs come from configuration,
+  never from a request (SSRF, V1.3.6). Sheets: Authorization,
+  Insecure_Direct_Object_Reference_Prevention, Multi_Tenant_Security.
+- **A02 Security Misconfiguration (V3.4, V13.4, V14.3.2):** security headers
+  (CSP, HSTS, `X-Content-Type-Options`, `frame-ancestors`), no default
+  credentials in Compose, no debug endpoints in a production build. Sheets:
+  HTTP_Headers, Content_Security_Policy, Docker_Security.
+- **A03 Software Supply Chain Failures (V15.1, V15.2):** exact versions, the
+  frozen lockfile, Dependabot, pinned action SHAs and image digests, the image
+  scan in CI (`ci-cd.md`). Sheet: Software_Supply_Chain_Security.
+- **A04 Cryptographic Failures (V11, V12.2):** HTTPS only (the reverse proxy
+  terminates TLS); secrets only in the environment; cookies `Secure`. Sheets:
+  Secrets_Management, Transport_Layer_Security.
+- **A05 Injection (V1.2, V1.3, V1.5.1):** SQL only through Kysely's query
+  builder or `sql` template tags with bound parameters, never string
+  concatenation; AQL parameters through the `query_parameters` of the openEHR
+  REST API, never interpolated (`integration.md`); React escapes output, and
+  `dangerouslySetInnerHTML` is banned. Sheets: Query_Parameterization,
+  Cross_Site_Scripting_Prevention, XML_External_Entity_Prevention.
+- **A06 Insecure Design (V2.3):** irreversible actions (submitting a lab
+  report, S6; finalising a grade, D4) are explicit, confirmed, and enforced on
+  the server (a submitted report rejects edits even from a crafted request).
+  Sheets: Threat_Modeling, Abuse_Case.
+- **A07 Authentication Failures (V6.3, V6.8, V7.2, V7.4, V10.5):** SSO only,
+  a new session on sign-in, sign-out invalidates the server session. Two IdPs
+  must not take over each other's accounts (V6.8.1). Sheets: Authentication,
+  Session_Management, OAuth2.
+- **A08 Software or Data Integrity Failures (V3.5.1, V5.2):** CSRF protection
+  on every non-GET server function (TanStack Start's `createCsrfMiddleware` or
+  better-auth's origin check); uploads are parsed, never executed. Sheets:
+  Cross-Site_Request_Forgery_Prevention, File_Upload.
+- **A09 Security Logging and Alerting Failures (V16.2.5, V16.3):** failed
+  sign-ins, refused authorisation and rejected uploads are logged (without
+  personal data); B3 shows an unreachable FerroEHR or FerroBRIDGE within 5
+  minutes. Sheets: Logging, Logging_Vocabulary.
+- **A10 Mishandling of Exceptional Conditions (V16.5):** a failure fails
+  closed (an unreachable FerroEHR never shows another student's cached data,
+  a failed role lookup denies); no stack trace or SQL text reaches the client.
+  Sheet: Error_Handling.
+
+Server functions are an API: hold them to the API Security Top 10 2023 too
+(`docs/security/api-top-10-2023-mapping.md`).
+
+## Uploads (S4; ASVS V5, sheet File_Upload)
 
 - Accept only `.xlsx` up to a configured size limit, check the content (a
   zip with the expected workbook parts), and parse with a maintained library
   in a server function. Never trust the file name or the MIME type alone.
+  Check the unpacked size and the entry count before unzipping (V5.2.3), and
+  parse the workbook XML with external entities off (V1.5.1).
 - Reject the whole file with translated, row-level messages when any sample ID is
   unknown or any well position is invalid (S4 acceptance criterion); write
   nothing to FerroEHR from a rejected file.
