@@ -85,22 +85,9 @@ localhost.
 
 ## Sign in
 
-You have two ways to sign in during development.
-
-**The development login.** With `EDULIMS_DEV_LOGIN=true`, `pnpm db:seed`
-creates one user per role, each with the password `eduLIMS-dev-only`. The
-seed refuses to run without that flag, and the server refuses the flag when
-`NODE_ENV=production`.
-
-| Email                  | Role      |
-| ---------------------- | --------- |
-| `student@example.test` | `student` |
-| `teacher@example.test` | `teacher` |
-| `admin@example.test`   | `admin`   |
-
-**Keycloak.** The development realm has one user per role (`student`,
-`teacher` and `admin`), each with its name as password, and the role mapper
-eduLIMS reads ([Identity providers](/operations/identity-providers/)).
+Open <http://localhost:3000> and sign in with Keycloak or the development
+login. [Demo accounts](/get-started/demo-accounts/) lists the accounts for
+every role.
 
 ## Before you open a pull request
 
