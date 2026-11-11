@@ -23,7 +23,10 @@ export const AUTH_AUDIT_ACTIONS = [
   "user_unbanned",
 ] as const;
 
-/** Actions reserved for eduLIMS's own flows: classes and invitations (#28), uploads (S4). */
+/**
+ * Actions of eduLIMS's own flows: classes and invitations (#28), uploads (S4), and the analyser
+ * register (B3, #35).
+ */
 export const EDULIMS_AUDIT_ACTIONS = [
   "class_created",
   "class_updated",
@@ -46,6 +49,9 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "admin_grant_created",
   "admin_grant_applied",
   "admin_grant_revoked",
+  "analyser_created",
+  "analyser_updated",
+  "analyser_retired",
 ] as const;
 
 /** Actions eduLIMS records about itself, with no target: the scheduled retention prune (B4). */
@@ -68,6 +74,7 @@ export const AUDIT_TARGET_TYPES = [
   "upload",
   "identity_provider",
   "admin_grant",
+  "analyser",
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
@@ -86,7 +93,9 @@ export type AuditTargetOf<A extends AuditAction> = A extends `sys_${string}`
             ? "identity_provider"
             : A extends `admin_grant_${string}`
               ? "admin_grant"
-              : "user";
+              : A extends `analyser_${string}`
+                ? "analyser"
+                : "user";
 
 /**
  * Returns the target type an action is about (the runtime form of {@link AuditTargetOf}), or
@@ -100,6 +109,7 @@ export function targetTypeOf(action: AuditAction): AuditTargetType | null {
   if (action.startsWith("upload_")) return "upload";
   if (action.startsWith("idp_")) return "identity_provider";
   if (action.startsWith("admin_grant_")) return "admin_grant";
+  if (action.startsWith("analyser_")) return "analyser";
   return "user";
 }
 
@@ -152,6 +162,8 @@ export const auditMetadataSchema = z.strictObject({
   removed_audit_events: z.number().int().min(0).optional(),
   removed_sessions: z.number().int().min(0).optional(),
   removed_admin_grants: z.number().int().min(0).optional(),
+  /** The analyser status after the change (B3); a code, never free text. */
+  analyser_status: z.enum(["in_use", "maintenance", "retired"]).optional(),
 });
 export type AuditMetadata = z.infer<typeof auditMetadataSchema>;
 

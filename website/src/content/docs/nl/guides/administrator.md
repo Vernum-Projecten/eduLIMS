@@ -199,13 +199,69 @@ Elke wijziging komt in het activiteitenlogboek, zonder geheimen of waarden.
 Het instellen bij de identity provider zelf staat in
 [Identity providers](/operations/identity-providers/).
 
+## Analyzers en koppelingen
+
+**Analyzers en koppelingen** laat zien of eduLIMS de diensten bereikt die de
+metingen bewaren, en het register van de laboratoriumanalyzers.
+
+### Status van de koppelingen
+
+Boven aan de pagina staan FerroEHR (waar de metingen worden bewaard) en
+FerroBRIDGE (dat de HL7-berichten van de Afinion 2 ontvangt). Voor elk zie
+je:
+
+- **De status,** als pictogram met tekst: **Beschikbaar**,
+  **Niet beschikbaar**, **Geweigerd (authenticatie)** (de dienst antwoordt,
+  maar weigert de inloggegevens van eduLIMS), **Nog niet gecontroleerd**, of
+  **Onbekend: geen controle in de laatste 5 minuten**.
+- **Laatste controle** en **Laatst beschikbaar:** hoe lang geleden, en de
+  datum en tijd.
+- **Antwoordtijd:** hoe lang de dienst over zijn antwoord deed, in
+  milliseconden.
+- **Reden,** na een fout: bijvoorbeeld **Geen verbinding met de dienst**, of
+  dat hij niet binnen 5 seconden antwoordde. De reden toont nooit een adres,
+  een wachtwoord of wat de dienst antwoordde.
+
+eduLIMS controleert beide diensten zelf elke minuut, en de pagina werkt zich
+bij zolang hij open staat. Een dienst die stopt, staat dus binnen enkele
+minuten op **Niet beschikbaar**, zonder dat je de pagina opnieuw laadt.
+**Nu controleren** controleert ze allebei meteen. Is een dienst niet
+beschikbaar, vraag dan degene die de server beheert om ernaar te kijken. De
+adressen die eduLIMS controleert, horen bij de configuratie van de server;
+je kunt ze op deze pagina niet wijzigen.
+
+### Analyzerregister
+
+Het register toont elke analyzer met het model, het serienummer, de locatie,
+de route naar FerroEHR (**HL7 via FerroBRIDGE** voor de Afinion 2, die zijn
+resultaten zelf verstuurt; **Excel-upload** voor de Epoch 2, waarvan
+studenten de export uploaden), de status (**In gebruik**, **In onderhoud** of
+**Buiten gebruik**) en het moment van de laatste wijziging.
+
+- **Zoek** op een deel van het model, het serienummer of de locatie.
+  **Filter** op **Status** en **Route**, **sorteer** met de kolomkoppen en
+  kies het **aantal rijen per pagina**, zoals bij **Gebruikers en rollen**.
+  De zoekopdracht en de filters staan in het adres.
+- **Analyzer toevoegen** opent een formulier: het model, het serienummer van
+  het typeplaatje, de locatie, de route, de status en eventueel notities. Een
+  serienummer komt per model één keer voor; eduLIMS meldt het bij het veld
+  als het al bestaat. Notities gaan over de analyzer, nooit over personen.
+- **Bewerken** in het rijmenu (de knop aan het eind van de rij) opent
+  hetzelfde formulier met de gegevens van de analyzer.
+- **Buiten gebruik stellen** in het rijmenu haalt een analyzer uit gebruik
+  nadat je dat bevestigt. Hij blijft in het register staan, zodat eerdere
+  resultaten hun apparaat houden, maar je kunt hem niet meer wijzigen. Dit
+  kun je niet ongedaan maken.
+
+Alleen beheerders wijzigen het register. Elke toevoeging, wijziging en
+buitengebruikstelling komt in het activiteitenlogboek.
+
 ## Geplande taken
 
 | Taak                                                                               | Requirement                      |
 | ---------------------------------------------------------------------------------- | -------------------------------- |
 | Gebruikers aanmaken en een rol toekennen                                           | [B1](/development/requirements/) |
 | Klassen aanmaken en studenten koppelen, met de hand of met een CSV-import          | [B2](/development/requirements/) |
-| De analyseapparaten registreren en zien of FerroBRIDGE en FerroEHR bereikbaar zijn | [B3](/development/requirements/) |
 | Het logboek van uploads, HL7-berichten en fouten bekijken                          | [B4](/development/requirements/) |
 
 De requirements zijn in het Engels.

@@ -39,6 +39,19 @@ export interface Account {
   userId: string;
 }
 
+export interface Analysers {
+  created_at: Generated<Timestamp>;
+  id: Generated<string>;
+  location: string;
+  model: string;
+  notes: string | null;
+  retired_at: Timestamp | null;
+  route: string;
+  serial_number: string;
+  status: Generated<string>;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface AuditEvent {
   action: string;
   actor_id: string | null;
@@ -79,6 +92,15 @@ export interface IdentityProvider {
 export interface IdentityProviderDomain {
   domain: string;
   provider_id: string;
+}
+
+export interface IntegrationChecks {
+  checked_at: Timestamp;
+  error_class: string | null;
+  integration: string;
+  last_success_at: Timestamp | null;
+  response_time_ms: number | null;
+  state: string;
 }
 
 export interface PendingAdminGrant {
@@ -143,9 +165,11 @@ export interface Verification {
 
 export interface DB {
   account: Account;
+  analysers: Analysers;
   audit_event: AuditEvent;
   identity_provider: IdentityProvider;
   identity_provider_domain: IdentityProviderDomain;
+  integration_checks: IntegrationChecks;
   pending_admin_grant: PendingAdminGrant;
   session: Session;
   ssoProvider: SsoProvider;

@@ -46,7 +46,12 @@ function UserSheet({ userId, children }: Readonly<{ userId: string; children: Re
     <Sheet
       open
       onOpenChange={(open) => {
-        if (!open) void navigate({ to: "/admin/users", search: (prev) => prev });
+        if (!open)
+          void navigate({
+            from: "/admin/users/$userId",
+            to: "/admin/users",
+            search: (prev) => prev,
+          });
       }}
     >
       <SheetContent

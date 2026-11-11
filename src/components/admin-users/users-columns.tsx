@@ -26,6 +26,7 @@ function NameCell({ row }: Readonly<{ row: UserRow }>) {
     <div className="flex min-w-48 flex-col">
       <Link
         id={userLinkId(row.id)}
+        from="/admin/users"
         to="/admin/users/$userId"
         params={{ userId: row.id }}
         search={(prev) => prev}

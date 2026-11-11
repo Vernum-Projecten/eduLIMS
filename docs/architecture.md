@@ -173,6 +173,17 @@ Server functions in TanStack Start hold the business rules and the access
 checks; route loaders call them. FerroEHR is called only from the server, so
 the browser never talks to the CDR.
 
+Work that has to happen on a schedule runs inside the app container as a Nitro
+runtime plugin, because operators run only the images and no host cron job.
+The integration check of B3 is the first: every 60 seconds the server sends
+`OPTIONS` to the FerroEHR openEHR base URL (the System API of ITS-REST 1.1.0)
+and `GET /health/readiness` to FerroBRIDGE, both from configuration only, and
+stores the latest result per integration in the eduLIMS database
+(`integration_checks`). A PostgreSQL advisory lock and the age of the last
+result make one replica check per interval. The Admin portal reads the stored
+result and refetches it every 30 seconds, so an unreachable service shows
+within the 5 minutes of B3.
+
 ## Deployment
 
 Two places carry the system:

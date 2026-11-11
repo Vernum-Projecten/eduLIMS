@@ -18,7 +18,18 @@ export const STALE_TIME = {
    * full page load (a callback, a language switch) or a sign-out starts from an empty cache.
    */
   loginOptions: 30_000,
+  /** A page of the analyser register (B3): it changes rarely, and every change invalidates it. */
+  adminAnalysersList: 30_000,
+  /**
+   * The integration status (B3): the scheduled check writes a new result every minute, so the
+   * screen counts it stale at once and refetches on the interval in {@link INTEGRATION_REFETCH_MS}.
+   */
+  integrationStatus: 0,
 } as const;
+
+// NOTE: B3 ("unreachable … within 5 minutes"); our own interval: a check result reaches an open
+// screen within 30 s of being written, well inside the 5 minutes with the 60 s schedule.
+export const INTEGRATION_REFETCH_MS = 30_000;
 
 /** The `staleTime` of a query that sets none (every factory should; see {@link STALE_TIME}). */
 export const DEFAULT_STALE_TIME = 30_000;

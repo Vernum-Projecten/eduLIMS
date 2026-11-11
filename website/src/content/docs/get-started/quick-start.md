@@ -47,11 +47,26 @@ installed. `pnpm dev:db:stop` stops the stack and keeps its data volume;
 | PostgreSQL | `localhost:5432`        | databases `edulims` (development), `edulims_test` and `edulims_e2e` (tests); change the port with `EDULIMS_DEV_DB_PORT`          |
 | Keycloak   | `http://localhost:8180` | admin console `admin` / `admin`; issuer `http://localhost:8180/realms/edulims`; change the port with `EDULIMS_DEV_KEYCLOAK_PORT` |
 
-FerroEHR is an opt-in profile for work on the openEHR integration. It needs
-`config/ferroehr.toml`, as in production:
+FerroEHR and FerroBRIDGE are an opt-in profile, `ferro`, for work on the
+integrations and the integration status of the admin portal. They run from
+the images `compose.yaml` pins, configured by environment only, without
+authentication and on loopback ports:
 
 ```sh
-podman compose -f compose.dev.yaml --profile ferroehr up -d --wait
+pnpm dev:db:ferro
+```
+
+| Service     | Address                                           | Notes                                                                |
+| ----------- | ------------------------------------------------- | -------------------------------------------------------------------- |
+| FerroEHR    | `http://localhost:8080/ferroehr/rest/openehr/v1`  | openEHR REST; change the port with `EDULIMS_DEV_FERROEHR_PORT`       |
+| FerroBRIDGE | `http://localhost:8081`                           | health at `/health/readiness`; change the port with `EDULIMS_DEV_FERROBRIDGE_PORT` |
+
+To see the admin portal show a service as **Unavailable**, stop it and start
+it again; the status follows within a few minutes:
+
+```sh
+podman compose -f compose.dev.yaml stop ferroehr
+podman compose -f compose.dev.yaml start ferroehr
 ```
 
 The development credentials are fixed and public. Never point this setup at

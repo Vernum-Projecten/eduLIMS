@@ -37,6 +37,7 @@ export const SECURITY_LOG_FIELDS = [
   "removed_audit_events",
   "removed_sessions",
   "removed_admin_grants",
+  "analyser_status",
   "kind",
   "status",
 ] as const;
@@ -133,6 +134,7 @@ export function auditLogFields(event: AuditEvent): SecurityLogFields {
     removed_audit_events: event.metadata?.removed_audit_events,
     removed_sessions: event.metadata?.removed_sessions,
     removed_admin_grants: event.metadata?.removed_admin_grants,
+    analyser_status: event.metadata?.analyser_status,
   };
 }
 

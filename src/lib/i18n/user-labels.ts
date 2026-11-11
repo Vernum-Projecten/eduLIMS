@@ -66,6 +66,9 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   admin_grant_applied: m.audit_action_admin_grant_applied,
   admin_grant_revoked: m.audit_action_admin_grant_revoked,
   sys_retention_prune: m.audit_action_retention_prune,
+  analyser_created: m.audit_action_analyser_created,
+  analyser_updated: m.audit_action_analyser_updated,
+  analyser_retired: m.audit_action_analyser_retired,
 };
 
 /** Returns the name of an activity-log action; an action the screen does not know is "Other". */

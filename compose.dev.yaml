@@ -17,10 +17,13 @@
 #            issuer http://localhost:8180/realms/edulims
 #            users student / student, teacher / teacher, admin / admin
 #
-# With FerroEHR beside it, for work on the openEHR integration (it needs
-# config/ferroehr.toml, as in production; docs/deployment.md):
+# With FerroEHR and FerroBRIDGE beside it (profile `ferro`), for work on the
+# integrations and the integration status of the Admin portal (B3):
 #
-#   podman compose -f compose.dev.yaml --profile ferroehr up -d --wait
+#   pnpm dev:db:ferro               # the stack above plus FerroEHR (:8080) and FerroBRIDGE (:8081)
+#
+# Both run from the images compose.yaml pins, configured by environment only:
+# no config files, no authentication, loopback ports.
 #
 # The development credentials below are fixed and public, and the ports bind
 # the loopback interface only. Never point this file at real data.
@@ -101,27 +104,62 @@ services:
       retries: 30
       start_period: 30s
 
+  # FerroEHR in development: the record subject index in the instance and no
+  # authentication, so it starts without config/ferroehr.toml. Production
+  # (compose.yaml) reads its configuration file and requires authentication.
   ferroehr:
-    profiles: [ferroehr]
+    profiles: [ferro]
     image: ghcr.io/ferrohealth/ferroehr:5.7.0@sha256:44c9268cb8a154df118a10ffe84329633f22923ea2cc54261ff0cea57a2ee7e7
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      FERROEHR_CONFIG: /etc/ferroehr/ferroehr.toml
       FERROEHR__DATABASE__URL: postgres://ferroehr:ferroehr@postgres:5432/ferroehr
+      FERROEHR__RECORD__SUBJECT_INDEX: local
+      FERROEHR__AUTH__ENABLED: "false"
       FERROEHR__TELEMETRY__FORMAT: pretty
       FERROEHR__USAGE_REPORT__ENABLED: "false"
     ports:
       - "127.0.0.1:${EDULIMS_DEV_FERROEHR_PORT:-8080}:8080"
-    volumes:
-      - ./config/ferroehr.toml:/etc/ferroehr/ferroehr.toml:ro
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     healthcheck:
       test: ["CMD", "/usr/local/bin/ferroehr", "healthcheck"]
       interval: 10s
       timeout: 5s
       retries: 6
       start_period: 60s
+
+  # FerroBRIDGE in development: its HTTP API with the health endpoint the
+  # integration status checks (GET /health/readiness). The HL7 v2 listener
+  # stays off; it needs the [hl7v2] configuration of docs/deployment.md.
+  ferrobridge:
+    profiles: [ferro]
+    image: ghcr.io/ferrohealth/ferrobridge:0.0.24@sha256:6e14c783955da9ecd5683fbe781542580e2ebae18d0f4c07e888a1c086e05e59
+    depends_on:
+      ferroehr:
+        condition: service_healthy
+    environment:
+      FERROBRIDGE__TELEMETRY__FORMAT: auto
+      FERROBRIDGE__USAGE_REPORT__ENABLED: "false"
+    ports:
+      - "127.0.0.1:${EDULIMS_DEV_FERROBRIDGE_PORT:-8081}:8080"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/ferrobridge", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
 
 volumes:
   pgdata:
