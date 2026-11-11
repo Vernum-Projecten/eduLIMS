@@ -71,6 +71,73 @@ eduLIMS is in English and Dutch. Choose the language button in the header
 are signed in, eduLIMS saves the choice to your account, so it also applies
 the next time you sign in, on any device.
 
+## Classes
+
+**Classes** in the sidebar lists the classes you own or co-teach. Each class
+shows its name with the academic year beside it, such as **LS-2A**
+`2026–2027`, so two classes with the same name in different years stay
+apart. **Archived** shows the classes of earlier years.
+
+### Create a class
+
+1. Choose **New class**.
+2. Enter the class name and the academic year as two consecutive years, such
+   as `2026-2027`.
+3. Choose **Create class**. You become the class **owner**, and the class
+   page opens.
+
+The class page has three tabs: **Members**, **Invitations** and **Lab
+groups**. Only the owner can edit, archive, copy or delete the class, invite
+co-teachers and make a co-teacher the owner. A co-teacher invites and
+removes students and manages the lab groups.
+
+### Invite students and co-teachers
+
+eduLIMS sends no email. You add addresses, and a person joins the class the
+next time they sign in with that address.
+
+1. Open the **Invitations** tab.
+2. Choose **Student**, or **Co-teacher** if you own the class. A co-teacher
+   must already have a teacher account in eduLIMS.
+3. Type or paste the addresses, one per line or separated by commas, or read
+   them from a CSV file with one address per line.
+4. Choose **Check list**. eduLIMS shows what happens to every address: it
+   will be invited, or it is left out because it is not a valid address, is
+   already in the class, is already invited, or belongs to an account with
+   another role.
+5. Choose **Invite** to create the invitations for the addresses that remain.
+6. Choose **Copy invitation text** and share the text through your own
+   channel, such as the course page. It has the sign-in link and the steps.
+
+An invitation is valid for 30 days. **Pending invitations** lists the ones
+that are not used yet; **Renew** gives an invitation, expired or not, another
+30 days, and **Cancel** withdraws it. eduLIMS deletes old invitations 90
+days after they were used, canceled or expired.
+
+### Lab groups
+
+Students often work in pairs or small groups. A class can have several
+**group sets**, such as "Pairs" and "Groups of four", and a student is in at
+most one group per set. Students never change groups themselves.
+
+- **Create groups** makes empty groups in a set; then pick a group per
+  student in **Students and their groups**. The picker works with the
+  keyboard.
+- **Split the class** puts every student into a new set, in groups of at most
+  the size you choose, alphabetically or at random.
+- **Copy a group set** takes the groups of a set from another class you
+  teach, without the students.
+
+### At the end of the year
+
+- **Archive** makes a class read-only: no invitations, new members or group
+  changes. It keeps its members and groups and moves to **Archived**.
+- **Copy to a new year** creates a class with the same name, the next
+  academic year, the same co-teachers and the same group sets, without
+  students. Invite the new students there.
+- **Delete** is for a class created by mistake. A class with students cannot
+  be deleted; archive it instead.
+
 ## Sign out
 
 Choose your name at the foot of the sidebar, then **Sign out**. eduLIMS ends your session on the server.

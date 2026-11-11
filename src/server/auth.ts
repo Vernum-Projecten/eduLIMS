@@ -12,7 +12,15 @@ import { HOST_COOKIE_PREFIX } from "../lib/cookies.ts";
 import { ADMIN_ROLE, accessControl, DEFAULT_ROLE, roles } from "../lib/roles.ts";
 import { consumePendingAdminGrant } from "./admin-grant/grants.ts";
 import { auditDatabase, auditLog } from "./audit/better-auth-hooks.ts";
+import { hasPendingStudentInvitation } from "./classes/acceptance.ts";
+import {
+  CLASS_ORGANIZATION_PATHS,
+  classOrganizationGuard,
+  classOrganizations,
+} from "./classes/plugin.ts";
+import { classInvitationAcceptance } from "./classes/sign-in.ts";
 import { isSecureOrigin } from "./cookie-security.ts";
+import { newId } from "./db/ids.ts";
 import { getPool } from "./db/index.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { type Env, getEnv } from "./env.ts";
@@ -80,13 +88,17 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
   const db = auditDatabase(kysely);
   const keyring = keyringOf(env);
   return betterAuth({
-    advanced: authCookieOptions(env.BETTER_AUTH_URL),
+    advanced: {
+      ...authCookieOptions(env.BETTER_AUTH_URL),
+      // NOTE: owner decision on #28; every better-auth id is a UUIDv7, classes included.
+      database: { generateId: () => newId() },
+    },
     appName: "eduLIMS",
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
     database: encryptedKyselyAdapter(kysely, keyring),
     // NOTE: ADR 0015; the plugin's management endpoints let any signed-in user register an IdP.
-    disabledPaths: [...SSO_DISABLED_PATHS],
+    disabledPaths: [...SSO_DISABLED_PATHS, ...CLASS_ORGANIZATION_PATHS],
     // NOTE: ASVS V1.3.6; the app origin is always trusted, and besides it only the operator's
     // private IdP origins: every other IdP endpoint gets the sso plugin's DNS check at fetch time.
     trustedOrigins: [...env.EDULIMS_IDP_PRIVATE_ORIGINS],
@@ -122,6 +134,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
           return testOfState(db, { state, providerId, now: new Date() });
         },
         recordTest: (test, outcome) => recordTestOutcome(db, { test, outcome, now: new Date() }),
+        hasStudentInvitation: (email) => hasPendingStudentInvitation(db, email, new Date()),
       }),
     },
     // Every role write (IdP sync, seed, admin create-user, set-role, update-user) is validated.
@@ -150,6 +163,10 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         },
       }),
       ssoGuards(db),
+      // Classes and lab groups (#28, ADR 0017); written only by the class service.
+      classOrganizations(),
+      classOrganizationGuard(),
+      classInvitationAcceptance(db),
       ssoLogout(db, env.BETTER_AUTH_URL, keyring),
       // The activity log (B4): sign-ins, sign-outs, sessions, users and the admin endpoints.
       auditLog(db),

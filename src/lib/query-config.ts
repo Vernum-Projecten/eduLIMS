@@ -18,6 +18,8 @@ export const STALE_TIME = {
    * full page load (a callback, a language switch) or a sign-out starts from an empty cache.
    */
   loginOptions: 30_000,
+  /** Classes, their members, invitations and lab groups: co-teachers change them, rarely at once. */
+  classes: 30_000,
 } as const;
 
 /** The `staleTime` of a query that sets none (every factory should; see {@link STALE_TIME}). */

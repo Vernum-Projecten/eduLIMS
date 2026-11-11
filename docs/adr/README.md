@@ -25,6 +25,7 @@ Each significant architecture or technology decision is recorded here in the
 | [0014](0014-session-lifetimes.md) | Session lifetimes: 8 hours sliding, 24 hours at most | Proposed |
 | [0015](0015-runtime-identity-providers.md) | Identity providers at runtime with the better-auth SSO plugin | Proposed |
 | [0016](0016-charts-tanstack-charts.md) | Charts: TanStack Charts, through one accessible wrapper | Proposed |
+| [0018](0018-classes-as-organizations.md) | A class is a better-auth organization, a lab group a team | Proposed |
 
 ## Adding a record
 

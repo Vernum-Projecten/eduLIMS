@@ -130,6 +130,14 @@ needed.
 Each database has its own database user. One server keeps monitoring and
 backup simple: one backup routine covers both.
 
+Classes are better-auth organizations and lab groups are teams inside them
+([ADR 0018](adr/0018-classes-as-organizations.md)): the plugin owns the
+tables and the class roles (`owner`, `teacher`, `student`), and eduLIMS's
+class service (`src/server/classes/`) does every write behind a membership
+check on the session user, with the plugin's own endpoints unreachable. A
+person joins every class that invited their verified email when they sign
+in; eduLIMS sends no email.
+
 ### Template `eduLIMS-lab`
 
 The operational template `eduLIMS-lab` is built only from existing archetypes

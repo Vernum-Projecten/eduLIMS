@@ -354,6 +354,41 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
     expect(consumeAdminGrant).not.toHaveBeenCalled();
   });
 
+  it("grants only student to a new user with a pending class invitation (#28 (2))", async () => {
+    const hasStudentInvitation = vi.fn(async () => true);
+    const consumeAdminGrant = vi.fn(async () => true);
+    const { sync, ctx } = authoritative({ hasStudentInvitation, consumeAdminGrant });
+    const data = oauth("create-user", "entra", { roles: [] }, { email: "invited@example.test" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(hasStudentInvitation).toHaveBeenCalledWith("invited@example.test");
+    expect(consumeAdminGrant).not.toHaveBeenCalled();
+    expect(data.user["role"]).toBe("student");
+    expect(data.user["roleSource"]).toBe("local");
+  });
+
+  it("never lets an invitation override a role the IdP sends (#28 (2))", async () => {
+    const hasStudentInvitation = vi.fn(async () => true);
+    const { sync, ctx } = authoritative({ hasStudentInvitation });
+    const data = oauth(
+      "create-user",
+      "entra",
+      { roles: ["edulims-teacher"] },
+      { email: "t@example.test" },
+    );
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(hasStudentInvitation).not.toHaveBeenCalled();
+    expect(data.user["role"]).toBe("teacher");
+  });
+
+  it("never asks for an invitation through a provider whose email is not authoritative", async () => {
+    const hasStudentInvitation = vi.fn(async () => true);
+    const { ctx } = setup();
+    const gated = createIdpRoleSync({ settingsOf: providersWith(), hasStudentInvitation });
+    const data = oauth("create-user", "microsoft", {}, { email: "x@example.test" });
+    expect(await gated(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(hasStudentInvitation).not.toHaveBeenCalled();
+  });
+
   it("marks the email verified on a sign-in of an authoritative provider", async () => {
     const { sync, ctx, updateUser } = authoritative();
     const data = oauth("sign-in", "entra", {}, { id: "u1", email: "u@example.test" });
