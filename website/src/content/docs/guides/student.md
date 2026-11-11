@@ -31,6 +31,16 @@ Ask an administrator to give your account the student role.
 You see only your own data. Results, submissions and grades of other students
 are never shown to you.
 
+## Find your way around
+
+The sidebar on the left lists the sections of the student portal; the current page
+is highlighted. The button at the top left (or **Ctrl+B**, **Cmd+B** on a Mac)
+folds the sidebar to icons and back, and eduLIMS remembers the choice; on a
+phone it opens the sidebar as a panel. Above the page, the breadcrumb shows
+where you are. Your name sits at the foot of the sidebar: choose it for your
+account and role, the theme (light, dark or your system's setting) and
+**Sign out**. Sections that are not built yet say **Coming soon**.
+
 ## Change the language
 
 eduLIMS is in English and Dutch. Choose the language button in the header
@@ -41,7 +51,7 @@ the next time you sign in, on any device.
 
 ## Sign out
 
-Choose **Sign out** in the header. eduLIMS ends your session on the server.
+Choose your name at the foot of the sidebar, then **Sign out**. eduLIMS ends your session on the server.
 
 ## Planned tasks
 

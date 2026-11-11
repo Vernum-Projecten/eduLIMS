@@ -30,6 +30,17 @@ dan staat dat op de inlogpagina. Vraag een beheerder om je account de rol studen
 Je ziet alleen je eigen gegevens. Resultaten, inzendingen en cijfers van
 andere studenten krijg je nooit te zien.
 
+## Je weg vinden
+
+De zijbalk links toont de onderdelen van het Studentportaal; de huidige pagina is
+gemarkeerd. De knop linksboven (of **Ctrl+B**, **Cmd+B** op een Mac) klapt de
+zijbalk in tot pictogrammen en weer uit, en eduLIMS onthoudt die keuze; op een
+telefoon opent de knop de zijbalk als paneel. Boven de pagina laat het
+kruimelpad zien waar je bent. Onderaan de zijbalk staat je naam: kies die voor
+je account en rol, het thema (licht, donker of de instelling van je systeem)
+en **Uitloggen**. Onderdelen die nog niet klaar zijn, tonen **Binnenkort
+beschikbaar**.
+
 ## De taal wijzigen
 
 eduLIMS is er in het Nederlands en het Engels. Kies bovenaan de pagina de
@@ -40,7 +51,7 @@ volgende keer dat je inlogt, op elk apparaat.
 
 ## Uitloggen
 
-Kies **Uitloggen** bovenaan de pagina. eduLIMS beëindigt je sessie op de
+Kies je naam onderaan de zijbalk en dan **Uitloggen**. eduLIMS beëindigt je sessie op de
 server.
 
 ## Geplande taken
