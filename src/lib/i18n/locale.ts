@@ -5,6 +5,7 @@
 // browser reads the one the server rendered, so hydration never switches language.
 import {
   defineCustomClientStrategy,
+  extractLocaleFromCookie,
   getLocale,
   type Locale,
   locales,
@@ -34,6 +35,16 @@ defineCustomClientStrategy("custom-documentLang", {
 /** Returns the name of `locale` in that language itself ("English", "Nederlands"). */
 export function localeName(locale: Locale): string {
   return new Intl.DisplayNames([locale], { type: "language" }).of(locale) ?? locale;
+}
+
+/**
+ * Tells whether the locale cookie names another language than the document was rendered in,
+ * as after a sign-in that applied the user's saved language. The caller then reloads so the
+ * server renders the whole page in that language.
+ */
+export function cookieLocaleDiffersFromDocument(): boolean {
+  const cookieLocale = extractLocaleFromCookie();
+  return cookieLocale !== undefined && cookieLocale !== documentLocale();
 }
 
 /** Stores `locale` in the locale cookie and reloads the page so the server renders it. */

@@ -15,6 +15,8 @@ export const DEV_USERS = [
   { email: "student@example.test", name: "Test Student", role: "student" },
   { email: "teacher@example.test", name: "Test Teacher", role: "teacher" },
   { email: "admin@example.test", name: "Test Administrator", role: "admin" },
+  // Changes its saved language in the e2e suite, so the other accounts keep the default.
+  { email: "language@example.test", name: "Language Test Student", role: "student" },
 ] as const satisfies readonly { email: string; name: string; role: Role }[];
 
 if (!getEnv().EDULIMS_DEV_LOGIN) {

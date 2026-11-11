@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { documentLocale, getLocale, localeName } from "./locale";
+import { cookieLocaleDiffersFromDocument, documentLocale, getLocale, localeName } from "./locale";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -22,6 +22,25 @@ describe("documentLocale", () => {
   ])("reads <html lang=%j> as %j", (lang, expected) => {
     vi.stubGlobal("document", { documentElement: { lang } });
     expect(documentLocale()).toBe(expected);
+  });
+});
+
+describe("cookieLocaleDiffersFromDocument", () => {
+  it("is false outside a browser", () => {
+    expect(cookieLocaleDiffersFromDocument()).toBe(false);
+  });
+
+  it.each([
+    ["EDULIMS_LOCALE=nl", "en", true],
+    ["other=1; EDULIMS_LOCALE=en", "nl", true],
+    ["EDULIMS_LOCALE=nl", "nl", false],
+    ["", "en", false],
+    ["EDULIMS_LOCALE=de", "en", false],
+  ])("cookie %j with <html lang=%j> gives %j", async (cookie, lang, expected) => {
+    // The runtime caches the cookie read until the next microtask.
+    await Promise.resolve();
+    vi.stubGlobal("document", { cookie, documentElement: { lang } });
+    expect(cookieLocaleDiffersFromDocument()).toBe(expected);
   });
 });
 

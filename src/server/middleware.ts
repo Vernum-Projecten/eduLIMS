@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Server function middleware: the data boundary. Route `beforeLoad` guards are UX only;
-// attach these to every createServerFn that reads or writes user data.
-import "@tanstack/react-start/server-only";
+// attach these to every createServerFn that reads or writes user data. No server-only marker:
+// a server function module the client imports references them, and the Start compiler strips
+// every `.server()` body (and with it the session lookup) from the client bundle.
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { Role } from "../lib/roles.ts";
