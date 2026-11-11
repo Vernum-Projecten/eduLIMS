@@ -12,7 +12,11 @@
 #     required check `conclusion` from GitHub Actions, the merge queue
 #     (squash, all-green grouping), linear history, signed commits, and no
 #     force push or deletion;
+#   * the `release-branches` ruleset on `release/**`: the `main` rules
+#     without the merge queue;
 #   * the `release-tags` ruleset: a `v*` tag is never moved or deleted;
+#   * the `release` environment: deployments from `v*` tags only, with
+#     EDULIMS_RELEASE_REVIEWER (default rubentalstra) as required reviewer;
 #   * security: secret scanning with push protection, Dependabot alerts and
 #     security updates, private vulnerability reporting, and the CodeQL
 #     default setup off (codeql.yml is the advanced setup);
@@ -45,6 +49,9 @@ set -euo pipefail
 # The app id of GitHub Actions: the required check counts only a `conclusion`
 # that Actions reports, so no other app can satisfy it.
 readonly ACTIONS_APP_ID=15368
+
+# The required reviewer of the `release` environment (the CODEOWNERS owner).
+readonly RELEASE_REVIEWER="${EDULIMS_RELEASE_REVIEWER:-rubentalstra}"
 
 die() {
   echo "repo-settings: $*" >&2
@@ -182,6 +189,43 @@ apply() {
 }
 JSON
 )"
+  ruleset release-branches "$(cat <<JSON
+{
+  "name": "release-branches",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": { "ref_name": { "include": ["refs/heads/release/**"], "exclude": [] } },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    { "type": "required_linear_history" },
+    { "type": "required_signatures" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false,
+        "allowed_merge_methods": ["squash"]
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "do_not_enforce_on_create": true,
+        "required_status_checks": [
+          { "context": "conclusion", "integration_id": ${ACTIONS_APP_ID} }
+        ]
+      }
+    }
+  ]
+}
+JSON
+)"
   ruleset release-tags '{
     "name": "release-tags",
     "target": "tag",
@@ -194,6 +238,21 @@ JSON
       { "type": "non_fast_forward" }
     ]
   }'
+
+  echo "== environments =="
+  local owner_id
+  owner_id="$(gh api "users/$RELEASE_REVIEWER" --jq .id </dev/null)" ||
+    die "could not resolve the release reviewer $RELEASE_REVIEWER"
+  api required PUT "repos/$REPO/environments/release" "$(cat <<JSON
+{
+  "wait_timer": 0,
+  "prevent_self_review": false,
+  "reviewers": [{ "type": "User", "id": ${owner_id} }],
+  "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true }
+}
+JSON
+)"
+  api optional POST "repos/$REPO/environments/release/deployment-branch-policies" '{ "name": "v*", "type": "tag" }'
 
   if [[ "$DRY" -eq 1 ]]; then
     echo "dry run: nothing changed."
@@ -227,6 +286,7 @@ for argument in "$@"; do
 done
 case "${1:-} ${2:-}" in
   "repo view") echo "Example-Org/Example"; exit 0 ;;
+  "api users/"*) echo 4242; exit 0 ;;
 esac
 printf '%s %s\n' "$method" "$path" >> "$GH_STUB_CALLS"
 if [[ -n "${GH_STUB_REFUSE:-}" && "$path" == "$GH_STUB_REFUSE" ]]; then

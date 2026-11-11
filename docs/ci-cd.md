@@ -129,6 +129,12 @@ build and its attestation run in a reusable workflow:
   attached and verified, and it is published last. The platform then freezes
   it. A bad release is fixed by a new patch version, never by a retag; the
   `release-tags` ruleset refuses a moved or deleted `v*` tag.
+- **Release branches:** a maintenance line lives on `release/<major>.<minor>`.
+  The `release-branches` ruleset gives it the `main` rules without the merge
+  queue (pull request, the `conclusion` check, linear signed history, no force
+  push or deletion), and `ci.yml` runs on pull requests into it. The
+  `release` environment accepts deployments from `v*` tags only and waits for
+  its required reviewer before anything is built.
 
 A consumer verifies against the signer workflow:
 
@@ -168,8 +174,8 @@ want a second approver; granting a bypass to fake one would score worse.
 
 `scripts/gh/repo-settings.sh` applies the settings above through the API and
 is safe to run again. `--dry-run` prints every call and changes nothing. It
-sets squash-only merges with auto-merge and branch deletion, the `main` and
-`release-tags` rulesets, secret scanning with push protection, Dependabot
+sets squash-only merges with auto-merge and branch deletion, the `main`,
+`release-branches` and `release-tags` rulesets, the `release` environment, secret scanning with push protection, Dependabot
 alerts and security updates, private vulnerability reporting, the CodeQL
 default setup off (`codeql.yml` is the advanced setup), a read-only default
 `GITHUB_TOKEN`, required SHA pinning of actions, and immutable releases.

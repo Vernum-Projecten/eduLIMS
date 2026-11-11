@@ -21,9 +21,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
   pull_request:
-    branches: [main]
+    branches: [main, "release/**"]
     # Only the activity types that change the code under test, so a commit
     # gets one run. A label or description event would start a second run on
     # the same commit, the concurrency group would cancel the first, and its
