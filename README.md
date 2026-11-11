@@ -3,6 +3,30 @@
 
 # eduLIMS
 
+[![Release](https://img.shields.io/github/v/release/Vernum-Projecten/eduLIMS?sort=semver&logo=github&label=release)](https://github.com/Vernum-Projecten/eduLIMS/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/Vernum-Projecten/eduLIMS/ci.yml?branch=main&logo=githubactions&logoColor=white&label=CI)](https://github.com/Vernum-Projecten/eduLIMS/actions/workflows/ci.yml)
+[![CodeQL](https://img.shields.io/github/actions/workflow/status/Vernum-Projecten/eduLIMS/codeql.yml?branch=main&logo=github&label=CodeQL)](https://github.com/Vernum-Projecten/eduLIMS/actions/workflows/codeql.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue)](LICENSE)
+[![GHCR](https://img.shields.io/badge/ghcr.io-edulims-2496ED?logo=docker&logoColor=white)](https://github.com/Vernum-Projecten/eduLIMS/pkgs/container/edulims)
+
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Vernum-Projecten/eduLIMS/badge)](https://scorecard.dev/viewer/?uri=github.com/Vernum-Projecten/eduLIMS)
+[![Signed releases](https://img.shields.io/badge/releases-signed-brightgreen?logo=github)](docs/release.md)
+[![SLSA Build Level 3](https://slsa.dev/images/gh-badge-level3.svg)](docs/release.md)
+[![REUSE](https://img.shields.io/badge/REUSE-compliant-green)](REUSE.toml)
+[![WCAG 2.1 AA](https://img.shields.io/badge/WCAG-2.1%20AA-005A9C)](docs/requirements.md)
+
+[![Node.js 26 LTS](https://img.shields.io/badge/Node.js-26%20LTS-5FA04E?logo=nodedotjs&logoColor=white)](.node-version)
+[![pnpm 12](https://img.shields.io/badge/pnpm-12-F69220?logo=pnpm&logoColor=white)](package.json)
+[![TypeScript 7](https://img.shields.io/badge/TypeScript-7-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
+[![TanStack Start](https://img.shields.io/badge/TanStack-Start-FF4154?logo=reactquery&logoColor=white)](https://tanstack.com/start/latest)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![Vite 8](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](vite.config.ts)
+[![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-radix--nova-000000?logo=shadcnui&logoColor=white)](components.json)
+[![Better Auth](https://img.shields.io/badge/auth-Better%20Auth-000000)](https://better-auth.com)
+[![PostgreSQL 18](https://img.shields.io/badge/PostgreSQL-18-4169E1?logo=postgresql&logoColor=white)](compose.yaml)
+[![openEHR](https://img.shields.io/badge/openEHR-FerroEHR-0E7C86)](docs/architecture.md)
+[![Biome](https://img.shields.io/badge/lint-Biome-60A5FA?logo=biome&logoColor=white)](biome.json)
+
 eduLIMS is a Laboratory Information Management System (LIMS) for the
 LifeScience practical courses at Hanze University of Applied Sciences. Students
 register samples, run measurements on the lab analysers, check their results
