@@ -142,7 +142,7 @@ export function createAuth(env: Env, database: BetterAuthOptions["database"] = g
       // The activity log (B4): sign-ins, sign-outs, sessions, users and the admin endpoints.
       auditLog(auditDatabase(database)),
       // The last sign-in method and time for the Users screen and the login hint (#34).
-      lastSignInMethod(),
+      lastSignInMethod(env.BETTER_AUTH_URL),
       lastSignInTime(auditDatabase(database)),
       // Must stay last: forwards better-auth Set-Cookie headers through TanStack Start.
       tanstackStartCookies(),

@@ -33,6 +33,18 @@ describe("signInMethodOf", () => {
   });
 });
 
+describe("the hint cookie's name (#43)", () => {
+  it("is __Host- prefixed over https and bare over plain http", async () => {
+    const { lastSignInMethod } = await import("./sign-in-tracking.ts");
+    expect(lastSignInMethod("https://edulims.example").options?.cookieName).toBe(
+      "__Host-EDULIMS_LAST_SIGN_IN_METHOD",
+    );
+    expect(lastSignInMethod("http://localhost:3000").options?.cookieName).toBe(
+      "EDULIMS_LAST_SIGN_IN_METHOD",
+    );
+  });
+});
+
 describe("the last sign-in (#34)", () => {
   it("stores the method and the time, and sets the hint cookie", async () => {
     const env = await authOnTestDb();
@@ -52,7 +64,7 @@ describe("the last sign-in (#34)", () => {
     const hint = response.headers
       .getSetCookie()
       .find((cookie) => cookie.startsWith(`${LAST_SIGN_IN_METHOD_COOKIE}=`));
-    expect(hint).toMatch(/^edulims\.last_sign_in_method=credential;/);
+    expect(hint).toMatch(/^EDULIMS_LAST_SIGN_IN_METHOD=credential;/);
     expect(hint).not.toMatch(/HttpOnly/i);
 
     const after = await env.db

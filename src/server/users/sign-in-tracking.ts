@@ -39,11 +39,11 @@ const HINT_MAX_AGE_SECONDS = 400 * 24 * 60 * 60;
  * Returns better-auth's last-login-method plugin, set up for eduLIMS: the method is stored in
  * `user.last_login_method` and in the {@link LAST_SIGN_IN_METHOD_COOKIE} hint cookie.
  */
-export function lastSignInMethod() {
+export function lastSignInMethod(baseURL: string) {
   return lastLoginMethod({
     storeInDatabase: true,
     // NOTE: #43 (ASVS V3.3.3); `__Host-` over https, with the session cookie's attributes.
-    cookieName: hostCookieName(LAST_SIGN_IN_METHOD_COOKIE, isSecureOrigin()),
+    cookieName: hostCookieName(LAST_SIGN_IN_METHOD_COOKIE, isSecureOrigin(baseURL)),
     maxAge: HINT_MAX_AGE_SECONDS,
     customResolveMethod: signInMethodOf,
     schema: { user: { lastLoginMethod: "last_login_method" } },
