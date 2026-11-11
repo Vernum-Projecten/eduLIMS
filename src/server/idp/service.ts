@@ -222,21 +222,12 @@ function parseObject(text: string): Record<string, unknown> {
     : {};
 }
 
-/** Returns the origin of a URL, or `null` when it does not parse. */
-function originOf(url: unknown): string | null {
-  try {
-    return typeof url === "string" ? new URL(url).origin : null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Edits a provider (`idp_updated`, plus `idp_secret_rotated` or `idp_metadata_refreshed`). The
  * id and the protocol never change. OIDC discovery runs again on every save, so a changed
  * endpoint at the IdP is picked up; an empty secret keeps the stored one, except when the
- * issuer moves to another origin (`client_secret_required`): the stored secret belongs to the
- * old IdP and must never be sent to a new one.
+ * issuer changes at all (`client_secret_required`): the stored secret belongs to the old IdP
+ * and must never be sent to another, and Entra ID tenants and Keycloak realms share an origin.
  */
 export async function updateProvider(
   ctx: IdpServiceContext,
@@ -274,8 +265,8 @@ export async function updateProvider(
         openConfig(ctx.keyring, providerId, "oidcConfig", before.oidcConfig),
       );
       const rotated = input.oidc.clientSecret.trim() !== "";
-      // NOTE: security review of #46 (M1); a client secret goes only to the IdP that issued it.
-      if (!rotated && originOf(current["issuer"]) !== originOf(input.oidc.issuer)) {
+      // NOTE: #92 L2; a client secret goes only to the issuer that issued it, path included.
+      if (!rotated && current["issuer"] !== input.oidc.issuer) {
         return refused("client_secret_required");
       }
       const attestPkce = input.oidc.attestPkce;
@@ -335,7 +326,13 @@ export async function updateProvider(
         .where("provider_id", "=", providerId)
         .execute();
       await replaceDomains(trx, providerId, settings.domains);
-      await audit(trx, ctx, "idp_updated", providerId, input.protocol, { fields });
+      await audit(trx, ctx, "idp_updated", providerId, input.protocol, {
+        fields,
+        // The attestation's new value, so the log shows whether it was given or withdrawn.
+        ...(attestPkce !== undefined && fields.includes("attest_pkce")
+          ? { attest_pkce: attestPkce }
+          : {}),
+      });
       for (const action of extra) await audit(trx, ctx, action, providerId, input.protocol);
     });
     invalidateProviderCache();

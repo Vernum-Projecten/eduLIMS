@@ -74,8 +74,10 @@ Option 3, with `@better-auth/sso` and `better-auth` both at exactly 1.7.20.
   by default, a warning in the form, `attest_pkce` in the activity log).
   eduLIMS cannot verify an attestation: a wrong one leaves OIDC code
   injection open for that provider until #74 brings the nonce.
-- **A moved issuer needs a new secret.** An edit that moves the issuer to
-  another origin is refused (`client_secret_required`) unless it brings a new
+- **A changed issuer needs a new secret.** An edit that changes the issuer
+  at all, a path within the same origin included (Entra ID tenants and
+  Keycloak realms share an origin), is refused (`client_secret_required`)
+  unless it brings a new
   client secret, so a stored secret is never sent to another IdP.
 - **Secrets at rest:** the OIDC client secret and every SAML private key and
   passphrase are sealed field by field with AES-256-GCM (`node:crypto`), a
@@ -115,8 +117,12 @@ Option 3, with `@better-auth/sso` and `better-auth` both at exactly 1.7.20.
   the ACS and at single logout, and again in the gate. Disabling a provider
   ends, in the same transaction, every session of every user with an account
   there, and the activity-log row carries the count. Each process caches
-  provider settings for up to 30 seconds; a change through the host CLI
-  reaches a running app within that time. An administrator's test sign-in is the
+  provider settings for up to 30 seconds, which only delays the buttons on
+  the sign-in page: the sign-in gate reads `enabled` from the database, and
+  the session read refuses and ends a session whose `sign_in_method` names a
+  disabled or deleted provider (#92). SP-initiated SAML logout
+  (`/sso/saml2/logout/:providerId`) is unreachable; eduLIMS signs out through
+  `/sign-out`. An administrator's test sign-in is the
   one exception; it records claim names and the role outcome, then refuses
   the sign-in, so it creates no user and no session.
 - **Logout:** the plugin has no RP-initiated logout for OIDC, so an eduLIMS

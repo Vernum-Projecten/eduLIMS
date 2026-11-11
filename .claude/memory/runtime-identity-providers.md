@@ -24,7 +24,11 @@ the env-configured Entra ID and Keycloak of ADR 0010 outright (greenfield):
 - PKCE must be advertised in discovery or attested per provider
   (`attest_pkce`, off by default, logged): security review of #46 (H1).
 - `trustedOrigins` = app origin + `EDULIMS_IDP_PRIVATE_ORIGINS` only (https in
-  production); disabling a provider ends its users' sessions.
+  production); disabling a provider ends its users' sessions, and the gate
+  and the session read check `enabled` uncached (#92).
+- Any issuer change needs a new client secret; `admin grant --user-id` is
+  the logged override for an Entra-style provider whose emails are not
+  verified (#92).
 - Secrets: AES-256-GCM per field under `EDULIMS_DATA_KEY` (not
   `BETTER_AUTH_SECRET`), through the wrapped Kysely adapter.
 - First start: `idp add` and `admin grant` (pending grant for 24 hours, bound

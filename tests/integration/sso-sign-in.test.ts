@@ -138,6 +138,17 @@ describe.skipIf(!ready)("SSO sign-in through runtime providers (ADR 0015)", () =
     );
   }
 
+  /** The sign-in method of every session of the user with `email` (#92 L5). */
+  async function sessionMethods(email: string) {
+    const rows = await db
+      .selectFrom("session as s")
+      .innerJoin("user as u", "u.id", "s.userId")
+      .select("s.sign_in_method")
+      .where("u.email", "=", email)
+      .execute();
+    return rows.map((row) => row.sign_in_method);
+  }
+
   async function storedUser(email: string) {
     return db
       .selectFrom("user")
@@ -161,6 +172,8 @@ describe.skipIf(!ready)("SSO sign-in through runtime providers (ADR 0015)", () =
       role_source: "keycloak",
       emailVerified: true,
     });
+    // The session remembers its provider, which sign-out and the session read use (#92 L5).
+    expect(await sessionMethods(`${c.user}@edulims.test`)).toEqual(["keycloak"]);
   });
 
   it("OIDC: conflict (student and teacher) is refused with role_conflict (ADR 0012)", async () => {
@@ -192,6 +205,7 @@ describe.skipIf(!ready)("SSO sign-in through runtime providers (ADR 0015)", () =
       role_source: "keycloak-saml",
       emailVerified: true,
     });
+    expect(await sessionMethods("teacher@edulims.test")).toEqual(["keycloak-saml"]);
     const account = await db
       .selectFrom("account")
       .select(["providerId", "accountId"])

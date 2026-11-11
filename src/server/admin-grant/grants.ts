@@ -112,6 +112,63 @@ export async function grantAdmin(
 }
 
 /**
+ * Grants the admin role to the user with id `userId` as a local role set, whether or not a
+ * provider verified their email: the operator's override for a provider whose addresses are not
+ * authoritative (Entra ID). The operator names the account by its id, which `admin lookup`
+ * prints, so an address someone else set cannot redirect the grant; the log row says
+ * `admin_grant_override`.
+ */
+export async function grantAdminToUser(
+  db: Kysely<DB>,
+  input: { userId: string; now: Date },
+): Promise<GrantResult> {
+  return db.transaction().execute(async (trx): Promise<GrantResult> => {
+    const user = await trx
+      .selectFrom("user")
+      .select(["id", "role"])
+      .where("id", "=", input.userId)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!user) return { ok: false, error: "not_found" };
+    const current = rolesOf(user.role);
+    if (current.includes("admin")) return { ok: true, kind: "already_admin" };
+    const next = validateRoleSet([...current, "admin"]);
+    if (!next.ok) return { ok: false, error: "role_conflict" };
+    const role = formatRoles(next.roles);
+    await trx
+      .updateTable("user")
+      .set({ role, role_source: LOCAL_ROLE_SOURCE, updatedAt: input.now })
+      .where("id", "=", user.id)
+      .execute();
+    await recordAudit(trx, {
+      action: "authz_role_change",
+      actor: { type: "system" },
+      outcome: "success",
+      target: { type: "user", id: user.id },
+      reason: "admin_grant_override",
+      metadata: {
+        roles: role,
+        ...(current.length > 0 ? { previous_roles: formatRoles(current) } : {}),
+      },
+    });
+    return { ok: true, kind: "granted" };
+  });
+}
+
+/** What `admin lookup` prints about the user with an email: the id and the verified flag. */
+export async function lookupUser(
+  db: Kysely<DB>,
+  email: string,
+): Promise<{ id: string; emailVerified: boolean } | null> {
+  const user = await db
+    .selectFrom("user")
+    .select(["id", "emailVerified"])
+    .where("email", "=", email.trim().toLowerCase())
+    .executeTakeFirst();
+  return user ?? null;
+}
+
+/**
  * Takes the admin role from the user with `email` (their other roles stay, as a local set) and
  * drops a pending grant for it. The last administrator keeps the role.
  */

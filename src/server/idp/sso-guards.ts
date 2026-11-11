@@ -28,7 +28,8 @@ export const SSO_CALLBACK_PATHS: ReadonlySet<string> = new Set([
 
 /**
  * The sso plugin's management endpoints, unreachable over HTTP (better-auth `disabledPaths`):
- * eduLIMS manages providers through its own admin service only.
+ * eduLIMS manages providers through its own admin service only. SP-initiated SAML logout is
+ * here too: eduLIMS signs out through `/sign-out` and never calls it (#92 L1).
  */
 export const SSO_DISABLED_PATHS = [
   "/sso/register",
@@ -39,6 +40,7 @@ export const SSO_DISABLED_PATHS = [
   "/sso/request-domain-verification",
   "/sso/verify-domain",
   "/sso/callback",
+  "/sso/saml2/logout/:providerId",
 ] as const;
 
 /** Body keys of `/sign-in/sso` eduLIMS refuses: routing and scopes stay server-side. */

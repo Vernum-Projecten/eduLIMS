@@ -16,6 +16,8 @@ import { VALID_ENV } from "../test-env.ts";
 import {
   consumePendingAdminGrant,
   grantAdmin,
+  grantAdminToUser,
+  lookupUser,
   PENDING_GRANT_TTL_MS,
   pruneExpiredGrants,
   revokeAdmin,
@@ -92,6 +94,48 @@ describe("grantAdmin (#48)", () => {
       error: "email_unverified",
     });
     expect((await stored(database, "t2"))?.role).toBe("teacher");
+    expect(await actions(database)).toEqual([]);
+  });
+
+  it("grants by user id an operator looked up, whatever the email, and logs the override (#92 L4)", async () => {
+    const database = await setup();
+    // An Entra-only deployment: the address is not authoritative, so it is not verified.
+    await user(database, "t3", "teacher", false);
+    expect(await lookupUser(database, "T3@example.test")).toEqual({
+      id: "t3",
+      emailVerified: false,
+    });
+    expect(await grantAdminToUser(database, { userId: "t3", now: NOW })).toEqual({
+      ok: true,
+      kind: "granted",
+    });
+    expect(await stored(database, "t3")).toEqual({ role: "teacher,admin", role_source: "local" });
+    const rows = await database
+      .selectFrom("audit_event")
+      .select(["action", "actor_type", "target_id", "reason_code"])
+      .execute();
+    expect(rows).toEqual([
+      {
+        action: "authz_role_change",
+        actor_type: "system",
+        target_id: "t3",
+        reason_code: "admin_grant_override",
+      },
+    ]);
+  });
+
+  it("refuses an override for an unknown id or a student, and writes nothing (#92 L4)", async () => {
+    const database = await setup();
+    await user(database, "s4", "student", false);
+    expect(await grantAdminToUser(database, { userId: "missing", now: NOW })).toEqual({
+      ok: false,
+      error: "not_found",
+    });
+    expect(await grantAdminToUser(database, { userId: "s4", now: NOW })).toEqual({
+      ok: false,
+      error: "role_conflict",
+    });
+    expect(await lookupUser(database, "nobody@example.test")).toBeNull();
     expect(await actions(database)).toEqual([]);
   });
 

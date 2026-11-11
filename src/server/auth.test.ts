@@ -143,6 +143,8 @@ describe("the sso plugin (ADR 0015)", () => {
     ["GET", "/sso/get-provider?providerId=keycloak"],
     ["POST", "/sso/request-domain-verification"],
     ["POST", "/sso/verify-domain"],
+    // #92 L1: SP-initiated SAML logout, which eduLIMS never uses.
+    ["POST", "/sso/saml2/logout/keycloak-saml"],
   ])("answers %s %s with 404, even for an administrator", async (method, path) => {
     for (const headers of [{ cookie: adminCookie }, {}]) {
       const response = await auth.handler(

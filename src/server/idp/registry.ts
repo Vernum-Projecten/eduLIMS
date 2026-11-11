@@ -67,14 +67,18 @@ function iconOf(value: string): ProviderIcon {
   return PROVIDER_ICONS.find((icon) => icon === value) ?? "key-round";
 }
 
-/** Returns the settings of one provider, or `null` when eduLIMS does not know it. */
+/**
+ * Returns the settings of one provider, or `null` when eduLIMS does not know it. `fresh` skips
+ * the cache: the sign-in gate must see a provider another process disabled at once.
+ */
 export async function providerSettings(
   db: Kysely<DB>,
   providerId: string,
+  options: { fresh?: boolean } = {},
 ): Promise<ProviderSettingsView | null> {
   const id = parseProviderId(providerId);
   if (!id) return null;
-  return cached(`settings:${id}`, async () => {
+  const load = async () => {
     const row = await db
       .selectFrom("identity_provider")
       .select([
@@ -99,7 +103,23 @@ export async function providerSettings(
       emailAuthoritative: row.email_authoritative,
       endSessionEndpoint: row.end_session_endpoint,
     };
-  });
+  };
+  return options.fresh ? load() : cached(`settings:${id}`, load);
+}
+
+/**
+ * Returns whether a provider exists and is enabled, read from the database every time (never
+ * the cache), for the session read (ASVS V7.4.2).
+ */
+export async function providerEnabled(db: Kysely<DB>, providerId: string): Promise<boolean> {
+  const id = parseProviderId(providerId);
+  if (!id) return false;
+  const row = await db
+    .selectFrom("identity_provider")
+    .select("enabled")
+    .where("provider_id", "=", id)
+    .executeTakeFirst();
+  return row?.enabled === true;
 }
 
 /** Returns the enabled providers as login buttons, in their order, labelled for `locale`. */

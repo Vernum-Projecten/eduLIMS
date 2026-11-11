@@ -197,8 +197,8 @@ async function toggle(providerId: string | undefined, enabled: boolean, out: Out
       return 1;
     }
     out(`${enabled ? "enabled" : "disabled"} ${id.data}`);
-    // NOTE: #46 (L6); each app process caches provider settings for up to 30 seconds.
-    out("a running eduLIMS applies this within 30 seconds");
+    // NOTE: #92 M-1; the cache delays only the sign-in buttons, never a sign-in or a session.
+    out("sign-ins and sessions follow at once; the sign-in page within 30 seconds");
     return 0;
   } finally {
     await db.destroy();
