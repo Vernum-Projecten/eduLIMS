@@ -261,8 +261,9 @@ export function scimOptions(db: Kysely<DB>): SCIMOptions {
         async map(input) {
           const settings = await providerSettings(db, input.connectionId);
           if (!settings) return [];
-          const { externalId, displayName } = input.source;
-          return mapScimFacts([{ keys: [externalId ?? displayName] }], settings.roleMap);
+          const { externalId } = input.source;
+          // NOTE: owner decision on #45 (finding 4); a group without an externalId maps no role.
+          return externalId ? mapScimFacts([{ keys: [externalId] }], settings.roleMap) : [];
         },
         exists: (input) => isRole(input.role),
       },

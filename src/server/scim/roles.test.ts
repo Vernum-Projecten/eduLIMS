@@ -27,7 +27,7 @@ describe("mapScimFacts", () => {
   });
 });
 
-describe("decideScimRoles (B1: the channel that wrote the set)", () => {
+describe("decideScimRoles (SCIM authoritative for its users)", () => {
   const local = { roleSource: "local" as const, roleChannel: "local" };
 
   it("stores a mapped set with the provider as its source and scim as its channel", () => {
@@ -64,9 +64,12 @@ describe("decideScimRoles (B1: the channel that wrote the set)", () => {
     });
   });
 
-  it("never removes a set an ID-token claim gave (B1)", () => {
+  it("takes away a set a claim gave too: SCIM is authoritative for its users (finding 5)", () => {
     expect(decideScimRoles([], { roleSource: CAMPUS, roleChannel: "claim" }, CAMPUS)).toEqual({
-      kind: "unchanged",
+      kind: "set",
+      role: null,
+      roleSource: "local",
+      roleChannel: "local",
     });
   });
 

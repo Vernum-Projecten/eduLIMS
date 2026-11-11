@@ -123,6 +123,14 @@ describe.skipIf(!ready)("SSO sign-in of a SCIM-provisioned user (#45)", () => {
       .select("userId")
       .where("id", "=", scimId)
       .executeTakeFirstOrThrow();
+    // SCIM is authoritative for its users' roles: the directory's teacher group gives the role.
+    const group = await scim("POST", "/Groups", {
+      schemas: ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+      externalId: "edulims-teacher",
+      displayName: "Teachers",
+      members: [{ value: scimId }],
+    });
+    expect(group.status).toBe(201);
 
     expect(await signIn("teacher")).toEqual({ error: null, signedIn: true });
     const account = await db

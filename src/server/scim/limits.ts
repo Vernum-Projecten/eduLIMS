@@ -26,38 +26,60 @@ export const SCIM_LIMITS: ScimLimits = {
   maxBodyBytes: 1_048_576,
 };
 
-/** A fixed-window counter per key, in this process's memory, with a bounded key count. */
+type Window = { start: number; count: number };
+
+/**
+ * Fixed-window counters in this process's memory: one table for providers (keys
+ * `provider:<id>`, as many as there are providers with a working token) and one for client IPs
+ * (every other key), bounded by `maxKeys`. Only the IP table fails closed when it is full, so
+ * a flood of IP keys never locks a provider out (finding 1 of the second review).
+ */
 export class ScimRateLimiter {
   readonly #limits: Pick<ScimLimits, "maxRequests" | "windowMs" | "maxKeys">;
-  #windows = new Map<string, { start: number; count: number }>();
+  readonly #providers = new Map<string, Window>();
+  readonly #clients = new Map<string, Window>();
 
   constructor(limits: Pick<ScimLimits, "maxRequests" | "windowMs" | "maxKeys">) {
     this.#limits = limits;
   }
 
-  /**
-   * Counts one request for `key`; returns the seconds to wait when it is over the limit, or
-   * when the limiter is full of live windows and `key` is a new one (it fails closed).
-   */
-  hit(key: string, now: number = Date.now()): number | null {
-    const { windowMs, maxRequests, maxKeys } = this.#limits;
-    const window = this.#windows.get(key);
-    if (!window || now - window.start >= windowMs) {
-      if (!window && this.#windows.size >= maxKeys) {
-        this.#prune(now);
-        if (this.#windows.size >= maxKeys) return Math.ceil(windowMs / 1000);
-      }
-      this.#windows.set(key, { start: now, count: 1 });
-      return null;
-    }
-    window.count += 1;
-    if (window.count <= maxRequests) return null;
-    return Math.max(1, Math.ceil((window.start + windowMs - now) / 1000));
+  #table(key: string): Map<string, Window> {
+    return key.startsWith("provider:") ? this.#providers : this.#clients;
   }
 
-  #prune(now: number): void {
-    for (const [key, window] of this.#windows) {
-      if (now - window.start >= this.#limits.windowMs) this.#windows.delete(key);
+  /**
+   * Returns the seconds `key` must wait without counting a request: it is over its limit, or
+   * it is a new client key while the client table is full of live windows. `null` to go on.
+   */
+  wait(key: string, now: number = Date.now()): number | null {
+    const { windowMs, maxRequests, maxKeys } = this.#limits;
+    const table = this.#table(key);
+    const window = table.get(key);
+    if (window && now - window.start < windowMs) {
+      if (window.count < maxRequests) return null;
+      return Math.max(1, Math.ceil((window.start + windowMs - now) / 1000));
+    }
+    if (!window && table === this.#clients && table.size >= maxKeys) {
+      this.#prune(table, now);
+      if (table.size >= maxKeys) return Math.ceil(windowMs / 1000);
+    }
+    return null;
+  }
+
+  /** Counts one request for `key`; returns the seconds to wait when it is over the limit. */
+  hit(key: string, now: number = Date.now()): number | null {
+    const blocked = this.wait(key, now);
+    if (blocked !== null) return blocked;
+    const table = this.#table(key);
+    const window = table.get(key);
+    if (window && now - window.start < this.#limits.windowMs) window.count += 1;
+    else table.set(key, { start: now, count: 1 });
+    return null;
+  }
+
+  #prune(table: Map<string, Window>, now: number): void {
+    for (const [key, window] of table) {
+      if (now - window.start >= this.#limits.windowMs) table.delete(key);
     }
   }
 }

@@ -168,7 +168,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .alterTable("identity_provider")
     .addColumn("scim_external_id_claim", "text", (col) =>
       col.check(
-        sql`scim_external_id_claim is null or length(scim_external_id_claim) between 1 and 200`,
+        sql`scim_external_id_claim is null or scim_external_id_claim in ('oid', 'sub', 'objectGUID')`,
       ),
     )
     .execute();
@@ -185,6 +185,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       col.notNull().defaultTo("local").check(sql`role_channel in ('claim', 'scim', 'local')`),
     )
     .execute();
+  // A set a provider wrote before the channel existed came from its ID-token claim.
+  await sql`update "user" set role_channel = 'claim' where role_source <> 'local'`.execute(db);
   await db.schema
     .alterTable("user")
     .addCheckConstraint(
@@ -200,6 +202,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .createIndex("account_provider_directory_id_idx")
     .on("account")
     .columns(["providerId", "directory_id"])
+    .unique()
+    .where(sql.ref("directory_id"), "is not", null)
     .execute();
 }
 

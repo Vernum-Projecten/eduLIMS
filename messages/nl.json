@@ -646,6 +646,8 @@
   "scim_error_exists": "Deze provider heeft al een SCIM-token. Vervang het token.",
   "scim_error_no_token": "Deze provider heeft geen SCIM-token.",
   "scim_intro": "De identiteitsprovider kan eduLIMS-gebruikers aanmaken, wijzigen en deactiveren voor hun eerste aanmelding. Geef hem het endpoint en een token hieronder.",
+  "scim_no_domains_body": "Deze provider heeft geen e-maildomeinen, dus de directory kan gebruikers met elk adres aanleveren. Voeg hieronder bij de instellingen de domeinen van de instelling toe om dat te beperken.",
+  "scim_no_domains_title": "Geen e-maildomeinen",
   "scim_title": "Aanlevering (SCIM)",
   "scim_token_active": "Token aangemaakt {created}, verloopt {expires}, laatst gebruikt {used}.",
   "scim_token_create": "Token aanmaken",

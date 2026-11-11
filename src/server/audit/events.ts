@@ -191,6 +191,8 @@ export const auditMetadataSchema = z.strictObject({
   analyser_status: z.enum(["in_use", "maintenance", "retired"]).optional(),
   /** When the SCIM token a `scim_token_created` or `scim_token_rotated` issued expires (#45). */
   token_expires_at: z.iso.datetime({ offset: true }).optional(),
+  /** How many refused SCIM requests one `scim_token_refused` row stands for (#45). */
+  refused_count: z.number().int().min(1).optional(),
   /** Until when the token a `scim_token_rotated` replaced keeps working (#45). */
   previous_token_valid_until: z.iso.datetime({ offset: true }).optional(),
 });

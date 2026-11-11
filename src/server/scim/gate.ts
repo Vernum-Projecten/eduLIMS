@@ -22,7 +22,7 @@ import {
   scimResourceAction,
   scimResourceEvent,
 } from "./audit.ts";
-import { addressTakenElsewhere, scimBodyAddresses } from "./emails.ts";
+import { addressOutsideDomains, addressTakenElsewhere, scimBodyAddresses } from "./emails.ts";
 import {
   bearerOf,
   bodyTooLarge,
@@ -69,9 +69,10 @@ function field(value: unknown, key: string): unknown {
 const USER_WRITE_PATHS: ReadonlySet<string> = new Set(["/scim/v2/Users", "/scim/v2/Users/:userId"]);
 
 /**
- * The before hook of H1: refuses a SCIM User create or change that would take an address
- * another sign-in method owns, with a generic 409 and a refused activity-log row. A request
- * without a working token passes on, so the plugin answers it with 401.
+ * The before hook of H1: refuses a SCIM User create or change that would set an address outside
+ * the provider's e-mail domains (when it has any), or take an address another sign-in method
+ * owns, each with a generic refusal and a refused activity-log row. A request without a working
+ * token passes on, so the plugin answers it with 401.
  */
 async function refuseTakenAddress(db: Kysely<DB>, ctx: unknown): Promise<Response | undefined> {
   const path = field(ctx, "path");
@@ -87,7 +88,10 @@ async function refuseTakenAddress(db: Kysely<DB>, ctx: unknown): Promise<Respons
   );
   if (!inspected.ok) return undefined;
   const addresses = scimBodyAddresses(field(ctx, "body"));
-  if (!(await addressTakenElsewhere(db, inspected.providerId, addresses))) return undefined;
+  const outside = await addressOutsideDomains(db, inspected.providerId, addresses);
+  if (!outside && !(await addressTakenElsewhere(db, inspected.providerId, addresses))) {
+    return undefined;
+  }
   const action = scimResourceAction(method, "/scim/v2/Users");
   const provider = auditProvider(inspected.providerId);
   const requestId = requestIdOf(ctx);
@@ -100,7 +104,7 @@ async function refuseTakenAddress(db: Kysely<DB>, ctx: unknown): Promise<Respons
         {
           actor: { type: "system" },
           outcome: "refused",
-          reason: "uniqueness",
+          reason: outside ? "address_domain" : "uniqueness",
           ...(provider ? { provider } : {}),
           ...(requestId ? { requestId } : {}),
         },
@@ -108,21 +112,33 @@ async function refuseTakenAddress(db: Kysely<DB>, ctx: unknown): Promise<Respons
       ),
     );
   }
+  if (outside) return scimErrorResponse(400, "A value is not accepted", {}, "invalidValue");
   return scimErrorResponse(409, "A resource with these values already exists", {}, "uniqueness");
+}
+
+/** How the guard finds the client of a request. */
+export interface ScimGateOptions {
+  /**
+   * Whether `X-Forwarded-For` comes from trusted proxies (`EDULIMS_TRUSTED_PROXIES`). Without
+   * it every request lacking a working token shares one bucket, so a client cannot spoof its
+   * way into a fresh one (second review, finding 2).
+   */
+  trustForwardedFor: boolean;
+  limits?: ScimLimits;
+  limiter?: ScimRateLimiter;
 }
 
 /**
  * Returns the eduLIMS SCIM guard plugin. `support` comes from the checks createAuth ran; the
  * async-context check runs here, on the first SCIM request.
  */
-export function scimGate(
-  db: Kysely<DB>,
-  support: ScimSupport,
-  limits: ScimLimits = SCIM_LIMITS,
-  limiter: ScimRateLimiter = new ScimRateLimiter(limits),
-) {
+export function scimGate(db: Kysely<DB>, support: ScimSupport, options: ScimGateOptions) {
+  const limits = options.limits ?? SCIM_LIMITS;
+  const limiter = options.limiter ?? new ScimRateLimiter(limits);
   let asyncContext: Promise<boolean> | undefined;
   let authOptions: BetterAuthOptions = {};
+  const clientKeyOf = (headers: Headers) =>
+    rateKeyOf(null, options.trustForwardedFor ? getIP(headers, authOptions) : null);
   const deduper = new RefusalDeduper(limits.windowMs, limits.maxKeys);
   return {
     id: "edulims-scim-gate",
@@ -173,11 +189,18 @@ export function scimGate(
       if (!(await asyncContext)) {
         return { response: scimErrorResponse(501, "SCIM is not available") };
       }
+      // The client's bucket is checked before the token's database lookup (finding 9).
+      const clientKey = clientKeyOf(request.headers);
+      const exhausted = limiter.wait(clientKey);
+      if (exhausted !== null) {
+        return {
+          response: scimErrorResponse(429, "Too many requests", {
+            "retry-after": String(exhausted),
+          }),
+        };
+      }
       const inspected = await inspectScimToken(db, bearerOf(request.headers));
-      const key = rateKeyOf(
-        inspected.ok ? inspected.providerId : null,
-        getIP(request, authOptions),
-      );
+      const key = inspected.ok ? rateKeyOf(inspected.providerId, null) : clientKey;
       const wait = limiter.hit(key);
       if (wait !== null) {
         return {
@@ -200,7 +223,7 @@ export function scimGate(
         {
           matcher: (ctx: { path?: string }) => ctx.path?.startsWith("/scim/v2/") === true,
           handler: createAuthMiddleware(async (ctx) => {
-            await auditScimRequest(db, ctx, deduper);
+            await auditScimRequest(db, ctx, deduper, clientKeyOf);
           }),
         },
       ],

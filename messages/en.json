@@ -646,6 +646,8 @@
   "scim_error_exists": "This provider already has a SCIM token. Replace it instead.",
   "scim_error_no_token": "This provider has no SCIM token.",
   "scim_intro": "The identity provider can create, update and deactivate eduLIMS users before their first sign-in. Give it the endpoint and a token below.",
+  "scim_no_domains_body": "This provider has no e-mail domains, so its directory can provision users with any address. Add the institution's domains in the settings below to limit it.",
+  "scim_no_domains_title": "No e-mail domains",
   "scim_title": "Provisioning (SCIM)",
   "scim_token_active": "Token created {created}, expires {expires}, last used {used}.",
   "scim_token_create": "Create token",

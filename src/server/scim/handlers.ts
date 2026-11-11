@@ -37,6 +37,8 @@ export interface ScimDetail extends ScimTokenStatus {
   available: boolean;
   endpoint: string;
   externalIdClaim: string | null;
+  /** Whether the provider has e-mail domains; without them SCIM may set any address. */
+  domainsConfigured: boolean;
 }
 
 type Actor = Pick<SessionUser, "id" | "roles">;
@@ -68,15 +70,21 @@ export const scimHandlers = {
       .where("provider_id", "=", data.providerId)
       .executeTakeFirst();
     if (!row) throw notFound();
-    const [status, support] = await Promise.all([
+    const [status, support, domain] = await Promise.all([
       scimTokenStatus(deps.db, data.providerId),
       deps.support(),
+      deps.db
+        .selectFrom("identity_provider_domain")
+        .select("domain")
+        .where("provider_id", "=", data.providerId)
+        .executeTakeFirst(),
     ]);
     return {
       ...status,
       available: support.ok,
       endpoint: scimEndpoint(deps.baseURL),
       externalIdClaim: row.scim_external_id_claim,
+      domainsConfigured: domain !== undefined,
     };
   },
 

@@ -15,12 +15,30 @@ function field(value: unknown, key: string): unknown {
   return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
 }
 
+/** The core User schema URN that may prefix an attribute name or PATCH path (RFC 7644 §3.10). */
+const CORE_USER_URN = "urn:ietf:params:scim:schemas:core:2.0:user:";
+
+/** Returns an attribute name or PATCH path without the core User URN prefix, trimmed. */
+export function stripCoreUserUrn(path: string): string {
+  const trimmed = path.trim();
+  return trimmed.toLowerCase().startsWith(CORE_USER_URN)
+    ? trimmed.slice(CORE_USER_URN.length).trim()
+    : trimmed;
+}
+
+/** Returns the value of `key` on `value`, also when it is written with the core User URN. */
+function attribute(value: object, key: string): unknown[] {
+  return Object.entries(value)
+    .filter(([name]) => stripCoreUserUrn(name).toLowerCase() === key.toLowerCase())
+    .map(([, entry]) => entry);
+}
+
 function addresses(value: unknown): string[] {
   if (typeof value === "string") return value.includes("@") ? [value] : [];
   if (Array.isArray(value)) return value.flatMap(addresses);
   if (typeof value === "object" && value !== null) {
-    return [...addresses(field(value, "value")), ...addresses(field(value, "userName"))].concat(
-      addresses(field(value, "emails")),
+    return ["value", "userName", "emails"].flatMap((key) =>
+      attribute(value, key).flatMap(addresses),
     );
   }
   return [];
@@ -31,19 +49,42 @@ function addresses(value: unknown): string[] {
  * when it is an address, every `emails` value, and the values of PATCH operations on those.
  */
 export function scimBodyAddresses(body: unknown): string[] {
-  const found = [...addresses(field(body, "userName")), ...addresses(field(body, "emails"))];
+  const found =
+    typeof body === "object" && body !== null
+      ? ["userName", "emails"].flatMap((key) => attribute(body, key).flatMap(addresses))
+      : [];
   const operations = field(body, "Operations");
   if (Array.isArray(operations)) {
     for (const operation of operations) {
       const path = field(operation, "path");
       const value = field(operation, "value");
       if (path === undefined) found.push(...addresses(value));
-      else if (typeof path === "string" && /^(userName|emails)\b/i.test(path)) {
+      else if (typeof path === "string" && /^(userName|emails)\b/i.test(stripCoreUserUrn(path))) {
         found.push(...addresses(value));
       }
     }
   }
   return [...new Set(found.map((address) => address.trim().toLowerCase()))];
+}
+
+/**
+ * Returns whether any of `addresses` lies outside the provider's e-mail domains (owner decision
+ * on #45). A provider with no domains configured is unrestricted, and its page warns about it.
+ */
+export async function addressOutsideDomains(
+  db: Kysely<DB>,
+  providerId: string,
+  addresses: readonly string[],
+): Promise<boolean> {
+  if (addresses.length === 0) return false;
+  const rows = await db
+    .selectFrom("identity_provider_domain")
+    .select("domain")
+    .where("provider_id", "=", providerId)
+    .execute();
+  if (rows.length === 0) return false;
+  const domains = new Set(rows.map((row) => row.domain));
+  return addresses.some((address) => !domains.has(address.slice(address.lastIndexOf("@") + 1)));
 }
 
 /**

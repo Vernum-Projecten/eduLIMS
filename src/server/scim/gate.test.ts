@@ -6,7 +6,7 @@
 // activity-log action of each request and the once-per-window refusal log.
 import { describe, expect, it } from "vitest";
 import { RefusalDeduper, scimResourceAction, scimResourceEvent } from "./audit.ts";
-import { scimBodyAddresses } from "./emails.ts";
+import { scimBodyAddresses, stripCoreUserUrn } from "./emails.ts";
 import { scimErrorResponse } from "./gate.ts";
 import { bearerOf, bodyTooLarge, rateKeyOf, ScimRateLimiter } from "./limits.ts";
 
@@ -33,6 +33,24 @@ describe("ScimRateLimiter", () => {
     expect(limiter.hit("c", 100)).toBe(1);
     expect(limiter.hit("a", 200)).toBeNull();
     expect(limiter.hit("c", 1_000)).toBeNull();
+  });
+});
+
+describe("provider buckets apart from client buckets (second review, finding 1)", () => {
+  it("lets a provider through a table full of client keys, live or ended", () => {
+    const limiter = new ScimRateLimiter({ maxRequests: 5, windowMs: 1_000, maxKeys: 3 });
+    for (const ip of ["a", "b", "c"]) expect(limiter.hit(`ip:${ip}`, 0)).toBeNull();
+    expect(limiter.hit("ip:d", 10)).toBe(1);
+    expect(limiter.hit("provider:x", 10)).toBeNull();
+    expect(limiter.hit("provider:x", 2_000)).toBeNull();
+  });
+
+  it("checks a client bucket without counting a request", () => {
+    const limiter = new ScimRateLimiter({ maxRequests: 1, windowMs: 1_000, maxKeys: 3 });
+    expect(limiter.wait("ip:a", 0)).toBeNull();
+    expect(limiter.wait("ip:a", 0)).toBeNull();
+    expect(limiter.hit("ip:a", 0)).toBeNull();
+    expect(limiter.wait("ip:a", 10)).toBe(1);
   });
 });
 
@@ -115,6 +133,53 @@ describe("scimBodyAddresses (H1)", () => {
   });
 });
 
+describe("URN-qualified paths and attributes (second review, finding 6)", () => {
+  it("strips the core User URN from PATCH paths, with spaces around them", () => {
+    expect(
+      scimBodyAddresses({
+        Operations: [
+          {
+            op: "replace",
+            path: "  urn:ietf:params:scim:schemas:core:2.0:User:userName ",
+            value: "a@example.test",
+          },
+          {
+            op: "add",
+            path: 'URN:IETF:PARAMS:SCIM:SCHEMAS:CORE:2.0:USER:emails[type eq "work"].value',
+            value: "b@example.test",
+          },
+        ],
+      }),
+    ).toEqual(["a@example.test", "b@example.test"]);
+  });
+
+  it("reads URN-keyed attributes of a pathless PATCH value and of a create body", () => {
+    expect(
+      scimBodyAddresses({
+        Operations: [
+          {
+            op: "replace",
+            value: {
+              "urn:ietf:params:scim:schemas:core:2.0:User:userName": "c@example.test",
+              "urn:ietf:params:scim:schemas:core:2.0:User:emails": [{ value: "d@example.test" }],
+            },
+          },
+        ],
+      }),
+    ).toEqual(["c@example.test", "d@example.test"]);
+    expect(
+      scimBodyAddresses({
+        "urn:ietf:params:scim:schemas:core:2.0:User:userName": "e@example.test",
+      }),
+    ).toEqual(["e@example.test"]);
+  });
+
+  it("strips only the core User URN", () => {
+    expect(stripCoreUserUrn(" urn:ietf:params:scim:schemas:core:2.0:User:emails ")).toBe("emails");
+    expect(stripCoreUserUrn("urn:other:userName")).toBe("urn:other:userName");
+  });
+});
+
 describe("scimResourceAction", () => {
   it.each([
     ["POST", "/scim/v2/Users", "scim_user_created"],
@@ -141,6 +206,16 @@ describe("scimResourceAction", () => {
       target: { type: "scim_user", id: "u1" },
     });
     expect(scimResourceEvent("scim_group_deleted", base, undefined)).not.toHaveProperty("target");
+  });
+});
+
+describe("RefusalDeduper counts (second review, finding 3)", () => {
+  it("says how many refusals the next row stands for", () => {
+    const deduper = new RefusalDeduper(1_000, 10);
+    expect(deduper.next("ip:x|token_unknown", 0)).toBe(1);
+    expect(deduper.next("ip:x|token_unknown", 10)).toBeNull();
+    expect(deduper.next("ip:x|token_unknown", 20)).toBeNull();
+    expect(deduper.next("ip:x|token_unknown", 1_000)).toBe(3);
   });
 });
 

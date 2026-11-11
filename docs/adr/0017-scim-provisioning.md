@@ -75,23 +75,33 @@ Option 3, with `@better-auth/scim` at exactly 1.7.20 like `better-auth` and
   no user and no provider, and a refused row in the activity log. That a
   directory learns an address is taken is an accepted risk: every SCIM
   client is an institution's directory an administrator configured.
+- **E-mail domains** (owner decision on #45): when a provider has e-mail
+  domains, a SCIM create or change that sets an address outside them is
+  refused with a generic 400 `invalidValue` and a refused row
+  (`address_domain`), so a directory cannot claim an unused address of
+  another institution. A provider without domains is unrestricted, and its
+  page warns about that.
 - **Roles follow hybrid ownership (#32).** The plugin's role projection maps
-  a SCIM group (on its `externalId` alone when it has one, else its display
-  name, which a directory administrator can rename) and the user's `roles`
-  values through the provider's own role map. A mapped set is
+  a SCIM group on its `externalId` alone (a group without one maps no role;
+  a display name can be renamed by any directory administrator) and the
+  user's `roles` values through the provider's own role map. A mapped set is
   authoritative with the provider as `role_source`; a conflicting set leaves
   no roles; a set the provider took away is removed and the sessions end
   (A07); a local set stays. A user SCIM creates has no roles (the admin
   plugin's default role is not applied), and the provider's default role does
   not apply at that user's sign-in. SCIM gives no role the map does not name,
   so it never gives admin unless the map maps a group to it.
-- **One channel per role set** (security review B1, ASVS V8.2.1): an
-  ID-token claim and SCIM both write `role_source` = the provider, so
-  `user.role_channel` records which one wrote the set (`claim`, `scim`,
-  `local`). Only a set SCIM wrote survives a sign-in without a mapped claim;
-  a set a claim gave, admin included, does not. A SCIM write never removes a
-  set a claim gave, and a claim never removes a set SCIM gave. When both give
-  roles, the claim's set is taken at a sign-in and SCIM's at a SCIM write.
+- **SCIM owns the roles of its users** (security review B1, ASVS V8.2.1, and
+  the owner's decision on the second review): for a user a provider
+  provisioned, a sign-in claim never changes the roles, neither adding nor
+  removing one, and a SCIM write sets them from the role map, taking away
+  any set that provider gave, a claim's from before the link included; only
+  local roles an administrator gave stay. For a user SCIM did not provision,
+  the claim rules of ADR 0015 hold, so a set a claim gave, admin included,
+  is gone at the next sign-in without that claim. `user.role_channel`
+  (`claim`, `scim`, `local`, backfilled to `claim` for existing provider
+  sets) records which writer set the roles. Neither channel can flip the
+  other's set back and forth.
 - **Deactivation:** `active: false` or a delete marks the user
   `deprovisioned_at`, ends every session in the plugin's transaction, and a
   `databaseHooks.session` hook refuses every new session. Records stay;
@@ -101,13 +111,19 @@ Option 3, with `@better-auth/scim` at exactly 1.7.20 like `better-auth` and
   context. `createAuth` checks the first two before it adds the plugins, a
   guard plugin checks the third at the first SCIM request, and without them
   `/api/auth/scim/v2` answers 501 (`src/server/scim/support.test.ts`).
-- **Guards:** a fixed-window rate limit of 600 requests per minute per
-  provider for a working token and per client IP (as better-auth reads it)
-  for every other request, in a bounded table that answers 429 when full; a
-  1 MiB body cap; and an activity-log row for every SCIM write, every refused
-  token (`scim_token_refused` with why, once per token per minute) and every
-  refused read or write (403, or 404 for another provider's resource), ids and
-  codes only. The plugin's server-only endpoints
+- **Guards:** a fixed-window rate limit of 600 requests per minute, in two
+  tables: one per provider for a working token, never evicted by client
+  keys, and one per client IP for every other request, bounded and answering
+  429 when full. The client's bucket is checked before the token's database
+  lookup. The client IP comes from `X-Forwarded-For` only through the
+  proxies in `EDULIMS_TRUSTED_PROXIES` (better-auth's `advanced.ipAddress`,
+  the chain walked right to left); without them every client shares one
+  bucket, so a spoofed header buys nothing. A 1 MiB body cap. An
+  activity-log row for every SCIM write and every refused read or write
+  (403, or 404 for another provider's resource); a refused token is
+  `scim_token_refused` with why, an unknown or missing one once per client
+  and minute with the count it stands for, any other once per token and
+  minute. Ids and codes only. The plugin's server-only endpoints
   (decommission, reconcile) are not reachable over HTTP.
 
 ## Consequences

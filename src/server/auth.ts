@@ -88,7 +88,14 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
   const sessionOptions = {} satisfies ScimSessionOptions;
   const scimSupport = staticScimSupport(adapter({}), sessionOptions);
   return betterAuth({
-    advanced: authCookieOptions(env.BETTER_AUTH_URL),
+    advanced: {
+      ...authCookieOptions(env.BETTER_AUTH_URL),
+      // NOTE: #45 (second review, finding 2); X-Forwarded-For is read only through the proxies
+      // the operator lists, walked right to left, so a client cannot pick its own address.
+      ...(env.EDULIMS_TRUSTED_PROXIES.length > 0
+        ? { ipAddress: { trustedProxies: [...env.EDULIMS_TRUSTED_PROXIES] } }
+        : {}),
+    },
     appName: "eduLIMS",
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
@@ -187,7 +194,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
       }),
       ssoGuards(db),
       // Answers 501 when SCIM cannot run here; rate limit, size cap and activity log (#45).
-      scimGate(db, scimSupport),
+      scimGate(db, scimSupport, { trustForwardedFor: env.EDULIMS_TRUSTED_PROXIES.length > 0 }),
       ...scimPlugins(db, scimSupport),
       ssoLogout(db, env.BETTER_AUTH_URL, keyring),
       // The activity log (B4): sign-ins, sign-outs, sessions, users and the admin endpoints.

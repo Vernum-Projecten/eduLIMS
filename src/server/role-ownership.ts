@@ -35,7 +35,7 @@ export type SignInRoles =
   | { kind: "idp"; roles: Role[] }
   /** The identity provider sent none: the roles an administrator assigned apply. */
   | { kind: "local"; roles: Role[] }
-  /** The identity provider sent none: the set its SCIM directory wrote stays (#45, B1). */
+  /** A user the provider provisioned over SCIM: the stored set stays, whatever the claims say (#45). */
   | { kind: "scim"; roles: Role[] }
   /** Neither: the provider's default role (or a pending admin grant), stored as a local set. */
   | { kind: "default"; roles: Role[] }
@@ -49,10 +49,10 @@ export type SignInRoles =
  * whose source is `local` applies; a set the IdP once sent does not survive the IdP taking it
  * away (A07). Then `defaultRole`, else `no_edulims_role`.
  *
- * For a user `providerId` provisioned over SCIM (#45), a set SCIM wrote (`roleChannel` `scim`)
- * stays when the sign-in carries no mapped role; a set a claim wrote does not (B1, V8.2.1), and
- * the default role never applies: such a user has no roles until the directory maps one or an
- * administrator assigns local ones.
+ * For a user `providerId` provisioned over SCIM (#45, owner decision on the second review of
+ * #108), SCIM is authoritative: the sign-in's claims neither add nor remove a role, and the
+ * default role never applies. The stored set (SCIM's, or local roles an administrator gave)
+ * stays; without one the sign-in is refused with `no_edulims_role`.
  */
 export function decideSignInRoles(
   idp: IdpRoles,
@@ -60,18 +60,18 @@ export function decideSignInRoles(
   defaultRole: Role | undefined,
   providerId?: string,
 ): SignInRoles {
-  if (idp.kind === "conflict") return { kind: "refused", reason: ROLE_CONFLICT_ERROR };
-  if (idp.kind === "roles") return { kind: "idp", roles: idp.roles };
   const provisioned = providerId !== undefined && stored?.provisionedBy === providerId;
-  if (provisioned && stored.roleSource === providerId && stored.roleChannel === "scim") {
-    const fromScim = validateRoleValue(stored.role);
-    if (fromScim.ok) return { kind: "scim", roles: fromScim.roles };
+  if (provisioned) {
+    const kept = validateRoleValue(stored.role);
+    if (kept.ok) return { kind: "scim", roles: kept.roles };
     return { kind: "refused", reason: NO_ROLE_ERROR };
   }
+  if (idp.kind === "conflict") return { kind: "refused", reason: ROLE_CONFLICT_ERROR };
+  if (idp.kind === "roles") return { kind: "idp", roles: idp.roles };
   if (stored && isLocallyEditable(stored.roleSource)) {
     const local = validateRoleValue(stored.role);
     if (local.ok) return { kind: "local", roles: local.roles };
   }
-  if (defaultRole && !provisioned) return { kind: "default", roles: [defaultRole] };
+  if (defaultRole) return { kind: "default", roles: [defaultRole] };
   return { kind: "refused", reason: NO_ROLE_ERROR };
 }

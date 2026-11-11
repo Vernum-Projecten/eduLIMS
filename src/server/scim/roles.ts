@@ -15,9 +15,9 @@ export interface ScimRoleFact {
 }
 
 /**
- * Returns the eduLIMS roles the role map gives each fact, by the first of its keys only: a
- * group with an `externalId` is mapped on it alone (the object id Entra ID puts in the `groups`
- * claim too), never on its display name, which a directory administrator can rename at will.
+ * Returns the eduLIMS roles the role map gives each fact, by the first of its keys only. A group
+ * maps on its `externalId` alone (the object id Entra ID puts in the `groups` claim too), never
+ * on its display name, which a directory administrator can rename; one without maps nothing.
  */
 export function mapScimFacts(facts: readonly ScimRoleFact[], roleMap: RoleMap): Role[] {
   return facts.flatMap((fact) => {
@@ -42,11 +42,12 @@ export type ScimRoleDecision =
  * Decides a provisioned user's roles from what the provider's role map gives their SCIM groups
  * and `roles` values (owner decision on #32).
  *
- * A mapped set is authoritative on a SCIM write and stored with the provider as its source and
- * `scim` as its channel. A conflicting set (student with another role, ADR 0012) leaves the
- * user without roles. Without a mapped role, only a set SCIM itself wrote is taken away (A07);
- * a set an ID-token claim gave (channel `claim`) and a local set stay (B1). SCIM never grants a
- * role the map does not name, so it never grants admin unless the map maps a group or value.
+ * SCIM is authoritative for the roles of a user it provisioned (owner decision on the second
+ * review of #108): a mapped set is stored with the provider as its source and `scim` as its
+ * channel; a conflicting set (student with another role, ADR 0012) leaves no roles; without a
+ * mapped role, any set the provider gave is taken away (A07), a claim's from before the user
+ * was linked included (B1), and only a local set an administrator gave stays. SCIM never grants
+ * a role the map does not name, so it never grants admin unless the map maps a group or value.
  */
 export function decideScimRoles(
   mapped: readonly Role[],
@@ -67,7 +68,7 @@ export function decideScimRoles(
       reason: "role_conflict",
     };
   }
-  if (stored.roleSource === providerId && stored.roleChannel === "scim") {
+  if (stored.roleSource === providerId) {
     return { kind: "set", role: null, roleSource: LOCAL_ROLE_SOURCE, roleChannel: "local" };
   }
   return { kind: "unchanged" };

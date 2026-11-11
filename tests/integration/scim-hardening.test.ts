@@ -114,8 +114,8 @@ afterEach(async () => {
   await db.destroy();
 });
 
-describe("B1: a SCIM write never removes a role an ID-token claim gave", () => {
-  it("leaves the claim's admin in place on a SCIM PATCH without a mapped group", async () => {
+describe("SCIM is authoritative for the roles of the users it provisioned (#45)", () => {
+  it("takes away an admin a claim gave before the link, on a SCIM write without a mapped group", async () => {
     const created = await scim(
       "POST",
       "/Users",
@@ -129,7 +129,7 @@ describe("B1: a SCIM write never removes a role an ID-token claim gave", () => {
       .select("userId")
       .where("id", "=", scimId)
       .executeTakeFirstOrThrow();
-    // The user signed in and the ID token's role claim mapped to admin.
+    // A claim gave admin (a sign-in before SCIM linked the user, or a stale row).
     await db
       .updateTable("user")
       .set({ role: "admin", role_source: "campus", role_channel: "claim" })
@@ -145,7 +145,74 @@ describe("B1: a SCIM write never removes a role an ID-token claim gave", () => {
       .select(["role", "role_source", "role_channel"])
       .where("id", "=", userId)
       .executeTakeFirstOrThrow();
-    expect(user).toEqual({ role: "admin", role_source: "campus", role_channel: "claim" });
+    expect(user).toEqual({ role: null, role_source: "local", role_channel: "local" });
+  });
+
+  it("gives no role for a group without an externalId, even with a mapped name (finding 4)", async () => {
+    const created = await scim("POST", "/Users", tokenA, userBody("dir-2", "n.dam@example.test"));
+    const scimId = String(created.json["id"]);
+    const group = await scim("POST", "/Groups", tokenA, {
+      schemas: ["urn:ietf:params:scim:schemas:core:2.0:Group"],
+      displayName: "grp-teachers",
+      members: [{ value: scimId }],
+    });
+    expect(group.status).toBe(201);
+    const user = await db
+      .selectFrom("user")
+      .innerJoin("scimUser", "scimUser.userId", "user.id")
+      .select(["user.role"])
+      .where("scimUser.id", "=", scimId)
+      .executeTakeFirstOrThrow();
+    expect(user.role).toBeNull();
+  });
+});
+
+describe("e-mail domains limit what a directory may provision (owner decision on #45)", () => {
+  async function domains(providerId: string, list: readonly string[]) {
+    await db
+      .insertInto("identity_provider_domain")
+      .values(list.map((domain) => ({ domain, provider_id: providerId })))
+      .execute();
+  }
+
+  it("refuses an address outside the provider's domains, generically, with a refused row", async () => {
+    await domains("campus", ["campus.example.test"]);
+    const outside = await scim(
+      "POST",
+      "/Users",
+      tokenA,
+      userBody("d-1", "x@elsewhere.example.test"),
+    );
+    expect(outside.status).toBe(400);
+    expect(outside.json).toEqual({
+      schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
+      status: "400",
+      scimType: "invalidValue",
+      detail: "A value is not accepted",
+    });
+    const refused = await db
+      .selectFrom("audit_event")
+      .select(["action", "reason_code"])
+      .where("outcome", "=", "refused")
+      .execute();
+    expect(refused).toEqual([{ action: "scim_user_created", reason_code: "address_domain" }]);
+    const inside = await scim("POST", "/Users", tokenA, userBody("d-2", "y@campus.example.test"));
+    expect(inside.status).toBe(201);
+    const moved = await scim("PATCH", `/Users/${String(inside.json["id"])}`, tokenA, {
+      schemas: [PATCH_SCHEMA],
+      Operations: [{ op: "replace", path: "userName", value: "y@elsewhere.example.test" }],
+    });
+    expect(moved.status).toBe(400);
+  });
+
+  it("leaves a provider without domains unrestricted", async () => {
+    const created = await scim(
+      "POST",
+      "/Users",
+      tokenA,
+      userBody("d-3", "z@anywhere.example.test"),
+    );
+    expect(created.status).toBe(201);
   });
 });
 
@@ -219,8 +286,16 @@ describe("H3: unverified tokens share one bucket per client IP", () => {
     }
     const limited = await scim("GET", "/Users", generateScimToken());
     expect(limited.status).toBe(429);
-    // A working token is counted against its own provider, not that bucket.
-    expect((await scim("GET", "/Users", tokenA)).status).toBe(200);
+    // The exhausted client bucket is checked before any token lookup (finding 9 of the second
+    // review), so the same client waits whatever token it sends.
+    expect((await scim("GET", "/Users", tokenA)).status).toBe(429);
+    // 600 random tokens from one client are one activity-log row (finding 3).
+    const rows = await db
+      .selectFrom("audit_event")
+      .select(["reason_code", "metadata"])
+      .where("action", "=", "scim_token_refused")
+      .execute();
+    expect(rows).toEqual([{ reason_code: "token_unknown", metadata: { refused_count: 1 } }]);
   });
 });
 
@@ -264,5 +339,39 @@ describe("M1: SCIM links the user a sign-in stored the directory id on", () => {
     expect(
       await db.selectFrom("session").select("id").where("userId", "=", "u-c").execute(),
     ).toEqual([]);
+  });
+});
+
+describe("spoofed client IPs get no bucket of their own (second review, finding 2)", () => {
+  async function get(instance: Auth, forwardedFor: string) {
+    const response = await instance.handler(
+      new Request(`${BASE}/api/auth/scim/v2/Users`, {
+        headers: {
+          authorization: `Bearer ${generateScimToken()}`,
+          "x-forwarded-for": forwardedFor,
+        },
+      }),
+    );
+    return response.status;
+  }
+
+  it("trusts no X-Forwarded-For without EDULIMS_TRUSTED_PROXIES: one shared bucket", {
+    timeout: 60_000,
+  }, async () => {
+    for (let i = 0; i < 600; i += 1) expect(await get(auth, `198.51.100.${i % 250}`)).toBe(401);
+    expect(await get(auth, "192.0.2.77")).toBe(429);
+  });
+
+  it("walks the chain past the trusted proxy, so a spoofed left part changes nothing", {
+    timeout: 60_000,
+  }, async () => {
+    const env = parseEnv({ ...VALID_ENV, EDULIMS_TRUSTED_PROXIES: "10.0.0.5" });
+    const proxied = await createTestAuth(env, { db, type: "postgres" });
+    for (let i = 0; i < 600; i += 1) {
+      expect(await get(proxied, `9.9.9.${i % 250}, 203.0.113.7, 10.0.0.5`)).toBe(401);
+    }
+    expect(await get(proxied, "1.2.3.4, 203.0.113.7, 10.0.0.5")).toBe(429);
+    // Another real client behind the same proxy has a bucket of its own.
+    expect(await get(proxied, "203.0.113.8, 10.0.0.5")).toBe(401);
   });
 });

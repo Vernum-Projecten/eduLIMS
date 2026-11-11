@@ -40,6 +40,7 @@ export const SECURITY_LOG_FIELDS = [
   "analyser_status",
   "token_expires_at",
   "previous_token_valid_until",
+  "refused_count",
   "kind",
   "status",
 ] as const;
@@ -139,6 +140,7 @@ export function auditLogFields(event: AuditEvent): SecurityLogFields {
     analyser_status: event.metadata?.analyser_status,
     token_expires_at: event.metadata?.token_expires_at,
     previous_token_valid_until: event.metadata?.previous_token_valid_until,
+    refused_count: event.metadata?.refused_count,
   };
 }
 

@@ -371,9 +371,10 @@ What a SCIM request does in eduLIMS:
 - **Roles** come from the provider's role map. A SCIM group whose
   `externalId` or display name is a key in the role map, or a value in the
   user's `roles` attribute, gives that role and makes the provider the
-  source of the role set. A group with an `externalId` is matched on that
-  alone, never on its display name. A role the ID-token claim gave stays
-  until a sign-in without that claim; SCIM does not remove it. Without a mapped group the user keeps the roles an
+  source of the role set. A group is matched on its `externalId` alone; a
+  group without one gives no role, whatever its name. For a user the
+  directory provisioned, SCIM owns the roles: the sign-in's role claim
+  neither adds nor removes one. Without a mapped group the user keeps the roles an
   administrator gave them in eduLIMS, and has none until then. A group the
   role map does not name gives nothing, so SCIM never makes anyone an
   administrator unless the role map maps a group to `admin`.
@@ -392,6 +393,10 @@ What a SCIM request does in eduLIMS:
   change it could take over another person's account. Each sign-in stores
   the directory id on the account, so a user who signed in before the
   directory provisioned them is linked, not duplicated.
+- **E-mail domains:** when the provider has e-mail domains (its settings),
+  the directory may provision only addresses in them; anything else is
+  refused with a 400 that does not say why. A provider without domains can
+  provision any address, and its page warns about that.
 - **E-mail addresses** have one owner. A create or change whose address
   belongs to a user who signs in through another provider, or whom another
   provider provisioned, is refused with a 409 that does not say which user;
@@ -400,9 +405,14 @@ What a SCIM request does in eduLIMS:
 Every SCIM write and every refused token is in the activity log with ids and
 codes only. The endpoint takes at most 600 requests per minute per identity
 provider, and 600 per minute per client IP for requests without a working
-token; request bodies are capped at 1 MiB; more gets `429` or `413`. The
-client IP is the one better-auth reads (the `X-Forwarded-For` the reverse
-proxy sets). It answers `501` when
+token; request bodies are capped at 1 MiB; more gets `429` or `413`. Requests
+without a working token are counted per client IP only when
+`EDULIMS_TRUSTED_PROXIES` lists the reverse proxies in front of eduLIMS
+(comma-separated IP addresses or CIDR ranges); the proxy must then overwrite
+`X-Forwarded-For` with the address it received the request from (or append
+to it), and eduLIMS must be reachable through those proxies only. Left
+empty (the default), eduLIMS trusts no forwarded header and all such
+requests share one budget. It answers `501` when
 the installation cannot run SCIM (the provider's page says so).
 
 ### The token

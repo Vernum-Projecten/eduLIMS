@@ -75,20 +75,26 @@ export function scimResourceEvent(
 export class RefusalDeduper {
   readonly #windowMs: number;
   readonly #maxKeys: number;
-  #seen = new Map<string, number>();
+  #seen = new Map<string, { at: number; suppressed: number }>();
 
   constructor(windowMs = 60_000, maxKeys = 10_000) {
     this.#windowMs = windowMs;
     this.#maxKeys = maxKeys;
   }
 
-  /** Returns whether `key` should be logged at `now`: once per window. */
-  first(key: string, now: number = Date.now()): boolean {
-    const last = this.#seen.get(key);
-    if (last !== undefined && now - last < this.#windowMs) return false;
-    if (this.#seen.size >= this.#maxKeys) {
-      for (const [seen, at] of this.#seen) {
-        if (now - at >= this.#windowMs) this.#seen.delete(seen);
+  /**
+   * Returns how many refusals of `key` the row logged now stands for (this one and those left
+   * out since the last row), or `null` when `key` was logged within the window.
+   */
+  next(key: string, now: number = Date.now()): number | null {
+    const seen = this.#seen.get(key);
+    if (seen !== undefined && now - seen.at < this.#windowMs) {
+      seen.suppressed += 1;
+      return null;
+    }
+    if (seen === undefined && this.#seen.size >= this.#maxKeys) {
+      for (const [key, entry] of this.#seen) {
+        if (now - entry.at >= this.#windowMs) this.#seen.delete(key);
       }
       // NOTE: #45 (L2); when every slot is live the oldest goes, so logging never stops.
       if (this.#seen.size >= this.#maxKeys) {
@@ -96,8 +102,13 @@ export class RefusalDeduper {
         if (!oldest.done) this.#seen.delete(oldest.value);
       }
     }
-    this.#seen.set(key, now);
-    return true;
+    this.#seen.set(key, { at: now, suppressed: 0 });
+    return 1 + (seen?.suppressed ?? 0);
+  }
+
+  /** Returns whether `key` should be logged at `now`: once per window. */
+  first(key: string, now: number = Date.now()): boolean {
+    return this.next(key, now) !== null;
   }
 }
 
@@ -124,6 +135,7 @@ export async function auditScimRequest(
   db: Kysely<DB>,
   ctx: unknown,
   deduper: RefusalDeduper,
+  clientKeyOf: (headers: Headers) => string,
 ): Promise<void> {
   const path = text(field(ctx, "path")) ?? "";
   const request = field(ctx, "request");
@@ -135,9 +147,14 @@ export async function auditScimRequest(
   const requestId = requestIdOf(ctx);
   const withRequest = requestId ? { requestId } : {};
   if (status === 401) {
-    if (!deduper.first(tokenKey(token))) return;
     const inspected = await inspectScimToken(db, token);
     const reason = inspected.ok ? "token_refused" : inspected.reason;
+    // NOTE: #45 (finding 3); unknown and missing tokens collapse per client and reason, so a
+    // flood of random tokens is one row per window, with how many it stands for.
+    const anonymous = reason === "token_unknown" || reason === "token_missing";
+    const clientKey = headers instanceof Headers ? clientKeyOf(headers) : "ip:unknown";
+    const count = deduper.next(`${anonymous ? clientKey : tokenKey(token)}|${reason}`);
+    if (count === null) return;
     const providerId = inspected.providerId;
     const provider = auditProvider(providerId);
     await recordCommittedAudit(db, {
@@ -147,7 +164,7 @@ export async function auditScimRequest(
       reason,
       ...(providerId ? { target: { type: "identity_provider", id: providerId } } : {}),
       ...(provider ? { provider } : {}),
-      ...(providerId ? { metadata: { provider_id: providerId } } : {}),
+      metadata: { ...(providerId ? { provider_id: providerId } : {}), refused_count: count },
       ...withRequest,
     });
     return;

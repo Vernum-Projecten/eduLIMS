@@ -191,6 +191,13 @@ export function ScimSection({ providerId }: Readonly<{ providerId: string }>) {
           <AlertDescription>{m.scim_unavailable_body()}</AlertDescription>
         </Alert>
       )}
+      {!scim.domainsConfigured && (
+        <Alert>
+          <TriangleAlertIcon aria-hidden="true" />
+          <AlertTitle>{m.scim_no_domains_title()}</AlertTitle>
+          <AlertDescription>{m.scim_no_domains_body()}</AlertDescription>
+        </Alert>
+      )}
       <FieldGroup>
         <CopyField label={m.scim_endpoint_label()} value={scim.endpoint} />
       </FieldGroup>
