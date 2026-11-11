@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { Kysely } from "kysely";
-import { afterEach, describe, expect, it } from "vitest";
-import { createAuth, identityProviders, keycloakProviders, POST_LOGOUT_PATH } from "./auth.ts";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { type Auth, POST_LOGOUT_PATH } from "./auth.ts";
 import { parseRoles } from "./authz.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
 import { parseEnv } from "./env.ts";
+import { createTestAuth } from "./test-auth.ts";
 import { VALID_ENV } from "./test-env.ts";
 
 const PASSWORD = "correct-horse-battery";
@@ -21,7 +22,7 @@ afterEach(async () => {
 async function setup(devLogin: boolean) {
   db = await createTestDb();
   const env = parseEnv({ ...VALID_ENV, EDULIMS_DEV_LOGIN: String(devLogin) });
-  return createAuth(env, { db, type: "postgres" });
+  return createTestAuth(env, { db, type: "postgres" });
 }
 
 describe("auth", () => {
@@ -74,47 +75,121 @@ describe("auth", () => {
   });
 });
 
-describe("identityProviders", () => {
-  const keycloak = {
-    KEYCLOAK_ISSUER: "https://idp.example/realms/edulims",
-    KEYCLOAK_CLIENT_ID: "edulims",
-    KEYCLOAK_CLIENT_SECRET: "kc-secret",
-  };
+const BASE = VALID_ENV.BETTER_AUTH_URL;
 
-  it("lists one login button per configured provider, with the operator's Keycloak label", () => {
-    const env = parseEnv({ ...VALID_ENV, ...keycloak, KEYCLOAK_LABEL: "Sign in with Campus ID" });
-    expect(identityProviders(env)).toEqual([
-      { id: "microsoft" },
-      { id: "keycloak", label: "Sign in with Campus ID" },
-    ]);
+/** Signs a dev user with `role` in and returns the session cookie header. */
+async function signedIn(auth: Auth, role: string): Promise<string> {
+  const email = `${role}-sso@example.test`;
+  await auth.api.createUser({
+    body: {
+      email,
+      name: "SSO Test",
+      password: PASSWORD,
+      role: role === "admin" ? "admin" : "teacher",
+    },
+  });
+  const response = await auth.api.signInEmail({
+    body: { email, password: PASSWORD },
+    asResponse: true,
+  });
+  return response.headers
+    .getSetCookie()
+    .map((cookie) => cookie.split(";")[0])
+    .join("; ");
+}
+
+// One auth instance for the whole block, as the HTTP handler serves it.
+describe("the sso plugin (ADR 0015)", () => {
+  let ssoDb: Kysely<DB>;
+  let auth: Auth;
+  let adminCookie: string;
+
+  beforeAll(async () => {
+    ssoDb = await createTestDb();
+    auth = await createTestAuth(parseEnv(VALID_ENV), { db: ssoDb, type: "postgres" });
+    adminCookie = await signedIn(auth, "admin");
   });
 
-  it("returns the user to the sign-in page after a Keycloak logout", () => {
-    const [provider] = keycloakProviders(parseEnv({ ...VALID_ENV, ...keycloak }));
-    expect(provider?.postLogoutRedirectURI).toBe(POST_LOGOUT_PATH);
-    expect(POST_LOGOUT_PATH).toBe("/login");
+  afterAll(async () => {
+    await ssoDb?.destroy();
   });
 
-  it("leaves the Keycloak label to the UI when KEYCLOAK_LABEL is unset", () => {
-    const env = parseEnv({ ...VALID_ENV, ...keycloak });
-    expect(identityProviders(env)).toEqual([{ id: "microsoft" }, { id: "keycloak" }]);
-  });
-
-  it("lists nothing when no provider is configured", () => {
-    const env = parseEnv({
-      ...VALID_ENV,
-      MICROSOFT_CLIENT_ID: undefined,
-      MICROSOFT_CLIENT_SECRET: undefined,
-      MICROSOFT_TENANT_ID: undefined,
+  it("is set up with no provider registration, no organisations and strict SAML", () => {
+    const plugin = auth.options.plugins.find((candidate) => candidate.id === "sso");
+    expect(plugin?.options).toMatchObject({
+      providersLimit: 0,
+      organizationProvisioning: { disabled: true },
+      saml: {
+        requireTimestamps: true,
+        algorithms: { onDeprecated: "reject" },
+        enableInResponseToValidation: true,
+        allowIdpInitiated: false,
+      },
     });
-    expect(identityProviders(env)).toEqual([]);
+    expect(plugin?.options).not.toHaveProperty("defaultSSO");
+    expect(plugin?.options).not.toHaveProperty("trustEmailVerified");
+    expect(plugin?.options).not.toHaveProperty("redirectURI");
+    expect(plugin?.options).not.toHaveProperty("domainVerification");
+    expect(auth.options.account?.accountLinking?.enabled).toBe(false);
   });
 
-  it("registers Keycloak as an OAuth provider next to Microsoft", async () => {
-    db = await createTestDb();
-    const auth = createAuth(parseEnv({ ...VALID_ENV, ...keycloak }), { db, type: "postgres" });
-    const ids = auth.options.plugins.map((plugin) => plugin.id);
-    expect(ids).toContain("generic-oauth");
-    expect(Object.keys(auth.options.socialProviders)).toEqual(["microsoft"]);
+  it.each([
+    ["POST", "/sso/register"],
+    ["POST", "/sso/update-provider"],
+    ["POST", "/sso/delete-provider"],
+    ["GET", "/sso/providers"],
+    ["GET", "/sso/get-provider?providerId=keycloak"],
+    ["POST", "/sso/request-domain-verification"],
+    ["POST", "/sso/verify-domain"],
+  ])("answers %s %s with 404, even for an administrator", async (method, path) => {
+    for (const headers of [{ cookie: adminCookie }, {}]) {
+      const response = await auth.handler(
+        new Request(`${BASE}/api/auth${path}`, {
+          method,
+          headers: { ...headers, origin: BASE, "content-type": "application/json" },
+          ...(method === "POST"
+            ? { body: JSON.stringify({ providerId: "x", issuer: "https://x" }) }
+            : {}),
+        }),
+      );
+      expect(response.status).toBe(404);
+    }
+  });
+
+  it("refuses the management endpoints called on the server too (second lock)", async () => {
+    await expect(auth.api.listSSOProviders({ headers: new Headers() })).rejects.toThrow();
+  });
+
+  it("refuses a sign-in that asks the plugin to route by email or to widen the scopes", async () => {
+    for (const body of [
+      { email: "someone@example.test", callbackURL: "/login" },
+      { providerId: "keycloak", scopes: ["offline_access"], callbackURL: "/login" },
+      { domain: "example.test", callbackURL: "/login" },
+    ]) {
+      const response = await auth.handler(
+        new Request(`${BASE}/api/auth/sign-in/sso`, {
+          method: "POST",
+          headers: { origin: BASE, "content-type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      );
+      expect(response.status).toBe(400);
+    }
+  });
+
+  it("refuses a sign-in through an unknown provider as disabled", async () => {
+    const response = await auth.handler(
+      new Request(`${BASE}/api/auth/sign-in/sso`, {
+        method: "POST",
+        headers: { origin: BASE, "content-type": "application/json" },
+        body: JSON.stringify({ providerId: "nowhere", callbackURL: "/login" }),
+      }),
+    );
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "provider_disabled" });
+  });
+
+  it("sends the identity provider's logout back to the sign-in page", () => {
+    expect(POST_LOGOUT_PATH).toBe("/login");
   });
 });

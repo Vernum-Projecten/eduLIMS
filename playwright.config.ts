@@ -28,13 +28,11 @@ const appEnv = {
   E2E_BASE_DATABASE_URL: baseDatabaseUrl,
   BETTER_AUTH_SECRET: "e2e-only-secret-not-for-production-use-0123456789",
   BETTER_AUTH_URL: baseURL,
-  MICROSOFT_CLIENT_ID: "00000000-0000-0000-0000-000000000001",
-  MICROSOFT_CLIENT_SECRET: "e2e-dummy",
-  MICROSOFT_TENANT_ID: "00000000-0000-0000-0000-000000000002",
-  // Unreachable on purpose: the button renders; discovery is never needed by the tests.
-  KEYCLOAK_ISSUER: "http://127.0.0.1:9/realms/edulims",
-  KEYCLOAK_CLIENT_ID: "edulims-e2e",
-  KEYCLOAK_CLIENT_SECRET: "e2e-dummy",
+  // A public e2e-only key: 32 bytes, base64. `pnpm db:seed` registers the dev Keycloak with it
+  // when Keycloak runs (pnpm dev:db); without it the providers are skipped (CI).
+  EDULIMS_DATA_KEY: "ZWR1bGltcy1lMmUtZGF0YS1rZXktMDEyMzQ1Njc4OTA=",
+  EDULIMS_IDP_PRIVATE_ORIGINS:
+    process.env["EDULIMS_E2E_KEYCLOAK_ORIGIN"] ?? "http://localhost:8180",
   FERROEHR_BASE_URL: "http://localhost:4001",
   FERROBRIDGE_BASE_URL: "http://localhost:4002",
   EDULIMS_DEV_LOGIN: "true",
@@ -51,7 +49,9 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   globalTeardown: "./tests/e2e/global-teardown.ts",
   webServer: {
-    command: "node src/server/db/test-run-database-cli.ts create && pnpm db:reset && pnpm start",
+    // tests/e2e/seed-providers.ts stores the dev Keycloak providers when no Keycloak runs (CI).
+    command:
+      "node src/server/db/test-run-database-cli.ts create && pnpm db:reset && node tests/e2e/seed-providers.ts && pnpm start",
     url: `${baseURL}/api/ready`,
     env: appEnv,
     reuseExistingServer: false,

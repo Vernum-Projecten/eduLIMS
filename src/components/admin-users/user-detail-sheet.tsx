@@ -7,6 +7,7 @@ import { LockOpenIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ConfirmButton, useUsersMutation } from "@/components/admin-users/admin-action";
 import { BlockUserDialog } from "@/components/admin-users/block-user-dialog";
+import { useProviderLabels } from "@/components/admin-users/provider-labels";
 import { RoleBadges, RoleSourceText, StatusBadge } from "@/components/admin-users/user-badges";
 import { UserRolesEditor } from "@/components/admin-users/user-roles-editor";
 import { UserSessions } from "@/components/admin-users/user-sessions";
@@ -23,6 +24,7 @@ import {
   auditActorLabel,
   auditOutcomeLabel,
   languageLabel,
+  type ProviderLabels,
   roleSourceLabel,
   signInMethodLabel,
 } from "@/lib/i18n/user-labels";
@@ -62,10 +64,10 @@ function Detail({ term, children }: Readonly<{ term: string; children: ReactNode
   );
 }
 
-function rolesExplanation(user: UserDetail): string {
+function rolesExplanation(user: UserDetail, labels: ProviderLabels): string {
   if (user.self) return m.admin_users_roles_own();
   if (user.rolesEditable) return m.admin_users_roles_local_help();
-  return m.admin_users_roles_idp_help({ source: roleSourceLabel(user.roleSource) });
+  return m.admin_users_roles_idp_help({ source: roleSourceLabel(user.roleSource, labels) });
 }
 
 /**
@@ -76,6 +78,7 @@ export function UserDetailContent({
   user,
   updating = false,
 }: Readonly<{ user: UserDetail; updating?: boolean }>) {
+  const labels = useProviderLabels();
   const queryClient = useQueryClient();
   const callUnblock = useServerFn(unblockAdminUser);
   const unblock = useUsersMutation(unblockUserMutationOptions(queryClient, callUnblock), () =>
@@ -121,7 +124,7 @@ export function UserDetailContent({
                   {user.lastSignInMethod && (
                     <span className="block text-muted-foreground">
                       {m.admin_users_last_method({
-                        method: signInMethodLabel(user.lastSignInMethod),
+                        method: signInMethodLabel(user.lastSignInMethod, labels),
                       })}
                     </span>
                   )}
@@ -143,7 +146,7 @@ export function UserDetailContent({
           <RoleBadges roles={user.roles} source={user.roleSource} />
           <div className="flex flex-col gap-1 text-muted-foreground">
             <RoleSourceText source={user.roleSource} />
-            <p>{rolesExplanation(user)}</p>
+            <p>{rolesExplanation(user, labels)}</p>
           </div>
           {user.rolesEditable && (
             <UserRolesEditor key={user.id} userId={user.id} name={user.name} roles={user.roles} />
@@ -205,7 +208,7 @@ export function UserDetailContent({
                 <li key={account.id}>
                   <span className="font-medium">
                     {account.provider
-                      ? signInMethodLabel(account.provider)
+                      ? signInMethodLabel(account.provider, labels)
                       : m.role_source_unknown()}
                   </span>{" "}
                   <code className="text-muted-foreground">{account.accountIdShort}</code>{" "}

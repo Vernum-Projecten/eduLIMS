@@ -14,13 +14,15 @@ test("home page renders with landmarks and a skip link", async ({ page }) => {
   await expectNoA11yViolations(page);
 });
 
-test("login page offers each configured identity provider without WCAG A/AA violations", async ({
+test("login page offers each enabled identity provider without WCAG A/AA violations", async ({
   page,
 }) => {
   await page.goto("/login");
   await expect(page).toHaveTitle("Sign in | eduLIMS");
-  await expect(page.getByRole("button", { name: "Sign in with Microsoft" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign in with Keycloak" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Sign in with Keycloak", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in with Keycloak (SAML)" })).toBeVisible();
   await expectNoA11yViolations(page);
 });
 

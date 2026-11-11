@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// Hybrid role ownership (owner decision on #32, B1, ADR 0010): which role set an OIDC sign-in
+// Hybrid role ownership (owner decision on #32, B1, ADR 0015): which role set an SSO sign-in
 // gets. Pure: no I/O. Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import { NO_ROLE_ERROR, ROLE_CONFLICT_ERROR } from "../lib/identity-providers.ts";
 import { isLocallyEditable, type RoleSource } from "../lib/role-source.ts";
@@ -12,6 +12,8 @@ import type { IdpRoles } from "./idp-roles.ts";
 export interface StoredRoles {
   role: unknown;
   roleSource: RoleSource | null;
+  /** Whether the stored email is verified; the sign-in gate keeps it in step with the provider. */
+  emailVerified?: boolean;
 }
 
 /** The outcome of {@link decideSignInRoles}. */
@@ -20,12 +22,12 @@ export type SignInRoles =
   | { kind: "idp"; roles: Role[] }
   /** The identity provider sent none: the roles an administrator assigned apply. */
   | { kind: "local"; roles: Role[] }
-  /** Neither: the operator's `OIDC_DEFAULT_ROLE`, stored as a local set. */
+  /** Neither: the provider's default role (or a pending admin grant), stored as a local set. */
   | { kind: "default"; roles: Role[] }
   | { kind: "refused"; reason: typeof NO_ROLE_ERROR | typeof ROLE_CONFLICT_ERROR };
 
 /**
- * Decides the role set of an OIDC sign-in.
+ * Decides the role set of an SSO sign-in (OIDC or SAML).
  *
  * `idp` is the IdP claims resolved without the default role. A mapped role wins and replaces
  * the stored set; a conflicting set is refused. Without a mapped role, an allowed stored set

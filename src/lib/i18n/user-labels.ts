@@ -5,41 +5,23 @@
 // statuses, activity-log codes and the refusals of the admin actions.
 import { m } from "@/i18n/messages";
 import { getLocale } from "@/i18n/runtime";
-import type { RoleSource } from "@/lib/role-source";
-import type { SignInMethod } from "@/lib/sign-in-method";
+import { LOCAL_ROLE_SOURCE, type RoleSource } from "@/lib/role-source";
+import { CREDENTIAL_SIGN_IN, type SignInMethod } from "@/lib/sign-in-method";
 
-/** Returns where a role set comes from: Microsoft Entra ID, Keycloak, or eduLIMS itself. */
-export function roleSourceLabel(source: RoleSource | null): string {
-  switch (source) {
-    case "microsoft":
-      return m.sign_in_method_microsoft();
-    case "keycloak":
-      return m.sign_in_method_keycloak();
-    case "local":
-      return m.role_source_local();
-    case null:
-      return m.role_source_unknown();
-    default: {
-      const unknown: never = source;
-      return unknown;
-    }
-  }
+/** Provider ids with their display names, as the Users screen's server functions return them. */
+export type ProviderLabels = Readonly<Record<string, string>>;
+
+/** Returns where a role set comes from: an identity provider's label, or eduLIMS itself. */
+export function roleSourceLabel(source: RoleSource | null, labels: ProviderLabels = {}): string {
+  if (source === null) return m.role_source_unknown();
+  if (source === LOCAL_ROLE_SOURCE) return m.role_source_local();
+  return labels[source] ?? source;
 }
 
-/** Returns the name of a sign-in method. */
-export function signInMethodLabel(method: SignInMethod): string {
-  switch (method) {
-    case "microsoft":
-      return m.sign_in_method_microsoft();
-    case "keycloak":
-      return m.sign_in_method_keycloak();
-    case "credential":
-      return m.sign_in_method_credential();
-    default: {
-      const unknown: never = method;
-      return unknown;
-    }
-  }
+/** Returns the name of a sign-in method: an identity provider's label, or the test account. */
+export function signInMethodLabel(method: SignInMethod, labels: ProviderLabels = {}): string {
+  if (method === CREDENTIAL_SIGN_IN) return m.sign_in_method_credential();
+  return labels[method] ?? method;
 }
 
 /** The user statuses the table shows. */
@@ -72,6 +54,17 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   user_deleted: m.audit_action_user_deleted,
   user_banned: m.audit_action_user_banned,
   user_unbanned: m.audit_action_user_unbanned,
+  idp_created: m.audit_action_idp_created,
+  idp_updated: m.audit_action_idp_updated,
+  idp_enabled: m.audit_action_idp_enabled,
+  idp_disabled: m.audit_action_idp_disabled,
+  idp_deleted: m.audit_action_idp_deleted,
+  idp_secret_rotated: m.audit_action_idp_secret_rotated,
+  idp_metadata_refreshed: m.audit_action_idp_metadata_refreshed,
+  idp_tested: m.audit_action_idp_tested,
+  admin_grant_created: m.audit_action_admin_grant_created,
+  admin_grant_applied: m.audit_action_admin_grant_applied,
+  admin_grant_revoked: m.audit_action_admin_grant_revoked,
 };
 
 /** Returns the name of an activity-log action; an action the screen does not know is "Other". */

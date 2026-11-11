@@ -3,19 +3,55 @@
 
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NO_ROLE_ERROR, ROLE_CONFLICT_ERROR } from "../lib/identity-providers.ts";
+import {
+  NO_ROLE_ERROR,
+  PROVIDER_DISABLED_ERROR,
+  providerIdOf,
+  ROLE_CONFLICT_ERROR,
+} from "../lib/identity-providers.ts";
+import type { Role } from "../lib/roles.ts";
 import { AuditRecorder } from "./audit/better-auth-hooks.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
+import type { ProviderSettingsView } from "./idp/registry.ts";
 import { parseRoleMap } from "./idp-roles.ts";
-import { createIdpRoleSync } from "./idp-sync.ts";
+import { createIdpRoleSync, type IdpRoleSyncOptions } from "./idp-sync.ts";
 
 type Sync = ReturnType<typeof createIdpRoleSync>;
 type Data = Parameters<Sync>[0];
 type Ctx = Parameters<Sync>[1];
 
 const roleMap = parseRoleMap("edulims-student:student,edulims-teacher:teacher,edulims-admin:admin");
-const claimPaths = { microsoft: "roles", keycloak: "realm_access.roles" };
+
+/** The providers the gate knows: an Entra-style and a Keycloak OIDC provider, and SAML. */
+function provider(
+  id: string,
+  protocol: "oidc" | "saml",
+  roleClaim: string,
+  extra: Partial<ProviderSettingsView> = {},
+): ProviderSettingsView {
+  return {
+    providerId: providerIdOf(id),
+    protocol,
+    enabled: true,
+    roleClaim,
+    roleMap,
+    defaultRole: undefined,
+    emailAuthoritative: false,
+    endSessionEndpoint: null,
+    ...extra,
+  };
+}
+
+function providersWith(defaultRole?: Role): IdpRoleSyncOptions["settingsOf"] {
+  const known = [
+    provider("microsoft", "oidc", "roles", { defaultRole }),
+    provider("keycloak", "oidc", "realm_access.roles", { defaultRole }),
+    provider("keycloak-saml", "saml", "Role", { defaultRole }),
+    provider("disabled", "oidc", "roles", { enabled: false }),
+  ];
+  return async (id) => known.find((candidate) => candidate.providerId === id) ?? null;
+}
 
 /** The stored role set per user id, as better-auth's adapter returns it. */
 type Stored = Readonly<Record<string, { role: string; roleSource: string }>>;
@@ -27,7 +63,7 @@ function setup(defaultRole?: "student", stored: Stored = {}) {
   const ctx = {
     context: { internalAdapter: { updateUser, deleteUserSessions, findUserById } },
   } as unknown as Ctx;
-  const sync = createIdpRoleSync({ claimPaths, roleMap, defaultRole });
+  const sync = createIdpRoleSync({ settingsOf: providersWith(defaultRole) });
   return { sync, ctx, updateUser, deleteUserSessions };
 }
 
@@ -37,7 +73,8 @@ function oauth(
   profile: Record<string, unknown>,
   user: Data["user"] = { email: "u@example.test" },
 ): Data {
-  return { user, source: { action, method: "oauth", oauth: { providerId, profile } } };
+  const method = providerId === "keycloak-saml" ? "sso-saml" : "sso-oidc";
+  return { user, source: { action, method, sso: { providerId, profile } } };
 }
 
 describe("createIdpRoleSync", () => {
@@ -61,7 +98,12 @@ describe("createIdpRoleSync", () => {
       },
     );
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(updateUser).toHaveBeenCalledWith("u1", { role: "student", roleSource: "keycloak" });
+    // With no stored row to compare, the provider's email setting is written too (#46).
+    expect(updateUser).toHaveBeenCalledWith("u1", {
+      role: "student",
+      roleSource: "keycloak",
+      emailVerified: false,
+    });
   });
 
   it("rejects a sign-in without a mapped role", async () => {
@@ -103,11 +145,55 @@ describe("createIdpRoleSync", () => {
     expect(deleteUserSessions).not.toHaveBeenCalled();
   });
 
-  it("rejects providers without a configured claim path", async () => {
+  it("refuses a provider eduLIMS does not know as disabled, whatever its default role", async () => {
     const { sync, ctx } = setup("student");
     expect(await sync(oauth("create-user", "github", {}), ctx)).toMatchObject({
-      error: NO_ROLE_ERROR,
+      error: PROVIDER_DISABLED_ERROR,
     });
+  });
+
+  it("refuses a disabled provider (#46)", async () => {
+    const { sync, ctx } = setup();
+    const data = oauth("create-user", "disabled", { roles: ["edulims-teacher"] });
+    expect(await sync(data, ctx)).toMatchObject({ error: PROVIDER_DISABLED_ERROR });
+    expect(data.user["role"]).toBeUndefined();
+  });
+
+  it("reads a SAML role attribute by its exact name, multi-valued (sso-saml)", async () => {
+    const { sync, ctx } = setup();
+    const data = oauth("create-user", "keycloak-saml", {
+      Role: ["edulims-teacher", "edulims-admin", "offline_access"],
+    });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(data.user["role"]).toBe("teacher,admin");
+    expect(data.user["roleSource"]).toBe("keycloak-saml");
+  });
+
+  it("reads a single-valued SAML role attribute", async () => {
+    const { sync, ctx } = setup();
+    const data = oauth("create-user", "keycloak-saml", { Role: "edulims-student" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(data.user["role"]).toBe("student");
+  });
+
+  it("never reads a SAML attribute by dot path", async () => {
+    const { sync, ctx } = setup();
+    const data = oauth("create-user", "keycloak-saml", { Role: { x: "edulims-admin" } });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+  });
+
+  it("ignores `oauth` sign-ins: every provider is an SSO provider (ADR 0015)", async () => {
+    const { sync, ctx } = setup("student");
+    const data: Data = {
+      user: { email: "o@example.test" },
+      source: {
+        action: "create-user",
+        method: "oauth",
+        oauth: { providerId: "keycloak", profile: { realm_access: { roles: ["edulims-admin"] } } },
+      },
+    };
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(data.user["role"]).toBeUndefined();
   });
 
   it("uses the opt-in default role when nothing is mapped", async () => {
@@ -193,6 +279,84 @@ describe("createIdpRoleSync", () => {
   });
 });
 
+describe("first start, email trust and the test sign-in (#46, #48)", () => {
+  function authoritative(extra: Partial<IdpRoleSyncOptions> = {}) {
+    const updateUser = vi.fn(async () => null);
+    const ctx = {
+      context: {
+        internalAdapter: {
+          updateUser,
+          deleteUserSessions: vi.fn(async () => undefined),
+          findUserById: vi.fn(async () => ({
+            role: "teacher",
+            roleSource: "local",
+            emailVerified: false,
+          })),
+        },
+      },
+    } as unknown as Ctx;
+    const settings = provider("entra", "oidc", "roles", { emailAuthoritative: true });
+    const sync = createIdpRoleSync({ settingsOf: async () => settings, ...extra });
+    return { sync, ctx, updateUser };
+  }
+
+  it("applies a pending admin grant to a new user of an authoritative provider", async () => {
+    const consumeAdminGrant = vi.fn(async () => true);
+    const { sync, ctx } = authoritative({ consumeAdminGrant });
+    const data = oauth("create-user", "entra", { roles: [] }, { email: "first@example.test" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(consumeAdminGrant).toHaveBeenCalledWith("first@example.test", "entra");
+    expect(data.user["role"]).toBe("admin");
+    expect(data.user["roleSource"]).toBe("local");
+    expect(data.user.emailVerified).toBe(true);
+  });
+
+  it("refuses with no_edulims_role when no grant is waiting", async () => {
+    const { sync, ctx } = authoritative({ consumeAdminGrant: async () => false });
+    const data = oauth("create-user", "entra", {}, { email: "x@example.test" });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+  });
+
+  it("never consumes a grant through a provider whose email is not authoritative", async () => {
+    const consumeAdminGrant = vi.fn(async () => true);
+    const { ctx } = setup();
+    const gated = createIdpRoleSync({ settingsOf: providersWith(), consumeAdminGrant });
+    const data = oauth("create-user", "microsoft", {}, { email: "x@example.test" });
+    expect(await gated(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(consumeAdminGrant).not.toHaveBeenCalled();
+  });
+
+  it("marks the email verified on a sign-in of an authoritative provider", async () => {
+    const { sync, ctx, updateUser } = authoritative();
+    const data = oauth("sign-in", "entra", {}, { id: "u1", email: "u@example.test" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(updateUser).toHaveBeenCalledWith("u1", { emailVerified: true });
+  });
+
+  it("records a test sign-in's claim names and outcome, then refuses it, even when disabled", async () => {
+    const recordTest = vi.fn(async () => undefined);
+    const settings = provider("entra", "oidc", "roles", { enabled: false });
+    const sync = createIdpRoleSync({
+      settingsOf: async () => settings,
+      testOf: async () => "t".repeat(32),
+      recordTest,
+    });
+    const { ctx } = setup();
+    const data = oauth("create-user", "entra", {
+      sub: "s",
+      roles: ["edulims-teacher"],
+      email: "e",
+    });
+    expect(await sync(data, ctx)).toMatchObject({ error: "idp_test_complete" });
+    expect(recordTest).toHaveBeenCalledWith("t".repeat(32), {
+      outcome: "idp",
+      roles: ["teacher"],
+      claimNames: ["email", "roles", "sub"],
+    });
+    expect(data.user["role"]).toBeUndefined();
+  });
+});
+
 describe("hybrid role ownership (owner decision on #32, B1)", () => {
   it("keeps the local roles of an existing user when the IdP sends none", async () => {
     const { sync, ctx, updateUser, deleteUserSessions } = setup(undefined, {
@@ -273,7 +437,7 @@ describe("the activity log of the IdP role sync (B4)", () => {
       },
       headers: new Headers({ "x-request-id": "req-idp" }),
     } as unknown as Ctx;
-    const sync = createIdpRoleSync({ claimPaths, roleMap });
+    const sync = createIdpRoleSync({ settingsOf: providersWith() });
     const rows = () =>
       database
         .selectFrom("audit_event")

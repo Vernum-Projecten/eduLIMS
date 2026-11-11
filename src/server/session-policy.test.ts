@@ -1,10 +1,8 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// Session lifetimes (#42, ASVS V7.3.1, V7.3.2) against better-auth and the real database.
 import { type Kysely, sql } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
-import { createAuth } from "./auth.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
 import { parseEnv } from "./env.ts";
@@ -15,6 +13,8 @@ import {
   SESSION_EXPIRES_IN_SECONDS,
   SESSION_UPDATE_AGE_SECONDS,
 } from "./session-policy.ts";
+// Session lifetimes (#42, ASVS V7.3.1, V7.3.2) against better-auth and the real database.
+import { createTestAuth } from "./test-auth.ts";
 import { VALID_ENV } from "./test-env.ts";
 
 const PASSWORD = "correct-horse-battery";
@@ -29,7 +29,7 @@ afterEach(async () => {
 /** Signs a dev user in and returns the auth instance, the database and the session cookie. */
 async function signedIn() {
   db = await createTestDb();
-  const auth = createAuth(parseEnv(VALID_ENV), { db, type: "postgres" });
+  const auth = await createTestAuth(parseEnv(VALID_ENV), { db, type: "postgres" });
   await auth.api.createUser({
     body: {
       email: "teacher@example.test",

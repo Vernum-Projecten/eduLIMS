@@ -3,6 +3,7 @@
 
 import { Link } from "@tanstack/react-router";
 import { useContext } from "react";
+import { useProviderLabels } from "@/components/admin-users/provider-labels";
 import { RoleBadges, StatusBadge } from "@/components/admin-users/user-badges";
 import { UserRowActions } from "@/components/admin-users/user-row-actions";
 import { UsersTableContext } from "@/components/admin-users/users-table-context";
@@ -12,6 +13,7 @@ import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { m } from "@/i18n/messages";
 import { formatDateTime, formatNumber, formatRelativeTime } from "@/lib/i18n/format";
 import { signInMethodLabel } from "@/lib/i18n/user-labels";
+import type { SignInMethod } from "@/lib/sign-in-method";
 import type { UserRow } from "@/server/users/queries";
 
 /** The id of a user's name link, where focus returns when the detail sheet closes. */
@@ -75,11 +77,7 @@ export const usersColumns = helper.columns([
       row.original.providers.length === 0 ? (
         <span className="text-muted-foreground">{m.admin_users_none()}</span>
       ) : (
-        <ul className="whitespace-nowrap">
-          {row.original.providers.map((provider) => (
-            <li key={provider}>{signInMethodLabel(provider)}</li>
-          ))}
-        </ul>
+        <ProviderList providers={row.original.providers} />
       ),
   }),
   helper.accessor("status", {
@@ -116,3 +114,15 @@ export const usersColumns = helper.columns([
     cell: ({ row }) => <UserRowActions user={row.original} />,
   }),
 ]);
+
+/** The sign-in methods of a user, by the providers' names. */
+function ProviderList({ providers }: Readonly<{ providers: readonly SignInMethod[] }>) {
+  const labels = useProviderLabels();
+  return (
+    <ul className="whitespace-nowrap">
+      {providers.map((provider) => (
+        <li key={provider}>{signInMethodLabel(provider, labels)}</li>
+      ))}
+    </ul>
+  );
+}

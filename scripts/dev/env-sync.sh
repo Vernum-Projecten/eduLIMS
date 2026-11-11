@@ -8,7 +8,8 @@
 #   * a value already in the env file is never changed;
 #   * a variable the project no longer reads (OBSOLETE below) is commented out
 #     with a note, never deleted;
-#   * an empty BETTER_AUTH_SECRET gets a fresh random one (openssl rand -hex 32);
+#   * an empty BETTER_AUTH_SECRET gets a fresh random one (openssl rand -hex 32),
+#     and an empty EDULIMS_DATA_KEY one too (openssl rand -base64 32);
 #   * a missing env file is created from the example first.
 # It prints variable names only.
 #
@@ -22,6 +23,16 @@ set -euo pipefail
 # Variables the project no longer reads from the env file, with the reason.
 OBSOLETE=(
   "NODE_ENV|pnpm dev and pnpm build set it; in this file it breaks pnpm build (#19)"
+  "MICROSOFT_CLIENT_ID|identity providers live in the database now: Admin > System > Identity providers (#46)"
+  "MICROSOFT_CLIENT_SECRET|identity providers live in the database now; the secret is sealed there (#46)"
+  "MICROSOFT_TENANT_ID|identity providers live in the database now: Entra ID is an OIDC provider (#46)"
+  "KEYCLOAK_ISSUER|identity providers live in the database now; pnpm db:seed registers the dev Keycloak (#46)"
+  "KEYCLOAK_CLIENT_ID|identity providers live in the database now; pnpm db:seed registers the dev Keycloak (#46)"
+  "KEYCLOAK_CLIENT_SECRET|identity providers live in the database now; the secret is sealed there (#46)"
+  "KEYCLOAK_LABEL|the button label is set per provider in Admin > System > Identity providers (#46)"
+  "OIDC_ROLE_CLAIM|the role claim is set per provider in Admin > System > Identity providers (#46)"
+  "OIDC_ROLE_MAP|the role map is set per provider in Admin > System > Identity providers (#46)"
+  "OIDC_DEFAULT_ROLE|the default role is set per provider in Admin > System > Identity providers (#46)"
 )
 
 usage() {
@@ -31,6 +42,15 @@ usage() {
 # Prints the variable names a file assigns on uncommented lines.
 assigned() {
   sed -n -E 's/^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)=.*/\2/p' "$1"
+}
+
+# Sets an empty NAME= line of FILE to VALUE, without printing the value.
+fill() {
+  local file=$1 name=$2 value=$3 tmp
+  tmp=$(mktemp)
+  awk -v n="$name" -v v="$value" '$0 ~ "^[[:space:]]*" n "=[[:space:]]*$" { print n "=" v; next } { print }' "$file" > "$tmp"
+  cat "$tmp" > "$file"
+  rm -f "$tmp"
 }
 
 sync() {
@@ -74,21 +94,21 @@ sync() {
     fi
   done
 
-  local secret_set=0
+  local secret_set=0 key_set=0
   if grep -qE '^[[:space:]]*BETTER_AUTH_SECRET=[[:space:]]*$' "$target"; then
-    local secret
-    secret=$(openssl rand -hex 32)
-    tmp=$(mktemp)
-    awk -v s="$secret" '/^[[:space:]]*BETTER_AUTH_SECRET=[[:space:]]*$/ { print "BETTER_AUTH_SECRET=" s; next } { print }' "$target" > "$tmp"
-    cat "$tmp" > "$target"
-    rm -f "$tmp"
+    fill "$target" BETTER_AUTH_SECRET "$(openssl rand -hex 32)"
     secret_set=1
+  fi
+  if grep -qE '^[[:space:]]*EDULIMS_DATA_KEY=[[:space:]]*$' "$target"; then
+    fill "$target" EDULIMS_DATA_KEY "$(openssl rand -base64 32)"
+    key_set=1
   fi
 
   if [[ ${#added[@]} -gt 0 ]]; then echo "env-sync: added ${added[*]}"; fi
   if [[ ${#obsolete[@]} -gt 0 ]]; then echo "env-sync: commented out obsolete ${obsolete[*]}"; fi
   if [[ $secret_set -eq 1 ]]; then echo "env-sync: generated BETTER_AUTH_SECRET"; fi
-  if [[ ${#added[@]} -eq 0 && ${#obsolete[@]} -eq 0 && $secret_set -eq 0 ]]; then
+  if [[ $key_set -eq 1 ]]; then echo "env-sync: generated EDULIMS_DATA_KEY"; fi
+  if [[ ${#added[@]} -eq 0 && ${#obsolete[@]} -eq 0 && $secret_set -eq 0 && $key_set -eq 0 ]]; then
     echo "env-sync: already up to date"
   fi
 }
@@ -97,7 +117,7 @@ self_test() {
   local work
   work=$(mktemp -d)
   trap 'rm -rf "$work"' RETURN
-  printf 'A=1\nBETTER_AUTH_SECRET=\n# C=commented\nB=two\nNODE_ENV=development\n' > "$work/example"
+  printf 'A=1\nBETTER_AUTH_SECRET=\nEDULIMS_DATA_KEY=\n# C=commented\nB=two\nNODE_ENV=development\n' > "$work/example"
   printf 'A=mine\nNODE_ENV=development\nBETTER_AUTH_SECRET=keep\n' > "$work/target"
 
   sync "$work/target" "$work/example" > "$work/out"
@@ -113,6 +133,7 @@ self_test() {
   rm -f "$work/target"
   sync "$work/target" "$work/example" > /dev/null
   grep -qE '^BETTER_AUTH_SECRET=[0-9a-f]{64}$' "$work/target" || { echo "self-test: no secret generated for a new file" >&2; return 1; }
+  grep -qE '^EDULIMS_DATA_KEY=[A-Za-z0-9+/]{43}=$' "$work/target" || { echo "self-test: no data key generated for a new file" >&2; return 1; }
   [[ "$(stat -c %a "$work/target" 2>/dev/null || stat -f %Lp "$work/target")" == 600 ]] || { echo "self-test: new file is not mode 600" >&2; return 1; }
   echo "env-sync: self-test passed"
 }

@@ -18,17 +18,17 @@ function field(value: unknown, key: string): unknown {
 }
 
 /**
- * Returns the sign-in method of a better-auth endpoint context: the provider of an OAuth
- * callback (Entra ID's `/callback/:id`, Keycloak's `/oauth2/callback/:providerId`), `credential`
- * for the development login, else `null`.
+ * Returns the sign-in method of a better-auth endpoint context: the provider of an SSO callback
+ * (`/sso/callback/:providerId`, `/sso/saml2/sp/acs/:providerId`), `credential` for the
+ * development login, else `null`.
  */
 export function signInMethodOf(ctx: unknown): string | null {
   const path = field(ctx, "path");
   const params = field(ctx, "params");
   if (path === "/sign-in/email") return "credential";
-  if (path === "/callback/:id") return parseSignInMethod(field(params, "id"));
-  if (path === "/oauth2/callback/:providerId")
+  if (path === "/sso/callback/:providerId" || path === "/sso/saml2/sp/acs/:providerId") {
     return parseSignInMethod(field(params, "providerId"));
+  }
   return null;
 }
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
+import { providerIdOf } from "@/lib/identity-providers";
 import { ADMIN_ACTION_ERRORS } from "@/server/users/actions";
 import {
   adminActionErrorMessage,
@@ -16,13 +17,19 @@ import {
 
 describe("user labels (#34)", () => {
   it("names every role source and sign-in method", () => {
-    expect(roleSourceLabel("microsoft")).toBe("Microsoft Entra ID");
-    expect(roleSourceLabel("keycloak")).toBe("Keycloak");
-    expect(roleSourceLabel("local")).toBe("eduLIMS");
+    const labels = { entra: "Microsoft Entra ID", keycloak: "Keycloak" };
+    const entra = providerIdOf("entra");
+    expect(roleSourceLabel(entra, labels)).toBe("Microsoft Entra ID");
+    expect(roleSourceLabel(providerIdOf("keycloak"), labels)).toBe("Keycloak");
+    expect(roleSourceLabel("local", labels)).toBe("eduLIMS");
     expect(roleSourceLabel(null)).toBe("Unknown");
     expect(signInMethodLabel("credential")).toBe("Test account");
-    expect(signInMethodLabel("microsoft")).toBe("Microsoft Entra ID");
-    expect(signInMethodLabel("keycloak")).toBe("Keycloak");
+    expect(signInMethodLabel(entra, labels)).toBe("Microsoft Entra ID");
+  });
+
+  it("names a provider without a label (a deleted one) by its id", () => {
+    expect(roleSourceLabel(providerIdOf("gone"))).toBe("gone");
+    expect(signInMethodLabel(providerIdOf("gone"))).toBe("gone");
   });
 
   it("names every status", () => {

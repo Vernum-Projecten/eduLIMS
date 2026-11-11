@@ -6,6 +6,8 @@
 // is an id or a code: the schema has no place for a name, an e-mail address, an IP address, a
 // token, a request body or a grade. Relative imports: `pnpm db:seed` loads this in plain Node.
 import { z } from "zod";
+import { PROVIDER_ID_PATTERN, PROVIDER_PROTOCOLS } from "../../lib/identity-providers.ts";
+import { parseSignInMethod, type SignInMethod } from "../../lib/sign-in-method.ts";
 
 /** Actions better-auth's sign-in, session and admin flows record. */
 export const AUTH_AUDIT_ACTIONS = [
@@ -33,6 +35,17 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "upload_complete",
   "upload_validation_fail",
   "upload_delete",
+  "idp_created",
+  "idp_updated",
+  "idp_enabled",
+  "idp_disabled",
+  "idp_deleted",
+  "idp_secret_rotated",
+  "idp_metadata_refreshed",
+  "idp_tested",
+  "admin_grant_created",
+  "admin_grant_applied",
+  "admin_grant_revoked",
 ] as const;
 
 /** Every action the activity log accepts. */
@@ -40,7 +53,15 @@ export const AUDIT_ACTIONS = [...AUTH_AUDIT_ACTIONS, ...EDULIMS_AUDIT_ACTIONS] a
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 /** The kinds of object an event can be about. */
-export const AUDIT_TARGET_TYPES = ["user", "session", "class", "invitation", "upload"] as const;
+export const AUDIT_TARGET_TYPES = [
+  "user",
+  "session",
+  "class",
+  "invitation",
+  "upload",
+  "identity_provider",
+  "admin_grant",
+] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
 /** The target type each action is about. */
@@ -52,7 +73,11 @@ export type AuditTargetOf<A extends AuditAction> = A extends `session_${string}`
       ? "invitation"
       : A extends `upload_${string}`
         ? "upload"
-        : "user";
+        : A extends `idp_${string}`
+          ? "identity_provider"
+          : A extends `admin_grant_${string}`
+            ? "admin_grant"
+            : "user";
 
 /** Returns the target type an action is about (the runtime form of {@link AuditTargetOf}). */
 export function targetTypeOf(action: AuditAction): AuditTargetType {
@@ -60,6 +85,8 @@ export function targetTypeOf(action: AuditAction): AuditTargetType {
   if (action.startsWith("class_")) return "class";
   if (action.startsWith("invitation_")) return "invitation";
   if (action.startsWith("upload_")) return "upload";
+  if (action.startsWith("idp_")) return "identity_provider";
+  if (action.startsWith("admin_grant_")) return "admin_grant";
   return "user";
 }
 
@@ -67,13 +94,12 @@ export const AUDIT_OUTCOMES = ["success", "failure", "refused"] as const;
 /** `refused`: an access decision said no; `failure`: the action went wrong. */
 export type AuditOutcome = (typeof AUDIT_OUTCOMES)[number];
 
-export const AUDIT_PROVIDERS = ["microsoft", "keycloak", "credential"] as const;
-/** How a user signed in: Entra ID, Keycloak, or the development login. */
-export type AuditProvider = (typeof AUDIT_PROVIDERS)[number];
+/** How a user signed in: an identity provider (its provider id), or the development login. */
+export type AuditProvider = SignInMethod;
 
 /** Returns `value` when it names an {@link AuditProvider}, else `undefined`. */
 export function auditProvider(value: unknown): AuditProvider | undefined {
-  return AUDIT_PROVIDERS.find((provider) => provider === value);
+  return parseSignInMethod(value) ?? undefined;
 }
 
 /** Who acted: a signed-in user, eduLIMS itself, or someone not signed in. */
@@ -89,6 +115,19 @@ export const auditMetadataSchema = z.strictObject({
   roles: z.string().regex(ROLE_SET).optional(),
   previous_roles: z.string().regex(ROLE_SET).optional(),
   ban_expires_at: z.iso.datetime({ offset: true }).optional(),
+  /** The identity provider an `idp_*` or `admin_grant_*` event is about. */
+  provider_id: z.string().regex(PROVIDER_ID_PATTERN).optional(),
+  protocol: z.enum(PROVIDER_PROTOCOLS).optional(),
+  /** The names of the settings an `idp_updated` changed: never their values. */
+  fields: z
+    .array(z.string().regex(/^[a-z][a-z_]{0,39}$/))
+    .max(40)
+    .optional(),
+  /** The outcome code of an `idp_tested` sign-in. */
+  test_outcome: z
+    .string()
+    .regex(/^[a-z_]{1,40}$/)
+    .optional(),
 });
 export type AuditMetadata = z.infer<typeof auditMetadataSchema>;
 
@@ -129,7 +168,10 @@ export const auditEventSchema = z
     outcome: z.enum(AUDIT_OUTCOMES),
     target: z.strictObject({ type: z.enum(AUDIT_TARGET_TYPES), id }).optional(),
     reason: z.string().regex(REASON_CODE).optional(),
-    provider: z.enum(AUDIT_PROVIDERS).optional(),
+    provider: z
+      .string()
+      .refine((value) => parseSignInMethod(value) !== null)
+      .optional(),
     requestId: z.string().regex(REQUEST_ID).optional(),
     occurredAt: z.date().optional(),
     metadata: auditMetadataSchema.optional(),

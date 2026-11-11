@@ -3,7 +3,6 @@
 
 import {
   BanIcon,
-  BuildingIcon,
   CircleCheckIcon,
   CircleDashedIcon,
   KeyRoundIcon,
@@ -11,19 +10,20 @@ import {
   ServerIcon,
   UserRoundIcon,
 } from "lucide-react";
+import { useProviderLabels } from "@/components/admin-users/provider-labels";
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/i18n/messages";
 import { formatDateTime } from "@/lib/i18n/format";
 import { roleLabel } from "@/lib/i18n/labels";
 import { roleSourceLabel, type UserStatusValue, userStatusLabel } from "@/lib/i18n/user-labels";
-import type { RoleSource } from "@/lib/role-source";
+import { LOCAL_ROLE_SOURCE, type RoleSource } from "@/lib/role-source";
 import type { Role } from "@/lib/roles";
 
-const SOURCE_ICONS: Record<RoleSource, LucideIcon> = {
-  local: ServerIcon,
-  microsoft: BuildingIcon,
-  keycloak: KeyRoundIcon,
-};
+/** The icon of a role source: eduLIMS itself, an identity provider, or unknown. */
+function sourceIcon(source: RoleSource | null): LucideIcon {
+  if (source === null) return UserRoundIcon;
+  return source === LOCAL_ROLE_SOURCE ? ServerIcon : KeyRoundIcon;
+}
 
 /**
  * The role badges of a user, each with the icon and the name of where the set comes from
@@ -33,15 +33,16 @@ export function RoleBadges({
   roles,
   source,
 }: Readonly<{ roles: readonly Role[]; source: RoleSource | null }>) {
+  const labels = useProviderLabels();
   if (roles.length === 0) {
     return <span className="text-muted-foreground">{m.admin_users_no_roles()}</span>;
   }
-  const Icon = source ? SOURCE_ICONS[source] : UserRoundIcon;
-  const from = m.admin_users_role_from({ source: roleSourceLabel(source) });
+  const Icon = sourceIcon(source);
+  const from = m.admin_users_role_from({ source: roleSourceLabel(source, labels) });
   return (
     <ul
       className="flex flex-wrap gap-1"
-      aria-label={m.admin_users_roles_list({ source: roleSourceLabel(source) })}
+      aria-label={m.admin_users_roles_list({ source: roleSourceLabel(source, labels) })}
     >
       {roles.map((role) => (
         <li key={role}>
@@ -57,11 +58,12 @@ export function RoleBadges({
 
 /** The role source as text with its icon, for the detail sheet. */
 export function RoleSourceText({ source }: Readonly<{ source: RoleSource | null }>) {
-  const Icon = source ? SOURCE_ICONS[source] : UserRoundIcon;
+  const labels = useProviderLabels();
+  const Icon = sourceIcon(source);
   return (
     <span className="inline-flex items-center gap-1.5">
       <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
-      {m.admin_users_role_from({ source: roleSourceLabel(source) })}
+      {m.admin_users_role_from({ source: roleSourceLabel(source, labels) })}
     </span>
   );
 }

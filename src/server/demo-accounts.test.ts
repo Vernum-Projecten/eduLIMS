@@ -2,12 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
+import { type IdentityProviderOption, providerIdOf } from "../lib/identity-providers.ts";
 import { validateRoleSet } from "../lib/roles.ts";
 import { DEV_PASSWORD, DEV_USERS, demoAccountsFor } from "./demo-accounts";
 
+function option(id: string): IdentityProviderOption {
+  return { id: providerIdOf(id), label: id, icon: "key-round", protocol: "oidc" };
+}
+
 describe("demoAccountsFor", () => {
   it("returns no demo data when the development login is off", () => {
-    expect(demoAccountsFor(false, [{ id: "keycloak" }, { id: "microsoft" }])).toBeNull();
+    expect(demoAccountsFor(false, [option("keycloak"), option("entra")])).toBeNull();
     expect(demoAccountsFor(false, [])).toBeNull();
   });
 
@@ -26,8 +31,8 @@ describe("demoAccountsFor", () => {
   });
 
   it("lists the Keycloak realm users only when Keycloak is configured", () => {
-    expect(demoAccountsFor(true, [{ id: "microsoft" }])?.keycloak).toBeNull();
-    const keycloak = demoAccountsFor(true, [{ id: "keycloak", label: "Campus" }])?.keycloak;
+    expect(demoAccountsFor(true, [option("entra")])?.keycloak).toBeNull();
+    const keycloak = demoAccountsFor(true, [option("keycloak-saml")])?.keycloak;
     expect(keycloak?.realm).toBe("edulims");
     expect(
       keycloak?.accounts.map((a) => [a.username, a.roles, a.grant ?? null, a.refusal ?? null]),

@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Reads real ID tokens from the development Keycloak (docker/keycloak/edulims-realm.json) and
-// feeds their claims through the role mapping eduLIMS runs on every sign-in (ADR 0010, 0012).
+// feeds their claims through the role mapping eduLIMS runs on every sign-in (ADR 0012, 0015);
+// tests/integration/sso-sign-in.test.ts signs the same users in for real.
 // The tokens come from the realm's test-only `edulims-test` client (password grant), never from
 // the app client. Skipped when that Keycloak or its test client is not reachable, as in CI;
 // EDULIMS_IT_KEYCLOAK_ISSUER points it at another realm URL than the dev stack's.
-import { beforeAll, describe, expect, it, vi } from "vitest";
-import { NO_ROLE_ERROR, ROLE_CONFLICT_ERROR } from "../../src/lib/identity-providers.ts";
+import { beforeAll, describe, expect, it } from "vitest";
 import { type IdpRoles, parseRoleMap, resolveIdpRoles } from "../../src/server/idp-roles.ts";
-import { createIdpRoleSync } from "../../src/server/idp-sync.ts";
 
 const ISSUER =
   process.env["EDULIMS_IT_KEYCLOAK_ISSUER"]?.trim() || "http://localhost:8180/realms/edulims";
 const CLIENT = { id: "edulims-test", secret: "edulims-test-secret" };
 
-/** The default role map of `.env.example` and the group-path alternative. */
+/** The role map `pnpm db:seed` gives the dev Keycloak, and the group-path alternative. */
 const ROLE_MAP = parseRoleMap(
   "edulims-student:student,edulims-teacher:teacher,edulims-admin:admin",
 );
@@ -128,31 +127,5 @@ describe.skipIf(!ready)("development Keycloak realm roles (ADR 0012)", () => {
       roleMap: GROUP_MAP,
     });
     expect(result).toEqual(c.groups);
-  });
-
-  it("refuses the sign-in of conflict with role_conflict and of norole with no_edulims_role", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    const sync = createIdpRoleSync({
-      claimPaths: { keycloak: "realm_access.roles" },
-      roleMap: ROLE_MAP,
-    });
-    const ctx = { context: { internalAdapter: { updateUser: vi.fn() } } } as unknown as Parameters<
-      typeof sync
-    >[1];
-    const signIn = (user: string) =>
-      sync(
-        {
-          user: { email: `${user}@edulims.test` },
-          source: {
-            action: "create-user",
-            method: "oauth",
-            oauth: { providerId: "keycloak", profile: claims.get(user) ?? {} },
-          },
-        },
-        ctx,
-      );
-    expect(await signIn("conflict")).toMatchObject({ error: ROLE_CONFLICT_ERROR });
-    expect(await signIn("norole")).toMatchObject({ error: NO_ROLE_ERROR });
-    vi.restoreAllMocks();
   });
 });

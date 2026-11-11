@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// Pure mapping from identity-provider claims to eduLIMS roles, shared by every OIDC provider.
+// Pure mapping from identity-provider claims to eduLIMS roles, shared by every provider.
 import { isRole, ROLES, type Role, validateRoleSet } from "../lib/roles.ts";
 
 /** Maps IdP role names (case-sensitive, as the IdP emits them) to app roles. */
 export type RoleMap = ReadonlyMap<string, Role>;
 
 /**
- * Parses `OIDC_ROLE_MAP` (`idp-name:app-role,…`) into a {@link RoleMap}.
+ * Parses a role map in its text form (`idp-name:app-role,…`, `pnpm idp:add --role-map`).
  *
  * @throws Error when an entry is malformed, names an unknown app role or repeats an IdP name.
  */

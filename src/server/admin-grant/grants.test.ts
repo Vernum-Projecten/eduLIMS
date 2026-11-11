@@ -1,0 +1,185 @@
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+
+// Break-glass admin grants (#48) on a real PostgreSQL 18: a grant to an existing user, a pending
+// grant bound to an email-authoritative provider, its consumption at the first sign-in, expiry,
+// and the last-administrator guard of a revocation.
+import type { Kysely } from "kysely";
+import { afterEach, describe, expect, it } from "vitest";
+import type { DB } from "../db/schema.gen.ts";
+import { createTestDb } from "../db/test-db.ts";
+import { parseEnv } from "../env.ts";
+import { keyringOf } from "../idp/crypto.ts";
+import { invalidateProviderCache } from "../idp/registry.ts";
+import { insertTestProvider } from "../idp/test-providers.ts";
+import { VALID_ENV } from "../test-env.ts";
+import {
+  consumePendingAdminGrant,
+  grantAdmin,
+  PENDING_GRANT_TTL_MS,
+  pruneExpiredGrants,
+  revokeAdmin,
+} from "./grants.ts";
+
+const NOW = new Date("2026-11-11T12:00:00Z");
+let db: Kysely<DB> | undefined;
+
+afterEach(async () => {
+  invalidateProviderCache();
+  await db?.destroy();
+  db = undefined;
+});
+
+async function setup() {
+  db = await createTestDb();
+  const keyring = keyringOf(parseEnv(VALID_ENV));
+  await insertTestProvider(db, keyring, { providerId: "entra", emailAuthoritative: true });
+  await insertTestProvider(db, keyring, { providerId: "loose", emailAuthoritative: false });
+  return db;
+}
+
+async function user(database: Kysely<DB>, id: string, role: string | null) {
+  await database
+    .insertInto("user")
+    .values({ id, name: id, email: `${id}@example.test`, emailVerified: true, role })
+    .execute();
+}
+
+async function stored(database: Kysely<DB>, id: string) {
+  return database
+    .selectFrom("user")
+    .select(["role", "role_source"])
+    .where("id", "=", id)
+    .executeTakeFirst();
+}
+
+async function actions(database: Kysely<DB>) {
+  const rows = await database.selectFrom("audit_event").select(["action", "actor_type"]).execute();
+  return rows.map((row) => `${row.action}:${row.actor_type}`);
+}
+
+describe("grantAdmin (#48)", () => {
+  it("adds the admin role to an existing teacher as a local set, actor system", async () => {
+    const database = await setup();
+    await user(database, "t1", "teacher");
+    expect(await grantAdmin(database, { email: "T1@example.test", now: NOW })).toEqual({
+      ok: true,
+      kind: "granted",
+    });
+    expect(await stored(database, "t1")).toEqual({ role: "teacher,admin", role_source: "local" });
+    expect(await actions(database)).toEqual(["authz_role_change:system"]);
+  });
+
+  it("refuses a student (ADR 0012) and leaves an administrator as is", async () => {
+    const database = await setup();
+    await user(database, "s1", "student");
+    await user(database, "a1", "admin");
+    expect(await grantAdmin(database, { email: "s1@example.test", now: NOW })).toEqual({
+      ok: false,
+      error: "role_conflict",
+    });
+    expect(await grantAdmin(database, { email: "a1@example.test", now: NOW })).toEqual({
+      ok: true,
+      kind: "already_admin",
+    });
+  });
+
+  it("records a pending grant for an unknown email through an authoritative provider", async () => {
+    const database = await setup();
+    const missing = { email: "first@example.test", now: NOW };
+    expect(await grantAdmin(database, missing)).toEqual({ ok: false, error: "provider_required" });
+    expect(await grantAdmin(database, { ...missing, providerId: "nope" })).toEqual({
+      ok: false,
+      error: "provider_unknown",
+    });
+    expect(await grantAdmin(database, { ...missing, providerId: "loose" })).toEqual({
+      ok: false,
+      error: "provider_not_authoritative",
+    });
+    expect(await grantAdmin(database, { ...missing, providerId: "entra" })).toEqual({
+      ok: true,
+      kind: "pending",
+    });
+    const grant = await database
+      .selectFrom("pending_admin_grant")
+      .select(["email", "provider_id", "expires_at"])
+      .executeTakeFirstOrThrow();
+    expect(grant).toEqual({
+      email: "first@example.test",
+      provider_id: "entra",
+      expires_at: new Date(NOW.getTime() + PENDING_GRANT_TTL_MS),
+    });
+    expect(await actions(database)).toEqual(["admin_grant_created:system"]);
+  });
+
+  it("applies a pending grant once, through its own provider, before it expires", async () => {
+    const database = await setup();
+    await grantAdmin(database, { email: "first@example.test", providerId: "entra", now: NOW });
+    const later = new Date(NOW.getTime() + 60_000);
+    const consume = (providerId: string, now = later) =>
+      consumePendingAdminGrant(database, { email: "first@example.test", providerId, now });
+    expect(await consume("loose")).toBe(false);
+    expect(await consume("entra", new Date(NOW.getTime() + PENDING_GRANT_TTL_MS + 1))).toBe(false);
+    expect(await consume("entra")).toBe(true);
+    expect(await consume("entra")).toBe(false);
+    expect(await actions(database)).toEqual([
+      "admin_grant_created:system",
+      "admin_grant_applied:system",
+    ]);
+  });
+
+  it("prunes expired pending grants", async () => {
+    const database = await setup();
+    await grantAdmin(database, { email: "old@example.test", providerId: "entra", now: NOW });
+    expect(await pruneExpiredGrants(database, NOW)).toBe(0);
+    expect(await pruneExpiredGrants(database, new Date(NOW.getTime() + PENDING_GRANT_TTL_MS))).toBe(
+      1,
+    );
+  });
+});
+
+describe("revokeAdmin (#48)", () => {
+  it("never takes the role from the last administrator", async () => {
+    const database = await setup();
+    await user(database, "a1", "admin");
+    expect(await revokeAdmin(database, { email: "a1@example.test", now: NOW })).toEqual({
+      ok: false,
+      error: "last_admin",
+    });
+  });
+
+  it("keeps the other roles, ends the sessions and logs the change", async () => {
+    const database = await setup();
+    await user(database, "a1", "admin");
+    await user(database, "c1", "teacher,admin");
+    await database
+      .insertInto("session")
+      .values({
+        id: "s1",
+        token: "t",
+        userId: "c1",
+        expiresAt: new Date(Date.now() + 60_000),
+        updatedAt: new Date(),
+      })
+      .execute();
+    expect(await revokeAdmin(database, { email: "c1@example.test", now: NOW })).toEqual({
+      ok: true,
+      kind: "revoked",
+    });
+    expect(await stored(database, "c1")).toEqual({ role: "teacher", role_source: "local" });
+    expect(await database.selectFrom("session").select("id").execute()).toEqual([]);
+  });
+
+  it("withdraws a pending grant, and reports an unknown email", async () => {
+    const database = await setup();
+    await grantAdmin(database, { email: "p@example.test", providerId: "entra", now: NOW });
+    expect(await revokeAdmin(database, { email: "p@example.test", now: NOW })).toEqual({
+      ok: true,
+      kind: "revoked",
+    });
+    expect(await revokeAdmin(database, { email: "nobody@example.test", now: NOW })).toEqual({
+      ok: false,
+      error: "not_found",
+    });
+  });
+});
