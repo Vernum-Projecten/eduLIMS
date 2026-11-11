@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { RowData } from "@tanstack/react-table";
-import { type LucideIcon, PlusCircleIcon } from "lucide-react";
+import { CheckIcon, type LucideIcon, PlusCircleIcon } from "lucide-react";
 import { columnLabel, type DataTableColumn } from "@/components/data-table/features";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,13 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
+  CommandShortcut,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { m } from "@/i18n/messages";
 import { formatNumber } from "@/lib/i18n/format";
+import { cn } from "@/lib/utils";
 
 /** One value a facet offers. */
 export interface FacetOption {
@@ -116,13 +118,24 @@ export function DataTableFacetedFilter<TData extends RowData, TValue>({
                     aria-checked={checked}
                     onSelect={() => toggle(option.value)}
                   >
+                    {/* The shadcn data-table faceted filter: a checkbox first, the count last. */}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "flex size-4 shrink-0 items-center justify-center rounded-[4px] border",
+                        checked
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-input [&_svg]:invisible",
+                      )}
+                    >
+                      <CheckIcon className="size-3.5" />
+                    </span>
                     {Icon && <Icon aria-hidden="true" className="text-muted-foreground" />}
                     <span>{option.label}</span>
-                    {count !== undefined && (
-                      <span className="ml-auto font-mono text-xs tabular-nums">
-                        {formatNumber(count)}
-                      </span>
-                    )}
+                    {/* Always present, so the item's own trailing check stays hidden. */}
+                    <CommandShortcut className="tabular-nums tracking-normal">
+                      {count === undefined ? null : formatNumber(count)}
+                    </CommandShortcut>
                   </CommandItem>
                 );
               })}
