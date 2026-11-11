@@ -19,3 +19,9 @@ export const NO_ROLE_ERROR = "no_edulims_role";
  * (student with teacher or admin, ADR 0012).
  */
 export const ROLE_CONFLICT_ERROR = "role_conflict";
+
+/**
+ * better-auth rejection code for a sign-in from a provider with the email of a user who signs in
+ * through another provider. Account linking is off (#39), so the accounts are never merged.
+ */
+export const ACCOUNT_NOT_LINKED_ERROR = "account_not_linked";

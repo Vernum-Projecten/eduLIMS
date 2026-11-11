@@ -172,6 +172,18 @@ start with no provider at all.
   is the development realm; use it as a template only, because its client
   secret and users are public.
 
+### One account per provider
+
+eduLIMS never links accounts across identity providers. A user who first
+signs in with Entra ID cannot later sign in with Keycloak under the same email
+address, or the other way round: the sign-in page answers "This email address
+already signs in through another sign-in method" (error code
+`account_not_linked`) and no session starts. A Keycloak realm with
+self-registration, or a federation that lets users set their own address,
+therefore cannot take over an Entra ID user's account, roles or classes. To
+move a user from one provider to the other, an administrator removes the old
+eduLIMS account first.
+
 ### Role mapping
 
 eduLIMS knows three roles: `student`, `teacher` and `admin`. At sign-in it

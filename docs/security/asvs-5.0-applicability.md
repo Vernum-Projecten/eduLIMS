@@ -67,10 +67,10 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 172 |
-| Status met | 75 |
+| Status met | 76 |
 | Status partial | 47 |
 | Status planned | 30 |
-| Status open | 20 |
+| Status open | 19 |
 | Status n-a | 173 |
 
 ### V1 Encoding and Sanitization
@@ -402,7 +402,7 @@ Text: [vendor/asvs/en/0x15-V6-Authentication.md](vendor/asvs/en/0x15-V6-Authenti
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V6.8.1 | 2 | yes | two IdPs: better-auth's account linking by e-mail must not let one IdP take over another's account; `src/server/auth.ts` sets no `account.accountLinking` policy | review, then a unit test | open |
+| V6.8.1 | 2 | yes | account linking is off (`account.accountLinking.enabled: false` in `src/server/auth.ts`, #39): a second IdP's sign-in with an existing user's e-mail is refused with `account_not_linked`; `docs/deployment.md`, "One account per provider" | unit `src/server/account-linking.test.ts` | met |
 | V6.8.2 | 2 | partly | better-auth 1.7.18 validates the ID token of each provider; not proven by a test of ours | integration `tests/integration/keycloak-roles.test.ts`, review | partial |
 | V6.8.3 | 2 | no | no SAML | none | n-a |
 | V6.8.4 | 2 | partly | eduLIMS reads no `acr` or `amr` claim; MFA strength is not verified (see V6.3.3) | review | open |

@@ -83,6 +83,12 @@ export function createAuth(env: Env, database: BetterAuthOptions["database"] = g
     database,
     emailAndPassword: { enabled: env.EDULIMS_DEV_LOGIN, disableSignUp: true },
     socialProviders: microsoftProvider(env),
+    account: {
+      // NOTE: owner decision on #39 (ASVS V6.8.1): no account linking at all. A sign-in from a
+      // second provider with the email of an existing user is refused with
+      // ACCOUNT_NOT_LINKED_ERROR instead of signing in as that user.
+      accountLinking: { enabled: false },
+    },
     user: {
       additionalFields: {
         // The language picked in the language menu; only savePreferredLocale writes it.
