@@ -4,23 +4,13 @@
       "command": "pnpm",
       "args": ["exec", "shadcn", "mcp"]
     },
-    "github": {
-      "type": "http",
-      "url": "https://api.githubcopilot.com/mcp/readonly",
-      "headers": {
-        "Authorization": "Bearer ${EDULIMS_GITHUB_MCP_TOKEN:-}"
-      }
-    },
     "playwright": {
       "command": "pnpm",
       "args": ["dlx", "@playwright/mcp@0.0.84", "--isolated"]
     },
     "tanstack": {
       "type": "http",
-      "url": "https://tanstack.com/api/mcp",
-      "headers": {
-        "Authorization": "Bearer ${EDULIMS_TANSTACK_MCP_KEY:-}"
-      }
+      "url": "https://tanstack.com/api/mcp"
     },
     "better-auth": {
       "type": "http",

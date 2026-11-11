@@ -10,7 +10,7 @@ eduLIMS reads its configuration from the environment and validates all of it
 at startup. A missing or invalid value stops the server with one error that
 lists every variable at fault. On a Compose host the values live in the
 environment file next to `compose.yaml`, readable by root alone; in
-development they live in `.env.local`. The example environment file in the
+development they live in `.env` at the repository root. The example environment file in the
 repository lists every name.
 
 ## The application

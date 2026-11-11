@@ -88,15 +88,32 @@ is not meant for patient data.
 
 ## Quick start
 
-You need Node.js 26 LTS (26.13.0), pnpm 12 (12.18.0) and Docker with Compose.
-The versions are enforced through `devEngines` in `package.json`; with
-Corepack or `pnpm self-update` you get the pinned pnpm.
+You need Node.js 26 LTS (26.13.0) and pnpm 12 (12.18.0), enforced through
+`devEngines` in `package.json` (on macOS: `brew install node pnpm`).
 
 ```sh
-docker compose -f compose.dev.yaml up -d   # PostgreSQL 18 (and FerroEHR when configured)
 pnpm install
+cp .env.example .env        # then set BETTER_AUTH_SECRET (openssl rand -hex 32) and EDULIMS_DEV_LOGIN=true
+```
+
+Start a database in one of two ways:
+
+```sh
+# With Docker: PostgreSQL 18 and Keycloak with the edulims realm
+docker compose -f compose.dev.yaml up -d
+
+# Without Docker: an embedded PostgreSQL (PGlite) on port 5432, data in .data/
+# (keep it running in its own terminal; comment out the KEYCLOAK_* lines in
+# .env, since there is no Keycloak)
+pnpm dev:db
+```
+
+Then:
+
+```sh
 pnpm db:migrate
-pnpm dev                                    # http://localhost:3000
+pnpm db:seed                # student@, teacher@ and admin@example.test, password eduLIMS-dev-only
+pnpm dev                    # http://localhost:3000
 ```
 
 Before you open a pull request, run the same gates as CI:
