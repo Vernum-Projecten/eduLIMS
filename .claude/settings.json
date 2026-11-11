@@ -78,9 +78,17 @@
       "Bash(git push --force *main*)",
       "Bash(git push -f *main*)",
       "Read(./.env)",
-      "Read(./.env.*)",
+      "Read(./.env.local)",
+      "Read(./.env.*.local)",
+      "Read(./.env.production)",
+      "Read(./.env.development)",
+      "Read(./.env.test)",
       "Edit(./.env)",
-      "Edit(./.env.*)"
+      "Edit(./.env.local)",
+      "Edit(./.env.*.local)",
+      "Edit(./.env.production)",
+      "Edit(./.env.development)",
+      "Edit(./.env.test)"
     ]
   },
   "enabledMcpjsonServers": [
