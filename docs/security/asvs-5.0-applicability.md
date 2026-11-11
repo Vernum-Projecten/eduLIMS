@@ -67,10 +67,10 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 172 |
-| Status met | 75 |
-| Status partial | 47 |
+| Status met | 81 |
+| Status partial | 50 |
 | Status planned | 30 |
-| Status open | 20 |
+| Status open | 11 |
 | Status n-a | 173 |
 
 ### V1 Encoding and Sanitization
@@ -193,7 +193,7 @@ Text: [vendor/asvs/en/0x12-V3-Web-Frontend-Security.md](vendor/asvs/en/0x12-V3-W
 |---|---|---|---|---|---|
 | V3.3.1 | 1 | yes | better-auth sets `Secure` and the `__Secure-` prefix on an `https` base URL; `src/server/env.ts` requires `https` in production | unit `src/server/env.test.ts` | met |
 | V3.3.2 | 2 | yes | session cookie `SameSite=Lax` (better-auth default); preference cookies in `src/lib/cookies.ts` | review | met |
-| V3.3.3 | 2 | partly | better-auth uses `__Secure-`, not `__Host-`; `advanced.cookiePrefix` or `useSecureCookies` settings to be evaluated | review | open |
+| V3.3.3 | 2 | partly | over https every better-auth cookie is `__Host-better-auth.*` (`authCookieOptions` in `src/server/auth.ts`) and the locale, theme and sidebar cookies are `__Host-EDULIMS_*` (`src/lib/cookies.ts`, #43); the vendored shadcn sidebar still writes an unread, unprefixed `sidebar_state` | unit `src/server/auth-cookies.test.ts`, `src/lib/cookies.test.ts` | partial |
 | V3.3.4 | 2 | yes | session cookie `HttpOnly`; `getSessionUser` returns no token (`src/server/session.ts`) | unit `src/server/middleware.test.ts` | met |
 | V3.3.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -402,7 +402,7 @@ Text: [vendor/asvs/en/0x15-V6-Authentication.md](vendor/asvs/en/0x15-V6-Authenti
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V6.8.1 | 2 | yes | two IdPs: better-auth's account linking by e-mail must not let one IdP take over another's account; `src/server/auth.ts` sets no `account.accountLinking` policy | review, then a unit test | open |
+| V6.8.1 | 2 | yes | account linking is off (`account.accountLinking.enabled: false` in `src/server/auth.ts`, #39): a second IdP's sign-in with an existing user's e-mail is refused with `account_not_linked`; `docs/deployment.md`, "One account per provider" | unit `src/server/account-linking.test.ts` | met |
 | V6.8.2 | 2 | partly | better-auth 1.7.18 validates the ID token of each provider; not proven by a test of ours | integration `tests/integration/keycloak-roles.test.ts`, review | partial |
 | V6.8.3 | 2 | no | no SAML | none | n-a |
 | V6.8.4 | 2 | partly | eduLIMS reads no `acr` or `amr` claim; MFA strength is not verified (see V6.3.3) | review | open |
@@ -415,7 +415,7 @@ Text: [vendor/asvs/en/0x16-V7-Session-Management.md](vendor/asvs/en/0x16-V7-Sess
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V7.1.1 | 2 | partly | better-auth defaults (7-day session, refreshed daily); no documented decision | review | open |
+| V7.1.1 | 2 | partly | ADR 0014 (#42): 8 hours sliding, refreshed at most hourly, 24 hours after sign-in at most; coordination with the IdP's own session lifetime is the operator's | unit `src/server/session-policy.test.ts` | met |
 | V7.1.2 | 2 | partly | concurrent sessions are unlimited (better-auth default); not documented | review | open |
 | V7.1.3 | 2 | partly | ADR 0010 and `docs/deployment.md` describe the IdPs; session lifetime coordination with the IdP is not documented | review | open |
 
@@ -432,8 +432,8 @@ Text: [vendor/asvs/en/0x16-V7-Session-Management.md](vendor/asvs/en/0x16-V7-Sess
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V7.3.1 | 2 | partly | better-auth's sliding expiry is the only inactivity limit; no documented choice | review | open |
-| V7.3.2 | 2 | partly | no absolute maximum session lifetime is configured | review | open |
+| V7.3.1 | 2 | partly | `session.expiresIn` 8 hours, `updateAge` 1 hour (`src/server/auth.ts`, `src/server/session-policy.ts`, ADR 0014) | unit `src/server/session-policy.test.ts` | met |
+| V7.3.2 | 2 | partly | 24 hours after sign-in: the `session` trigger of migration `0006_session_absolute_lifetime` caps `expiresAt`, and `src/server/session.ts` revokes and refuses an older session (ADR 0014) | unit `src/server/session-policy.test.ts`, `src/server/middleware.test.ts`, `src/server/db/migrations.test.ts` | met |
 
 #### V7.4 Session Termination
 
@@ -681,10 +681,10 @@ Text: [vendor/asvs/en/0x21-V12-Secure-Communication.md](vendor/asvs/en/0x21-V12-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V12.3.1 | 2 | yes | eduLIMS to PostgreSQL, FerroEHR and FerroBRIDGE is plain inside the Compose `backend` network (`compose.yaml`) | review | open |
+| V12.3.1 | 2 | yes | eduLIMS to PostgreSQL uses TLS with `sslmode=verify-full`, refused otherwise in production (`src/server/env.ts`, `compose.yaml`, #40); FerroEHR and FerroBRIDGE stay plain on the internal `backend` network as the accepted residual risk of ADR 0013 | unit `src/server/env.test.ts` | partial |
 | V12.3.2 | 2 | yes | Node.js `fetch` validates certificates; the Keycloak issuer must be `https` in production (`src/server/env.ts`) | unit `src/server/env.test.ts` | met |
-| V12.3.3 | 2 | yes | `FERROEHR_BASE_URL` and `FERROBRIDGE_BASE_URL` are `http` inside Compose (`compose.yaml`); needs an owner decision | review | open |
-| V12.3.4 | 2 | yes | no internal certificates yet (see V12.3.3) | review | open |
+| V12.3.3 | 2 | yes | PostgreSQL: the certificate and host name are verified (`sslmode=verify-full`); `FERROEHR_BASE_URL` and `FERROBRIDGE_BASE_URL` stay `http` inside Compose by decision (ADR 0013, revisit on a second host) | unit `src/server/env.test.ts` | partial |
+| V12.3.4 | 2 | yes | the operator's private CA for PostgreSQL (`config/postgres-tls/ca.crt`, `docs/deployment.md`, "Database TLS"); none for FerroEHR and FerroBRIDGE (ADR 0013) | manual, operator | partial |
 | V12.3.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V13 Configuration
@@ -748,7 +748,7 @@ Text: [vendor/asvs/en/0x23-V14-Data-Protection.md](vendor/asvs/en/0x23-V14-Data-
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V14.2.1 | 1 | yes | no personal data in URLs: ids only (UUIDv7, #28); sign-in uses POST and the IdP's code flow | review | met |
-| V14.2.2 | 2 | partly | no application cache holds personal data; `Cache-Control` for pages with personal data is not set (V14.3.2) | review | partial |
+| V14.2.2 | 2 | partly | no application cache holds personal data; every session-dependent response is `no-store` in production (V14.3.2) | unit `src/server/security-headers.test.ts` | met |
 | V14.2.3 | 2 | yes | no analytics or third-party scripts (CSP `default-src 'self'`) | unit `src/server/security-headers.test.ts` | met |
 | V14.2.4 | 2 | partly | `.claude/rules/auth-security.md` Privacy: logs carry ids only, pseudonyms in FerroEHR; retention is not decided | review | partial |
 | V14.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -761,7 +761,7 @@ Text: [vendor/asvs/en/0x23-V14-Data-Protection.md](vendor/asvs/en/0x23-V14-Data-
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V14.3.1 | 1 | partly | sign-out clears the session cookie; `Clear-Site-Data` is not sent | e2e `tests/e2e/shell.spec.ts` | partial |
-| V14.3.2 | 2 | yes | `Cache-Control: no-store` only on `/api/health` and `/api/ready`; authenticated pages and server functions need it | review | open |
+| V14.3.2 | 2 | yes | production sends `Cache-Control: no-store` on every page, server function and server route, overriding a handler's own policy; built assets keep their long cache (`src/server/security-headers.ts`, #41) | unit `src/server/security-headers.test.ts`, e2e `tests/e2e/app.spec.ts` | met |
 | V14.3.3 | 2 | yes | browser storage holds the theme, sidebar state and locale only (`src/lib/cookies.ts`, `src/lib/preferences.ts`) | review | met |
 
 ### V15 Secure Coding and Architecture

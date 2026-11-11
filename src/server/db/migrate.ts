@@ -6,7 +6,7 @@
 import { Kysely, PostgresDialect } from "kysely";
 import type { MigrationResultSet } from "kysely/migration";
 import { Pool } from "pg";
-import { envFields, parseWith } from "../env.ts";
+import { databaseTlsProblem, envFields, parseWith } from "../env.ts";
 import { createMigrator } from "./index.ts";
 
 function report({ error, results }: MigrationResultSet): void {
@@ -23,6 +23,14 @@ function report({ error, results }: MigrationResultSet): void {
 }
 
 const { DATABASE_URL } = parseWith(envFields.pick({ DATABASE_URL: true }), process.env);
+// Only an explicit NODE_ENV=production (the migrate image) checks TLS: `pnpm db:migrate` on a
+// developer machine runs without NODE_ENV against the plain dev database.
+const tlsProblem =
+  process.env["NODE_ENV"] === "production" ? databaseTlsProblem(DATABASE_URL) : undefined;
+if (tlsProblem) {
+  console.error(`Invalid environment configuration:\nDATABASE_URL ${tlsProblem}`);
+  process.exit(1);
+}
 const db = new Kysely<unknown>({
   dialect: new PostgresDialect({ pool: new Pool({ connectionString: DATABASE_URL, max: 1 }) }),
 });

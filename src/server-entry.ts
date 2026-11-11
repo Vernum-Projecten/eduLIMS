@@ -5,6 +5,10 @@
 // from the locale cookie, else Accept-Language, else English, and renders inside that locale.
 import handler from "@tanstack/react-start/server-entry";
 import { paraglideMiddleware } from "@/i18n/server";
+import { defineLocaleCookieServerStrategy } from "@/lib/i18n/locale-cookie";
+import { isSecureOrigin } from "@/server/cookie-security";
+
+defineLocaleCookieServerStrategy(() => isSecureOrigin());
 
 export default {
   fetch(request: Request): Promise<Response> {

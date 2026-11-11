@@ -6,14 +6,17 @@ import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { admin } from "better-auth/plugins";
 import { genericOAuth, keycloak } from "better-auth/plugins/generic-oauth";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
+import { HOST_COOKIE_PREFIX } from "../lib/cookies.ts";
 import type { IdentityProviderId, IdentityProviderOption } from "../lib/identity-providers.ts";
 import { ADMIN_ROLE, accessControl, DEFAULT_ROLE, roles } from "../lib/roles.ts";
 import { auditDatabase, auditLog } from "./audit/better-auth-hooks.ts";
+import { isSecureOrigin } from "./cookie-security.ts";
 import { getPool } from "./db/index.ts";
 import { type Env, getEnv, isKeycloakConfigured, isMicrosoftConfigured } from "./env.ts";
 import { createIdpRoleSync } from "./idp-sync.ts";
 import { applySavedLocaleOnSignIn } from "./preferences/locale-cookie.ts";
 import { refuseOwnRoleWrites, roleWriteHooks } from "./role-guard.ts";
+import { SESSION_EXPIRES_IN_SECONDS, SESSION_UPDATE_AGE_SECONDS } from "./session-policy.ts";
 
 /** Where an identity provider returns the user after signing out of it: the eduLIMS sign-in page. */
 export const POST_LOGOUT_PATH = "/login";
@@ -69,6 +72,22 @@ export function keycloakProviders(env: Env) {
 }
 
 /**
+ * Returns better-auth's cookie options for `baseURL`. Over https every better-auth cookie is
+ * `__Host-better-auth.*` with `Secure`, `Path=/` and no `Domain`; over plain http (development)
+ * the names stay unprefixed, since a browser refuses `Secure` cookies there.
+ */
+export function authCookieOptions(baseURL: string): BetterAuthOptions["advanced"] {
+  if (!isSecureOrigin(baseURL)) return {};
+  // NOTE: owner decision on #43 (ASVS V3.3.3). better-auth only prepends `__Secure-`, so that
+  // is off and the `__Host-` prefix is part of the cookie name.
+  return {
+    useSecureCookies: false,
+    cookiePrefix: `${HOST_COOKIE_PREFIX}better-auth`,
+    defaultCookieAttributes: { secure: true, path: "/" },
+  };
+}
+
+/**
  * Creates the better-auth instance. Sign-in goes through the configured OIDC providers
  * (Microsoft Entra ID single tenant, Keycloak via discovery; authorization code + PKCE),
  * which also supply the role on every sign-in. A saved language preference sets the locale
@@ -77,12 +96,22 @@ export function keycloakProviders(env: Env) {
  */
 export function createAuth(env: Env, database: BetterAuthOptions["database"] = getPool()) {
   return betterAuth({
+    advanced: authCookieOptions(env.BETTER_AUTH_URL),
     appName: "eduLIMS",
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
     database,
     emailAndPassword: { enabled: env.EDULIMS_DEV_LOGIN, disableSignUp: true },
     socialProviders: microsoftProvider(env),
+    // NOTE: owner decision on #42 (ASVS V7.3.1, V7.3.2): 8 hours sliding, refreshed at most hourly;
+    // the 24-hour absolute cap is the session.ts read check and migration 0005.
+    session: { expiresIn: SESSION_EXPIRES_IN_SECONDS, updateAge: SESSION_UPDATE_AGE_SECONDS },
+    account: {
+      // NOTE: owner decision on #39 (ASVS V6.8.1): no account linking at all. A sign-in from a
+      // second provider with the email of an existing user is refused with
+      // ACCOUNT_NOT_LINKED_ERROR instead of signing in as that user.
+      accountLinking: { enabled: false },
+    },
     user: {
       additionalFields: {
         // The language picked in the language menu; only savePreferredLocale writes it.

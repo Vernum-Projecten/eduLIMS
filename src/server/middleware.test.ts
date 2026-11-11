@@ -5,19 +5,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionUser } from "./authz.ts";
 
 const getSession = vi.fn();
-vi.mock("./auth.ts", () => ({ getAuth: () => ({ api: { getSession } }) }));
+const deleteSession = vi.fn();
+vi.mock("./auth.ts", () => ({
+  getAuth: () => ({
+    api: { getSession },
+    $context: Promise.resolve({ internalAdapter: { deleteSession } }),
+  }),
+}));
 vi.mock("@tanstack/react-start/server", () => ({ getRequestHeaders: () => new Headers() }));
 
 const { getSessionUser } = await import("./session.ts");
 const { AuthError, authMiddleware, requireRole } = await import("./middleware.ts");
 
 const betterAuthSession = {
-  session: { token: "secret-token" },
+  session: { token: "secret-token", createdAt: new Date() },
   user: { id: "u1", name: "Test Student", email: "student@example.test", role: "student,unknown" },
 };
 
 beforeEach(() => {
   getSession.mockReset();
+  deleteSession.mockReset();
 });
 
 describe("getSessionUser", () => {
@@ -65,6 +72,25 @@ describe("getSessionUser", () => {
       user: { ...betterAuthSession.user, lastPortal: "superuser" },
     });
     expect(await getSessionUser(new Headers())).toMatchObject({ lastPortal: null });
+  });
+
+  it("revokes and refuses a session signed in more than 24 hours ago (#42, ASVS V7.3.2)", async () => {
+    const signedIn = new Date(Date.now() - 24 * 60 * 60 * 1000 - 1000);
+    getSession.mockResolvedValue({
+      ...betterAuthSession,
+      session: { ...betterAuthSession.session, createdAt: signedIn },
+    });
+    expect(await getSessionUser(new Headers())).toBeNull();
+    expect(deleteSession).toHaveBeenCalledWith("secret-token");
+  });
+
+  it("refuses a session whose sign-in time cannot be read (fail closed)", async () => {
+    getSession.mockResolvedValue({
+      ...betterAuthSession,
+      session: { ...betterAuthSession.session, createdAt: "not a date" },
+    });
+    expect(await getSessionUser(new Headers())).toBeNull();
+    expect(deleteSession).toHaveBeenCalledWith("secret-token");
   });
 });
 

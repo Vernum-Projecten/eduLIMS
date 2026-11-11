@@ -7,6 +7,10 @@ import { paraglideMiddleware } from "@/i18n/server";
 import { ROLES } from "@/lib/roles";
 import { THEMES } from "@/lib/theme";
 import { providerLabel, roleLabel, rolesLabel, roleWriteErrorMessage, themeLabel } from "./labels";
+import { defineLocaleCookieServerStrategy } from "./locale-cookie";
+
+// The server entry registers the locale cookie strategy; plain http, as in development.
+defineLocaleCookieServerStrategy(() => false);
 
 /** Runs `fn` inside a request whose locale cookie is `locale`, as the server entry does. */
 async function inLocale<T>(locale: "en" | "nl", fn: () => T): Promise<T> {

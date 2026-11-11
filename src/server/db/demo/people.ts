@@ -150,27 +150,31 @@ function planAccounts(random: DemoRandom, users: readonly DemoUser[]): DemoAccou
 
 function planSessions(random: DemoRandom, users: readonly DemoUser[], now: Date): DemoSession[] {
   const sessions: DemoSession[] = [];
-  const session = (user: DemoUser, createdAt: number): DemoSession => ({
+  // NOTE: ADR 0014; a session lives 8 hours after its last use and at most 24 hours after sign-in.
+  const session = (user: DemoUser, createdAt: number, expiresAt: number): DemoSession => ({
     id: random.id(),
     userId: user.id,
     provider: user.provider,
     createdAt: new Date(createdAt),
-    expiresAt: new Date(createdAt + 7 * DAY),
+    expiresAt: new Date(expiresAt),
     ipAddress: documentationAddress(random),
     userAgent: random.pick(USER_AGENTS),
   });
   users.forEach((user, index) => {
     // Live sessions for about a third, none for a blocked user (a block ends them).
     if (!user.ban && index % 3 === 0) {
-      sessions.push(session(user, now.getTime() - random.int(1, 140) * HOUR));
+      const signedIn = now.getTime() - random.int(1, 15) * HOUR;
+      sessions.push(session(user, signedIn, now.getTime() + random.int(1, 7) * HOUR));
     }
     // Expired within the last 30 days, kept by the prune.
     if (index % 4 === 1) {
-      sessions.push(session(user, now.getTime() - random.int(9, 30) * DAY));
+      const signedIn = now.getTime() - random.int(9, 30) * DAY;
+      sessions.push(session(user, signedIn, signedIn + 8 * HOUR));
     }
     // Expired more than 30 days ago, removed by the next `pnpm db:prune`.
     if (index % 9 === 2) {
-      sessions.push(session(user, now.getTime() - random.int(40, 46) * DAY));
+      const signedIn = now.getTime() - random.int(40, 46) * DAY;
+      sessions.push(session(user, signedIn, signedIn + 8 * HOUR));
     }
   });
   return sessions;

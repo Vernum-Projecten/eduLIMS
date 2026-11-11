@@ -17,6 +17,10 @@
 #   config/ferrobridge/           FerroBRIDGE's ferrobridge.toml, with the [hl7v2]
 #                                 section, and the TLS files it names
 #   docker/postgres/init/20-edulims.sh   from the release's deploy bundle
+#   config/postgres-tls/          ca.crt, server.crt and server.key for
+#                                 PostgreSQL's TLS (docs/deployment.md,
+#                                 "Database TLS"); eduLIMS verifies the server
+#                                 certificate against ca.crt
 #
 # IMAGES are pinned by tag and digest. The digest is what Docker pulls; the tag
 # is there for the reader. A release of eduLIMS changes EDULIMS_VERSION in
@@ -58,6 +62,18 @@ services:
   postgres:
     image: ghcr.io/ferrohealth/ferroehr-postgres:5.7.0@sha256:3b7dbfce603b4ff3c8a29366655f195baf2bfeaf903a1bf1be851ba69293743a
     restart: unless-stopped
+    # TLS for every client (ADR 0013). server.key must belong to uid 999
+    # (postgres in the image) with mode 0600, or PostgreSQL refuses to start.
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/etc/postgresql/tls/server.crt
+      - -c
+      - ssl_key_file=/etc/postgresql/tls/server.key
+      - -c
+      - ssl_min_protocol_version=TLSv1.2
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       # Read by the image's 10-ferroehr-init.sh.
@@ -76,6 +92,8 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
       - ./docker/postgres/init/20-edulims.sh:/docker-entrypoint-initdb.d/20-edulims.sh:ro
+      - ./config/postgres-tls/server.crt:/etc/postgresql/tls/server.crt:ro
+      - ./config/postgres-tls/server.key:/etc/postgresql/tls/server.key:ro
       # pg_dump writes here (docs/deployment.md, "Backups").
       - ${EDULIMS_BACKUP_DIR:-./backups}:/backup
     # The entrypoint starts as root to own the data directory, then drops to
@@ -174,7 +192,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${EDULIMS_DB_USER:-edulims}:${EDULIMS_DB_PASSWORD:?set EDULIMS_DB_PASSWORD in .env}@postgres:5432/${EDULIMS_DB_NAME:-edulims}
+      DATABASE_URL: postgres://${EDULIMS_DB_USER:-edulims}:${EDULIMS_DB_PASSWORD:?set EDULIMS_DB_PASSWORD in .env}@postgres:5432/${EDULIMS_DB_NAME:-edulims}?sslmode=verify-full&sslrootcert=/etc/edulims/postgres-ca.crt
+    volumes:
+      - ./config/postgres-tls/ca.crt:/etc/edulims/postgres-ca.crt:ro
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
@@ -200,7 +220,7 @@ services:
       - "${EDULIMS_BIND_HOST:-127.0.0.1}:${EDULIMS_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://${EDULIMS_DB_USER:-edulims}:${EDULIMS_DB_PASSWORD:?set EDULIMS_DB_PASSWORD in .env}@postgres:5432/${EDULIMS_DB_NAME:-edulims}
+      DATABASE_URL: postgres://${EDULIMS_DB_USER:-edulims}:${EDULIMS_DB_PASSWORD:?set EDULIMS_DB_PASSWORD in .env}@postgres:5432/${EDULIMS_DB_NAME:-edulims}?sslmode=verify-full&sslrootcert=/etc/edulims/postgres-ca.crt
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL in .env}
       # Each identity provider is on when its variables are set. A key with
@@ -218,6 +238,8 @@ services:
       OIDC_DEFAULT_ROLE:
       FERROEHR_BASE_URL: http://ferroehr:8080/ferroehr/rest/openehr/v1
       FERROBRIDGE_BASE_URL: http://ferrobridge:8080
+    volumes:
+      - ./config/postgres-tls/ca.crt:/etc/edulims/postgres-ca.crt:ro
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true

@@ -15,6 +15,7 @@ import { authClient } from "@/lib/auth-client";
 import { providerLabel, rolesLabel } from "@/lib/i18n/labels";
 import { cookieLocaleDiffersFromDocument } from "@/lib/i18n/locale";
 import {
+  ACCOUNT_NOT_LINKED_ERROR,
   type IdentityProviderId,
   type IdentityProviderOption,
   NO_ROLE_ERROR,
@@ -78,6 +79,7 @@ export function LoginForm({
 function loginErrorMessage(error: string): string {
   if (error === NO_ROLE_ERROR) return m.login_error_no_role();
   if (error === ROLE_CONFLICT_ERROR) return m.login_error_role_conflict();
+  if (error === ACCOUNT_NOT_LINKED_ERROR) return m.login_error_account_not_linked();
   return m.login_error_failed();
 }
 

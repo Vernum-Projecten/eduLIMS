@@ -95,7 +95,9 @@ cd edulims-deploy-vX.Y.Z
    `[hl7v2]` section and the TLS files it names (FerroBRIDGE's
    documentation, "HL7 v2 face"). `compose.yaml` sets the database URL, the
    CDR URL and the listen address; the files hold the rest.
-3. Pull, verify and start:
+3. Create the PostgreSQL certificates in `config/postgres-tls/` (below,
+   "Database TLS").
+4. Pull, verify and start:
 
    ```sh
    docker compose pull
@@ -114,6 +116,42 @@ data, run the eduLIMS script by hand:
 ```sh
 docker compose exec -T postgres bash < docker/postgres/init/20-edulims.sh
 ```
+
+## Database TLS
+
+eduLIMS talks to PostgreSQL over TLS and verifies the server certificate and
+its host name (`sslmode=verify-full`); a production server refuses to start
+with any other `DATABASE_URL` (ADR 0013). `compose.yaml` turns TLS on in
+PostgreSQL and hands eduLIMS the CA, so you provide three files in
+`config/postgres-tls/`:
+
+| File | Who reads it | Mode |
+|---|---|---|
+| `ca.crt` | eduLIMS and the migrate job, to verify the server | `0644` |
+| `server.crt` | PostgreSQL; its subject alternative name is `DNS:postgres`, the service name | `0644` |
+| `server.key` | PostgreSQL only; owned by uid 999 (`postgres` in the image) | `0600` |
+
+A private CA for this one host is enough:
+
+```sh
+mkdir -p config/postgres-tls && cd config/postgres-tls
+openssl req -x509 -newkey rsa:3072 -nodes -days 3650 -subj "/CN=eduLIMS database CA" \
+  -keyout ca.key -out ca.crt
+openssl req -newkey rsa:3072 -nodes -subj "/CN=postgres" -keyout server.key -out server.csr
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 825 \
+  -extfile <(printf 'subjectAltName=DNS:postgres\nextendedKeyUsage=serverAuth') -out server.crt
+chown 999:999 server.key && chmod 600 server.key && chmod 644 ca.crt server.crt
+mv ca.key /root/edulims-db-ca.key   # keep the CA key off the stack, for renewals only
+```
+
+Renew `server.crt` before it expires (825 days above) with the same CA and
+restart PostgreSQL (`docker compose restart postgres`); eduLIMS keeps
+trusting it. When you run eduLIMS against another PostgreSQL server, set
+`DATABASE_URL` yourself with `?sslmode=verify-full`, plus
+`&sslrootcert=<path to its CA>` unless a public CA signs its certificate.
+
+FerroEHR and FerroBRIDGE stay on plain `http` inside the internal `backend`
+network; ADR 0013 records that residual risk and when to revisit it.
 
 ## Migrations
 
@@ -171,6 +209,18 @@ start with no provider at all.
   server, so the backups below cover it. `docker/keycloak/edulims-realm.json`
   is the development realm; use it as a template only, because its client
   secret and users are public.
+
+### One account per provider
+
+eduLIMS never links accounts across identity providers. A user who first
+signs in with Entra ID cannot later sign in with Keycloak under the same email
+address, or the other way round: the sign-in page answers "This email address
+already signs in through another sign-in method" (error code
+`account_not_linked`) and no session starts. A Keycloak realm with
+self-registration, or a federation that lets users set their own address,
+therefore cannot take over an Entra ID user's account, roles or classes. To
+move a user from one provider to the other, an administrator removes the old
+eduLIMS account first.
 
 ### Role mapping
 

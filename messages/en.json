@@ -25,6 +25,7 @@
   "login_error_no_role": "Your account has no role in eduLIMS yet. Contact an administrator.",
   "login_error_failed": "Signing in failed. Try again or contact an administrator.",
   "login_error_role_conflict": "Your account has conflicting roles. Contact your administrator.",
+  "login_error_account_not_linked": "This email address already signs in through another sign-in method. Use that method, or ask an administrator.",
   "role_error_own_roles": "You cannot change your own roles. Ask another administrator.",
   "role_error_not_allowed": "This combination of roles is not allowed: a student cannot also be a teacher or an administrator.",
   "portal_switcher_label": "Portals",

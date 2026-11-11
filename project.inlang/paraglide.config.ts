@@ -9,10 +9,9 @@ export default defineConfig({
   outdir: "./src/i18n",
   // NOTE: no requirement governs this: our own design (ADR 0011). The client reads the locale
   // the server rendered from `<html lang>` so hydration always matches the SSR output.
-  strategy: ["cookie", "custom-documentLang", "preferredLanguage", "baseLocale"],
-  cookieName: "EDULIMS_LOCALE",
-  cookieSameSite: "lax",
-  cookieSecure: "auto",
+  // The locale cookie is a custom strategy (src/lib/i18n/locale-cookie.ts): its name carries the
+  // `__Host-` prefix over https, which Paraglide's one compiled cookie name cannot (#43).
+  strategy: ["custom-localeCookie", "custom-documentLang", "preferredLanguage", "baseLocale"],
   // Physical message files, so tsc, Vitest and plain Node resolve them without the Vite plugin.
   outputStructure: "message-modules",
   emitTsDeclarations: true,

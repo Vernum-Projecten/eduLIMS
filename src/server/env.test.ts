@@ -4,6 +4,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_ROLE_MAP,
+  databaseTlsProblem,
   envFields,
   getEnv,
   isKeycloakConfigured,
@@ -14,6 +15,9 @@ import {
 import { parseRoleMap } from "./idp-roles.ts";
 import { VALID_ENV } from "./test-env.ts";
 
+const VERIFIED_DATABASE_URL =
+  "postgres://edulims:secret@postgres:5432/edulims?sslmode=verify-full&sslrootcert=/etc/edulims/postgres-ca.crt";
+
 describe("parseEnv", () => {
   it("accepts a complete environment and coerces EDULIMS_DEV_LOGIN to a boolean", () => {
     const env = parseEnv(VALID_ENV);
@@ -23,7 +27,11 @@ describe("parseEnv", () => {
 
   it("defaults to production with dev login disabled", () => {
     const { NODE_ENV: _, EDULIMS_DEV_LOGIN: __, ...rest } = VALID_ENV;
-    const env = parseEnv({ ...rest, BETTER_AUTH_URL: "https://edulims.example" });
+    const env = parseEnv({
+      ...rest,
+      BETTER_AUTH_URL: "https://edulims.example",
+      DATABASE_URL: VERIFIED_DATABASE_URL,
+    });
     expect(env.NODE_ENV).toBe("production");
     expect(env.EDULIMS_DEV_LOGIN).toBe(false);
   });
@@ -86,6 +94,7 @@ const NO_MICROSOFT = {
 };
 const PRODUCTION = {
   NODE_ENV: "production",
+  DATABASE_URL: VERIFIED_DATABASE_URL,
   BETTER_AUTH_URL: "https://edulims.example",
   EDULIMS_DEV_LOGIN: "false",
 };
@@ -158,6 +167,37 @@ describe("identity providers", () => {
   it("falls back to the default role map when OIDC_ROLE_MAP is empty (#15)", () => {
     const env = parseEnv({ ...VALID_ENV, OIDC_ROLE_MAP: "" });
     expect(env.OIDC_ROLE_MAP).toEqual(parseRoleMap(DEFAULT_ROLE_MAP));
+  });
+});
+
+describe("PostgreSQL TLS in production (#40, ASVS V12.3.1)", () => {
+  const production = { ...VALID_ENV, ...PRODUCTION };
+
+  it("accepts sslmode=verify-full, with or without a CA file", () => {
+    expect(parseEnv(production).DATABASE_URL).toBe(VERIFIED_DATABASE_URL);
+    const systemCa = "postgres://edulims:secret@db.example:5432/edulims?sslmode=verify-full";
+    expect(parseEnv({ ...production, DATABASE_URL: systemCa }).DATABASE_URL).toBe(systemCa);
+  });
+
+  it.each([
+    ["no sslmode", "postgres://edulims:secret@postgres:5432/edulims"],
+    ["sslmode=disable", "postgres://edulims:secret@postgres:5432/edulims?sslmode=disable"],
+    ["sslmode=require", "postgres://edulims:secret@postgres:5432/edulims?sslmode=require"],
+    ["sslmode=verify-ca", "postgres://edulims:secret@postgres:5432/edulims?sslmode=verify-ca"],
+    ["sslmode=prefer", "postgres://edulims:secret@postgres:5432/edulims?sslmode=prefer"],
+  ])("refuses a DATABASE_URL with %s", (_case, url) => {
+    expect(() => parseEnv({ ...production, DATABASE_URL: url })).toThrow(
+      /sslmode=verify-full[\s\S]*DATABASE_URL/,
+    );
+  });
+
+  it("keeps the plain development database outside production", () => {
+    expect(parseEnv(VALID_ENV).DATABASE_URL).toBe(VALID_ENV.DATABASE_URL);
+  });
+
+  it("reports nothing for a verified URL and the reason for any other", () => {
+    expect(databaseTlsProblem(VERIFIED_DATABASE_URL)).toBeUndefined();
+    expect(databaseTlsProblem(VALID_ENV.DATABASE_URL)).toMatch(/verify-full/);
   });
 });
 

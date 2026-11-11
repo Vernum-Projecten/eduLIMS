@@ -37,6 +37,11 @@ adding one, and update it instead of duplicating.
 - [OWASP baseline](owasp-baseline.md): ASVS 5.0 Level 2 from the copies
   vendored in docs/security/vendor/; every ASVS id judged in the
   applicability table; cite ids, never the web; 2026-11-11
+- [Owner-delegated decisions](owner-delegated-decisions-2026-11-11.md): what
+  the maintainer decided on the owner's delegation for classes and
+  invitations (#28), the Admin portal (#32) and security hardening (#39 to
+  #44); GDPR basis, DPIA, EHR subject and KPI norms stay with the product
+  owner; 2026-11-11
 
 ## Working with the owner
 
@@ -50,6 +55,10 @@ adding one, and update it instead of duplicating.
   separate worktree while the owner runs `pnpm dev`
 
 ## Stack
+
+- [Greenfield until 1.0](greenfield-until-1-0.md): no data migrations or
+  compatibility shims before the first stable release; migrations may be
+  edited or squashed; reset local databases; owner 2026-11-11
 
 - [Stack decisions](stack-decisions.md): TanStack Start full SSR on Vite 8 and
   Nitro, TypeScript 7 native tsc, React 19, shadcn/ui radix-nova, Biome 2.6,

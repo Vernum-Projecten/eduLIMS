@@ -75,11 +75,18 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
 ## Migrations
 
 - One migration per schema change, in `src/server/db/migrations/`, named
-  `<UTC timestamp>_<snake_slug>.ts` and exporting `up` and `down`
+  `<NNNN>_<snake_slug>.ts` (the next free four-digit number, registered in
+  `migrations/index.ts`) and exporting `up` and `down`
   (<https://kysely.dev/docs/migrations>). Write the SQL with Kysely's schema
   builder, or `sql` for a PostgreSQL feature it lacks.
-- **A merged migration is immutable.** A mistake is fixed by a new
-  migration. Never edit, rename or reorder one that has reached `main`.
+- **Before 1.0 (greenfield):** there is no production data, so a migration
+  may be edited, renumbered or merged into another; local databases are
+  reset with `pnpm db:reset`, and no change needs a data migration or a
+  compatibility path ([[greenfield-until-1-0]] in `.claude/memory/`). Parallel
+  branches still take distinct numbers so they merge cleanly.
+- **From 1.0 on:** the migrations are squashed into one baseline at the 1.0
+  cut, and from then a merged migration is immutable: a mistake is fixed by
+  a new migration, never by editing, renaming or reordering one on `main`.
 - `down` really reverts `up`; a destructive `down` (dropping a column with
   data) says so in a `// NOTE:`.
 - Run with `pnpm db:migrate` against the Compose database (`pnpm dev:db`);

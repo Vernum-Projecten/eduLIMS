@@ -9,6 +9,7 @@ import * as m0002 from "./0002_user_locale.ts";
 import * as m0003 from "./0003_user_last_portal.ts";
 import * as m0004 from "./0004_user_role_check.ts";
 import * as m0005 from "./0005_audit_event.ts";
+import * as m0006 from "./0006_session_absolute_lifetime.ts";
 
 export const migrations: Record<string, Migration> = {
   "0001_auth": m0001,
@@ -16,6 +17,7 @@ export const migrations: Record<string, Migration> = {
   "0003_user_last_portal": m0003,
   "0004_user_role_check": m0004,
   "0005_audit_event": m0005,
+  "0006_session_absolute_lifetime": m0006,
 };
 
 export const migrationProvider: MigrationProvider = {
