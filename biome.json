@@ -14,8 +14,7 @@
       "!.claude/skills",
       "!pnpm-lock.yaml",
       "!**/*.md",
-      "!**/*.svg",
-      "!docs/backlog"
+      "!**/*.svg"
     ]
   },
   "formatter": {

@@ -39,8 +39,8 @@ is a question for the owner, never a number you pick.
 | Data | Gen5 Excel: sample IDs, well positions, empty and duplicate values (S4); Afinion HL7 to openEHR (S5) | Vitest with the fixed good and bad files | `tests/unit/` with `tests/fixtures/` | every change |
 | Integration | eduLIMS with FerroEHR (REST, AQL), FerroBRIDGE with an HL7 message, sign-in | Vitest or Playwright against the Compose test stack; the HL7 message is simulated | `tests/integration/` | every release |
 | Security | Role isolation: a student sees nothing of others, a docent only their own classes; vulnerable libraries | role-scoped negative tests with test accounts; dependency scan in CI | next to the server function | every change and every release |
-| Accessibility | Student and Docent portals and the dashboard | Playwright + `@axe-core/playwright`, plus a keyboard-only pass | `tests/e2e/` (`pnpm test:e2e`) | every change in CI, before every sprint review |
-| Performance | Page load and Excel upload with a full practicum of test data | Playwright timings in the test stack | `tests/e2e/` | before every sprint review |
+| Accessibility | Student and Docent portals and the dashboard | Playwright + `@axe-core/playwright`, plus a keyboard-only pass | `tests/e2e/` (`pnpm test:e2e`) | every change in CI, before every milestone review |
+| Performance | Page load and Excel upload with a full practicum of test data | Playwright timings in the test stack | `tests/e2e/` | before every milestone review |
 
 ## Coverage is a mandate
 

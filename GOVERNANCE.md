@@ -9,7 +9,7 @@ How decisions get made in eduLIMS, who makes them, and how that changes.
 
 | Role | Who | Decides |
 |---|---|---|
-| Client and product owner | Sophie de Klerk, senior researcher Health Informatics | priorities in the backlog, acceptance of each requirement in the sprint review |
+| Client and product owner | Sophie de Klerk, senior researcher Health Informatics | priorities in the backlog, acceptance of each requirement in the milestone review |
 | Overseeing party | the research group New Business & ICT (lector) | continuity of eduLIMS and its development lane inside the CollabSpace |
 | Maintainer | Ruben Talstra ([MAINTAINERS.md](MAINTAINERS.md)) | technical decisions: what gets merged and released, and how |
 | Reviewer | the supervising teacher | reviews pull requests by convention; see below |
@@ -17,7 +17,7 @@ How decisions get made in eduLIMS, who makes them, and how that changes.
 
 The product owner decides what is built. The maintainer decides how. When the
 two meet (a requirement that cannot be met as written, or a technical choice
-that changes what users see), the maintainer brings it to the next sprint
+that changes what users see), the maintainer brings it to the next milestone
 review.
 
 ## Merging
@@ -32,8 +32,8 @@ beslist", [ADR 0009](docs/adr/0009-no-ai-attribution-human-review.md)).
 
 ## Cadence
 
-Work runs in sprints of two weeks. Each sprint ends with a review and a
-presentation to the product owner and the supervising teacher. The research
+Work is planned in GitHub milestones and issues. Each milestone ends with a
+review with the product owner and the supervising teacher. The research
 group is updated per milestone.
 
 ## Where decisions are recorded

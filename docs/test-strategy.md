@@ -29,10 +29,10 @@ repeat, so they cover the most important flows only.
 | Data | Excel upload: sample IDs, well positions, empty or duplicate values (S4). Afinion: HL7 message to openEHR | a fixed set of good and bad test files; validation against the template `eduLIMS-lab` | every change, in CI | bad files are rejected with a clear message; good files reach FerroEHR correctly |
 | Integration | eduLIMS with FerroEHR (REST and AQL), FerroBRIDGE with an HL7 message, sign-in through Entra ID | a test environment with Docker Compose; the HL7 message is simulated | every release | a measurement appears with the right sample within 1 minute (S5) |
 | Security | Roles: a student sees no data of others, a teacher only their own classes (Q-SEC-2). Vulnerable libraries (Q-SEC-4) | test accounts per role; OWASP Top 10 checklist (Q-SEC-1); dependency and image scan in CI | every release | no access outside the own role; no known critical vulnerabilities |
-| Performance | Page load time and Excel upload processing (Q-PERF-1, Q-PERF-2) | measured in the test environment with a full practical of test data | before every sprint review | pages within 2 seconds; upload within 10 seconds |
-| Accessibility | Student portal, teacher portal and the dashboard (Q-ACC-1 to Q-ACC-3) | axe scan in Playwright, and a keyboard-only walkthrough | axe on every change; keyboard before every sprint review | no errors at WCAG 2.1 level A and AA |
+| Performance | Page load time and Excel upload processing (Q-PERF-1, Q-PERF-2) | measured in the test environment with a full practical of test data | before every milestone review | pages within 2 seconds; upload within 10 seconds |
+| Accessibility | Student portal, teacher portal and the dashboard (Q-ACC-1 to Q-ACC-3) | axe scan in Playwright, and a keyboard-only walkthrough | axe on every change; keyboard before every milestone review | no errors at WCAG 2.1 level A and AA |
 | User test | Dashboard with 3 to 5 teachers, student portal with 2 to 3 students | think-aloud test with fixed tasks, such as "which class is behind?" | after every design iteration | at least 4 of 5 tasks completed without help |
-| Acceptance | The Must requirements | demo to the product owner in the sprint review | every two weeks | the product owner accepts the acceptance criterion |
+| Acceptance | The Must requirements | demo to the product owner in the milestone review | every milestone | the product owner accepts the acceptance criterion |
 
 ### Tools
 
@@ -84,5 +84,5 @@ A user story is done only when all of the following hold. The same list is in
 
 ## Reporting
 
-Test results are kept per run in GitHub Actions. Every sprint review shows
+Test results are kept per run in GitHub Actions. Every milestone review shows
 which tests were added and what went wrong.

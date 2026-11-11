@@ -66,8 +66,9 @@ project and keeps it maintainable inside its CollabSpace.
 Implementation started on 2026-11-11. The design work (requirements,
 architecture model, test strategy, KPI dashboard wireframes) is done and is
 recorded under [`docs/`](docs/). The first milestone, `v0.1.0 – Foundation`,
-sets up the application shell, sign-in, the database and the CI/CD lane. The
-initial backlog is [`docs/backlog/issues.yaml`](docs/backlog/issues.yaml).
+sets up the application shell, sign-in, the database and the CI/CD lane.
+The work is planned in [GitHub milestones](https://github.com/Vernum-Projecten/eduLIMS/milestones)
+and [issues](https://github.com/Vernum-Projecten/eduLIMS/issues).
 
 eduLIMS only ever holds test data from volunteer subjects under a pseudonym. It
 is not meant for patient data.

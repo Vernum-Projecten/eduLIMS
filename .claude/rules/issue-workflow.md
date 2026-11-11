@@ -81,7 +81,7 @@ creation. Until that helper exists, `gh issue create` followed by setting the
 type in the web UI is the fallback; never leave an issue without a type.
 
 The priorities read: `Urgent` is drop everything (a broken login, a role
-leak), `High` is the current sprint focus, `Medium` is normal, `Low` is the
+leak), `High` is the current milestone's focus, `Medium` is normal, `Low` is the
 backlog. The type maps to the conventional-commit type of the branch and the
 commit: a `Bug` is a `fix`, a `Feature` is a `feat`, and a `Task` says which
 one it is with exactly ONE work-kind label.
@@ -102,7 +102,7 @@ bootstrap it with `scripts/gh/labels.sh`:
 ## Milestones = releases
 
 A milestone is a delivery promise (`vX.Y.Z`) with a due date that lines up
-with a sprint review. A release is cut when its milestone reaches zero open
+with a review with the product owner. A release is cut when its milestone reaches zero open
 issues, or when the owner calls the cut and moves the stragglers to the next
 milestone. Every en-route issue goes in the CURRENT milestone, never the next.
 The cut procedure is `docs/release.md` (`/release`).

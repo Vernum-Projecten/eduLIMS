@@ -28,7 +28,7 @@ Everything else the board shows is read from the issue:
 | Decomposition | native sub-issue edges | a board hierarchy field |
 | Sequencing | native blocked-by edges | a Blocked column |
 
-Do not add custom fields, sprint iteration fields, estimate fields, or extra
+Do not add custom fields, estimate fields, or extra
 Status options. A board-only fact is invisible to `gh issue` consumers and
 rots the first time it disagrees with the issue. The one derived field is
 `Target date`, the mirror of the milestone due date, written only by
@@ -44,7 +44,7 @@ rots the first time it disagrees with the issue. The one derived field is
   built-in "item closed" workflow moves it.
 
 An issue parked mid-flight goes back with `scripts/gh/project.sh status <n>
-todo`; a stale `In Progress` card is a false claim in the sprint review.
+todo`; a stale `In Progress` card is a false claim in the milestone review.
 
 ## Commands
 
@@ -63,7 +63,7 @@ stay visible as the shipped record.
 
 ## Status updates
 
-Post one at every release cut and at every sprint review: what shipped, which
+Post one at every release cut and at every milestone review: what shipped, which
 requirement IDs it moved, what the next milestone targets. Write for the
 product owner: no internal file paths, and numbers only when they come from a
 committed artefact (the coverage report, the axe run).

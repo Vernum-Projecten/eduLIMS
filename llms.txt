@@ -15,7 +15,6 @@
 - [KPI dashboard](docs/kpi-dashboard.md): KPIs, norms, data sources and wireframes.
 - [Decision records](docs/adr/README.md): the architecture and technology decisions.
 - [Version matrix](docs/VERSIONS.md): the pinned versions, checked in CI.
-- [Initial backlog](docs/backlog/issues.yaml): milestones and issues in machine-readable form.
 
 ## Governance and policies
 

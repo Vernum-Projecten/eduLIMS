@@ -29,11 +29,11 @@ it is the word users and the documents use.
   holds.
 - Criteria marked *(proposed)* are not in the Requirementsanalyse. The
   Requirementsanalyse wrote criteria for twelve Must requirements; the others
-  are proposals that the product owner confirms in a sprint review.
+  are proposals that the product owner confirms in a milestone review.
 - **Risk** refers to the risk table below.
 
 The acceptance criteria and risk scores were proposed by the developer and are
-validated with the product owner (Sophie de Klerk) in the sprint reviews and
+validated with the product owner (Sophie de Klerk) in the milestone reviews and
 with teachers and students in the interviews of the problem analysis.
 
 ## Roles
