@@ -31,6 +31,14 @@ Ask an administrator to give your account the student role.
 You see only your own data. Results, submissions and grades of other students
 are never shown to you.
 
+## Change the language
+
+eduLIMS is in English and Dutch. Choose the language button in the header
+(it shows the current language, such as **English**) and pick
+**Nederlands** or **English**. The page reloads in that language. When you
+are signed in, eduLIMS saves the choice to your account, so it also applies
+the next time you sign in, on any device.
+
 ## Sign out
 
 Choose **Sign out** in the header. eduLIMS ends your session on the server.

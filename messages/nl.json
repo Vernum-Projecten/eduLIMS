@@ -7,6 +7,8 @@
   "sign_out": "Uitloggen",
   "sign_out_failed": "Uitloggen is mislukt. Probeer het opnieuw.",
   "language_switcher_label": "Taal",
+  "language_menu_trigger": "Taal: {language}",
+  "language_save_failed": "Je taal kon niet worden opgeslagen. Probeer het opnieuw.",
   "role_student": "Student",
   "role_teacher": "Docent",
   "role_admin": "Beheerder",

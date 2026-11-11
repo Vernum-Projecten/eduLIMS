@@ -48,6 +48,7 @@ export interface User {
   emailVerified: boolean;
   id: string;
   image: string | null;
+  locale: string | null;
   name: string;
   role: string | null;
   updatedAt: Generated<Timestamp>;

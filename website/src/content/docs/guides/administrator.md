@@ -27,6 +27,14 @@ still change.
 
 eduLIMS opens the admin portal when your account has the admin role.
 
+## Change the language
+
+eduLIMS is in English and Dutch. Choose the language button in the header
+(it shows the current language, such as **English**) and pick
+**Nederlands** or **English**. The page reloads in that language. When you
+are signed in, eduLIMS saves the choice to your account, so it also applies
+the next time you sign in, on any device.
+
 ## Give a user a role
 
 eduLIMS knows three roles: `student`, `teacher` and `admin`. A user without a

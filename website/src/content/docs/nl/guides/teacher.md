@@ -31,6 +31,14 @@ beheerder.
 Je ziet alleen de practica die van jou zijn of waaraan je gekoppeld bent.
 Practica van andere docenten, en de resultaten daarin, blijven verborgen.
 
+## De taal wijzigen
+
+eduLIMS is er in het Nederlands en het Engels. Kies bovenaan de pagina de
+taalknop (daarop staat de huidige taal, bijvoorbeeld **Nederlands**) en kies
+**Nederlands** of **English**. De pagina laadt opnieuw in die taal. Ben je
+ingelogd, dan bewaart eduLIMS je keuze bij je account. Die geldt dan ook de
+volgende keer dat je inlogt, op elk apparaat.
+
 ## Uitloggen
 
 Kies **Uitloggen** bovenaan de pagina. eduLIMS beëindigt je sessie op de

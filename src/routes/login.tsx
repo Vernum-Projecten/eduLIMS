@@ -13,6 +13,7 @@ import { m } from "@/i18n/messages";
 import { authClient } from "@/lib/auth-client";
 import { safeRedirectPath } from "@/lib/guards";
 import { providerLabel } from "@/lib/i18n/labels";
+import { cookieLocaleDiffersFromDocument } from "@/lib/i18n/locale";
 import { type IdentityProviderId, NO_ROLE_ERROR } from "@/lib/identity-providers";
 import { getLoginOptions } from "@/lib/session.functions";
 import { portalPathFor } from "@/server/authz";
@@ -121,6 +122,11 @@ function DevLoginForm() {
       const { error } = await authClient.signIn.email(value);
       if (error) {
         setFormError(m.dev_login_failed());
+        return;
+      }
+      // The sign-in set the cookie from the user's saved language: render the next page in it.
+      if (cookieLocaleDiffersFromDocument()) {
+        window.location.reload();
         return;
       }
       // Re-runs the login route's beforeLoad, which redirects to the right portal.

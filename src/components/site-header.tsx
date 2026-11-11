@@ -6,7 +6,7 @@ import { LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { BrandMark } from "@/components/brand-mark";
-import { LocaleSwitcher } from "@/components/locale-switcher";
+import { LanguageMenu } from "@/components/language-menu";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { authClient } from "@/lib/auth-client";
@@ -47,7 +47,7 @@ export function SiteHeader({ user }: Readonly<{ user: SessionUser | null }>) {
           </nav>
         )}
         <div className="ml-auto flex flex-wrap items-center gap-3">
-          <LocaleSwitcher />
+          <LanguageMenu signedIn={user !== null} />
           {user ? (
             <>
               <span className="text-sm text-muted-foreground">{user.name}</span>

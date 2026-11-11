@@ -11,6 +11,7 @@ import { ADMIN_ROLE, accessControl, DEFAULT_ROLE, roles } from "../lib/roles.ts"
 import { getPool } from "./db/index.ts";
 import { type Env, getEnv, isKeycloakConfigured, isMicrosoftConfigured } from "./env.ts";
 import { createIdpRoleSync } from "./idp-sync.ts";
+import { applySavedLocaleOnSignIn } from "./preferences/locale-cookie.ts";
 
 const DEFAULT_ROLE_CLAIMS: Record<IdentityProviderId, string> = {
   microsoft: "roles",
@@ -61,7 +62,8 @@ function keycloakProviders(env: Env) {
 /**
  * Creates the better-auth instance. Sign-in goes through the configured OIDC providers
  * (Microsoft Entra ID single tenant, Keycloak via discovery; authorization code + PKCE),
- * which also supply the role on every sign-in. Email/password exists solely for local
+ * which also supply the role on every sign-in. A saved language preference sets the locale
+ * cookie on sign-in (ADR 0011). Email/password exists solely for local
  * development and e2e tests and is refused by env validation when NODE_ENV=production.
  */
 export function createAuth(env: Env, database: BetterAuthOptions["database"] = getPool()) {
@@ -73,6 +75,10 @@ export function createAuth(env: Env, database: BetterAuthOptions["database"] = g
     emailAndPassword: { enabled: env.EDULIMS_DEV_LOGIN, disableSignUp: true },
     socialProviders: microsoftProvider(env),
     user: {
+      additionalFields: {
+        // The language picked in the language menu; only savePreferredLocale writes it.
+        locale: { type: "string", required: false, input: false },
+      },
       validateUserInfo: createIdpRoleSync({
         claimPaths: {
           microsoft: env.OIDC_ROLE_CLAIM ?? DEFAULT_ROLE_CLAIMS.microsoft,
@@ -82,6 +88,7 @@ export function createAuth(env: Env, database: BetterAuthOptions["database"] = g
         defaultRole: env.OIDC_DEFAULT_ROLE,
       }),
     },
+    hooks: { after: applySavedLocaleOnSignIn(env.BETTER_AUTH_URL) },
     plugins: [
       admin({ ac: accessControl, roles, defaultRole: DEFAULT_ROLE, adminRoles: [ADMIN_ROLE] }),
       genericOAuth({ config: keycloakProviders(env) }),

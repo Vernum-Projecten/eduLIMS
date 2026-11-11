@@ -27,6 +27,14 @@ conceptrequirement, die nog kan veranderen.
 
 eduLIMS opent het Beheerportaal als je account de rol beheerder heeft.
 
+## De taal wijzigen
+
+eduLIMS is er in het Nederlands en het Engels. Kies bovenaan de pagina de
+taalknop (daarop staat de huidige taal, bijvoorbeeld **Nederlands**) en kies
+**Nederlands** of **English**. De pagina laadt opnieuw in die taal. Ben je
+ingelogd, dan bewaart eduLIMS je keuze bij je account. Die geldt dan ook de
+volgende keer dat je inlogt, op elk apparaat.
+
 ## Een gebruiker een rol geven
 
 eduLIMS kent drie rollen: student, docent en beheerder (in de configuratie
