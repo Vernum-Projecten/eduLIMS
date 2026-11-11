@@ -70,6 +70,16 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   analyser_updated: m.audit_action_analyser_updated,
   analyser_retired: m.audit_action_analyser_retired,
   sys_data_key_rotated: m.audit_action_data_key_rotated,
+  class_created: m.audit_action_class_created,
+  class_updated: m.audit_action_class_updated,
+  class_archived: m.audit_action_class_archived,
+  class_owner_changed: m.audit_action_class_owner_changed,
+  invitation_created: m.audit_action_invitation_created,
+  invitation_accepted: m.audit_action_invitation_accepted,
+  invitation_revoked: m.audit_action_invitation_revoked,
+  upload_complete: m.audit_action_upload_complete,
+  upload_validation_fail: m.audit_action_upload_validation_fail,
+  upload_delete: m.audit_action_upload_delete,
 };
 
 /** Returns the name of an activity-log action; an action the screen does not know is "Other". */

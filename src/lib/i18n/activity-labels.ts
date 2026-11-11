@@ -1,0 +1,180 @@
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+
+// Display text for the activity log screen (#36, B4): outcomes, actors and targets, reason
+// codes, and the metadata of an event as readable, translated parts. The log holds codes; this
+// is the one place they become words.
+import { m } from "@/i18n/messages";
+import { formatDateTime, formatNumber } from "@/lib/i18n/format";
+import { rolesLabel } from "@/lib/i18n/labels";
+import { type ProviderLabels, signInMethodLabel } from "@/lib/i18n/user-labels";
+import { isRole, type Role } from "@/lib/roles";
+import type {
+  AuditMetadata,
+  AuditOutcome,
+  AuditProvider,
+  AuditTargetType,
+} from "@/server/audit/events";
+
+/** Returns the name of an outcome as the activity table's status shows it ("Succeeded"). */
+export function activityOutcomeLabel(outcome: AuditOutcome): string {
+  switch (outcome) {
+    case "success":
+      return m.admin_activity_outcome_success();
+    case "failure":
+      return m.admin_activity_outcome_failure();
+    case "refused":
+      return m.admin_activity_outcome_refused();
+    default: {
+      const unknown: never = outcome;
+      return unknown;
+    }
+  }
+}
+
+/** Returns the name of who acted when it was not a user: eduLIMS itself, or someone not signed in. */
+export function activityNonUserActorLabel(actor: "system" | "anonymous"): string {
+  return actor === "system" ? m.admin_activity_actor_system() : m.admin_activity_actor_anonymous();
+}
+
+/** An object an event is about, other than a user. */
+export interface ActivityObjectTarget {
+  type: Exclude<AuditTargetType, "user">;
+  id: string;
+}
+
+/**
+ * Returns what a non-user target is: its kind, and for an identity provider its name from
+ * `labels` (its id when it has none, such as a deleted provider).
+ */
+export function activityTargetLabel(
+  target: ActivityObjectTarget,
+  labels: ProviderLabels = {},
+): string {
+  switch (target.type) {
+    case "session":
+      return m.admin_activity_target_session();
+    case "class":
+      return m.admin_activity_target_class();
+    case "invitation":
+      return m.admin_activity_target_invitation();
+    case "upload":
+      return m.admin_activity_target_upload();
+    case "identity_provider":
+      return m.admin_activity_target_identity_provider({ name: labels[target.id] ?? target.id });
+    case "admin_grant":
+      return m.admin_activity_target_admin_grant();
+    default: {
+      const unknown: never = target.type;
+      return unknown;
+    }
+  }
+}
+
+const REASON_LABELS: Readonly<Record<string, () => string>> = {
+  access_denied: m.admin_activity_reason_access_denied,
+  admin_grant: m.admin_activity_reason_admin_grant,
+  admin_grant_override: m.admin_activity_reason_admin_grant_override,
+  admin_revoke: m.admin_activity_reason_admin_revoke,
+  banned_user: m.admin_activity_reason_banned_user,
+  cannot_change_own_roles: m.admin_activity_reason_own_roles,
+  invalid_code: m.admin_activity_reason_invalid_code,
+  invalid_email_or_password: m.admin_activity_reason_invalid_password,
+  no_edulims_role: m.admin_activity_reason_no_role,
+  role_conflict: m.admin_activity_reason_role_conflict,
+  roles_not_local: m.admin_activity_reason_roles_not_local,
+  sign_in_refused: m.admin_activity_reason_sign_in_refused,
+  state_not_found: m.admin_activity_reason_state_not_found,
+  user_banned: m.admin_activity_reason_user_banned,
+  user_deleted: m.admin_activity_reason_user_deleted,
+};
+
+/**
+ * Returns the reason of an event in words. A code this version has no words for is shown as the
+ * code itself, labelled as one, so nothing the log holds is hidden.
+ */
+export function activityReasonLabel(code: string): string {
+  const label = Object.hasOwn(REASON_LABELS, code) ? REASON_LABELS[code] : undefined;
+  return label ? label() : m.admin_activity_reason_code({ code });
+}
+
+/** Returns the result of an identity provider's test sign-in in words. */
+export function activityTestOutcomeLabel(outcome: string): string {
+  if (outcome === "roles") return m.admin_activity_test_roles();
+  if (outcome === "local") return m.admin_activity_test_local();
+  if (outcome === "default") return m.admin_activity_test_default();
+  return activityReasonLabel(outcome);
+}
+
+function roleList(value: string): Role[] {
+  return value.split(",").filter(isRole);
+}
+
+function metadataParts(metadata: AuditMetadata, labels: ProviderLabels): string[] {
+  const parts: string[] = [];
+  if (metadata.provider_id) {
+    const name = labels[metadata.provider_id] ?? metadata.provider_id;
+    parts.push(m.admin_activity_detail_identity_provider({ name }));
+  }
+  if (metadata.protocol) {
+    parts.push(m.admin_activity_detail_protocol({ protocol: metadata.protocol.toUpperCase() }));
+  }
+  if (metadata.roles) {
+    parts.push(m.admin_activity_detail_roles({ roles: rolesLabel(roleList(metadata.roles)) }));
+  }
+  if (metadata.previous_roles) {
+    const roles = rolesLabel(roleList(metadata.previous_roles));
+    parts.push(m.admin_activity_detail_previous_roles({ roles }));
+  }
+  if (metadata.ban_expires_at) {
+    const date = formatDateTime(metadata.ban_expires_at);
+    parts.push(m.admin_activity_detail_ban_until({ date }));
+  }
+  if (metadata.fields && metadata.fields.length > 0) {
+    parts.push(m.admin_activity_detail_fields({ fields: metadata.fields.join(", ") }));
+  }
+  if (metadata.attest_pkce !== undefined) {
+    parts.push(
+      metadata.attest_pkce
+        ? m.admin_activity_detail_pkce_attested()
+        : m.admin_activity_detail_pkce_not_attested(),
+    );
+  }
+  if (metadata.sessions_ended !== undefined) {
+    const count = formatNumber(metadata.sessions_ended);
+    parts.push(m.admin_activity_detail_sessions_ended({ count }));
+  }
+  if (metadata.test_outcome) {
+    const result = activityTestOutcomeLabel(metadata.test_outcome);
+    parts.push(m.admin_activity_detail_test_outcome({ result }));
+  }
+  return parts;
+}
+
+/** What an event's details column shows: the reason, the sign-in method and the metadata. */
+export interface ActivityDetailsSource {
+  reason: string | null;
+  provider: AuditProvider | null;
+  metadata: AuditMetadata | "unreadable" | null;
+}
+
+/**
+ * Returns the details of an event as short translated sentences, in a fixed order. `labels`
+ * names the identity providers (ADR 0015); a provider without one shows its id.
+ */
+export function activityDetails(
+  event: ActivityDetailsSource,
+  labels: ProviderLabels = {},
+): string[] {
+  const parts: string[] = [];
+  if (event.reason) {
+    parts.push(m.admin_activity_detail_reason({ reason: activityReasonLabel(event.reason) }));
+  }
+  if (event.provider) {
+    const provider = signInMethodLabel(event.provider, labels);
+    parts.push(m.admin_activity_detail_provider({ provider }));
+  }
+  if (event.metadata === "unreadable") parts.push(m.admin_activity_detail_unreadable());
+  else if (event.metadata) parts.push(...metadataParts(event.metadata, labels));
+  return parts;
+}
