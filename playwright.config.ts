@@ -38,7 +38,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] ? 2 : 0,
   reporter: process.env["CI"] ? [["github"], ["html", { open: "never" }]] : "list",
-  use: { baseURL, locale: "nl-NL", trace: "retain-on-failure" },
+  use: { baseURL, locale: "en-US", trace: "retain-on-failure" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     ...(externalDatabase

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createFileRoute } from "@tanstack/react-router";
+import { m } from "@/i18n/messages";
 
 export const Route = createFileRoute("/_authed/admin/")({
-  head: () => ({ meta: [{ title: "Beheerportaal | eduLIMS" }] }),
+  head: () => ({ meta: [{ title: `${m.portal_admin()} | eduLIMS` }] }),
   component: Page,
 });
 
@@ -13,12 +14,10 @@ function Page() {
   return (
     <section aria-labelledby="page-title">
       <h1 id="page-title" className="text-2xl font-semibold">
-        Beheerportaal
+        {m.portal_admin()}
       </h1>
-      <p className="mt-2">Welkom, {user.name}.</p>
-      <p className="mt-1 text-muted-foreground">
-        Hier beheer je straks gebruikers, rollen en de koppelingen met FerroEHR en FerroBRIDGE.
-      </p>
+      <p className="mt-2">{m.welcome({ name: user.name })}</p>
+      <p className="mt-1 text-muted-foreground">{m.portal_admin_intro()}</p>
     </section>
   );
 }

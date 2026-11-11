@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { m } from "@/i18n/messages";
 import { authClient } from "@/lib/auth-client";
 import { safeRedirectPath } from "@/lib/guards";
+import { providerLabel } from "@/lib/i18n/labels";
 import { type IdentityProviderId, NO_ROLE_ERROR } from "@/lib/identity-providers";
 import { getLoginOptions } from "@/lib/session.functions";
 import { portalPathFor } from "@/server/authz";
@@ -28,7 +30,7 @@ export const Route = createFileRoute("/login")({
     }
   },
   loader: () => getLoginOptions(),
-  head: () => ({ meta: [{ title: "Inloggen | eduLIMS" }] }),
+  head: () => ({ meta: [{ title: `${m.sign_in()} | eduLIMS` }] }),
   component: LoginPage,
 });
 
@@ -41,35 +43,31 @@ function LoginPage() {
       <Card className="w-full sm:max-w-md">
         <CardHeader>
           <CardTitle>
-            <h1 className="text-xl font-semibold">Inloggen</h1>
+            <h1 className="text-xl font-semibold">{m.sign_in()}</h1>
           </CardTitle>
-          <CardDescription>Log in met je Hanze-account om eduLIMS te gebruiken.</CardDescription>
+          <CardDescription>{m.login_description()}</CardDescription>
         </CardHeader>
         <CardContent>
           <FieldGroup>
             {search.error && (
               <p role="alert" className="text-sm text-destructive">
-                {search.error === NO_ROLE_ERROR
-                  ? "Je account heeft (nog) geen rol in eduLIMS. Neem contact op met een beheerder."
-                  : "Inloggen is mislukt. Probeer het opnieuw of neem contact op met een beheerder."}
+                {search.error === NO_ROLE_ERROR ? m.login_error_no_role() : m.login_error_failed()}
               </p>
             )}
             {providers.map((provider) => (
               <ProviderLoginButton
                 key={provider.id}
                 providerId={provider.id}
-                label={provider.label}
+                label={providerLabel(provider)}
                 redirectTo={search.redirect}
               />
             ))}
             {providers.length === 0 && !devLogin && (
-              <p className="text-sm text-muted-foreground">
-                Er is geen inlogmethode ingesteld. Neem contact op met een beheerder.
-              </p>
+              <p className="text-sm text-muted-foreground">{m.login_no_method()}</p>
             )}
             {devLogin && (
               <>
-                <FieldSeparator>Alleen voor ontwikkeling</FieldSeparator>
+                <FieldSeparator>{m.dev_login_separator()}</FieldSeparator>
                 <DevLoginForm />
               </>
             )}
@@ -107,8 +105,8 @@ function ProviderLoginButton({
 }
 
 const devLoginSchema = z.object({
-  email: z.email("Vul een geldig e-mailadres in."),
-  password: z.string().min(1, "Vul je wachtwoord in."),
+  email: z.email({ error: () => m.validation_email() }),
+  password: z.string().min(1, { error: () => m.validation_password() }),
 });
 
 function DevLoginForm() {
@@ -122,7 +120,7 @@ function DevLoginForm() {
       setFormError(null);
       const { error } = await authClient.signIn.email(value);
       if (error) {
-        setFormError("Onjuist e-mailadres of wachtwoord.");
+        setFormError(m.dev_login_failed());
         return;
       }
       // Re-runs the login route's beforeLoad, which redirects to the right portal.
@@ -134,7 +132,7 @@ function DevLoginForm() {
     <form
       id="dev-login-form"
       noValidate
-      aria-label="Inloggen met testaccount"
+      aria-label={m.dev_login_submit()}
       onSubmit={(e) => {
         e.preventDefault();
         void form.handleSubmit();
@@ -146,7 +144,7 @@ function DevLoginForm() {
             const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
             return (
               <Field data-invalid={isInvalid}>
-                <FieldLabel htmlFor={field.name}>E-mailadres</FieldLabel>
+                <FieldLabel htmlFor={field.name}>{m.field_email()}</FieldLabel>
                 <Input
                   id={field.name}
                   name={field.name}
@@ -170,7 +168,7 @@ function DevLoginForm() {
             const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
             return (
               <Field data-invalid={isInvalid}>
-                <FieldLabel htmlFor={field.name}>Wachtwoord</FieldLabel>
+                <FieldLabel htmlFor={field.name}>{m.field_password()}</FieldLabel>
                 <Input
                   id={field.name}
                   name={field.name}
@@ -197,7 +195,7 @@ function DevLoginForm() {
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (
             <Button type="submit" variant="outline" disabled={isSubmitting}>
-              Inloggen met testaccount
+              {m.dev_login_submit()}
             </Button>
           )}
         </form.Subscribe>

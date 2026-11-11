@@ -34,7 +34,8 @@ export const envFields = z.object({
   KEYCLOAK_ISSUER: httpUrl().optional(),
   KEYCLOAK_CLIENT_ID: optionalText(),
   KEYCLOAK_CLIENT_SECRET: optionalText(),
-  KEYCLOAK_LABEL: z.string().trim().min(1).default("Inloggen met Keycloak"),
+  /** Login button text for Keycloak in every locale; unset shows "Sign in with Keycloak", localized. */
+  KEYCLOAK_LABEL: optionalText(),
   /** Dot path of the roles claim; defaults per provider (`roles`, `realm_access.roles`). */
   OIDC_ROLE_CLAIM: optionalText(),
   OIDC_ROLE_MAP: z

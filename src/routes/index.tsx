@@ -3,9 +3,11 @@
 
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { m } from "@/i18n/messages";
 import { portalPathFor } from "@/server/authz";
 
 export const Route = createFileRoute("/")({
+  head: () => ({ meta: [{ title: "eduLIMS" }] }),
   component: Home,
 });
 
@@ -18,19 +20,17 @@ function Home() {
       <h1 id="home-title" className="text-3xl font-semibold">
         eduLIMS
       </h1>
-      <p className="mt-2 text-muted-foreground">
-        Laboratory Information Management System voor het practicumonderwijs van LifeScience.
-      </p>
+      <p className="mt-2 text-muted-foreground">{m.app_description()}</p>
       <div className="mt-6">
         {portal ? (
           <Button asChild>
-            <Link to={portal}>Naar mijn portaal</Link>
+            <Link to={portal}>{m.home_go_to_portal()}</Link>
           </Button>
         ) : user ? (
-          <p>Je account heeft nog geen rol. Neem contact op met een beheerder.</p>
+          <p>{m.home_no_role()}</p>
         ) : (
           <Button asChild>
-            <Link to="/login">Inloggen</Link>
+            <Link to="/login">{m.sign_in()}</Link>
           </Button>
         )}
       </div>

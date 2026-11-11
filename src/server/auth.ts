@@ -17,14 +17,19 @@ const DEFAULT_ROLE_CLAIMS: Record<IdentityProviderId, string> = {
   keycloak: "realm_access.roles",
 };
 
-/** Returns the configured identity providers with their Dutch login button labels. */
+/**
+ * Returns the configured identity providers. Only Keycloak carries a label, and only when the
+ * operator set `KEYCLOAK_LABEL`; the login page localizes every other button text.
+ */
 export function identityProviders(env: Env): IdentityProviderOption[] {
-  return [
-    ...(isMicrosoftConfigured(env)
-      ? [{ id: "microsoft" as const, label: "Inloggen met Hanze-account (Microsoft)" }]
-      : []),
-    ...(isKeycloakConfigured(env) ? [{ id: "keycloak" as const, label: env.KEYCLOAK_LABEL }] : []),
-  ];
+  const providers: IdentityProviderOption[] = [];
+  if (isMicrosoftConfigured(env)) providers.push({ id: "microsoft" });
+  if (isKeycloakConfigured(env)) {
+    providers.push(
+      env.KEYCLOAK_LABEL ? { id: "keycloak", label: env.KEYCLOAK_LABEL } : { id: "keycloak" },
+    );
+  }
+  return providers;
 }
 
 function microsoftProvider(env: Env) {

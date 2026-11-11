@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# The Paraglide compiler cache, written by the Vite plugin on every build.
+cache

@@ -66,7 +66,7 @@ describe("canViewResultsOf", () => {
     expect(canViewResultsOf(user("s2", "student"), scope)).toBe(false);
   });
 
-  it("lets a teacher see results of their own lab courses only", () => {
+  it("lets a teacher see results of their own practicals only", () => {
     expect(canViewResultsOf(user("t1", "teacher"), scope)).toBe(true);
     expect(canViewResultsOf(user("t2", "teacher"), scope)).toBe(false);
   });

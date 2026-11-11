@@ -124,9 +124,9 @@ describe("identity providers", () => {
     expect(() => parseEnv({ ...VALID_ENV, ...KEYCLOAK, ...remote })).toThrow(/KEYCLOAK_ISSUER/);
   });
 
-  it("defaults the Keycloak label and the IdP role map", () => {
+  it("leaves the Keycloak label to the UI and defaults the IdP role map", () => {
     const env = parseEnv({ ...VALID_ENV, ...KEYCLOAK });
-    expect(env.KEYCLOAK_LABEL).toBe("Inloggen met Keycloak");
+    expect(env.KEYCLOAK_LABEL).toBeUndefined();
     expect(env.OIDC_ROLE_MAP).toEqual(parseRoleMap(DEFAULT_ROLE_MAP));
     expect(env.OIDC_DEFAULT_ROLE).toBeUndefined();
   });

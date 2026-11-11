@@ -55,14 +55,14 @@ export function portalPathFor(user: Pick<SessionUser, "roles">): PortalPath | nu
   return PORTALS.find((portal) => hasRole(user, portal.role))?.path ?? null;
 }
 
-/** Who owns a set of measurement results and which teacher supervises the lab course. */
+/** Who owns a set of measurement results and which teacher supervises the practical. */
 export interface ResultScope {
   ownerId: string;
   teacherId: string;
 }
 
 /**
- * Students only see their own results; teachers only see results from their own lab courses.
+ * Students only see their own results; teachers only see results from their own practicals.
  * Admins manage users, not grades, so they get no access to results.
  */
 export function canViewResultsOf(

@@ -19,7 +19,7 @@
       },
       {
         "name": "edulims-teacher",
-        "description": "Teacher: manages and assesses the lab courses they own"
+        "description": "Teacher: manages and assesses the practicals they own"
       },
       {
         "name": "edulims-admin",

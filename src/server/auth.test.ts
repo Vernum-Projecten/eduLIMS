@@ -81,12 +81,17 @@ describe("identityProviders", () => {
     KEYCLOAK_CLIENT_SECRET: "kc-secret",
   };
 
-  it("lists one login button per configured provider", () => {
-    const env = parseEnv({ ...VALID_ENV, ...keycloak, KEYCLOAK_LABEL: "Inloggen met Hanze-IdP" });
+  it("lists one login button per configured provider, with the operator's Keycloak label", () => {
+    const env = parseEnv({ ...VALID_ENV, ...keycloak, KEYCLOAK_LABEL: "Sign in with Campus ID" });
     expect(identityProviders(env)).toEqual([
-      { id: "microsoft", label: "Inloggen met Hanze-account (Microsoft)" },
-      { id: "keycloak", label: "Inloggen met Hanze-IdP" },
+      { id: "microsoft" },
+      { id: "keycloak", label: "Sign in with Campus ID" },
     ]);
+  });
+
+  it("leaves the Keycloak label to the UI when KEYCLOAK_LABEL is unset", () => {
+    const env = parseEnv({ ...VALID_ENV, ...keycloak });
+    expect(identityProviders(env)).toEqual([{ id: "microsoft" }, { id: "keycloak" }]);
   });
 
   it("lists nothing when no provider is configured", () => {

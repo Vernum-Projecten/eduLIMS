@@ -11,6 +11,8 @@
       "**",
       "!src/routeTree.gen.ts",
       "!src/server/db/schema.gen.ts",
+      "!src/i18n",
+      "!project.inlang/cache",
       "!.claude/skills",
       "!pnpm-lock.yaml",
       "!**/*.md",
