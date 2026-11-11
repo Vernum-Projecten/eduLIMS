@@ -37,6 +37,11 @@ adding one, and update it instead of duplicating.
 - [OWASP baseline](owasp-baseline.md): ASVS 5.0 Level 2 from the copies
   vendored in docs/security/vendor/; every ASVS id judged in the
   applicability table; cite ids, never the web; 2026-11-11
+- [Owner-delegated decisions](owner-delegated-decisions-2026-11-11.md): what
+  the maintainer decided on the owner's delegation for classes and
+  invitations (#28), the Admin portal (#32) and security hardening (#39 to
+  #44); GDPR basis, DPIA, EHR subject and KPI norms stay with the product
+  owner; 2026-11-11
 
 ## Working with the owner
 
