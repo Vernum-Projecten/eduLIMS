@@ -5,10 +5,12 @@
 // and `admin revoke <email>` of the host CLI (src/server/cli.ts, #48, #92): the break-glass path
 // when no administrator exists or the identity provider is down. Prints outcome codes and user
 // ids only, never an email address back.
+import type { Kysely } from "kysely";
 import { z } from "zod";
 import { PROVIDER_ID_PATTERN } from "../../lib/identity-providers.ts";
 import { hostEnvironment, openDatabase, parseCliArgs } from "../cli/host.ts";
 import type { Out } from "../db/migrate.ts";
+import type { DB } from "../db/schema.gen.ts";
 import { grantAdmin, grantAdminToUser, lookupUser, revokeAdmin } from "./grants.ts";
 
 const MESSAGES: Readonly<Record<string, string>> = {
@@ -62,20 +64,14 @@ async function grantById(userId: string | undefined, out: Out): Promise<number> 
 }
 
 /** Runs `admin lookup <email>`: prints the user's id and whether the email is verified. */
-async function lookup(email: string, out: Out): Promise<number> {
-  const env = hostEnvironment();
-  const db = openDatabase(env);
-  try {
-    const user = await lookupUser(db, email);
-    if (!user) {
-      out("no user with this email");
-      return 1;
-    }
-    out(`user ${user.id} (email ${user.emailVerified ? "verified" : "not verified"})`);
-    return 0;
-  } finally {
-    await db.destroy();
+async function lookup(db: Kysely<DB>, email: string, out: Out): Promise<number> {
+  const user = await lookupUser(db, email);
+  if (!user) {
+    out("no user with this email");
+    return 1;
   }
+  out(`user ${user.id} (email ${user.emailVerified ? "verified" : "not verified"})`);
+  return 0;
 }
 
 /** Grants or revokes the admin role from the host; returns the exit code. */
@@ -113,7 +109,7 @@ export async function adminCommand(args: readonly string[], out: Out): Promise<n
   try {
     const now = new Date();
     const { data } = input;
-    if (data.action === "lookup") return await lookup(data.email, out);
+    if (data.action === "lookup") return await lookup(db, data.email, out);
     const result =
       data.action === "grant"
         ? await grantAdmin(db, { email: data.email, providerId: data.provider, now })

@@ -28,7 +28,7 @@ const dataKey = () =>
 const originList = () =>
   z.string().transform((text, ctx) => {
     const origins: string[] = [];
-    for (const entry of text.split(",")) {
+    for (const [index, entry] of text.split(",").entries()) {
       const trimmed = entry.trim();
       if (!trimmed) continue;
       try {
@@ -38,7 +38,8 @@ const originList = () =>
         }
         origins.push(url.origin);
       } catch {
-        ctx.addIssue({ code: "custom", message: `"${trimmed}" is not an http(s) origin` });
+        // NOTE: ASVS V16.2.5; the message names the entry by position, never by its value.
+        ctx.addIssue({ code: "custom", message: `entry ${index + 1} is not an http(s) origin` });
         return z.NEVER;
       }
     }

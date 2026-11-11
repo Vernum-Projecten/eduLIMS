@@ -21,6 +21,14 @@ export const MIGRATION_FAILED_EVENT = "migration_failed";
 
 type Direction = "up" | "down";
 
+/**
+ * Returns the message of a failure for the operator's own output (stdout), never for the
+ * security stream: it can quote a value or a row.
+ */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function report({ error, results }: MigrationResultSet, direction: Direction, out: Out): number {
   for (const result of results ?? []) {
     out(`${result.direction} ${result.migrationName}: ${result.status}`);
@@ -33,7 +41,9 @@ function report({ error, results }: MigrationResultSet, direction: Direction, ou
       direction,
       migration: failed?.migrationName,
     });
-    out(`Migration failed; the ${MIGRATION_FAILED_EVENT} log line names its cause.`);
+    // NOTE: #86; the operator's output, never shipped, keeps the message for debugging. The
+    // security line above carries codes only.
+    out(`Migration failed: ${errorMessage(error)}`);
     return 1;
   }
   return 0;

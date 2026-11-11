@@ -4,86 +4,21 @@
 // The host CLI on the security log stream (B4, #86; ASVS V16.2.1, V16.2.4): every command that
 // changes access writes its activity-log row with actor `system`, whose JSON line carries ids
 // and codes only, and a failing migrate or prune writes an error line with its cause chain.
-// The commands run through `runCli` on the test database, which their `destroy()` rolls back.
-import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runCli } from "./cli.ts";
-import type { DB } from "./db/schema.gen.ts";
-import { createTestDb } from "./db/test-db.ts";
+import { describe, expect, it, vi } from "vitest";
+import { database, harness, installCliHarness, run, stream, user } from "./cli/test-cli.ts";
 import { keyringOf } from "./idp/crypto.ts";
-import { invalidateProviderCache } from "./idp/registry.ts";
 import { fixtureMetadata, insertTestProvider } from "./idp/test-providers.ts";
-import { SECURITY_LOG_FIELDS, setSecurityLogWriter } from "./security-log.ts";
 import { VALID_ENV } from "./test-env.ts";
 
-let current: Kysely<DB> | undefined;
+vi.mock(import("./cli/host.ts"), async (original) => {
+  const { harness: state } = await import("./cli/test-cli.ts");
+  return { ...(await original()), openDatabase: () => state.open() };
+});
 
-vi.mock(import("./cli/host.ts"), async (original) => ({
-  ...(await original()),
-  openDatabase: () => {
-    if (!current) throw new Error("no test database");
-    return current;
-  },
-}));
+installCliHarness();
 
 const OLD_KEY = Buffer.alloc(32, 1).toString("base64");
 const NEW_KEY = Buffer.alloc(32, 2).toString("base64");
-const ENVELOPE = ["time", "level", "app", "log", "event"];
-/** Personal data the fixtures hold: none of it may reach a log line. */
-const PERSONAL = /example\.test|Test (Teacher|Admin|Student)|@/;
-
-let logged: string[] = [];
-let restoreLog: (() => void) | undefined;
-
-beforeEach(() => {
-  for (const key of ["DATABASE_URL", "BETTER_AUTH_URL", "EDULIMS_DATA_KEY"] as const) {
-    vi.stubEnv(key, VALID_ENV[key]);
-  }
-  vi.stubEnv("EDULIMS_IDP_PRIVATE_ORIGINS", "");
-  vi.stubEnv("EDULIMS_DATA_KEY_PREVIOUS", "");
-  logged = [];
-  restoreLog = setSecurityLogWriter((line) => logged.push(line));
-});
-
-afterEach(async () => {
-  restoreLog?.();
-  restoreLog = undefined;
-  vi.unstubAllEnvs();
-  invalidateProviderCache();
-  await current?.destroy();
-  current = undefined;
-});
-
-async function database(): Promise<Kysely<DB>> {
-  current = await createTestDb();
-  return current;
-}
-
-async function user(db: Kysely<DB>, id: string, role: string | null, name: string) {
-  await db
-    .insertInto("user")
-    .values({ id, name, email: `${id}@example.test`, emailVerified: true, role })
-    .execute();
-}
-
-async function run(...args: string[]) {
-  const lines: string[] = [];
-  const code = await runCli(args, (line) => lines.push(line));
-  return { code, lines };
-}
-
-/** The parsed stream lines, after checking each against the allowlist and for personal data. */
-function stream(): Record<string, unknown>[] {
-  const allowed: readonly string[] = [...ENVELOPE, ...SECURITY_LOG_FIELDS];
-  return logged.map((text) => {
-    expect(text).not.toMatch(PERSONAL);
-    const parsed: unknown = JSON.parse(text);
-    if (typeof parsed !== "object" || parsed === null) throw new Error("not a JSON object");
-    const line = Object.fromEntries(Object.entries(parsed));
-    expect(Object.keys(line).filter((key) => !allowed.includes(key))).toEqual([]);
-    return line;
-  });
-}
 
 describe("admin grant and revoke on the stream (#86)", () => {
   it("logs `admin grant <email>` as a role change by system, with the user id only", async () => {
@@ -236,7 +171,7 @@ describe("idp add, enable, disable and rekey on the stream (#86)", () => {
       resealed_providers: 1,
       resealed_id_tokens: 0,
     });
-    expect(logged.join("")).not.toContain("secret-1");
+    expect(harness.logged.join("")).not.toContain("secret-1");
   });
 });
 
@@ -244,11 +179,12 @@ describe("migrate and prune failures on the stream (#86)", () => {
   /** A port nothing listens on, so the connection is refused at once. */
   const UNREACHABLE = "postgres://edulims:edulims@127.0.0.1:1/edulims";
 
-  it("logs a failed migrate as migration_failed with its cause, never a message", async () => {
+  it("logs a failed migrate as migration_failed with its cause, the message only on its output", async () => {
     vi.stubEnv("DATABASE_URL", UNREACHABLE);
     const { code, lines } = await run("migrate");
     expect(code).toBe(1);
-    expect(lines).toContain("Migration failed; the migration_failed log line names its cause.");
+    expect(lines).toContainEqual(expect.stringMatching(/^Migration failed: .*ECONNREFUSED/));
+    expect(harness.logged.join("")).not.toContain("127.0.0.1");
     expect(stream()).toEqual([
       expect.objectContaining({
         level: "error",
@@ -274,9 +210,12 @@ describe("migrate and prune failures on the stream (#86)", () => {
     ]);
   });
 
-  it("logs a failed prune as retention_prune_failed with its cause", async () => {
+  it("logs a failed prune as retention_prune_failed with its cause, and says so on its output", async () => {
     vi.stubEnv("DATABASE_URL", UNREACHABLE);
-    expect((await run("prune")).code).toBe(1);
+    const { code, lines: output } = await run("prune");
+    expect(code).toBe(1);
+    expect(output).toEqual([expect.stringMatching(/^Prune failed: .*ECONNREFUSED/)]);
+    expect(harness.logged.join("")).not.toContain("127.0.0.1");
     const lines = stream();
     expect(lines).toContainEqual(
       expect.objectContaining({

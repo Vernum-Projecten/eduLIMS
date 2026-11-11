@@ -616,7 +616,7 @@ its cause by error class and code (a SQLSTATE such as `42P01`, or
 
 | `event` | When |
 |---|---|
-| every action of the activity log (`authn_login_success`, `authz_role_change`, `idp_created`, `admin_grant_created`, `sys_retention_prune`, `sys_data_key_rotated` and the others) | the same moment the row is written to the activity log in the Admin portal, also for the host commands (`admin grant` and `revoke`, `idp add`, `enable`, `disable` and `rekey`), which act as `system` |
+| every action of the activity log (`authn_login_success`, `authz_role_change`, `idp_created`, `admin_grant_created`, `sys_retention_prune`, `sys_data_key_rotated` and the others) | the same moment the row is written to the activity log in the Admin portal, also for the host commands (`admin grant` and `revoke`, `idp add`, `enable`, `disable` and `rekey`), which act as `system`; a refused host command writes its row with `"outcome":"refused"` and the reason code (`last_admin`, `role_conflict`, `exists`) |
 | `migration_failed` | `migrate` failed: the migration, the direction and the cause, or `database_tls_required` |
 | `retention_prune_failed` | a prune failed, scheduled or by hand |
 | `cli_command_failed` | a host command stopped on an error: the command, the cause, and for a configuration error the names of the invalid variables |
