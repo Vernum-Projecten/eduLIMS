@@ -94,7 +94,7 @@ Podman or Docker with Compose for PostgreSQL 18 and Keycloak.
 
 ```sh
 pnpm install
-cp .env.example .env        # then set BETTER_AUTH_SECRET (openssl rand -hex 32)
+pnpm env:sync               # creates or updates your local env file from the example, with a fresh secret
 pnpm dev:db                 # PostgreSQL 18 and Keycloak from compose.dev.yaml, waits until healthy
 pnpm db:migrate
 pnpm db:seed                # student@, teacher@ and admin@example.test, password eduLIMS-dev-only
@@ -106,7 +106,9 @@ same `docker compose` command when Podman is not installed. `pnpm dev:db:stop`
 stops the stack and keeps its data, `pnpm dev:db:logs` follows its logs,
 `pnpm dev:setup` runs `dev:db`, `db:migrate` and `db:seed` in one go, and
 `pnpm db:reset` empties the local development database, then migrates and
-seeds it again.
+seeds it again. Run `pnpm env:sync` again after a pull that changes the
+example env file: it adds new variables, comments out obsolete ones and never
+changes a value you set, printing variable names only.
 
 Before you open a pull request, run the same gates as CI. The tests need the
 dev stack running: `pnpm test` uses its `edulims_test` database and

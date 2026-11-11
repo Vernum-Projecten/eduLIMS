@@ -28,6 +28,7 @@
     "dev:db:stop": "bash scripts/dev/compose.sh down",
     "dev:db:logs": "bash scripts/dev/compose.sh logs -f",
     "dev:setup": "pnpm dev:db && pnpm db:migrate && pnpm db:seed",
+    "env:sync": "bash scripts/dev/env-sync.sh",
     "build": "vite build",
     "start": "node --env-file-if-exists=.env .output/server/index.mjs",
     "typecheck": "pnpm i18n && tsc --noEmit",
