@@ -147,3 +147,13 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# eduLIMS
+.output/
+.vinxi/
+.tanstack/
+.nitro/
+playwright-report/
+test-results/
+.claude/settings.local.json
+.claude/worktrees/
