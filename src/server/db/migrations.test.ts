@@ -58,6 +58,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0006_session_absolute_lifetime", "Success"],
       ["0005_audit_event", "Success"],
       ["0004_user_role_check", "Success"],
     ]);
@@ -74,6 +75,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0006_session_absolute_lifetime", "Success"],
       ["0005_audit_event", "Success"],
       ["0004_user_role_check", "Success"],
       ["0003_user_last_portal", "Success"],
@@ -90,6 +92,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0006_session_absolute_lifetime", "Success"],
       ["0005_audit_event", "Success"],
       ["0004_user_role_check", "Success"],
       ["0003_user_last_portal", "Success"],
@@ -99,5 +102,42 @@ describe("migrations", () => {
     expect(user?.columns.map((c) => c.name)).not.toContain("locale");
     const up = await migrator.migrateToLatest();
     expect(up.error).toBeUndefined();
+  });
+
+  it("0006_session_absolute_lifetime caps a session at 24 hours after sign-in, and reverts", async () => {
+    db = await createTestDb();
+    await db
+      .insertInto("user")
+      .values({
+        id: "u-s",
+        name: "S",
+        email: "s@example.test",
+        emailVerified: true,
+        role: "student",
+      })
+      .execute();
+    const insertSession = (database: Kysely<DB>, id: string) =>
+      database
+        .insertInto("session")
+        .values({
+          id,
+          token: `token-${id}`,
+          userId: "u-s",
+          createdAt: new Date("2026-11-11T08:00:00Z"),
+          updatedAt: new Date("2026-11-11T08:00:00Z"),
+          expiresAt: new Date("2026-11-20T08:00:00Z"),
+        })
+        .returning("expiresAt")
+        .executeTakeFirstOrThrow();
+    expect((await insertSession(db, "capped")).expiresAt).toEqual(new Date("2026-11-12T08:00:00Z"));
+    const migrator = createMigrator(db);
+    const down = await migrator.migrateDown();
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0006_session_absolute_lifetime", "Success"],
+    ]);
+    expect((await insertSession(db, "uncapped")).expiresAt).toEqual(
+      new Date("2026-11-20T08:00:00Z"),
+    );
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
   });
 });

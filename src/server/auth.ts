@@ -14,6 +14,7 @@ import { type Env, getEnv, isKeycloakConfigured, isMicrosoftConfigured } from ".
 import { createIdpRoleSync } from "./idp-sync.ts";
 import { applySavedLocaleOnSignIn } from "./preferences/locale-cookie.ts";
 import { refuseOwnRoleWrites, roleWriteHooks } from "./role-guard.ts";
+import { SESSION_EXPIRES_IN_SECONDS, SESSION_UPDATE_AGE_SECONDS } from "./session-policy.ts";
 
 /** Where an identity provider returns the user after signing out of it: the eduLIMS sign-in page. */
 export const POST_LOGOUT_PATH = "/login";
@@ -83,6 +84,9 @@ export function createAuth(env: Env, database: BetterAuthOptions["database"] = g
     database,
     emailAndPassword: { enabled: env.EDULIMS_DEV_LOGIN, disableSignUp: true },
     socialProviders: microsoftProvider(env),
+    // NOTE: owner decision on #42 (ASVS V7.3.1, V7.3.2): 8 hours sliding, refreshed at most hourly;
+    // the 24-hour absolute cap is the session.ts read check and migration 0005.
+    session: { expiresIn: SESSION_EXPIRES_IN_SECONDS, updateAge: SESSION_UPDATE_AGE_SECONDS },
     account: {
       // NOTE: owner decision on #39 (ASVS V6.8.1): no account linking at all. A sign-in from a
       // second provider with the email of an existing user is refused with

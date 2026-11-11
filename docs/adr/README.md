@@ -22,6 +22,7 @@ Each significant architecture or technology decision is recorded here in the
 | [0011](0011-english-code-and-i18n.md) | English code and an internationalised UI with Paraglide JS | Proposed |
 | [0012](0012-multiple-roles-and-portal-switcher.md) | Multiple roles per user and a portal switcher | Proposed |
 | [0013](0013-internal-transport-security.md) | Transport security inside the Compose stack | Proposed |
+| [0014](0014-session-lifetimes.md) | Session lifetimes: 8 hours sliding, 24 hours at most | Proposed |
 
 ## Adding a record
 

@@ -67,10 +67,10 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 172 |
-| Status met | 78 |
+| Status met | 81 |
 | Status partial | 49 |
 | Status planned | 30 |
-| Status open | 15 |
+| Status open | 12 |
 | Status n-a | 173 |
 
 ### V1 Encoding and Sanitization
@@ -415,7 +415,7 @@ Text: [vendor/asvs/en/0x16-V7-Session-Management.md](vendor/asvs/en/0x16-V7-Sess
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V7.1.1 | 2 | partly | better-auth defaults (7-day session, refreshed daily); no documented decision | review | open |
+| V7.1.1 | 2 | partly | ADR 0014 (#42): 8 hours sliding, refreshed at most hourly, 24 hours after sign-in at most; coordination with the IdP's own session lifetime is the operator's | unit `src/server/session-policy.test.ts` | met |
 | V7.1.2 | 2 | partly | concurrent sessions are unlimited (better-auth default); not documented | review | open |
 | V7.1.3 | 2 | partly | ADR 0010 and `docs/deployment.md` describe the IdPs; session lifetime coordination with the IdP is not documented | review | open |
 
@@ -432,8 +432,8 @@ Text: [vendor/asvs/en/0x16-V7-Session-Management.md](vendor/asvs/en/0x16-V7-Sess
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V7.3.1 | 2 | partly | better-auth's sliding expiry is the only inactivity limit; no documented choice | review | open |
-| V7.3.2 | 2 | partly | no absolute maximum session lifetime is configured | review | open |
+| V7.3.1 | 2 | partly | `session.expiresIn` 8 hours, `updateAge` 1 hour (`src/server/auth.ts`, `src/server/session-policy.ts`, ADR 0014) | unit `src/server/session-policy.test.ts` | met |
+| V7.3.2 | 2 | partly | 24 hours after sign-in: the `session` trigger of migration `0006_session_absolute_lifetime` caps `expiresAt`, and `src/server/session.ts` revokes and refuses an older session (ADR 0014) | unit `src/server/session-policy.test.ts`, `src/server/middleware.test.ts`, `src/server/db/migrations.test.ts` | met |
 
 #### V7.4 Session Termination
 
