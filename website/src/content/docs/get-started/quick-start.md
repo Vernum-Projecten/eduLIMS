@@ -59,13 +59,15 @@ real data.
 
 ## Configure, migrate and run
 
-Copy the example environment file to `.env` and set `BETTER_AUTH_SECRET`
-(`openssl rand -hex 32`). Its other development values, the development
-login included, match `compose.dev.yaml`. Then install, migrate, seed and
-start:
+`pnpm env:sync` creates your local environment file (`.env`) from the
+example file and generates `BETTER_AUTH_SECRET`. The example's development
+values, the development login included, match `compose.dev.yaml`. Run it
+again after a pull that changes the example: it adds new variables, comments
+out obsolete ones and never changes a value you set. Then install, migrate,
+seed and start:
 
 ```sh
-cp .env.example .env
+pnpm env:sync
 pnpm install
 pnpm db:migrate
 pnpm db:seed

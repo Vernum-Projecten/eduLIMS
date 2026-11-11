@@ -155,6 +155,12 @@ pnpm check                # the local gate: typecheck, lint, test
 - **NEVER add AI or Claude attribution** to commits, PRs, issues, releases or
   code: no `Co-Authored-By`, no "Generated with", no robot emoji, no
   `ai-assisted` label. The hook blocks it.
+- **Never read or edit the owner's local env file**; the deny rules and the
+  `env_guard` hook block it, so secrets never enter a session. A change that
+  adds, renames or retires a variable updates the example env file (and the
+  `OBSOLETE` list in `scripts/dev/env-sync.sh` for a retired one), and the
+  report to the owner ends with "run `! pnpm env:sync`", which updates their
+  file without printing a value.
 
 ## Definition of Done
 

@@ -20,7 +20,7 @@ or package manager version.
 
 ```sh
 pnpm install
-cp .env.example .env    # then set BETTER_AUTH_SECRET (openssl rand -hex 32)
+pnpm env:sync           # creates or updates your local env file from the example
 pnpm dev:db             # podman compose -f compose.dev.yaml up -d --wait (docker compose without Podman)
 pnpm db:migrate
 pnpm db:seed
