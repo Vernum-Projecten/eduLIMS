@@ -7,9 +7,9 @@
 // (RP-initiated logout, #25). Skipped when that Keycloak does not run (CI).
 import { expect, test } from "@playwright/test";
 import { expectHydrated, expectNoA11yViolations } from "./fixtures";
-import { appUrl } from "./run-env";
+import { appUrl, keycloakRealm } from "./run-env";
 
-const REALM = process.env["EDULIMS_E2E_KEYCLOAK_REALM"] ?? "http://localhost:8180/realms/edulims";
+const REALM = keycloakRealm();
 
 async function keycloakRunning(): Promise<boolean> {
   try {

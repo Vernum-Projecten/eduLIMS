@@ -64,3 +64,11 @@ export function appUrl(): string {
   if (!url) throw new Error("EDULIMS_E2E_BASE_URL is not set: run the specs through Playwright.");
   return url;
 }
+
+/**
+ * Returns the development Keycloak realm the Keycloak journeys sign in through: an outside
+ * service on its own fixed port (`compose.dev.yaml`), unlike the app's per-run port.
+ */
+export function keycloakRealm(): string {
+  return process.env["EDULIMS_E2E_KEYCLOAK_REALM"] ?? "http://localhost:8180/realms/edulims";
+}

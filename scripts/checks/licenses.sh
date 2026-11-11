@@ -45,6 +45,11 @@ passes() {
       term="${term%% WITH *}"
       term="$(printf '%s' "$term" | sed 's/^ *//; s/ *$//')"
       [[ -n "$term" ]] || continue
+      # A few packages spell an SPDX id out in package.json; map only those exact
+      # spellings, checked against the package's LICENSE file when added.
+      case "$term" in
+        "MIT License") term="MIT" ;; # xml-escape 1.1.0 (through samlify)
+      esac
       allowed "$term" || ok=0
     done <<<"${alternative// AND /$'\n'}"
     [[ "$ok" -eq 1 ]] && return 0
@@ -96,6 +101,8 @@ self_test() {
   }
   expect "an AND with one term denied" 1 '{"(MIT AND AGPL-3.0-only)":[{"name":"a","versions":["1"]}]}'
   expect "an unknown license" 1 '{"Unknown":[{"name":"a","versions":["1"]}]}'
+  expect "the spelled-out MIT License" 0 '{"MIT License":[{"name":"a","versions":["1"]}]}'
+  expect "another spelled-out license" 1 '{"GPL License":[{"name":"a","versions":["1"]}]}'
   expect "a prefix of an allowed id" 1 '{"MIT-Modern-Variant-X":[{"name":"a","versions":["1"]}]}'
   echo "licenses: self-test OK."
 }
