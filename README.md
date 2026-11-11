@@ -121,6 +121,14 @@ machine.
 | Student       | `student` / `student`          | `student@example.test` / `eduLIMS-dev-only` |
 | Teacher       | `teacher` / `teacher`          | `teacher@example.test` / `eduLIMS-dev-only` |
 | Administrator | `admin` / `admin`              | `admin@example.test` / `eduLIMS-dev-only`   |
+| Teacher and Administrator | `coordinator` / `coordinator` | `teacher-admin@example.test` / `eduLIMS-dev-only` |
+
+A user with two roles switches between the Teacher portal and the Admin
+portal with the portal switcher at the top of the sidebar. The Keycloak
+realm has more users that test how roles arrive (directly, through groups,
+both, a conflicting set and no role); the docs page below lists them. The
+realm is imported only when the Keycloak container is created, so after a
+change to it run `pnpm dev:db:stop && pnpm dev:db`.
 
 The Keycloak admin console at <http://localhost:8180> is a separate account
 in the `master` realm (`admin` / `admin`); it manages Keycloak and does not

@@ -8,8 +8,8 @@ import { locales } from "../../i18n/runtime.js";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
-import { storePreferredLocale } from "./queries.ts";
-import { savePreferredLocaleInput } from "./schemas.ts";
+import { storeLastPortal, storePreferredLocale } from "./queries.ts";
+import { saveLastPortalInput, savePreferredLocaleInput } from "./schemas.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -75,6 +75,72 @@ describe("storePreferredLocale", () => {
     );
     expect(await localeOf(database, "u-own")).toBe("nl");
     expect(await localeOf(database, "u-other")).toBeNull();
+  });
+});
+
+async function lastPortalOf(database: Kysely<DB>, id: string) {
+  const row = await database
+    .selectFrom("user")
+    .select("last_portal")
+    .where("id", "=", id)
+    .executeTakeFirst();
+  return row?.last_portal;
+}
+
+describe("saveLastPortalInput", () => {
+  it.each(["student", "teacher", "admin"])("accepts the portal %j", (portal) => {
+    expect(saveLastPortalInput.parse({ portal })).toEqual({ portal });
+  });
+
+  it.each([["Admin"], ["superuser"], [""], ["/admin"], [1], [null]])("refuses %j", (portal) => {
+    expect(() => saveLastPortalInput.parse({ portal })).toThrow(ZodError);
+  });
+});
+
+describe("storeLastPortal (ADR 0012)", () => {
+  const coordinator = { id: "u-own", roles: ["teacher", "admin"] as const };
+
+  it("refuses a call without a session with 401", async () => {
+    const database = await setup();
+    const error = await storeLastPortal(database, null, { portal: "admin" }).catch((e) => e);
+    expect(error).toBeInstanceOf(AuthError);
+    expect(error).toMatchObject({ status: 401 });
+  });
+
+  it("refuses a portal of a role the session does not hold with 403", async () => {
+    const database = await setup();
+    const error = await storeLastPortal(database, coordinator, { portal: "student" }).catch(
+      (e) => e,
+    );
+    expect(error).toMatchObject({ status: 403 });
+    const admin = { id: "u-own", roles: ["admin"] as const };
+    await expect(storeLastPortal(database, admin, { portal: "teacher" })).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(await lastPortalOf(database, "u-own")).toBeNull();
+  });
+
+  it("refuses a value that is not a portal", async () => {
+    const database = await setup();
+    await expect(storeLastPortal(database, coordinator, { portal: "root" })).rejects.toThrow(
+      ZodError,
+    );
+  });
+
+  it("saves the portal on the session user's own row only", async () => {
+    const database = await setup();
+    await expect(storeLastPortal(database, coordinator, { portal: "admin" })).resolves.toBe(
+      "admin",
+    );
+    expect(await lastPortalOf(database, "u-own")).toBe("admin");
+    expect(await lastPortalOf(database, "u-other")).toBeNull();
+  });
+
+  it("is refused by the database for any other value", async () => {
+    const database = await setup();
+    await expect(
+      database.updateTable("user").set({ last_portal: "root" }).where("id", "=", "u-own").execute(),
+    ).rejects.toThrow(/check constraint/);
   });
 });
 

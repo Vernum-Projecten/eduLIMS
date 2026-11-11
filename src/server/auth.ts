@@ -12,6 +12,7 @@ import { getPool } from "./db/index.ts";
 import { type Env, getEnv, isKeycloakConfigured, isMicrosoftConfigured } from "./env.ts";
 import { createIdpRoleSync } from "./idp-sync.ts";
 import { applySavedLocaleOnSignIn } from "./preferences/locale-cookie.ts";
+import { refuseOwnRoleWrites, roleWriteHooks } from "./role-guard.ts";
 
 /** Where an identity provider returns the user after signing out of it: the eduLIMS sign-in page. */
 export const POST_LOGOUT_PATH = "/login";
@@ -85,6 +86,8 @@ export function createAuth(env: Env, database: BetterAuthOptions["database"] = g
       additionalFields: {
         // The language picked in the language menu; only savePreferredLocale writes it.
         locale: { type: "string", required: false, input: false },
+        // The portal last picked in the portal switcher (ADR 0012); only saveLastPortal writes it.
+        lastPortal: { type: "string", required: false, input: false, fieldName: "last_portal" },
       },
       validateUserInfo: createIdpRoleSync({
         claimPaths: {
@@ -95,7 +98,10 @@ export function createAuth(env: Env, database: BetterAuthOptions["database"] = g
         defaultRole: env.OIDC_DEFAULT_ROLE,
       }),
     },
-    hooks: { after: applySavedLocaleOnSignIn(env.BETTER_AUTH_URL) },
+    // Every role write (IdP sync, seed, admin create-user, set-role, update-user) is validated.
+    databaseHooks: { user: roleWriteHooks },
+    // Nobody changes their own roles through the admin endpoints (ADR 0012).
+    hooks: { before: refuseOwnRoleWrites, after: applySavedLocaleOnSignIn(env.BETTER_AUTH_URL) },
     plugins: [
       admin({ ac: accessControl, roles, defaultRole: DEFAULT_ROLE, adminRoles: [ADMIN_ROLE] }),
       genericOAuth({ config: keycloakProviders(env) }),

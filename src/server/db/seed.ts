@@ -25,8 +25,11 @@ try {
       process.stdout.write(`exists  ${user.email}\n`);
       continue;
     }
-    await getAuth().api.createUser({ body: { ...user, password: DEV_PASSWORD } });
-    process.stdout.write(`created ${user.email} (${user.role})\n`);
+    // The role write runs through the role-set guard (src/server/role-guard.ts).
+    await getAuth().api.createUser({
+      body: { email: user.email, name: user.name, role: [...user.roles], password: DEV_PASSWORD },
+    });
+    process.stdout.write(`created ${user.email} (${user.roles.join(",")})\n`);
   }
 } finally {
   await db.destroy();

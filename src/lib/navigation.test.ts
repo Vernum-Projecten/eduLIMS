@@ -9,6 +9,7 @@ import {
   normalizePath,
   PORTALS,
   portalNavigation,
+  portalOfPath,
   sectionOf,
 } from "./navigation";
 
@@ -32,11 +33,14 @@ describe("navigationFor (B1: a user sees only the screens of their role)", () =>
     expect(paths({ roles: ["admin"] }).every((path) => path.startsWith("/admin"))).toBe(true);
   });
 
-  it("gives a user with several roles each of their portals, admin first", () => {
-    expect(navigationFor({ roles: ["student", "admin"] }).map((portal) => portal.role)).toEqual([
+  it("gives a teacher-admin both portals, teacher first (ADR 0012)", () => {
+    expect(navigationFor({ roles: ["admin", "teacher"] }).map((portal) => portal.role)).toEqual([
+      "teacher",
       "admin",
-      "student",
     ]);
+    expect(paths({ roles: ["teacher", "admin"] }).some((path) => path.startsWith("/student"))).toBe(
+      false,
+    );
   });
 
   it("gives no navigation without a user or a role", () => {
@@ -78,6 +82,22 @@ describe("normalizePath", () => {
     expect(normalizePath("/student/")).toBe("/student");
     expect(normalizePath("/student")).toBe("/student");
     expect(normalizePath("/")).toBe("/");
+  });
+});
+
+describe("portalOfPath (the URL decides the portal, ADR 0012)", () => {
+  it.each([
+    ["/teacher", "teacher"],
+    ["/teacher/", "teacher"],
+    ["/teacher/grading", "teacher"],
+    ["/admin/users", "admin"],
+    ["/student/does-not-exist", "student"],
+  ])("puts %s in the %s portal", (path, role) => {
+    expect(portalOfPath(path)?.role).toBe(role);
+  });
+
+  it.each(["/", "/login", "/teachers", "/administrator"])("puts %s in no portal", (path) => {
+    expect(portalOfPath(path)).toBeNull();
   });
 });
 

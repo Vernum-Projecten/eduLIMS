@@ -15,8 +15,31 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { m } from "@/i18n/messages";
-import { roleLabel } from "@/lib/i18n/labels";
-import type { DemoAccount, DemoAccounts } from "@/server/demo-accounts";
+import { rolesLabel } from "@/lib/i18n/labels";
+import type { DemoAccount, DemoAccounts, DemoGrant } from "@/server/demo-accounts";
+
+/** Returns the account's roles, or why eduLIMS refuses it. */
+function accountRolesLabel(account: DemoAccount): string {
+  if (account.refusal === "conflict") return m.demo_accounts_refused_conflict();
+  if (account.refusal === "no-role") return m.demo_accounts_refused_no_role();
+  return rolesLabel(account.roles);
+}
+
+/** Returns how the identity provider grants the roles. */
+function grantLabel(grant: DemoGrant): string {
+  switch (grant) {
+    case "groups":
+      return m.demo_accounts_grant_groups();
+    case "direct":
+      return m.demo_accounts_grant_direct();
+    case "groups-and-direct":
+      return m.demo_accounts_grant_both();
+    default: {
+      const unknown: never = grant;
+      return unknown;
+    }
+  }
+}
 
 /** One group of demo accounts: a heading and hint above a role/account table. */
 function AccountGroup({
@@ -31,6 +54,7 @@ function AccountGroup({
   onUse?: (account: DemoAccount) => void;
 }>) {
   const headingId = useId();
+  const showGrant = accounts.some((account) => account.grant !== undefined);
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-1.5">
       <h3 id={headingId} className="text-sm font-medium">
@@ -44,6 +68,7 @@ function AccountGroup({
               {m.demo_accounts_role()}
             </TableHead>
             <TableHead scope="col">{m.demo_accounts_account()}</TableHead>
+            {showGrant && <TableHead scope="col">{m.demo_accounts_grant()}</TableHead>}
             {onUse && (
               <TableHead scope="col" className="w-0">
                 <span className="sr-only">{m.demo_accounts_fill_in()}</span>
@@ -54,17 +79,22 @@ function AccountGroup({
         <TableBody>
           {accounts.map((account) => (
             <TableRow key={account.username}>
-              <TableHead scope="row" className="whitespace-nowrap font-normal">
-                {roleLabel(account.role)}
+              <TableHead scope="row" className="h-auto py-2 whitespace-normal font-normal">
+                {accountRolesLabel(account)}
               </TableHead>
               <TableCell className="font-mono text-xs">{account.username}</TableCell>
+              {showGrant && (
+                <TableCell className="text-xs whitespace-normal text-muted-foreground">
+                  {account.grant ? grantLabel(account.grant) : "–"}
+                </TableCell>
+              )}
               {onUse && (
                 <TableCell className="text-right">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    aria-label={m.demo_accounts_use_label({ role: roleLabel(account.role) })}
+                    aria-label={m.demo_accounts_use_label({ role: rolesLabel(account.roles) })}
                     onClick={() => onUse(account)}
                   >
                     {m.demo_accounts_use()}

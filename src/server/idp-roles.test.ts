@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { highestRole, parseRoleMap, readClaim, resolveIdpRole } from "./idp-roles.ts";
+import { parseRoleMap, readClaim, resolveIdpRoles } from "./idp-roles.ts";
 
 const roleMap = parseRoleMap("edulims-student:student,edulims-teacher:teacher,lab-admins:admin");
 
@@ -41,54 +41,70 @@ describe("readClaim", () => {
   });
 });
 
-describe("highestRole", () => {
-  it("prefers admin over teacher over student", () => {
-    expect(highestRole(["student", "admin", "teacher"])).toBe("admin");
-    expect(highestRole(["student", "teacher"])).toBe("teacher");
-    expect(highestRole([])).toBeNull();
-  });
-});
+describe("resolveIdpRoles (ADR 0012)", () => {
+  const resolve = (claims: Record<string, unknown>, claimPath = "roles", defaultRole?: "student") =>
+    resolveIdpRoles({ claims, claimPath, roleMap, defaultRole });
 
-describe("resolveIdpRole", () => {
   it("maps Entra app roles from the `roles` claim", () => {
-    const claims = { roles: ["edulims-teacher"] };
-    expect(resolveIdpRole({ claims, claimPath: "roles", roleMap })).toBe("teacher");
+    expect(resolve({ roles: ["edulims-teacher"] })).toEqual({ kind: "roles", roles: ["teacher"] });
   });
 
-  it("maps Keycloak realm roles and keeps the highest", () => {
-    const claims = { realm_access: { roles: ["offline_access", "edulims-student", "lab-admins"] } };
-    expect(resolveIdpRole({ claims, claimPath: "realm_access.roles", roleMap })).toBe("admin");
+  it("maps every claim value to a role set, sorted", () => {
+    const claims = { realm_access: { roles: ["lab-admins", "offline_access", "edulims-teacher"] } };
+    expect(resolve(claims, "realm_access.roles")).toEqual({
+      kind: "roles",
+      roles: ["teacher", "admin"],
+    });
+  });
+
+  it("maps two IdP names for the same role to one role", () => {
+    const map = parseRoleMap("edulims-teacher:teacher,/Teachers:teacher");
+    const claims = { roles: ["edulims-teacher", "/Teachers"] };
+    expect(resolveIdpRoles({ claims, claimPath: "roles", roleMap: map })).toEqual({
+      kind: "roles",
+      roles: ["teacher"],
+    });
+  });
+
+  it.each([
+    [["edulims-student", "edulims-teacher"]],
+    [["edulims-student", "lab-admins"]],
+    [["edulims-student", "edulims-teacher", "lab-admins"]],
+  ])("refuses the conflicting set %j instead of picking one role", (roles) => {
+    expect(resolve({ roles })).toEqual({ kind: "conflict" });
+    expect(resolve({ roles }, "roles", "student")).toEqual({ kind: "conflict" });
   });
 
   it("maps Keycloak client roles through a configured path", () => {
     const claims = { resource_access: { edulims: { roles: ["edulims-student"] } } };
-    const claimPath = "resource_access.edulims.roles";
-    expect(resolveIdpRole({ claims, claimPath, roleMap })).toBe("student");
+    expect(resolve(claims, "resource_access.edulims.roles")).toEqual({
+      kind: "roles",
+      roles: ["student"],
+    });
   });
 
   it("accepts a single string claim and ignores non-string entries", () => {
-    expect(
-      resolveIdpRole({ claims: { role: "edulims-teacher" }, claimPath: "role", roleMap }),
-    ).toBe("teacher");
-    const claims = { roles: [42, null, "edulims-student"] };
-    expect(resolveIdpRole({ claims, claimPath: "roles", roleMap })).toBe("student");
+    expect(resolve({ role: "edulims-teacher" }, "role")).toEqual({
+      kind: "roles",
+      roles: ["teacher"],
+    });
+    expect(resolve({ roles: [42, null, "edulims-student"] })).toEqual({
+      kind: "roles",
+      roles: ["student"],
+    });
   });
 
-  it("denies (null) when no role is mapped, matching names case-sensitively", () => {
-    expect(
-      resolveIdpRole({ claims: { roles: ["EDULIMS-TEACHER"] }, claimPath: "roles", roleMap }),
-    ).toBeNull();
-    expect(resolveIdpRole({ claims: {}, claimPath: "roles", roleMap })).toBeNull();
-    expect(resolveIdpRole({ claims: { roles: {} }, claimPath: "roles", roleMap })).toBeNull();
+  it("denies when no role is mapped, matching names case-sensitively", () => {
+    expect(resolve({ roles: ["EDULIMS-TEACHER"] })).toEqual({ kind: "none" });
+    expect(resolve({})).toEqual({ kind: "none" });
+    expect(resolve({ roles: {} })).toEqual({ kind: "none" });
   });
 
   it("falls back to the opt-in default role only when nothing is mapped", () => {
-    expect(
-      resolveIdpRole({ claims: {}, claimPath: "roles", roleMap, defaultRole: "student" }),
-    ).toBe("student");
-    const claims = { roles: ["edulims-teacher"] };
-    expect(resolveIdpRole({ claims, claimPath: "roles", roleMap, defaultRole: "student" })).toBe(
-      "teacher",
-    );
+    expect(resolve({}, "roles", "student")).toEqual({ kind: "roles", roles: ["student"] });
+    expect(resolve({ roles: ["edulims-teacher"] }, "roles", "student")).toEqual({
+      kind: "roles",
+      roles: ["teacher"],
+    });
   });
 });

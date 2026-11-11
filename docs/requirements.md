@@ -79,6 +79,11 @@ and students in interviews and user tests.
 | B3 | Register analysers and see the status of the integrations (FerroBRIDGE, FerroEHR). | Must | When FerroBRIDGE or FerroEHR is unreachable, the administrator sees that in the admin portal within 5 minutes. | |
 | B4 | View the log of uploads, HL7 messages and errors. | Should | *(proposed)* Every upload, received HL7 message and integration error appears in the log with time, source and outcome, filterable by type. | |
 
+*Note on B1 (draft, owner decision 2026-11-11):* a user may hold teacher and
+administrator together and switches between the two portals; student is
+never combined with another role. Each role keeps only its own access
+([ADR 0012](adr/0012-multiple-roles-and-portal-switcher.md)).
+
 ### Won't
 
 | ID | Requirement | Priority | Reason |

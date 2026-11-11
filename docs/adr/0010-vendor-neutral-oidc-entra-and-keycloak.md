@@ -34,7 +34,11 @@ a claim from the verified ID token (`OIDC_ROLE_CLAIM`, a dot path; the default
 is `roles` for Entra app roles and `realm_access.roles` for Keycloak realm
 roles), translates the provider's role names through `OIDC_ROLE_MAP` (default
 `edulims-student:student,edulims-teacher:teacher,edulims-admin:admin`),
-keeps the highest mapped role and stores it on the user. A sign-in with no
+and stores the mapped role set on the user. (Amended 2026-11-11 by
+[ADR 0012](0012-multiple-roles-and-portal-switcher.md): every mapped value
+counts, the allowed sets are student, teacher, admin, and teacher with admin,
+and a conflicting set refuses the sign-in with `role_conflict`. The highest-role
+rule is gone.) A sign-in with no
 mapped role is refused unless `OIDC_DEFAULT_ROLE` names a fallback. No
 standard governs the claim layout; this mapping is our own design.
 

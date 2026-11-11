@@ -37,6 +37,17 @@ where you are. Your name sits at the foot of the sidebar: choose it for your
 account and role, the theme (light, dark or your system's setting) and
 **Sign out**. Sections that are not built yet say **Coming soon**.
 
+## If you have more than one role
+
+An account can be a teacher and an administrator at the same time. The top
+of the sidebar then shows the portal you are in, such as **Teacher portal**.
+Choose it to open the list of your portals and pick the other one, or press
+**Alt+1** or **Alt+2** (**Option+1** or **Option+2** on a Mac). eduLIMS
+remembers the portal you picked and opens it the next time you sign in. Each
+portal shows only what that role may see: as an administrator you do not see
+grades or results. The user menu at the foot of the sidebar lists all your
+roles.
+
 ## Change the language
 
 eduLIMS is in English and Dutch. Choose the language button in the header

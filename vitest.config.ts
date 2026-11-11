@@ -11,7 +11,12 @@ export default defineConfig({
     environment: "node",
     // Clears and migrates the PostgreSQL test database (TEST_DATABASE_URL) once per run.
     globalSetup: ["src/server/db/test-global-setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}", "tests/unit/**/*.test.{ts,tsx}"],
+    // tests/integration skip themselves when the Compose service they need is not reachable.
+    include: [
+      "src/**/*.test.{ts,tsx}",
+      "tests/unit/**/*.test.{ts,tsx}",
+      "tests/integration/**/*.test.ts",
+    ],
     coverage: {
       provider: "v8",
       // Unit coverage gates the core logic; routes and components are covered by e2e tests.

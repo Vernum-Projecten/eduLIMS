@@ -5,6 +5,7 @@
 // the breadcrumb, the overview cards and the section pages all read this one table.
 import {
   ActivityIcon,
+  BackpackIcon,
   BookOpenCheckIcon,
   CableIcon,
   ChartColumnIcon,
@@ -14,7 +15,9 @@ import {
   LayoutDashboardIcon,
   type LucideIcon,
   MicroscopeIcon,
+  PresentationIcon,
   SendIcon,
+  ShieldCheckIcon,
   TestTubesIcon,
   UsersIcon,
   UsersRoundIcon,
@@ -42,6 +45,8 @@ export interface NavItem {
 export interface PortalNavigation {
   role: Role;
   label: () => string;
+  /** The portal's icon in the portal switcher. */
+  icon: LucideIcon;
   overview: NavItem;
   sections: readonly NavItem[];
 }
@@ -49,6 +54,7 @@ export interface PortalNavigation {
 const STUDENT = {
   role: "student",
   label: m.portal_student,
+  icon: BackpackIcon,
   overview: {
     id: "overview",
     to: "/student",
@@ -98,6 +104,7 @@ const STUDENT = {
 const TEACHER = {
   role: "teacher",
   label: m.portal_teacher,
+  icon: PresentationIcon,
   overview: {
     id: "overview",
     to: "/teacher",
@@ -147,6 +154,7 @@ const TEACHER = {
 const ADMIN = {
   role: "admin",
   label: m.portal_admin,
+  icon: ShieldCheckIcon,
   overview: {
     id: "overview",
     to: "/admin",
@@ -186,8 +194,11 @@ const ADMIN = {
   ],
 } as const satisfies PortalNavigation;
 
-/** Every portal, in the order of precedence of `portalPathFor` (src/server/authz.ts). */
-export const PORTALS = [ADMIN, TEACHER, STUDENT] as const satisfies readonly PortalNavigation[];
+/**
+ * Every portal, in the fallback order of `landingPortal` (src/server/authz.ts, ADR 0012), which
+ * is also the order of the portal switcher and its shortcuts.
+ */
+export const PORTALS = [TEACHER, ADMIN, STUDENT] as const satisfies readonly PortalNavigation[];
 
 type Portals = (typeof PORTALS)[number];
 /** The section ids of the portal for `role`. */
@@ -217,6 +228,19 @@ export function sectionOf<R extends Role>(role: R, id: SectionId<R>): NavItem {
 /** Strips a trailing slash, so "/student/" and "/student" compare equal. */
 export function normalizePath(pathname: string): string {
   return pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+}
+
+/**
+ * Returns the portal `pathname` lies in (`/teacher/grading` is in the teacher portal), or
+ * `null` outside the portals. The URL is the only source of the current portal (ADR 0012).
+ */
+export function portalOfPath(pathname: string): PortalNavigation | null {
+  const path = normalizePath(pathname);
+  return (
+    PORTALS.find(
+      (portal) => path === portal.overview.to || path.startsWith(`${portal.overview.to}/`),
+    ) ?? null
+  );
 }
 
 /** The breadcrumb trail of a page: its portal, then the page itself. */

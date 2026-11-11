@@ -6,7 +6,7 @@ import { m } from "@/i18n/messages";
 import { paraglideMiddleware } from "@/i18n/server";
 import { ROLES } from "@/lib/roles";
 import { THEMES } from "@/lib/theme";
-import { providerLabel, roleLabel, themeLabel } from "./labels";
+import { providerLabel, roleLabel, rolesLabel, roleWriteErrorMessage, themeLabel } from "./labels";
 
 /** Runs `fn` inside a request whose locale cookie is `locale`, as the server entry does. */
 async function inLocale<T>(locale: "en" | "nl", fn: () => T): Promise<T> {
@@ -58,5 +58,20 @@ describe("themeLabel", () => {
       "Donker",
       "Systeem",
     ]);
+  });
+});
+
+describe("rolesLabel", () => {
+  it("joins the display names of a role set", () => {
+    expect(rolesLabel(["teacher", "admin"])).toBe("Teacher · Administrator");
+  });
+});
+
+describe("roleWriteErrorMessage", () => {
+  it("translates the refused role writes and nothing else", () => {
+    expect(roleWriteErrorMessage("cannot_change_own_roles")).toBe(m.role_error_own_roles());
+    expect(roleWriteErrorMessage("role_conflict")).toBe(m.role_error_not_allowed());
+    expect(roleWriteErrorMessage("something else")).toBeNull();
+    expect(roleWriteErrorMessage(undefined)).toBeNull();
   });
 });

@@ -48,6 +48,7 @@ export interface User {
   emailVerified: boolean;
   id: string;
   image: string | null;
+  last_portal: string | null;
   locale: string | null;
   name: string;
   role: string | null;

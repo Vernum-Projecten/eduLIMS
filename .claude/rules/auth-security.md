@@ -51,6 +51,26 @@ both.
   checks read. Who owns role assignment (provider vs Admin portal, B1) is an
   open owner question in ADR 0010; do not build role editing before it is
   answered.
+- **A user holds a role set, not a ranking** (ADR 0012). The allowed sets
+  are {student}, {teacher}, {admin} and {teacher, admin}; student is never
+  combined with another role. `validateRoleSet` (`src/lib/roles.ts`) is the
+  one rule: the IdP sync refuses a conflicting set with `role_conflict`,
+  every role write passes the better-auth `databaseHooks.user` guard
+  (`src/server/role-guard.ts`), and a stored conflicting set gives the
+  session no roles. A `CHECK` on `user.role` (migration
+  `0004_user_role_check`) holds the same sets in their stored form, because
+  better-auth's admin permission check splits the raw string. Nobody changes
+  their own roles: the `hooks.before` guard `refuseOwnRoleWrites` answers a
+  `set-role` or `update-user` `data.role` on the session user's own id with
+  403 `cannot_change_own_roles`, until the owner decides who owns role
+  assignment. A sign-in refused for no role or a role conflict also revokes
+  that user's live sessions (A07). No role implies another: check the specific role a
+  function needs (`requireRole("teacher")`), never "admin or higher". An
+  administrator who is also a teacher reaches results only as a teacher, of
+  their own practicals.
+- **The portal is in the URL** (`/teacher/…`); there is no active-role
+  state. The saved `last_portal` picks only the landing page and grants
+  nothing.
 - **Authorisation is enforced on the server, in every server function and
   server route, before any data is read.** Use the shared middleware
   (`requireSession`, `requireRole("teacher")`) from `src/server/auth/`. A

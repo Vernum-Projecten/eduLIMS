@@ -93,6 +93,13 @@ and is enforced on the server for every request (Q-SEC-1, Q-SEC-2).
 | Teacher | Teacher portal (`/teacher`) | set up practical, protocol and rubric; link classes; check results; grade; record feedback and grade | all students, submissions and measurements of their own practicals; KPI dashboard of their own classes |
 | Administrator | Admin portal (`/admin`) | manage users, classes and roles; manage analysers and the FerroEHR and FerroBRIDGE integrations | logs, integration status, analyser usage |
 
+A user may hold teacher and administrator together; student is never combined
+with another role. The roles are a set, not a ranking: each one keeps only
+its own access. The portal is the first path segment, and the portal
+switcher at the top of the sidebar moves between the portals a user holds;
+the last one picked is the landing page at the next sign-in
+([ADR 0012](adr/0012-multiple-roles-and-portal-switcher.md)).
+
 "View measurement results" is the same application service for student and
 teacher with a different scope: the teacher sees all students of their
 practical, the student only their own work.

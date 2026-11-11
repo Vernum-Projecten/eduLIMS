@@ -12,12 +12,13 @@ import { Field, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/com
 import { Input } from "@/components/ui/input";
 import { m } from "@/i18n/messages";
 import { authClient } from "@/lib/auth-client";
-import { providerLabel, roleLabel } from "@/lib/i18n/labels";
+import { providerLabel, rolesLabel } from "@/lib/i18n/labels";
 import { cookieLocaleDiffersFromDocument } from "@/lib/i18n/locale";
 import {
   type IdentityProviderId,
   type IdentityProviderOption,
   NO_ROLE_ERROR,
+  ROLE_CONFLICT_ERROR,
 } from "@/lib/identity-providers";
 import type { DemoAccount, DemoAccounts } from "@/server/demo-accounts";
 
@@ -48,7 +49,7 @@ export function LoginForm({
       <FieldGroup>
         {error && (
           <p role="alert" className="text-sm text-destructive">
-            {error === NO_ROLE_ERROR ? m.login_error_no_role() : m.login_error_failed()}
+            {loginErrorMessage(error)}
           </p>
         )}
         {providers.map((provider) => (
@@ -71,6 +72,13 @@ export function LoginForm({
       </FieldGroup>
     </div>
   );
+}
+
+/** Returns the translated message for an identity provider's error code on `/login`. */
+function loginErrorMessage(error: string): string {
+  if (error === NO_ROLE_ERROR) return m.login_error_no_role();
+  if (error === ROLE_CONFLICT_ERROR) return m.login_error_role_conflict();
+  return m.login_error_failed();
 }
 
 function ProviderLoginButton({
@@ -135,7 +143,7 @@ function DevLoginForm({ demoAccounts }: Readonly<{ demoAccounts: DemoAccounts | 
     form.setFieldValue("email", account.username);
     form.setFieldValue("password", account.password);
     setFormError(null);
-    setFilled(m.demo_accounts_filled({ role: roleLabel(account.role) }));
+    setFilled(m.demo_accounts_filled({ role: rolesLabel(account.roles) }));
     submitRef.current?.focus();
   }
 
