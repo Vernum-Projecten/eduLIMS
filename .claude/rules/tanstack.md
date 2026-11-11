@@ -50,19 +50,23 @@ The router and Query are wired through `setupRouterSsrQueryIntegration`
 (`src/router.tsx`), so a query the loader warms on the server streams to the
 client with the HTML.
 
-1. Define a **query-options factory** next to the server function it calls
-   (`src/server/<area>/queries.ts`): a stable `queryKey` array starting with
-   the area (`["samples", practicalId]`) and a `queryFn` that calls the server
-   function.
+1. Define the area's **key factory and query options** next to the server
+   function they call (`src/server/<area>/query-options.ts`; `queries.ts`
+   holds the Kysely queries): keys from the factory, a `queryFn` that calls
+   the server function, and the domain's `staleTime`.
 2. The route **loader** calls
    `context.queryClient.ensureQueryData(samplesQueryOptions(practicalId))`.
    It returns nothing the component needs directly; the cache is the channel.
 3. The component reads with `useSuspenseQuery(samplesQueryOptions(id))`,
    which never shows an empty first paint after SSR.
 4. A **mutation** calls the server function through `useServerFn` inside
-   `useMutation`, and on success invalidates the affected keys
-   (`queryClient.invalidateQueries({ queryKey: ["samples", id] })`) or calls
-   `router.invalidate()` when loader data changed.
+   `useMutation` with the area's `mutationOptions`, which invalidate the
+   affected keys from the factory (`samplesKeys.detail(id)`), never a bare
+   `invalidateQueries()`.
+
+The router sets `defaultPreloadStaleTime: 0`, so the Query cache alone
+decides what is fresh, and creates one `QueryClient` per request on the
+server. Reads retry once (`QUERY_RETRY`) before the error state shows.
 
 Do not call `fetch` to your own API from a component, and do not add API
 routes for what a server function does. A server route (`server.handlers`)
@@ -100,7 +104,60 @@ reference; every area follows it.
   rollback.
 - **Server data lives only in the Query cache:** no copy in React state,
   context or a store. Local state is for UI only (an open dialog, the row
-  selection, a typed search before its debounce).
+  selection, a typed search before its debounce). A context may forward
+  values the component just read from a query (`UsersTableContext`), never
+  hold its own copy.
+- **The session is a query too** (`src/lib/session.query-options.ts`,
+  `sessionKeys.current()`). The root `beforeLoad` reads it with
+  `fetchQuery` on every navigation (it is always stale) and hands the user
+  to the guards in route context; that snapshot is the router's, not a
+  second cache. Signing out empties the cache (`queryClient.clear()`), so
+  the next person at a shared lab computer sees nothing of the last one.
+- **Preferences** (`src/server/preferences/query-options.ts`): the landing
+  portal is part of the session user, so saving it writes the session entry
+  optimistically and rolls back on failure. The language is a cookie with a
+  page reload, so its menu shows the pick from the mutation's `variables`
+  while it is pending and falls back on failure; it invalidates no key. The
+  theme is a device cookie with no server write, so it has nothing to roll
+  back.
+
+### staleTime per domain
+
+Each factory sets `staleTime` from `STALE_TIME` in `src/lib/query-config.ts`;
+a new domain adds its row here and there.
+
+| Domain | `staleTime` | Why |
+|---|---|---|
+| Session (`sessionKeys`) | 0 | The guards decide on it; a role change or revoked session applies on the next navigation (B1). |
+| Users table page (`usersKeys.list`) | 30 s | Other administrators change it, rarely within a minute; every action invalidates it anyway. |
+| User detail sheet (`usersKeys.detail`) | 15 s | Its active sessions change on every sign-in. |
+| Anything else (the `QueryClient` default) | 30 s | A fallback only; every factory sets its own. |
+
+### Four states on every data route
+
+- **Loading:** a `pendingComponent` with shadcn `Skeleton` in the page's
+  shape (`DataTableSkeleton`, the user sheet's skeleton).
+- **Error:** `errorComponent: RouteErrorState`
+  (`src/components/shell/route-error.tsx`), or inside a sheet a component
+  that calls `useRouteRetry(reset)`. Mounting resets the
+  `QueryErrorResetBoundary`; "Try again" resets the route and calls
+  `router.invalidate()`. A list read with `useQuery` sets `throwOnError`
+  when it has no data to show, so a failed new page reaches the boundary
+  while a failed background refetch keeps the page.
+- **Empty:** shadcn `Empty` with a translated title and description.
+- **Background refetch:** `UpdatingIndicator`
+  (`src/components/shell/updating-indicator.tsx`) from `isFetching`, always
+  rendered and only made visible, so nothing moves; the region carries
+  `aria-busy`.
+
+### Tests
+
+- One unit case per mutation that it invalidates only its keys, and one per
+  optimistic update that it rolls back on a server error, with
+  `testQueryClient`, `seedCache`, `runMutation` and `invalidatedKeys` from
+  `src/lib/test-query-client.ts`.
+- An e2e case per data route that a forced 500 on the read shows the error
+  state and its retry recovers (`tests/e2e/query-states.spec.ts`).
 
 ## Pacer
 
@@ -146,7 +203,9 @@ export const registerSample = createServerFn({ method: "POST" })
   and `manualPagination` with the server's `rowCount`, the slices controlled
   from `validateSearch` through `src/lib/data-table-state.ts`, hidden columns
   in a preference cookie (`src/lib/table-columns.ts`), and facet counts from
-  the server computed with the other filters applied.
+  the server computed with the other filters applied. The page's primary
+  table passes `search.shortcut: true` to `DataTableToolbar`, which registers
+  its search with `useRegisterSearchShortcut` (`/` and Mod+K); one per page.
 
 ## Charts
 

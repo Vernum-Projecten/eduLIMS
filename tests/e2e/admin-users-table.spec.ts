@@ -28,7 +28,9 @@ test("View hides and shows columns, and the choice survives a reload (#58)", asy
   await page.goto("/admin/users");
   const sessions = page.getByRole("columnheader", { name: /^Active sessions/ });
   await expect(sessions).toBeVisible();
-  await page.getByRole("button", { name: "View", exact: true }).click();
+  const view = page.getByRole("button", { name: "View", exact: true });
+  await expectHydrated(view);
+  await view.click();
   const menu = page.getByRole("menu");
   await expect(menu.getByRole("menuitemcheckbox", { name: "Active sessions" })).toBeChecked();
   await expect(menu.getByRole("menuitemcheckbox", { name: "Name" })).toHaveCount(0);

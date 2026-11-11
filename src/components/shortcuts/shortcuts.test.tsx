@@ -3,6 +3,7 @@
 
 // @vitest-environment jsdom
 import { HotkeyManager, type HotkeyPlatform, HotkeysProvider } from "@tanstack/react-hotkeys";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, render } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,10 +13,11 @@ import { useRegisterSearchShortcut } from "@/components/shortcuts/use-register-s
 import { type PortalNavigation, portalNavigation } from "@/lib/navigation";
 
 const navigate = vi.fn(async () => {});
-const save = vi.fn(async () => {});
+const save = vi.fn(async () => ({ portal: "admin" }));
 vi.mock("@tanstack/react-router", () => ({ useNavigate: () => navigate }));
 vi.mock("@tanstack/react-start", () => ({ useServerFn: () => save }));
 vi.mock("@/server/preferences/functions", () => ({ saveLastPortal: {} }));
+vi.mock("@/lib/session.functions", () => ({ getSession: vi.fn() }));
 
 const TEACHER = portalNavigation("teacher");
 const ADMIN = portalNavigation("admin");
@@ -53,7 +55,11 @@ function Portals({ portals }: Readonly<{ portals: readonly PortalNavigation[] }>
 }
 
 function renderWith(platform: HotkeyPlatform, children: React.ReactNode) {
-  return render(<HotkeysProvider defaultOptions={{ platform }}>{children}</HotkeysProvider>);
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <HotkeysProvider defaultOptions={{ platform }}>{children}</HotkeysProvider>
+    </QueryClientProvider>,
+  );
 }
 
 /** Appends an element outside React's tree for focus and typing targets. */
@@ -85,12 +91,16 @@ afterEach(() => {
 });
 
 describe("portal shortcuts (Alt+digit, ⌥digit on macOS)", () => {
-  it.each(["mac", "windows"] as const)("open the portal at that position on %s", (platform) => {
-    renderWith(platform, <Portals portals={[TEACHER, ADMIN]} />);
-    expect(press(altDigit(2))).toBe(true);
-    expect(navigate).toHaveBeenCalledWith({ to: "/admin" });
-    expect(save).toHaveBeenCalledWith({ data: { portal: "admin" } });
-  });
+  it.each(["mac", "windows"] as const)(
+    "open the portal at that position on %s",
+    async (platform) => {
+      renderWith(platform, <Portals portals={[TEACHER, ADMIN]} />);
+      expect(press(altDigit(2))).toBe(true);
+      expect(navigate).toHaveBeenCalledWith({ to: "/admin" });
+      // The save is a mutation now: it runs after its optimistic write, a tick later.
+      await vi.waitFor(() => expect(save).toHaveBeenCalledWith({ data: { portal: "admin" } }));
+    },
+  );
 
   it("match the physical key, so ⌥2 on macOS (key ™) still opens the second portal", () => {
     renderWith("mac", <Portals portals={[TEACHER, ADMIN]} />);

@@ -1,0 +1,1 @@
+- A screen or user details panel whose data fails to load now says so and offers **Try again**, a list that refreshes in the background shows "Updating…" without moving, and a language or portal choice shows at once and goes back with a message when it cannot be saved. Signing out clears the data the page had loaded, so the next person at a shared computer sees none of it (#62).

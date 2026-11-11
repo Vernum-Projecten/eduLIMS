@@ -81,9 +81,12 @@ describe("session policy (#42)", () => {
 
 describe("session lifetimes in better-auth (#42, ASVS V7.3.1, V7.3.2)", () => {
   it("issues a session that expires 8 hours after sign-in", async () => {
+    const before = Date.now();
     const { database } = await signedIn();
+    const after = Date.now();
     const expires = (await expiresAt(database))?.getTime() ?? 0;
-    expect(Math.abs(expires - Date.now() - 8 * HOUR_MS)).toBeLessThan(60_000);
+    expect(expires).toBeGreaterThanOrEqual(before + 8 * HOUR_MS - 1000);
+    expect(expires).toBeLessThanOrEqual(after + 8 * HOUR_MS + 1000);
   });
 
   it("does not refresh a session used within the hour", async () => {
@@ -96,11 +99,14 @@ describe("session lifetimes in better-auth (#42, ASVS V7.3.1, V7.3.2)", () => {
   it("slides the expiry to 8 hours from now once the last refresh is over an hour old", async () => {
     const { auth, database, headers } = await signedIn();
     await age(database, 2, 2);
+    const before = Date.now();
     expect(await resolveSessionUser(auth, headers)).toMatchObject({
       email: "teacher@example.test",
     });
+    const after = Date.now();
     const expires = (await expiresAt(database))?.getTime() ?? 0;
-    expect(Math.abs(expires - Date.now() - 8 * HOUR_MS)).toBeLessThan(60_000);
+    expect(expires).toBeGreaterThanOrEqual(before + 8 * HOUR_MS - 1000);
+    expect(expires).toBeLessThanOrEqual(after + 8 * HOUR_MS + 1000);
   });
 
   it("refuses a session idle for more than 8 hours", async () => {

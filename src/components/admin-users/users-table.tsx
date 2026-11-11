@@ -188,6 +188,7 @@ export function UsersTable({
             columnId: "name",
             label: m.admin_users_search_label(),
             maxLength: SEARCH_MAX_LENGTH,
+            shortcut: true,
           }}
         >
           {roles && (

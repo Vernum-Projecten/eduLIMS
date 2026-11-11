@@ -7,6 +7,7 @@ import { UsersTable } from "@/components/admin-users/users-table";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { portalPageTitle } from "@/components/portal/portal-pages";
 import { Page } from "@/components/shell/page-header";
+import { RouteErrorState } from "@/components/shell/route-error";
 import { m } from "@/i18n/messages";
 import { portalNavigation, sectionOf } from "@/lib/navigation";
 import { adminUsersQueryOptions } from "@/server/users/query-options";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authed/admin/users")({
     meta: [{ title: portalPageTitle(portalNavigation("admin"), sectionOf("admin", "users")) }],
   }),
   pendingComponent: UsersPendingPage,
+  errorComponent: RouteErrorState,
   component: UsersPage,
 });
 

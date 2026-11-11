@@ -70,9 +70,8 @@ test("the users table searches while typing, filters, sorts and pages on the ser
   await expect(page.getByRole("button", { name: /^Status 1 selected: Blocked$/ })).toBeVisible();
   const rows = usersTable(page).locator("tbody tr");
   await expect(rows.first()).toBeVisible();
-  // The previous page stays on screen while the next loads (keepPreviousData); wait for it.
-  await expect(usersTable(page)).not.toHaveAttribute("aria-busy", "true");
-  for (const row of await rows.all()) await expect(row).toContainText("Blocked");
+  // Retrying assertions: the previous page stays on screen while the next loads (keepPreviousData).
+  await expect(rows.filter({ hasNotText: "Blocked" })).toHaveCount(0);
 
   // Two values of one facet are OR; facets combine with AND.
   await page
@@ -95,12 +94,8 @@ test("the users table searches while typing, filters, sorts and pages on the ser
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/role=%5B%22admin%22%5D/);
   await expect(rows.first()).toBeVisible();
-  // The previous page stays on screen while the next loads (keepPreviousData); wait for it.
-  await expect(usersTable(page)).not.toHaveAttribute("aria-busy", "true");
-  for (const row of await rows.all()) {
-    await expect(row).toContainText(/Blocked|Never signed in/);
-    await expect(row).toContainText("Administrator");
-  }
+  await expect(rows.filter({ hasNotText: /Blocked|Never signed in/ })).toHaveCount(0);
+  await expect(rows.filter({ hasNotText: "Administrator" })).toHaveCount(0);
   await page.getByRole("searchbox", { name: SEARCH }).fill("nobody-matches-this");
   await expect(page.getByRole("heading", { level: 2, name: "No users match" })).toBeVisible();
   await axe(page);
@@ -114,9 +109,9 @@ test("the users table searches while typing, filters, sorts and pages on the ser
     "aria-sort",
     "descending",
   );
-  // The previous page stays on screen while the next loads (keepPreviousData); wait for it.
-  await expect(usersTable(page)).not.toHaveAttribute("aria-busy", "true");
-  for (const row of await rows.all()) await expect(row).toContainText("Keycloak");
+  await expect(rows.filter({ hasNotText: "Keycloak" })).toHaveCount(0);
+  // The previous header menu animates out; open the next one once it is gone.
+  await expect(page.getByRole("menu")).toHaveCount(0);
   await page.getByRole("button", { name: "Last sign-in", exact: true }).click();
   await page.getByRole("menuitem", { name: "Ascending" }).click();
   await expect(page).toHaveURL(/sort=lastSignIn/);
