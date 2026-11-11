@@ -20,6 +20,7 @@ import { Route as ApiReadyRouteImport } from './routes/api/ready'
 import { Route as DevChartsRouteImport } from './routes/dev/charts'
 import { Route as DevFormsRouteImport } from './routes/dev/forms'
 import { Route as DevVirtualRouteImport } from './routes/dev/virtual'
+import { Route as DevVirtualTableRouteImport } from './routes/dev/virtual-table'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedAdminActivityRouteImport } from './routes/_authed/admin/activity'
 import { Route as AuthedAdminClassesRouteImport } from './routes/_authed/admin/classes'
@@ -97,6 +98,11 @@ const DevFormsRoute = DevFormsRouteImport.update({
 const DevVirtualRoute = DevVirtualRouteImport.update({
   id: '/dev/virtual',
   path: '/dev/virtual',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevVirtualTableRoute = DevVirtualTableRouteImport.update({
+  id: '/dev/virtual-table',
+  path: '/dev/virtual-table',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedAdminIndexRoute = AuthedAdminIndexRouteImport.update({
@@ -237,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/dev/charts': typeof DevChartsRoute
   '/dev/forms': typeof DevFormsRoute
   '/dev/virtual': typeof DevVirtualRoute
+  '/dev/virtual-table': typeof DevVirtualTableRoute
   '/admin/activity': typeof AuthedAdminActivityRoute
   '/admin/classes': typeof AuthedAdminClassesRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
@@ -270,6 +277,7 @@ export interface FileRoutesByTo {
   '/dev/charts': typeof DevChartsRoute
   '/dev/forms': typeof DevFormsRoute
   '/dev/virtual': typeof DevVirtualRoute
+  '/dev/virtual-table': typeof DevVirtualTableRoute
   '/admin/activity': typeof AuthedAdminActivityRoute
   '/admin/classes': typeof AuthedAdminClassesRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
@@ -308,6 +316,7 @@ export interface FileRoutesById {
   '/dev/charts': typeof DevChartsRoute
   '/dev/forms': typeof DevFormsRoute
   '/dev/virtual': typeof DevVirtualRoute
+  '/dev/virtual-table': typeof DevVirtualTableRoute
   '/_authed/admin/activity': typeof AuthedAdminActivityRoute
   '/_authed/admin/classes': typeof AuthedAdminClassesRoute
   '/_authed/admin/integrations': typeof AuthedAdminIntegrationsRoute
@@ -346,6 +355,7 @@ export interface FileRouteTypes {
     | '/dev/charts'
     | '/dev/forms'
     | '/dev/virtual'
+    | '/dev/virtual-table'
     | '/admin/activity'
     | '/admin/classes'
     | '/admin/integrations'
@@ -379,6 +389,7 @@ export interface FileRouteTypes {
     | '/dev/charts'
     | '/dev/forms'
     | '/dev/virtual'
+    | '/dev/virtual-table'
     | '/admin/activity'
     | '/admin/classes'
     | '/admin/integrations'
@@ -416,6 +427,7 @@ export interface FileRouteTypes {
     | '/dev/charts'
     | '/dev/forms'
     | '/dev/virtual'
+    | '/dev/virtual-table'
     | '/_authed/admin/activity'
     | '/_authed/admin/classes'
     | '/_authed/admin/integrations'
@@ -451,6 +463,7 @@ export interface RootRouteChildren {
   DevChartsRoute: typeof DevChartsRoute
   DevFormsRoute: typeof DevFormsRoute
   DevVirtualRoute: typeof DevVirtualRoute
+  DevVirtualTableRoute: typeof DevVirtualTableRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -531,6 +544,13 @@ declare module '@tanstack/react-router' {
       path: '/dev/virtual'
       fullPath: '/dev/virtual'
       preLoaderRoute: typeof DevVirtualRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/virtual-table': {
+      id: '/dev/virtual-table'
+      path: '/dev/virtual-table'
+      fullPath: '/dev/virtual-table'
+      preLoaderRoute: typeof DevVirtualTableRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/admin/': {
@@ -817,6 +837,7 @@ const rootRouteChildren: RootRouteChildren = {
   DevChartsRoute: DevChartsRoute,
   DevFormsRoute: DevFormsRoute,
   DevVirtualRoute: DevVirtualRoute,
+  DevVirtualTableRoute: DevVirtualTableRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

@@ -3,6 +3,10 @@
 
 import type { RowData } from "@tanstack/react-table";
 import { type ReactNode, useId } from "react";
+import {
+  DataTableVirtualBody,
+  type DataTableVirtualOptions,
+} from "@/components/data-table/data-table-virtual-body";
 import type { DataTableInstance } from "@/components/data-table/features";
 import { UpdatingIndicator } from "@/components/shell/updating-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,19 +40,35 @@ const SCROLL_CONTAINER =
  * scroll it. While `busy` (the next page or filter is loading over the previous one), the
  * table is marked busy and a translated "Updating…" shows over its corner, without moving
  * anything.
+ *
+ * With `virtual`, a long list that is not paginated renders only the rows in view
+ * ({@link DataTableVirtualBody}); a server-paginated table leaves it out.
  */
 export function DataTable<TData extends RowData>({
   table,
   caption,
   empty,
   busy = false,
+  virtual,
 }: Readonly<{
   table: DataTableInstance<TData>;
   caption: string;
   empty: ReactNode;
   busy?: boolean;
+  virtual?: DataTableVirtualOptions;
 }>) {
   const captionId = useId();
+  if (virtual !== undefined) {
+    return (
+      <DataTableVirtualBody
+        table={table}
+        caption={caption}
+        empty={empty}
+        busy={busy}
+        options={virtual}
+      />
+    );
+  }
   const rows = table.getRowModel().rows;
   const columnCount = table.getVisibleLeafColumns().length;
   return (
