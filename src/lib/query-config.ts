@@ -25,6 +25,8 @@ export const STALE_TIME = {
    * screen counts it stale at once and refetches on the interval in {@link INTEGRATION_REFETCH_MS}.
    */
   integrationStatus: 0,
+  /** Classes, their members, invitations and lab groups: co-teachers change them, rarely at once. */
+  classes: 30_000,
 } as const;
 
 // NOTE: B3 ("unreachable … within 5 minutes"); our own interval: a check result reaches an open

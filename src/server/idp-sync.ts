@@ -33,6 +33,8 @@ export interface IdpRoleSyncOptions {
   testOf?: (ctx: GateContext, providerId: string) => Promise<string | null>;
   /** Stores the outcome of a test sign-in. */
   recordTest?: (test: string, outcome: TestOutcome) => Promise<void>;
+  /** Whether a pending, unexpired class invitation as a student waits for the email (#28). */
+  hasStudentInvitation?: (email: string) => Promise<boolean>;
 }
 
 function field(value: unknown, key: string): unknown {
@@ -167,7 +169,17 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       return { error: PROVIDER_DISABLED_ERROR, errorDescription: "Identity provider disabled" };
     }
     const email = typeof user.email === "string" ? user.email : "";
-    // TODO(#28): a pending student invitation for the verified email comes before the grant.
+    // NOTE: owner decision on #28 (2); an invitation grants only `student`, and only to a
+    // verified email when the IdP sends no eduLIMS role. It comes before the admin grant.
+    if (
+      decision.kind === "refused" &&
+      decision.reason === NO_ROLE_ERROR &&
+      settings.emailAuthoritative &&
+      email !== "" &&
+      (await options.hasStudentInvitation?.(email))
+    ) {
+      decision = { kind: "default", roles: ["student"] };
+    }
     if (
       decision.kind === "refused" &&
       decision.reason === NO_ROLE_ERROR &&

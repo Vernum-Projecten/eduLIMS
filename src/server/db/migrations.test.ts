@@ -59,6 +59,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0012_classes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -80,6 +81,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0012_classes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -101,6 +103,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0012_classes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -146,6 +149,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0012_classes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -174,6 +178,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0012_classes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],

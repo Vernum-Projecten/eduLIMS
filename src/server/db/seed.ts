@@ -43,6 +43,17 @@ try {
     });
     process.stdout.write(`created ${user.email} (${user.roles.join(",")})\n`);
   }
+  // NOTE: #28; a sign-in accepts invitations for a verified email only, and these public test
+  // addresses stand in for an identity provider's verified ones.
+  await db
+    .updateTable("user")
+    .set({ emailVerified: true })
+    .where(
+      "email",
+      "in",
+      DEV_USERS.map((user) => user.email),
+    )
+    .execute();
 
   const env = getEnv();
   const providerLines = await seedDevProviders(db, {

@@ -33,7 +33,6 @@ import { Route as AuthedStudentResultsRouteImport } from './routes/_authed/stude
 import { Route as AuthedStudentSamplesRouteImport } from './routes/_authed/student/samples'
 import { Route as AuthedStudentSubmissionsRouteImport } from './routes/_authed/student/submissions'
 import { Route as AuthedTeacherIndexRouteImport } from './routes/_authed/teacher/index'
-import { Route as AuthedTeacherClassesRouteImport } from './routes/_authed/teacher/classes'
 import { Route as AuthedTeacherGradingRouteImport } from './routes/_authed/teacher/grading'
 import { Route as AuthedTeacherKpiDashboardRouteImport } from './routes/_authed/teacher/kpi-dashboard'
 import { Route as AuthedTeacherPracticalsRouteImport } from './routes/_authed/teacher/practicals'
@@ -41,6 +40,8 @@ import { Route as AuthedTeacherResultsRouteImport } from './routes/_authed/teach
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthedAdminSystemIndexRouteImport } from './routes/_authed/admin/system/index'
 import { Route as AuthedAdminUsersUserIdRouteImport } from './routes/_authed/admin/users/$userId'
+import { Route as AuthedTeacherClassesIndexRouteImport } from './routes/_authed/teacher/classes/index'
+import { Route as AuthedTeacherClassesClassIdRouteImport } from './routes/_authed/teacher/classes/$classId'
 import { Route as AuthedAdminSystemIdentityProvidersIndexRouteImport } from './routes/_authed/admin/system/identity-providers/index'
 import { Route as AuthedAdminSystemIdentityProvidersNewRouteImport } from './routes/_authed/admin/system/identity-providers/new'
 import { Route as AuthedAdminSystemIdentityProvidersProviderIdIndexRouteImport } from './routes/_authed/admin/system/identity-providers/$providerId/index'
@@ -166,11 +167,6 @@ const AuthedTeacherIndexRoute = AuthedTeacherIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedTeacherRoute,
 } as any)
-const AuthedTeacherClassesRoute = AuthedTeacherClassesRouteImport.update({
-  id: '/classes',
-  path: '/classes',
-  getParentRoute: () => AuthedTeacherRoute,
-} as any)
 const AuthedTeacherGradingRoute = AuthedTeacherGradingRouteImport.update({
   id: '/grading',
   path: '/grading',
@@ -207,6 +203,18 @@ const AuthedAdminUsersUserIdRoute = AuthedAdminUsersUserIdRouteImport.update({
   path: '/$userId',
   getParentRoute: () => AuthedAdminUsersRoute,
 } as any)
+const AuthedTeacherClassesIndexRoute =
+  AuthedTeacherClassesIndexRouteImport.update({
+    id: '/classes/',
+    path: '/classes/',
+    getParentRoute: () => AuthedTeacherRoute,
+  } as any)
+const AuthedTeacherClassesClassIdRoute =
+  AuthedTeacherClassesClassIdRouteImport.update({
+    id: '/classes/$classId',
+    path: '/classes/$classId',
+    getParentRoute: () => AuthedTeacherRoute,
+  } as any)
 const AuthedAdminSystemIdentityProvidersIndexRoute =
   AuthedAdminSystemIdentityProvidersIndexRouteImport.update({
     id: '/system/identity-providers/',
@@ -253,7 +261,6 @@ export interface FileRoutesByFullPath {
   '/student/results': typeof AuthedStudentResultsRoute
   '/student/samples': typeof AuthedStudentSamplesRoute
   '/student/submissions': typeof AuthedStudentSubmissionsRoute
-  '/teacher/classes': typeof AuthedTeacherClassesRoute
   '/teacher/grading': typeof AuthedTeacherGradingRoute
   '/teacher/kpi-dashboard': typeof AuthedTeacherKpiDashboardRoute
   '/teacher/practicals': typeof AuthedTeacherPracticalsRoute
@@ -263,7 +270,9 @@ export interface FileRoutesByFullPath {
   '/student/': typeof AuthedStudentIndexRoute
   '/teacher/': typeof AuthedTeacherIndexRoute
   '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
+  '/teacher/classes/$classId': typeof AuthedTeacherClassesClassIdRoute
   '/admin/system/': typeof AuthedAdminSystemIndexRoute
+  '/teacher/classes/': typeof AuthedTeacherClassesIndexRoute
   '/admin/system/identity-providers/new': typeof AuthedAdminSystemIdentityProvidersNewRoute
   '/admin/system/identity-providers/': typeof AuthedAdminSystemIdentityProvidersIndexRoute
   '/admin/system/identity-providers/$providerId/test-result': typeof AuthedAdminSystemIdentityProvidersProviderIdTestResultRoute
@@ -287,7 +296,6 @@ export interface FileRoutesByTo {
   '/student/results': typeof AuthedStudentResultsRoute
   '/student/samples': typeof AuthedStudentSamplesRoute
   '/student/submissions': typeof AuthedStudentSubmissionsRoute
-  '/teacher/classes': typeof AuthedTeacherClassesRoute
   '/teacher/grading': typeof AuthedTeacherGradingRoute
   '/teacher/kpi-dashboard': typeof AuthedTeacherKpiDashboardRoute
   '/teacher/practicals': typeof AuthedTeacherPracticalsRoute
@@ -297,7 +305,9 @@ export interface FileRoutesByTo {
   '/student': typeof AuthedStudentIndexRoute
   '/teacher': typeof AuthedTeacherIndexRoute
   '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
+  '/teacher/classes/$classId': typeof AuthedTeacherClassesClassIdRoute
   '/admin/system': typeof AuthedAdminSystemIndexRoute
+  '/teacher/classes': typeof AuthedTeacherClassesIndexRoute
   '/admin/system/identity-providers/new': typeof AuthedAdminSystemIdentityProvidersNewRoute
   '/admin/system/identity-providers': typeof AuthedAdminSystemIdentityProvidersIndexRoute
   '/admin/system/identity-providers/$providerId/test-result': typeof AuthedAdminSystemIdentityProvidersProviderIdTestResultRoute
@@ -326,7 +336,6 @@ export interface FileRoutesById {
   '/_authed/student/results': typeof AuthedStudentResultsRoute
   '/_authed/student/samples': typeof AuthedStudentSamplesRoute
   '/_authed/student/submissions': typeof AuthedStudentSubmissionsRoute
-  '/_authed/teacher/classes': typeof AuthedTeacherClassesRoute
   '/_authed/teacher/grading': typeof AuthedTeacherGradingRoute
   '/_authed/teacher/kpi-dashboard': typeof AuthedTeacherKpiDashboardRoute
   '/_authed/teacher/practicals': typeof AuthedTeacherPracticalsRoute
@@ -336,7 +345,9 @@ export interface FileRoutesById {
   '/_authed/student/': typeof AuthedStudentIndexRoute
   '/_authed/teacher/': typeof AuthedTeacherIndexRoute
   '/_authed/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
+  '/_authed/teacher/classes/$classId': typeof AuthedTeacherClassesClassIdRoute
   '/_authed/admin/system/': typeof AuthedAdminSystemIndexRoute
+  '/_authed/teacher/classes/': typeof AuthedTeacherClassesIndexRoute
   '/_authed/admin/system/identity-providers/new': typeof AuthedAdminSystemIdentityProvidersNewRoute
   '/_authed/admin/system/identity-providers/': typeof AuthedAdminSystemIdentityProvidersIndexRoute
   '/_authed/admin/system/identity-providers/$providerId/test-result': typeof AuthedAdminSystemIdentityProvidersProviderIdTestResultRoute
@@ -365,7 +376,6 @@ export interface FileRouteTypes {
     | '/student/results'
     | '/student/samples'
     | '/student/submissions'
-    | '/teacher/classes'
     | '/teacher/grading'
     | '/teacher/kpi-dashboard'
     | '/teacher/practicals'
@@ -375,7 +385,9 @@ export interface FileRouteTypes {
     | '/student/'
     | '/teacher/'
     | '/admin/users/$userId'
+    | '/teacher/classes/$classId'
     | '/admin/system/'
+    | '/teacher/classes/'
     | '/admin/system/identity-providers/new'
     | '/admin/system/identity-providers/'
     | '/admin/system/identity-providers/$providerId/test-result'
@@ -399,7 +411,6 @@ export interface FileRouteTypes {
     | '/student/results'
     | '/student/samples'
     | '/student/submissions'
-    | '/teacher/classes'
     | '/teacher/grading'
     | '/teacher/kpi-dashboard'
     | '/teacher/practicals'
@@ -409,7 +420,9 @@ export interface FileRouteTypes {
     | '/student'
     | '/teacher'
     | '/admin/users/$userId'
+    | '/teacher/classes/$classId'
     | '/admin/system'
+    | '/teacher/classes'
     | '/admin/system/identity-providers/new'
     | '/admin/system/identity-providers'
     | '/admin/system/identity-providers/$providerId/test-result'
@@ -437,7 +450,6 @@ export interface FileRouteTypes {
     | '/_authed/student/results'
     | '/_authed/student/samples'
     | '/_authed/student/submissions'
-    | '/_authed/teacher/classes'
     | '/_authed/teacher/grading'
     | '/_authed/teacher/kpi-dashboard'
     | '/_authed/teacher/practicals'
@@ -447,7 +459,9 @@ export interface FileRouteTypes {
     | '/_authed/student/'
     | '/_authed/teacher/'
     | '/_authed/admin/users/$userId'
+    | '/_authed/teacher/classes/$classId'
     | '/_authed/admin/system/'
+    | '/_authed/teacher/classes/'
     | '/_authed/admin/system/identity-providers/new'
     | '/_authed/admin/system/identity-providers/'
     | '/_authed/admin/system/identity-providers/$providerId/test-result'
@@ -637,13 +651,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedTeacherIndexRouteImport
       parentRoute: typeof AuthedTeacherRoute
     }
-    '/_authed/teacher/classes': {
-      id: '/_authed/teacher/classes'
-      path: '/classes'
-      fullPath: '/teacher/classes'
-      preLoaderRoute: typeof AuthedTeacherClassesRouteImport
-      parentRoute: typeof AuthedTeacherRoute
-    }
     '/_authed/teacher/grading': {
       id: '/_authed/teacher/grading'
       path: '/grading'
@@ -692,6 +699,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/users/$userId'
       preLoaderRoute: typeof AuthedAdminUsersUserIdRouteImport
       parentRoute: typeof AuthedAdminUsersRoute
+    }
+    '/_authed/teacher/classes/': {
+      id: '/_authed/teacher/classes/'
+      path: '/classes'
+      fullPath: '/teacher/classes/'
+      preLoaderRoute: typeof AuthedTeacherClassesIndexRouteImport
+      parentRoute: typeof AuthedTeacherRoute
+    }
+    '/_authed/teacher/classes/$classId': {
+      id: '/_authed/teacher/classes/$classId'
+      path: '/classes/$classId'
+      fullPath: '/teacher/classes/$classId'
+      preLoaderRoute: typeof AuthedTeacherClassesClassIdRouteImport
+      parentRoute: typeof AuthedTeacherRoute
     }
     '/_authed/admin/system/identity-providers/': {
       id: '/_authed/admin/system/identity-providers/'
@@ -792,21 +813,23 @@ const AuthedStudentRouteWithChildren = AuthedStudentRoute._addFileChildren(
 )
 
 interface AuthedTeacherRouteChildren {
-  AuthedTeacherClassesRoute: typeof AuthedTeacherClassesRoute
   AuthedTeacherGradingRoute: typeof AuthedTeacherGradingRoute
   AuthedTeacherKpiDashboardRoute: typeof AuthedTeacherKpiDashboardRoute
   AuthedTeacherPracticalsRoute: typeof AuthedTeacherPracticalsRoute
   AuthedTeacherResultsRoute: typeof AuthedTeacherResultsRoute
   AuthedTeacherIndexRoute: typeof AuthedTeacherIndexRoute
+  AuthedTeacherClassesClassIdRoute: typeof AuthedTeacherClassesClassIdRoute
+  AuthedTeacherClassesIndexRoute: typeof AuthedTeacherClassesIndexRoute
 }
 
 const AuthedTeacherRouteChildren: AuthedTeacherRouteChildren = {
-  AuthedTeacherClassesRoute: AuthedTeacherClassesRoute,
   AuthedTeacherGradingRoute: AuthedTeacherGradingRoute,
   AuthedTeacherKpiDashboardRoute: AuthedTeacherKpiDashboardRoute,
   AuthedTeacherPracticalsRoute: AuthedTeacherPracticalsRoute,
   AuthedTeacherResultsRoute: AuthedTeacherResultsRoute,
   AuthedTeacherIndexRoute: AuthedTeacherIndexRoute,
+  AuthedTeacherClassesClassIdRoute: AuthedTeacherClassesClassIdRoute,
+  AuthedTeacherClassesIndexRoute: AuthedTeacherClassesIndexRoute,
 }
 
 const AuthedTeacherRouteWithChildren = AuthedTeacherRoute._addFileChildren(

@@ -243,6 +243,26 @@ of its last change.
 Only administrators can change the register. Every addition, change and
 retirement is recorded in the activity log.
 
+## Classes
+
+Teachers create their own classes and invite their students and
+co-teachers; see the teacher guide. **Classes** in the admin portal lists
+every class in eduLIMS, newest academic year first, with its owner, its
+co-teachers, the number of students, the number of pending invitations and
+whether it is archived. It shows no grades or results. The list is
+read-only.
+
+A person who signs in with an address a class invited joins that class
+without any further step. When the identity provider sends no eduLIMS role
+for that person, a pending invitation as a student gives them the student
+role, and only that role, if the provider's email addresses are marked as
+verified. Teacher and administrator roles always come from the identity
+provider or from **Users and roles**.
+
+Creating, inviting, accepting, removing, archiving, copying, transferring
+ownership and every lab-group change are recorded in the activity log, with
+ids only.
+
 ## Planned tasks
 
 | Task                                                                          | Requirement                      |

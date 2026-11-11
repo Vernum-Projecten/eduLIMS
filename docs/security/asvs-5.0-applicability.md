@@ -478,7 +478,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V8.2.1 | 1 | yes | `requireRole` and `authMiddleware` on every server function (`src/server/middleware.ts`); role writes guarded (`src/server/role-guard.ts`) | unit `src/server/middleware.test.ts`, `src/server/role-guard.test.ts` | met |
-| V8.2.2 | 1 | partly | `canViewResultsOf` (`src/server/authz.ts`) is the rule; ownership in the SQL comes with S7, D3 and #28 | unit `src/server/authz.test.ts`; role-isolation tests per function | partial |
+| V8.2.2 | 1 | partly | `canViewResultsOf` (`src/server/authz.ts`) is the rule for results; classes check membership and class role in the SQL of every read and write (`src/server/classes/access.ts`, `queries.ts`, #28); results ownership comes with S7 and D3 | unit `src/server/authz.test.ts`; `src/server/classes/*.test.ts` (another class's teacher gets `not_found`, a student 403) | partial |
 | V8.2.3 | 2 | partly | `input: false` on `locale` and `lastPortal` (`src/server/auth.ts`); result and grade fields with S7 and D3 | review | partial |
 | V8.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -494,7 +494,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V8.4.1 | 2 | yes | classes as tenants: every class function checks membership and class role (#28) | role-isolation tests with #28 | planned |
+| V8.4.1 | 2 | yes | classes as tenants: every class function checks the app role, then membership and class role on the session user in one locked transaction; the organization plugin's endpoints are unreachable (`src/server/classes/`, ADR 0018) | unit `src/server/classes/classes.test.ts`, `invitations.test.ts`, `groups.test.ts`, `queries.test.ts`, `plugin.test.ts` | met |
 | V8.4.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V9 Self-contained Tokens

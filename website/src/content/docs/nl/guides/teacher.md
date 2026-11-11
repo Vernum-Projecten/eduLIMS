@@ -72,6 +72,77 @@ taalknop (daarop staat de huidige taal, bijvoorbeeld **Nederlands**) en kies
 ingelogd, dan bewaart eduLIMS je keuze bij je account. Die geldt dan ook de
 volgende keer dat je inlogt, op elk apparaat.
 
+## Klassen
+
+**Klassen** in de zijbalk toont de klassen waarvan je eigenaar of
+mededocent bent. Elke klas staat met het studiejaar ernaast, zoals **LS-2A**
+`2026–2027`, zodat twee klassen met dezelfde naam in verschillende jaren uit
+elkaar te houden zijn. **Gearchiveerd** toont de klassen van eerdere jaren.
+
+### Een klas aanmaken
+
+1. Kies **Nieuwe klas**.
+2. Vul de naam van de klas in en het studiejaar als twee opeenvolgende jaren,
+   zoals `2026-2027`.
+3. Kies **Klas aanmaken**. Je wordt **eigenaar** van de klas en de pagina van
+   de klas gaat open.
+
+De pagina van de klas heeft drie tabbladen: **Leden**, **Uitnodigingen** en
+**Practicumgroepen**. Alleen de eigenaar kan de klas bewerken, archiveren,
+kopiëren of verwijderen, mededocenten uitnodigen en een mededocent eigenaar
+maken. Een mededocent nodigt studenten uit, verwijdert ze en beheert de
+practicumgroepen.
+
+### Studenten en mededocenten uitnodigen
+
+eduLIMS verstuurt geen e-mail. Jij voegt adressen toe, en iemand komt in de
+klas zodra die met dat adres inlogt.
+
+1. Open het tabblad **Uitnodigingen**.
+2. Kies **Student**, of **Mededocent** als je eigenaar bent. Een mededocent
+   moet al een docentaccount in eduLIMS hebben.
+3. Typ of plak de adressen, één per regel of gescheiden door komma's, of lees
+   ze uit een csv-bestand met één adres per regel.
+4. Kies **Lijst controleren**. eduLIMS laat per adres zien wat er gebeurt: het
+   wordt uitgenodigd, of het valt af omdat het geen geldig adres is, al in de
+   klas zit, al is uitgenodigd of bij een account met een andere rol hoort.
+5. Kies **Uitnodigen** om de uitnodigingen voor de overgebleven adressen te
+   maken.
+6. Kies **Uitnodigingstekst kopiëren** en deel de tekst via je eigen kanaal,
+   zoals de cursuspagina. Daarin staan de inloglink en de stappen.
+
+Een uitnodiging is 30 dagen geldig. **Openstaande uitnodigingen** toont de
+uitnodigingen die nog niet zijn gebruikt; **Verlengen** maakt een
+uitnodiging, verlopen of niet, weer 30 dagen geldig en **Intrekken** trekt
+haar in. eduLIMS verwijdert oude uitnodigingen 90 dagen nadat ze zijn
+gebruikt, ingetrokken of verlopen.
+
+### Practicumgroepen
+
+Studenten werken vaak in tweetallen of kleine groepen. Een klas kan meerdere
+**groepsindelingen** hebben, zoals "Tweetallen" en "Groepen van vier", en een
+student zit in hooguit één groep per indeling. Studenten wisselen nooit zelf
+van groep.
+
+- **Groepen maken** maakt lege groepen in een indeling; kies daarna per
+  student een groep bij **Studenten en hun groep**. Die keuze werkt met het
+  toetsenbord.
+- **Klas indelen** zet elke student in een nieuwe indeling, in groepen van
+  hooguit de grootte die je kiest, alfabetisch of willekeurig.
+- **Groepsindeling kopiëren** neemt de groepen van een indeling over uit een
+  andere klas waarin je lesgeeft, zonder de studenten.
+
+### Aan het eind van het jaar
+
+- **Archiveren** maakt een klas alleen-lezen: geen uitnodigingen, nieuwe
+  leden of groepswijzigingen. De leden en groepen blijven bewaard en de klas
+  staat onder **Gearchiveerd**.
+- **Kopiëren naar nieuw jaar** maakt een klas met dezelfde naam, het
+  volgende studiejaar, dezelfde mededocenten en dezelfde groepsindelingen,
+  zonder studenten. Nodig daar de nieuwe studenten uit.
+- **Verwijderen** is voor een klas die je per vergissing hebt aangemaakt. Een
+  klas met studenten kun je niet verwijderen; archiveer die dan.
+
 ## Uitloggen
 
 Kies je naam onderaan de zijbalk en dan **Uitloggen**. eduLIMS beëindigt je sessie op de

@@ -256,6 +256,26 @@ studenten de export uploaden), de status (**In gebruik**, **In onderhoud** of
 Alleen beheerders wijzigen het register. Elke toevoeging, wijziging en
 buitengebruikstelling komt in het activiteitenlogboek.
 
+## Klassen
+
+Docenten maken hun eigen klassen aan en nodigen hun studenten en
+mededocenten uit; zie de handleiding voor docenten. **Klassen** in het
+Beheerportaal toont elke klas in eduLIMS, het nieuwste studiejaar eerst, met
+de eigenaar, de mededocenten, het aantal studenten, het aantal openstaande
+uitnodigingen en of de klas is gearchiveerd. Cijfers en resultaten staan er
+niet in. De lijst is alleen-lezen.
+
+Wie inlogt met een adres waarop een klas heeft uitgenodigd, komt zonder
+verdere stap in die klas. Stuurt de identity provider geen eduLIMS-rol voor
+die persoon, dan geeft een openstaande uitnodiging als student de rol
+student, en alleen die rol, als de e-mailadressen van de provider als
+geverifieerd zijn gemarkeerd. De rollen docent en beheerder komen altijd van
+de identity provider of uit **Gebruikers en rollen**.
+
+Aanmaken, uitnodigen, accepteren, verwijderen, archiveren, kopiëren,
+eigenaarschap overdragen en elke wijziging van practicumgroepen komen in het
+activiteitenlogboek, alleen met id's.
+
 ## Geplande taken
 
 | Taak                                                                               | Requirement                      |
