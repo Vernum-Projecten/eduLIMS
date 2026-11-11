@@ -17,6 +17,7 @@ import {
 let restore: (() => void) | undefined;
 
 afterEach(() => {
+  vi.useRealTimers();
   restore?.();
   restore = undefined;
   vi.restoreAllMocks();
@@ -85,6 +86,8 @@ describe("formatSecurityLine (ASVS V16.2.4, V16.4.1)", () => {
 
 describe("logAuditEvent (B4, ASVS V16.2.5)", () => {
   it("logs an audit event with ids and codes only, never personal data", () => {
+    // A clock whose timestamp contains "7.5", the smuggled grade, as it did in a CI run.
+    vi.useFakeTimers({ now: new Date("2026-11-11T22:32:37.550Z") });
     const lines = capture();
     // A crafted event that smuggles personal data beside the typed fields.
     const smuggled = {
@@ -122,7 +125,11 @@ describe("logAuditEvent (B4, ASVS V16.2.5)", () => {
       roles: "teacher",
       previous_roles: "student",
     });
-    expect(lines[0]).not.toMatch(/example\.test|Test (Admin|Student)|secret-token|7\.5|name|email/);
+    // The timestamp is left out: a time such as 22:32:37.550Z contains "7.5" by chance.
+    const { time: _time, ...withoutTime } = line;
+    expect(JSON.stringify(withoutTime)).not.toMatch(
+      /example\.test|Test (Admin|Student)|secret-token|7\.5|name|email/,
+    );
   });
 
   it("leaves out the actor id of a system or anonymous actor", () => {
