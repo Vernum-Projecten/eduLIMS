@@ -269,5 +269,18 @@
   "admin_users_bulk_selected": "Selected: {count}.",
   "admin_users_bulk_blocked": "Users blocked: {count}.",
   "admin_users_bulk_refused": "Skipped: {count}. {reason}",
-  "data_table_actions": "Actions"
+  "data_table_actions": "Actions",
+  "ui_close": "Close",
+  "ui_sidebar_title": "Menu",
+  "ui_sidebar_description": "The sections of this portal.",
+  "ui_pagination": "Pagination",
+  "ui_page_previous": "Previous",
+  "ui_page_previous_label": "Go to the previous page",
+  "ui_page_next": "Next",
+  "ui_page_next_label": "Go to the next page",
+  "ui_more_pages": "More pages",
+  "ui_more": "More",
+  "ui_command_title": "Command menu",
+  "ui_command_description": "Search for a command to run.",
+  "ui_notifications": "Notifications"
 }

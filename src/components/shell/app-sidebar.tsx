@@ -13,7 +13,6 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { m } from "@/i18n/messages";
 import { navigationFor, portalOfPath } from "@/lib/navigation";
 import type { SessionUser } from "@/server/authz";
 
@@ -39,7 +38,7 @@ export function AppSidebar({ user }: Readonly<{ user: SessionUser }>) {
       <SidebarFooter>
         <NavUser user={user} />
       </SidebarFooter>
-      <SidebarRail aria-label={m.sidebar_toggle()} title={m.sidebar_toggle()} />
+      <SidebarRail />
     </Sidebar>
   );
 }

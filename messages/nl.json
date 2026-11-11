@@ -269,5 +269,18 @@
   "admin_users_bulk_selected": "Geselecteerd: {count}.",
   "admin_users_bulk_blocked": "Gebruikers geblokkeerd: {count}.",
   "admin_users_bulk_refused": "Overgeslagen: {count}. {reason}",
-  "data_table_actions": "Acties"
+  "data_table_actions": "Acties",
+  "ui_close": "Sluiten",
+  "ui_sidebar_title": "Menu",
+  "ui_sidebar_description": "De onderdelen van dit portaal.",
+  "ui_pagination": "Paginering",
+  "ui_page_previous": "Vorige",
+  "ui_page_previous_label": "Naar de vorige pagina",
+  "ui_page_next": "Volgende",
+  "ui_page_next_label": "Naar de volgende pagina",
+  "ui_more_pages": "Meer pagina's",
+  "ui_more": "Meer",
+  "ui_command_title": "Opdrachtmenu",
+  "ui_command_description": "Zoek een opdracht om uit te voeren.",
+  "ui_notifications": "Meldingen"
 }

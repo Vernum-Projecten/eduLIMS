@@ -73,8 +73,8 @@ export function UsersBulkActions({
         <LogOutIcon aria-hidden="true" data-icon="inline-start" />
         {m.admin_users_bulk_end_sessions()}
       </Button>
-      <Button variant="outline" size="sm" disabled={pending} onClick={() => setDialog("block")}>
-        <BanIcon aria-hidden="true" data-icon="inline-start" className="text-destructive" />
+      <Button variant="destructive" size="sm" disabled={pending} onClick={() => setDialog("block")}>
+        <BanIcon aria-hidden="true" data-icon="inline-start" />
         {m.admin_users_bulk_block()}
       </Button>
       <ConfirmDialog

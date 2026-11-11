@@ -90,7 +90,10 @@ What the table decides:
 `scripts/checks/brand-contrast.sh` measures the values in `tokens.css` and
 fails when a token's `safe:` comment or a row of this table stops matching
 what it measures; `--table` prints the table, `--self-test` proves the check
-refuses a false claim. The `brand` CI job runs both on every change, and
+refuses a false claim. The same script measures the theme's `--destructive`
+in `src/styles/app.css` as a label on its own tints (the shadcn button and
+badge) over the page, card, popover and muted surfaces, in light and dark, and
+fails below 4.5:1. The `brand` CI job runs both on every change, and
 checks that the icons the application and the documentation site serve are
 byte-identical to the ones here.
 

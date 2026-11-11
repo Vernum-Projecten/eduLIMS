@@ -61,6 +61,18 @@ is a wish, so every rule below names what enforces it.
   `shadcn add --overwrite` update is a clean diff; the rendered result is held
   to WCAG by the axe scans. That override is the only one: never extend it to
   app code, where every one of those rules stays an error.
+- **Local changes to the vendored files** (re-apply them after a
+  `shadcn add --overwrite`): every user-visible English string upstream
+  hard-codes comes from the i18n layer (`m.*` from `@/i18n/messages`, WCAG
+  3.1.2): the close label of `dialog.tsx` and `sheet.tsx`, the mobile sheet's
+  title and description and the toggle labels in `sidebar.tsx`, the labels of
+  `pagination.tsx` and `breadcrumb.tsx`, the label of `spinner.tsx`, the
+  default title and description of `command.tsx`, and the region label of
+  `sonner.tsx`, which takes its theme from the app's `ThemeProvider` in place of
+  `next-themes`. `calendar.tsx` defaults react-day-picker's locale to the active
+  Paraglide locale. After an update,
+  `grep -nE 'sr-only">[A-Za-z]|aria-label="[A-Za-z]|title="[A-Za-z]' src/components/ui/`
+  must print nothing.
 
 ## Server code stays on the server
 
