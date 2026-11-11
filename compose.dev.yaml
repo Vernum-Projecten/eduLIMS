@@ -13,7 +13,7 @@
 #
 # Keycloak:  http://localhost:8180 (admin console: admin / admin)
 #            issuer http://localhost:8180/realms/edulims
-#            users student / student, docent / docent, beheerder / beheerder
+#            users student / student, teacher / teacher, admin / admin
 #
 # With FerroEHR beside it, for work on the openEHR integration (it needs
 # config/ferroehr.toml, as in production; docs/deployment.md):

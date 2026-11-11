@@ -124,17 +124,17 @@ describe("identity providers", () => {
     expect(() => parseEnv({ ...VALID_ENV, ...KEYCLOAK, ...remote })).toThrow(/KEYCLOAK_ISSUER/);
   });
 
-  it("defaults the Keycloak label and the IdP role map", () => {
+  it("leaves the Keycloak label to the UI and defaults the IdP role map", () => {
     const env = parseEnv({ ...VALID_ENV, ...KEYCLOAK });
-    expect(env.KEYCLOAK_LABEL).toBe("Inloggen met Keycloak");
+    expect(env.KEYCLOAK_LABEL).toBeUndefined();
     expect(env.OIDC_ROLE_MAP).toEqual(parseRoleMap(DEFAULT_ROLE_MAP));
     expect(env.OIDC_DEFAULT_ROLE).toBeUndefined();
   });
 
   it.each([
-    ["OIDC_ROLE_MAP", "edulims-docent:admin"],
+    ["OIDC_ROLE_MAP", "edulims-teacher:superuser"],
     ["OIDC_ROLE_MAP", ""],
-    ["OIDC_DEFAULT_ROLE", "admin"],
+    ["OIDC_DEFAULT_ROLE", "superuser"],
   ])("rejects an invalid %s (%j)", (key, value) => {
     expect(() => parseEnv({ ...VALID_ENV, [key]: value })).toThrow(new RegExp(key));
   });

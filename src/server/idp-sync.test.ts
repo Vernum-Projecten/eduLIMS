@@ -10,7 +10,7 @@ type Sync = ReturnType<typeof createIdpRoleSync>;
 type Data = Parameters<Sync>[0];
 type Ctx = Parameters<Sync>[1];
 
-const roleMap = parseRoleMap("edulims-student:student,edulims-docent:docent");
+const roleMap = parseRoleMap("edulims-student:student,edulims-teacher:teacher");
 const claimPaths = { microsoft: "roles", keycloak: "realm_access.roles" };
 
 function setup(defaultRole?: "student") {
@@ -32,9 +32,9 @@ function oauth(
 describe("createIdpRoleSync", () => {
   it("writes the mapped role onto a new user", async () => {
     const { sync, ctx } = setup();
-    const data = oauth("create-user", "microsoft", { roles: ["edulims-docent"] });
+    const data = oauth("create-user", "microsoft", { roles: ["edulims-teacher"] });
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(data.user["role"]).toBe("docent");
+    expect(data.user["role"]).toBe("teacher");
   });
 
   it("syncs the role of an existing user on every sign-in", async () => {

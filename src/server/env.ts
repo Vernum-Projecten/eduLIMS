@@ -13,9 +13,9 @@ const optionalText = () => z.string().trim().min(1).optional();
 
 /** Default `OIDC_ROLE_MAP`: the same IdP role names for Entra app roles and Keycloak roles. */
 export const DEFAULT_ROLE_MAP =
-  "edulims-student:student,edulims-docent:docent,edulims-beheerder:beheerder";
+  "edulims-student:student,edulims-teacher:teacher,edulims-admin:admin";
 
-/** Entra ID multi-tenant aliases: only the Hanze tenant may sign in. */
+/** Entra ID multi-tenant aliases: only the configured organisation tenant may sign in. */
 const MULTI_TENANT_ALIASES = new Set(["common", "organizations", "consumers"]);
 
 /** Field schemas without cross-field rules, so subsets can be `.pick()`ed (e.g. by migrate). */
@@ -29,12 +29,13 @@ export const envFields = z.object({
   MICROSOFT_CLIENT_SECRET: optionalText(),
   MICROSOFT_TENANT_ID: optionalText().refine(
     (tenant) => tenant === undefined || !MULTI_TENANT_ALIASES.has(tenant.toLowerCase()),
-    { error: "must be the Hanze tenant ID, not a multi-tenant alias" },
+    { error: "must be the organisation tenant ID, not a multi-tenant alias" },
   ),
   KEYCLOAK_ISSUER: httpUrl().optional(),
   KEYCLOAK_CLIENT_ID: optionalText(),
   KEYCLOAK_CLIENT_SECRET: optionalText(),
-  KEYCLOAK_LABEL: z.string().trim().min(1).default("Inloggen met Keycloak"),
+  /** Login button text for Keycloak in every locale; unset shows "Sign in with Keycloak", localized. */
+  KEYCLOAK_LABEL: optionalText(),
   /** Dot path of the roles claim; defaults per provider (`roles`, `realm_access.roles`). */
   OIDC_ROLE_CLAIM: optionalText(),
   OIDC_ROLE_MAP: z

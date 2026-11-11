@@ -4,6 +4,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireRole } from "@/lib/guards";
 
-export const Route = createFileRoute("/_authed/docent")({
-  beforeLoad: requireRole("docent"),
+export const Route = createFileRoute("/_authed/admin")({
+  beforeLoad: requireRole("admin"),
 });

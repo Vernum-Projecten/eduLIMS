@@ -156,7 +156,7 @@ CMD ["/app/.output/server/index.mjs"]
 # Build-independent labels here; the release lane adds the same keys through
 # docker/metadata-action and mirrors them as index annotations for GHCR.
 LABEL org.opencontainers.image.title="eduLIMS" \
-      org.opencontainers.image.description="A laboratory information management system for LifeScience practical education" \
+      org.opencontainers.image.description="A laboratory information management system for practical lab education" \
       org.opencontainers.image.source="https://github.com/Vernum-Projecten/eduLIMS" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.vendor="Ruben Talstra" \

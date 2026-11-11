@@ -12,14 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as AuthedBeheerRouteImport } from './routes/_authed/beheer'
-import { Route as AuthedDocentRouteImport } from './routes/_authed/docent'
+import { Route as AuthedAdminRouteImport } from './routes/_authed/admin'
 import { Route as AuthedStudentRouteImport } from './routes/_authed/student'
+import { Route as AuthedTeacherRouteImport } from './routes/_authed/teacher'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiReadyRouteImport } from './routes/api/ready'
-import { Route as AuthedBeheerIndexRouteImport } from './routes/_authed/beheer/index'
-import { Route as AuthedDocentIndexRouteImport } from './routes/_authed/docent/index'
+import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedStudentIndexRouteImport } from './routes/_authed/student/index'
+import { Route as AuthedTeacherIndexRouteImport } from './routes/_authed/teacher/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -36,19 +36,19 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedBeheerRoute = AuthedBeheerRouteImport.update({
-  id: '/beheer',
-  path: '/beheer',
-  getParentRoute: () => AuthedRoute,
-} as any)
-const AuthedDocentRoute = AuthedDocentRouteImport.update({
-  id: '/docent',
-  path: '/docent',
+const AuthedAdminRoute = AuthedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedStudentRoute = AuthedStudentRouteImport.update({
   id: '/student',
   path: '/student',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedTeacherRoute = AuthedTeacherRouteImport.update({
+  id: '/teacher',
+  path: '/teacher',
   getParentRoute: () => AuthedRoute,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -61,20 +61,20 @@ const ApiReadyRoute = ApiReadyRouteImport.update({
   path: '/api/ready',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthedBeheerIndexRoute = AuthedBeheerIndexRouteImport.update({
+const AuthedAdminIndexRoute = AuthedAdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthedBeheerRoute,
-} as any)
-const AuthedDocentIndexRoute = AuthedDocentIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AuthedDocentRoute,
+  getParentRoute: () => AuthedAdminRoute,
 } as any)
 const AuthedStudentIndexRoute = AuthedStudentIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthedStudentRoute,
+} as any)
+const AuthedTeacherIndexRoute = AuthedTeacherIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthedTeacherRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -85,15 +85,15 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/beheer': typeof AuthedBeheerRouteWithChildren
-  '/docent': typeof AuthedDocentRouteWithChildren
+  '/admin': typeof AuthedAdminRouteWithChildren
   '/student': typeof AuthedStudentRouteWithChildren
+  '/teacher': typeof AuthedTeacherRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/beheer/': typeof AuthedBeheerIndexRoute
-  '/docent/': typeof AuthedDocentIndexRoute
+  '/admin/': typeof AuthedAdminIndexRoute
   '/student/': typeof AuthedStudentIndexRoute
+  '/teacher/': typeof AuthedTeacherIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -101,39 +101,39 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/beheer': typeof AuthedBeheerIndexRoute
-  '/docent': typeof AuthedDocentIndexRoute
+  '/admin': typeof AuthedAdminIndexRoute
   '/student': typeof AuthedStudentIndexRoute
+  '/teacher': typeof AuthedTeacherIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
-  '/_authed/beheer': typeof AuthedBeheerRouteWithChildren
-  '/_authed/docent': typeof AuthedDocentRouteWithChildren
+  '/_authed/admin': typeof AuthedAdminRouteWithChildren
   '/_authed/student': typeof AuthedStudentRouteWithChildren
+  '/_authed/teacher': typeof AuthedTeacherRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
-  '/_authed/beheer/': typeof AuthedBeheerIndexRoute
-  '/_authed/docent/': typeof AuthedDocentIndexRoute
+  '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/student/': typeof AuthedStudentIndexRoute
+  '/_authed/teacher/': typeof AuthedTeacherIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/login'
-    | '/beheer'
-    | '/docent'
+    | '/admin'
     | '/student'
+    | '/teacher'
     | '/api/health'
     | '/api/ready'
     | '/api/auth/$'
-    | '/beheer/'
-    | '/docent/'
+    | '/admin/'
     | '/student/'
+    | '/teacher/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -141,23 +141,23 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/ready'
     | '/api/auth/$'
-    | '/beheer'
-    | '/docent'
+    | '/admin'
     | '/student'
+    | '/teacher'
   id:
     | '__root__'
     | '/'
     | '/_authed'
     | '/login'
-    | '/_authed/beheer'
-    | '/_authed/docent'
+    | '/_authed/admin'
     | '/_authed/student'
+    | '/_authed/teacher'
     | '/api/health'
     | '/api/ready'
     | '/api/auth/$'
-    | '/_authed/beheer/'
-    | '/_authed/docent/'
+    | '/_authed/admin/'
     | '/_authed/student/'
+    | '/_authed/teacher/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -192,18 +192,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed/beheer': {
-      id: '/_authed/beheer'
-      path: '/beheer'
-      fullPath: '/beheer'
-      preLoaderRoute: typeof AuthedBeheerRouteImport
-      parentRoute: typeof AuthedRoute
-    }
-    '/_authed/docent': {
-      id: '/_authed/docent'
-      path: '/docent'
-      fullPath: '/docent'
-      preLoaderRoute: typeof AuthedDocentRouteImport
+    '/_authed/admin': {
+      id: '/_authed/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthedAdminRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/student': {
@@ -211,6 +204,13 @@ declare module '@tanstack/react-router' {
       path: '/student'
       fullPath: '/student'
       preLoaderRoute: typeof AuthedStudentRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/teacher': {
+      id: '/_authed/teacher'
+      path: '/teacher'
+      fullPath: '/teacher'
+      preLoaderRoute: typeof AuthedTeacherRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/api/health': {
@@ -227,19 +227,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiReadyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authed/beheer/': {
-      id: '/_authed/beheer/'
+    '/_authed/admin/': {
+      id: '/_authed/admin/'
       path: '/'
-      fullPath: '/beheer/'
-      preLoaderRoute: typeof AuthedBeheerIndexRouteImport
-      parentRoute: typeof AuthedBeheerRoute
-    }
-    '/_authed/docent/': {
-      id: '/_authed/docent/'
-      path: '/'
-      fullPath: '/docent/'
-      preLoaderRoute: typeof AuthedDocentIndexRouteImport
-      parentRoute: typeof AuthedDocentRoute
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthedAdminIndexRouteImport
+      parentRoute: typeof AuthedAdminRoute
     }
     '/_authed/student/': {
       id: '/_authed/student/'
@@ -247,6 +240,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/student/'
       preLoaderRoute: typeof AuthedStudentIndexRouteImport
       parentRoute: typeof AuthedStudentRoute
+    }
+    '/_authed/teacher/': {
+      id: '/_authed/teacher/'
+      path: '/'
+      fullPath: '/teacher/'
+      preLoaderRoute: typeof AuthedTeacherIndexRouteImport
+      parentRoute: typeof AuthedTeacherRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -258,28 +258,16 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AuthedBeheerRouteChildren {
-  AuthedBeheerIndexRoute: typeof AuthedBeheerIndexRoute
+interface AuthedAdminRouteChildren {
+  AuthedAdminIndexRoute: typeof AuthedAdminIndexRoute
 }
 
-const AuthedBeheerRouteChildren: AuthedBeheerRouteChildren = {
-  AuthedBeheerIndexRoute: AuthedBeheerIndexRoute,
+const AuthedAdminRouteChildren: AuthedAdminRouteChildren = {
+  AuthedAdminIndexRoute: AuthedAdminIndexRoute,
 }
 
-const AuthedBeheerRouteWithChildren = AuthedBeheerRoute._addFileChildren(
-  AuthedBeheerRouteChildren,
-)
-
-interface AuthedDocentRouteChildren {
-  AuthedDocentIndexRoute: typeof AuthedDocentIndexRoute
-}
-
-const AuthedDocentRouteChildren: AuthedDocentRouteChildren = {
-  AuthedDocentIndexRoute: AuthedDocentIndexRoute,
-}
-
-const AuthedDocentRouteWithChildren = AuthedDocentRoute._addFileChildren(
-  AuthedDocentRouteChildren,
+const AuthedAdminRouteWithChildren = AuthedAdminRoute._addFileChildren(
+  AuthedAdminRouteChildren,
 )
 
 interface AuthedStudentRouteChildren {
@@ -294,16 +282,28 @@ const AuthedStudentRouteWithChildren = AuthedStudentRoute._addFileChildren(
   AuthedStudentRouteChildren,
 )
 
+interface AuthedTeacherRouteChildren {
+  AuthedTeacherIndexRoute: typeof AuthedTeacherIndexRoute
+}
+
+const AuthedTeacherRouteChildren: AuthedTeacherRouteChildren = {
+  AuthedTeacherIndexRoute: AuthedTeacherIndexRoute,
+}
+
+const AuthedTeacherRouteWithChildren = AuthedTeacherRoute._addFileChildren(
+  AuthedTeacherRouteChildren,
+)
+
 interface AuthedRouteChildren {
-  AuthedBeheerRoute: typeof AuthedBeheerRouteWithChildren
-  AuthedDocentRoute: typeof AuthedDocentRouteWithChildren
+  AuthedAdminRoute: typeof AuthedAdminRouteWithChildren
   AuthedStudentRoute: typeof AuthedStudentRouteWithChildren
+  AuthedTeacherRoute: typeof AuthedTeacherRouteWithChildren
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
-  AuthedBeheerRoute: AuthedBeheerRouteWithChildren,
-  AuthedDocentRoute: AuthedDocentRouteWithChildren,
+  AuthedAdminRoute: AuthedAdminRouteWithChildren,
   AuthedStudentRoute: AuthedStudentRouteWithChildren,
+  AuthedTeacherRoute: AuthedTeacherRouteWithChildren,
 }
 
 const AuthedRouteWithChildren =

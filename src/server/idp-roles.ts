@@ -8,7 +8,7 @@ import { ROLES, type Role } from "../lib/roles.ts";
 export type RoleMap = ReadonlyMap<string, Role>;
 
 /** Precedence when a user holds several roles: the highest one wins. */
-const ROLE_RANK: Record<Role, number> = { student: 1, docent: 2, beheerder: 3 };
+const ROLE_RANK: Record<Role, number> = { student: 1, teacher: 2, admin: 3 };
 
 function isRole(value: string): value is Role {
   return (ROLES as readonly string[]).includes(value);

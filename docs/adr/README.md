@@ -19,6 +19,7 @@ Each significant architecture or technology decision is recorded here in the
 | [0008](0008-docker-compose-ghcr-slsa.md) | Docker Compose on one VM, images on GHCR, SLSA Build Level 3 | Accepted |
 | [0009](0009-no-ai-attribution-human-review.md) | No AI attribution; human review of every change | Accepted |
 | [0010](0010-vendor-neutral-oidc-entra-and-keycloak.md) | Vendor-neutral sign-in: Microsoft Entra ID and Keycloak | Accepted |
+| [0011](0011-english-code-and-i18n.md) | English code and an internationalised UI with Paraglide JS | Proposed |
 
 ## Adding a record
 

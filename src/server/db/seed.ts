@@ -12,9 +12,9 @@ import { getDb } from "./index.ts";
 export const DEV_PASSWORD = "eduLIMS-dev-only";
 
 export const DEV_USERS = [
-  { email: "student@example.test", name: "Sam Student", role: "student" },
-  { email: "docent@example.test", name: "Dana Docent", role: "docent" },
-  { email: "beheerder@example.test", name: "Bo Beheerder", role: "beheerder" },
+  { email: "student@example.test", name: "Test Student", role: "student" },
+  { email: "teacher@example.test", name: "Test Teacher", role: "teacher" },
+  { email: "admin@example.test", name: "Test Administrator", role: "admin" },
 ] as const satisfies readonly { email: string; name: string; role: Role }[];
 
 if (!getEnv().EDULIMS_DEV_LOGIN) {

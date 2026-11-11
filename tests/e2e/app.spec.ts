@@ -6,10 +6,11 @@ import { devLogin, expectNoA11yViolations } from "./fixtures";
 
 test("home page renders with landmarks and a skip link", async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.getByRole("heading", { level: 1, name: "eduLIMS" })).toBeVisible();
   await expect(page.getByRole("main")).toBeVisible();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Naar de hoofdinhoud" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
   await expectNoA11yViolations(page);
 });
 
@@ -17,18 +18,17 @@ test("login page offers each configured identity provider without WCAG A/AA viol
   page,
 }) => {
   await page.goto("/login");
-  await expect(
-    page.getByRole("button", { name: "Inloggen met Hanze-account (Microsoft)" }),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Inloggen met Keycloak" })).toBeVisible();
+  await expect(page).toHaveTitle("Sign in | eduLIMS");
+  await expect(page.getByRole("button", { name: "Sign in with Microsoft" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in with Keycloak" })).toBeVisible();
   await expectNoA11yViolations(page);
 });
 
 test("login form announces validation errors", async ({ page }) => {
   await page.goto("/login");
-  await page.getByRole("button", { name: "Inloggen met testaccount" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "geldig e-mailadres" })).toBeVisible();
-  await expect(page.getByLabel("E-mailadres")).toHaveAttribute("aria-invalid", "true");
+  await page.getByRole("button", { name: "Sign in with a test account" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "valid email address" })).toBeVisible();
+  await expect(page.getByLabel("Email address")).toHaveAttribute("aria-invalid", "true");
   await expectNoA11yViolations(page);
 });
 
@@ -42,33 +42,41 @@ test("responses carry security headers", async ({ request }) => {
 
 test("an IdP sign-in without an eduLIMS role is explained", async ({ page }) => {
   await page.goto("/login?error=no_edulims_role");
-  await expect(page.getByRole("alert")).toContainText("geen rol in eduLIMS");
+  await expect(page.getByRole("alert")).toContainText("no role in eduLIMS");
   await expectNoA11yViolations(page);
 });
 
-test("anonymous visitors are redirected from /docent to /login", async ({ page }) => {
-  await page.goto("/docent");
-  await expect(page).toHaveURL(/\/login\?redirect=%2Fdocent$/);
-  await expect(page.getByRole("heading", { name: "Inloggen" })).toBeVisible();
+test("anonymous visitors are redirected from /teacher to /login", async ({ page }) => {
+  await page.goto("/teacher");
+  await expect(page).toHaveURL(/\/login\?redirect=%2Fteacher$/);
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
 });
 
-test("a student cannot open the docent portal", async ({ page }) => {
+test("a student cannot open the teacher portal", async ({ page }) => {
   await devLogin(page, "student@example.test");
   await expect(page).toHaveURL(/\/student$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Studentportaal" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Hoofdmenu" })).not.toContainText("Docent");
+  await expect(page.getByRole("heading", { level: 1, name: "Student portal" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main menu" })).not.toContainText("Teacher");
   await expectNoA11yViolations(page);
 
-  await page.goto("/docent");
+  await page.goto("/teacher");
   await expect(page).toHaveURL(/\/student$/);
-  await expect(page.getByRole("heading", { name: "Docentportaal" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Teacher portal" })).toHaveCount(0);
 });
 
-test("a docent lands on the docent portal and can log out", async ({ page }) => {
-  await devLogin(page, "docent@example.test");
-  await expect(page.getByRole("heading", { level: 1, name: "Docentportaal" })).toBeVisible();
-  await page.getByRole("button", { name: "Uitloggen" }).click();
+test("a teacher lands on the teacher portal and can sign out", async ({ page }) => {
+  await devLogin(page, "teacher@example.test");
+  await expect(page.getByRole("heading", { level: 1, name: "Teacher portal" })).toBeVisible();
+  await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
-  await page.goto("/docent");
-  await expect(page).toHaveURL(/\/login\?redirect=%2Fdocent$/);
+  await page.goto("/teacher");
+  await expect(page).toHaveURL(/\/login\?redirect=%2Fteacher$/);
+});
+
+test("an unknown page shows a not-found page inside the app shell", async ({ page }) => {
+  await page.goto("/does-not-exist");
+  await expect(page.getByRole("heading", { level: 1, name: "Page not found" })).toBeVisible();
+  await expect(page.getByRole("banner")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to the home page" })).toBeVisible();
+  await expectNoA11yViolations(page);
 });

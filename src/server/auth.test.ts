@@ -28,7 +28,7 @@ describe("auth", () => {
   it("gives new users the student role by default", async () => {
     const auth = await setup(true);
     const { user } = await auth.api.createUser({
-      body: { email: "new@example.test", name: "Nieuw", password: PASSWORD },
+      body: { email: "new@example.test", name: "New User", password: PASSWORD },
     });
     expect(parseRoles(user.role)).toEqual(["student"]);
   });
@@ -36,10 +36,15 @@ describe("auth", () => {
   it("signs in dev users and resolves their session with roles", async () => {
     const auth = await setup(true);
     await auth.api.createUser({
-      body: { email: "docent@example.test", name: "Dana", password: PASSWORD, role: "docent" },
+      body: {
+        email: "teacher@example.test",
+        name: "Test Teacher",
+        password: PASSWORD,
+        role: "teacher",
+      },
     });
     const response = await auth.api.signInEmail({
-      body: { email: "docent@example.test", password: PASSWORD },
+      body: { email: "teacher@example.test", password: PASSWORD },
       asResponse: true,
     });
     expect(response.status).toBe(200);
@@ -47,8 +52,8 @@ describe("auth", () => {
     const session = await auth.api.getSession({
       headers: new Headers({ cookie: cookie.join("; ") }),
     });
-    expect(session?.user.email).toBe("docent@example.test");
-    expect(parseRoles(session?.user.role)).toEqual(["docent"]);
+    expect(session?.user.email).toBe("teacher@example.test");
+    expect(parseRoles(session?.user.role)).toEqual(["teacher"]);
   });
 
   it("does not allow self sign-up, even with dev login on", async () => {
@@ -61,7 +66,7 @@ describe("auth", () => {
   it("disables email/password sign-in when dev login is off", async () => {
     const auth = await setup(false);
     await auth.api.createUser({
-      body: { email: "student@example.test", name: "Sam", password: PASSWORD },
+      body: { email: "student@example.test", name: "Test Student", password: PASSWORD },
     });
     await expect(
       auth.api.signInEmail({ body: { email: "student@example.test", password: PASSWORD } }),
@@ -76,12 +81,17 @@ describe("identityProviders", () => {
     KEYCLOAK_CLIENT_SECRET: "kc-secret",
   };
 
-  it("lists one login button per configured provider", () => {
-    const env = parseEnv({ ...VALID_ENV, ...keycloak, KEYCLOAK_LABEL: "Inloggen met Hanze-IdP" });
+  it("lists one login button per configured provider, with the operator's Keycloak label", () => {
+    const env = parseEnv({ ...VALID_ENV, ...keycloak, KEYCLOAK_LABEL: "Sign in with Campus ID" });
     expect(identityProviders(env)).toEqual([
-      { id: "microsoft", label: "Inloggen met Hanze-account (Microsoft)" },
-      { id: "keycloak", label: "Inloggen met Hanze-IdP" },
+      { id: "microsoft" },
+      { id: "keycloak", label: "Sign in with Campus ID" },
     ]);
+  });
+
+  it("leaves the Keycloak label to the UI when KEYCLOAK_LABEL is unset", () => {
+    const env = parseEnv({ ...VALID_ENV, ...keycloak });
+    expect(identityProviders(env)).toEqual([{ id: "microsoft" }, { id: "keycloak" }]);
   });
 
   it("lists nothing when no provider is configured", () => {

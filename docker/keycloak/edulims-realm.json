@@ -18,12 +18,12 @@
         "description": "Student: registers samples, uploads results, reads only their own data"
       },
       {
-        "name": "edulims-docent",
-        "description": "Docent: manages and assesses the practica they own"
+        "name": "edulims-teacher",
+        "description": "Teacher: manages and assesses the practicals they own"
       },
       {
-        "name": "edulims-beheerder",
-        "description": "Beheerder: assigns roles and watches the integrations"
+        "name": "edulims-admin",
+        "description": "Administrator: assigns roles and watches the integrations"
       }
     ]
   },
@@ -74,31 +74,31 @@
       "username": "student",
       "email": "student@edulims.test",
       "emailVerified": true,
-      "firstName": "Sanne",
-      "lastName": "Proefstudent",
+      "firstName": "Test",
+      "lastName": "Student",
       "enabled": true,
       "credentials": [{ "type": "password", "value": "student", "temporary": false }],
       "realmRoles": ["edulims-student"]
     },
     {
-      "username": "docent",
-      "email": "docent@edulims.test",
+      "username": "teacher",
+      "email": "teacher@edulims.test",
       "emailVerified": true,
-      "firstName": "Daan",
-      "lastName": "Proefdocent",
+      "firstName": "Test",
+      "lastName": "Teacher",
       "enabled": true,
-      "credentials": [{ "type": "password", "value": "docent", "temporary": false }],
-      "realmRoles": ["edulims-docent"]
+      "credentials": [{ "type": "password", "value": "teacher", "temporary": false }],
+      "realmRoles": ["edulims-teacher"]
     },
     {
-      "username": "beheerder",
-      "email": "beheerder@edulims.test",
+      "username": "admin",
+      "email": "admin@edulims.test",
       "emailVerified": true,
-      "firstName": "Bo",
-      "lastName": "Proefbeheerder",
+      "firstName": "Test",
+      "lastName": "Administrator",
       "enabled": true,
-      "credentials": [{ "type": "password", "value": "beheerder", "temporary": false }],
-      "realmRoles": ["edulims-beheerder"]
+      "credentials": [{ "type": "password", "value": "admin", "temporary": false }],
+      "realmRoles": ["edulims-admin"]
     }
   ]
 }
