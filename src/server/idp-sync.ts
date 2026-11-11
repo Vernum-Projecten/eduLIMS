@@ -3,9 +3,9 @@
 
 import "@tanstack/react-start/server-only";
 import type { BetterAuthOptions } from "better-auth";
-import { NO_ROLE_ERROR } from "../lib/identity-providers.ts";
-import type { Role } from "../lib/roles.ts";
-import { type RoleMap, resolveIdpRole } from "./idp-roles.ts";
+import { NO_ROLE_ERROR, ROLE_CONFLICT_ERROR } from "../lib/identity-providers.ts";
+import { formatRoles, type Role } from "../lib/roles.ts";
+import { type RoleMap, resolveIdpRoles } from "./idp-roles.ts";
 
 type ValidateUserInfo = NonNullable<NonNullable<BetterAuthOptions["user"]>["validateUserInfo"]>;
 
@@ -19,26 +19,34 @@ export interface IdpRoleSyncOptions {
 /**
  * Builds better-auth's `user.validateUserInfo` gate that makes the IdP the source of roles.
  *
- * On every OAuth sign-in it resolves the role from the fresh (verified) ID-token claims:
- * without a mapped role the sign-in is rejected; otherwise the role is written to the new
- * user (`create-user`) or synced onto the existing one (`sign-in`, `link-account`).
+ * On every OAuth sign-in it resolves the role set from the fresh (verified) ID-token claims:
+ * without a mapped role, or with a set eduLIMS does not allow (ADR 0012), the sign-in is
+ * rejected; otherwise the sorted set (`teacher,admin`) is written to the new user
+ * (`create-user`) or synced onto the existing one (`sign-in`, `link-account`).
  * Other methods (dev login, admin-created users) keep the role stored in the database.
  */
 export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo {
   return async ({ user, source }, ctx) => {
     if (source.method !== "oauth" || !source.oauth) return;
-    const claimPath = options.claimPaths[source.oauth.providerId];
-    const role = claimPath
-      ? resolveIdpRole({
+    const { providerId } = source.oauth;
+    const claimPath = options.claimPaths[providerId];
+    const resolved = claimPath
+      ? resolveIdpRoles({
           claims: source.oauth.profile ?? {},
           claimPath,
           roleMap: options.roleMap,
           defaultRole: options.defaultRole,
         })
-      : null;
-    if (!role) {
+      : { kind: "none" as const };
+    if (resolved.kind === "conflict") {
+      // Logs the provider only: never the user, the e-mail or the claims (A09, privacy).
+      console.warn(`sign-in refused: ${ROLE_CONFLICT_ERROR} (provider ${providerId})`);
+      return { error: ROLE_CONFLICT_ERROR, errorDescription: "Conflicting eduLIMS roles" };
+    }
+    if (resolved.kind === "none") {
       return { error: NO_ROLE_ERROR, errorDescription: "No eduLIMS role assigned" };
     }
+    const role = formatRoles(resolved.roles);
     if (source.action === "create-user") {
       // NOTE: better-auth 1.7.18 validates the exact record it then inserts; should that change,
       // the user falls back to the lower admin-plugin default and is synced on the next sign-in.

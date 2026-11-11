@@ -33,7 +33,38 @@ describe("getSessionUser", () => {
       name: "Test Student",
       email: "student@example.test",
       roles: ["student"],
+      lastPortal: null,
     } satisfies SessionUser);
+  });
+
+  it("carries the saved portal and the teacher-admin role set (ADR 0012)", async () => {
+    getSession.mockResolvedValue({
+      ...betterAuthSession,
+      user: { ...betterAuthSession.user, role: "admin,teacher", lastPortal: "admin" },
+    });
+    expect(await getSessionUser(new Headers())).toMatchObject({
+      roles: ["teacher", "admin"],
+      lastPortal: "admin",
+    });
+  });
+
+  it.each(["student,teacher", "student,admin", "student,teacher,admin"])(
+    "gives a stored conflicting role set %j no roles at all (fail closed)",
+    async (role) => {
+      getSession.mockResolvedValue({
+        ...betterAuthSession,
+        user: { ...betterAuthSession.user, role, lastPortal: "student" },
+      });
+      expect(await getSessionUser(new Headers())).toMatchObject({ roles: [] });
+    },
+  );
+
+  it("ignores a saved portal value that names no role", async () => {
+    getSession.mockResolvedValue({
+      ...betterAuthSession,
+      user: { ...betterAuthSession.user, lastPortal: "superuser" },
+    });
+    expect(await getSessionUser(new Headers())).toMatchObject({ lastPortal: null });
   });
 });
 
@@ -65,6 +96,7 @@ describe("requireRole", () => {
     name: "Test Student",
     email: "student@example.test",
     roles: ["student"],
+    lastPortal: null,
   };
 
   it("rejects users without the role with 403", async () => {
@@ -76,4 +108,46 @@ describe("requireRole", () => {
   it("allows users with one of the roles", async () => {
     await expect(run(requireRole("teacher", "student"), { user: student })).resolves.toBeDefined();
   });
+});
+
+describe("role sets on the server (ADR 0012, R-01)", () => {
+  /** Resolves the session user for a stored `role` column, as authMiddleware does. */
+  async function userWith(role: string): Promise<unknown> {
+    getSession.mockResolvedValue({
+      ...betterAuthSession,
+      user: { ...betterAuthSession.user, role },
+    });
+    const result = (await run(authMiddleware)) as { context: { user: unknown } };
+    return result.context.user;
+  }
+
+  async function status(role: string, required: "student" | "teacher" | "admin") {
+    const user = await userWith(role);
+    return run(requireRole(required), { user }).then(
+      () => 200,
+      (error: unknown) => (error instanceof AuthError ? error.status : 500),
+    );
+  }
+
+  it("lets a teacher-admin call teacher and admin functions, and no student function", async () => {
+    expect(await status("teacher,admin", "teacher")).toBe(200);
+    expect(await status("teacher,admin", "admin")).toBe(200);
+    expect(await status("teacher,admin", "student")).toBe(403);
+  });
+
+  it("gives a pure admin no teacher function, and a pure teacher no admin function", async () => {
+    expect(await status("admin", "teacher")).toBe(403);
+    expect(await status("teacher", "admin")).toBe(403);
+    expect(await status("admin", "student")).toBe(403);
+    expect(await status("teacher", "student")).toBe(403);
+  });
+
+  it.each(["student,teacher", "student,admin", "student,teacher,admin"])(
+    "refuses every function to a stored conflicting set %j",
+    async (role) => {
+      for (const required of ["student", "teacher", "admin"] as const) {
+        expect(await status(role, required)).toBe(403);
+      }
+    },
+  );
 });

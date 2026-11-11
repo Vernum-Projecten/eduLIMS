@@ -7,13 +7,16 @@ import {
   canViewResultsOf,
   hasAnyRole,
   hasRole,
+  landingPortal,
+  parseLastPortal,
   parseRoles,
   portalPathFor,
   type SessionUser,
+  sessionRoles,
 } from "./authz.ts";
 
 function user(id: string, ...roles: Role[]): SessionUser {
-  return { id, name: id, email: `${id}@example.test`, roles };
+  return { id, name: id, email: `${id}@example.test`, roles, lastPortal: null };
 }
 
 describe("parseRoles", () => {
@@ -50,11 +53,73 @@ describe("portalPathFor", () => {
     [["student"], "/student"],
     [["teacher"], "/teacher"],
     [["admin"], "/admin"],
-    [["student", "admin"], "/admin"],
-    [["student", "teacher"], "/teacher"],
+    [["teacher", "admin"], "/teacher"],
+    [["admin", "teacher"], "/teacher"],
     [[], null],
-  ] as const)("roles %j land on %s", (roles, expected) => {
+  ] as const)("roles %j land on %s on a first sign-in", (roles, expected) => {
     expect(portalPathFor({ roles })).toBe(expected);
+  });
+
+  it("lands on the saved portal", () => {
+    expect(portalPathFor({ roles: ["teacher", "admin"], lastPortal: "admin" })).toBe("/admin");
+  });
+});
+
+describe("landingPortal (ADR 0012)", () => {
+  it("prefers the saved portal while the user holds its role", () => {
+    expect(landingPortal({ roles: ["teacher", "admin"], lastPortal: "admin" })).toBe("admin");
+    expect(landingPortal({ roles: ["teacher", "admin"], lastPortal: "teacher" })).toBe("teacher");
+  });
+
+  it("falls back teacher, then admin, then student without a saved portal", () => {
+    expect(landingPortal({ roles: ["admin", "teacher"], lastPortal: null })).toBe("teacher");
+    expect(landingPortal({ roles: ["admin"], lastPortal: null })).toBe("admin");
+    expect(landingPortal({ roles: ["student"] })).toBe("student");
+  });
+
+  it("ignores a saved portal whose role the user no longer holds", () => {
+    expect(landingPortal({ roles: ["teacher"], lastPortal: "admin" })).toBe("teacher");
+    expect(landingPortal({ roles: ["admin"], lastPortal: "teacher" })).toBe("admin");
+    expect(landingPortal({ roles: [], lastPortal: "admin" })).toBeNull();
+  });
+});
+
+describe("sessionRoles", () => {
+  it.each([
+    ["student", ["student"]],
+    ["teacher", ["teacher"]],
+    ["admin", ["admin"]],
+    ["teacher,admin", ["teacher", "admin"]],
+    ["admin, teacher", ["teacher", "admin"]],
+    ["student,teacher", []],
+    ["student,admin", []],
+    ["student,teacher,admin", []],
+    ["superuser", []],
+    [null, []],
+  ] as const)("reads %j as %j", (role, expected) => {
+    expect(sessionRoles(role)).toEqual(expected);
+  });
+});
+
+describe("parseLastPortal", () => {
+  it.each([
+    ["teacher", "teacher"],
+    ["admin", "admin"],
+    ["student", "student"],
+    ["Admin", null],
+    ["", null],
+    [null, null],
+    [42, null],
+  ])("reads %j as %j", (value, expected) => {
+    expect(parseLastPortal(value)).toBe(expected);
+  });
+});
+
+describe("roles are a set, not a ranking (ADR 0012)", () => {
+  it("gives a teacher-admin no access to results of practicals they do not teach", () => {
+    const coordinator = user("c1", "teacher", "admin");
+    expect(canViewResultsOf(coordinator, { ownerId: "s1", teacherId: "t1" })).toBe(false);
+    expect(canViewResultsOf(coordinator, { ownerId: "s1", teacherId: "c1" })).toBe(true);
   });
 });
 

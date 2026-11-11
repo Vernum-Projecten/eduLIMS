@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { DEV_PASSWORD, demoAccountsFor } from "./demo-accounts";
+import { validateRoleSet } from "../lib/roles.ts";
+import { DEV_PASSWORD, DEV_USERS, demoAccountsFor } from "./demo-accounts";
 
 describe("demoAccountsFor", () => {
   it("returns no demo data when the development login is off", () => {
@@ -10,24 +11,40 @@ describe("demoAccountsFor", () => {
     expect(demoAccountsFor(false, [])).toBeNull();
   });
 
-  it("lists one dev-login account per role with the shared password", () => {
+  it("lists one dev-login account per allowed role set with the shared password", () => {
     const accounts = demoAccountsFor(true, []);
     expect(accounts?.devLogin).toEqual([
-      { role: "student", username: "student@example.test", password: DEV_PASSWORD },
-      { role: "teacher", username: "teacher@example.test", password: DEV_PASSWORD },
-      { role: "admin", username: "admin@example.test", password: DEV_PASSWORD },
+      { roles: ["student"], username: "student@example.test", password: DEV_PASSWORD },
+      { roles: ["teacher"], username: "teacher@example.test", password: DEV_PASSWORD },
+      { roles: ["admin"], username: "admin@example.test", password: DEV_PASSWORD },
+      {
+        roles: ["teacher", "admin"],
+        username: "teacher-admin@example.test",
+        password: DEV_PASSWORD,
+      },
     ]);
   });
 
   it("lists the Keycloak realm users only when Keycloak is configured", () => {
     expect(demoAccountsFor(true, [{ id: "microsoft" }])?.keycloak).toBeNull();
-    expect(demoAccountsFor(true, [{ id: "keycloak", label: "Campus" }])?.keycloak).toEqual({
-      realm: "edulims",
-      accounts: [
-        { role: "student", username: "student", password: "student" },
-        { role: "teacher", username: "teacher", password: "teacher" },
-        { role: "admin", username: "admin", password: "admin" },
-      ],
-    });
+    const keycloak = demoAccountsFor(true, [{ id: "keycloak", label: "Campus" }])?.keycloak;
+    expect(keycloak?.realm).toBe("edulims");
+    expect(
+      keycloak?.accounts.map((a) => [a.username, a.roles, a.grant ?? null, a.refusal ?? null]),
+    ).toEqual([
+      ["student", ["student"], "groups", null],
+      ["teacher", ["teacher"], "groups", null],
+      ["admin", ["admin"], "direct", null],
+      ["coordinator", ["teacher", "admin"], "groups", null],
+      ["teacher-direct", ["teacher"], "direct", null],
+      ["mixed", ["teacher", "admin"], "groups-and-direct", null],
+      ["conflict", [], "groups", "conflict"],
+      ["norole", [], null, "no-role"],
+    ]);
+    expect(keycloak?.accounts.every((account) => account.password === account.username)).toBe(true);
+  });
+
+  it("seeds only allowed role sets (ADR 0012)", () => {
+    for (const user of DEV_USERS) expect(validateRoleSet(user.roles).ok).toBe(true);
   });
 });

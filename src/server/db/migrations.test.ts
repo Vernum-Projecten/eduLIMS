@@ -42,11 +42,26 @@ describe("migrations", () => {
     expect(up.results?.map((r) => r.status)).toEqual(Object.keys(migrations).map(() => "Success"));
   });
 
-  it("0002_user_locale reverts to a user table without the locale column", async () => {
+  it("0003_user_last_portal reverts to a user table without the last_portal column", async () => {
     db = await createTestDb();
     const migrator = createMigrator(db);
     const down = await migrator.migrateDown();
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0003_user_last_portal", "Success"],
+    ]);
+    const user = (await db.introspection.getTables()).find((t) => t.name === "user");
+    expect(user?.columns.map((c) => c.name)).not.toContain("last_portal");
+    expect(user?.columns.map((c) => c.name)).toContain("locale");
+    const up = await migrator.migrateToLatest();
+    expect(up.error).toBeUndefined();
+  });
+
+  it("0002_user_locale reverts to a user table without the locale column", async () => {
+    db = await createTestDb();
+    const migrator = createMigrator(db);
+    const down = await migrator.migrateTo("0001_auth");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0003_user_last_portal", "Success"],
       ["0002_user_locale", "Success"],
     ]);
     const user = (await db.introspection.getTables()).find((t) => t.name === "user");

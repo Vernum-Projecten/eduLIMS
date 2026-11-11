@@ -11,6 +11,7 @@ const student: SessionUser = {
   name: "Test Student",
   email: "student@example.test",
   roles: ["student"],
+  lastPortal: null,
 };
 
 function thrown(fn: () => unknown): unknown {
@@ -60,6 +61,36 @@ describe("requireRole", () => {
     const error = thrown(() => requireRole("teacher")({ context: { user: student } }));
     expect(isRedirect(error)).toBe(true);
     expect(error).toMatchObject({ options: { to: "/student" } });
+  });
+
+  it("lets a teacher-admin into the teacher and the admin portal, not the student portal", () => {
+    const coordinator: SessionUser = { ...student, roles: ["teacher", "admin"] };
+    expect(() => requireRole("teacher")({ context: { user: coordinator } })).not.toThrow();
+    expect(() => requireRole("admin")({ context: { user: coordinator } })).not.toThrow();
+    const error = thrown(() => requireRole("student")({ context: { user: coordinator } }));
+    expect(error).toMatchObject({ options: { to: "/teacher" } });
+  });
+
+  it("keeps a pure admin out of the teacher portal and a pure teacher out of the admin portal", () => {
+    const admin: SessionUser = { ...student, roles: ["admin"] };
+    const teacher: SessionUser = { ...student, roles: ["teacher"] };
+    expect(thrown(() => requireRole("teacher")({ context: { user: admin } }))).toMatchObject({
+      options: { to: "/admin" },
+    });
+    expect(thrown(() => requireRole("admin")({ context: { user: teacher } }))).toMatchObject({
+      options: { to: "/teacher" },
+    });
+  });
+
+  it("sends a refused user to their saved portal", () => {
+    const coordinator: SessionUser = {
+      ...student,
+      roles: ["teacher", "admin"],
+      lastPortal: "admin",
+    };
+    expect(thrown(() => requireRole("student")({ context: { user: coordinator } }))).toMatchObject({
+      options: { to: "/admin" },
+    });
   });
 
   it("sends users without any role home", () => {

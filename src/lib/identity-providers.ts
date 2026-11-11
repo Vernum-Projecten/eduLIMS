@@ -13,3 +13,9 @@ export interface IdentityProviderOption {
 
 /** better-auth rejection code for an IdP sign-in without a mapped eduLIMS role. */
 export const NO_ROLE_ERROR = "no_edulims_role";
+
+/**
+ * better-auth rejection code for an IdP sign-in whose roles form a set eduLIMS does not allow
+ * (student with teacher or admin, ADR 0012).
+ */
+export const ROLE_CONFLICT_ERROR = "role_conflict";

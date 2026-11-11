@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Pure mapping from identity-provider claims to eduLIMS roles, shared by every OIDC provider.
-import { ROLES, type Role } from "../lib/roles.ts";
+import { isRole, ROLES, type Role, validateRoleSet } from "../lib/roles.ts";
 
 /** Maps IdP role names (case-sensitive, as the IdP emits them) to app roles. */
 export type RoleMap = ReadonlyMap<string, Role>;
-
-/** Precedence when a user holds several roles: the highest one wins. */
-const ROLE_RANK: Record<Role, number> = { student: 1, teacher: 2, admin: 3 };
-
-function isRole(value: string): value is Role {
-  return (ROLES as readonly string[]).includes(value);
-}
 
 /**
  * Parses `OIDC_ROLE_MAP` (`idp-name:app-role,…`) into a {@link RoleMap}.
@@ -56,15 +49,6 @@ function claimValues(value: unknown): string[] {
   return [];
 }
 
-/** Returns the highest of the given roles, or `null` for none. */
-export function highestRole(roles: Iterable<Role>): Role | null {
-  let best: Role | null = null;
-  for (const role of roles) {
-    if (!best || ROLE_RANK[role] > ROLE_RANK[best]) best = role;
-  }
-  return best;
-}
-
 export interface RoleResolution {
   claims: Readonly<Record<string, unknown>>;
   claimPath: string;
@@ -73,19 +57,26 @@ export interface RoleResolution {
   defaultRole?: Role | undefined;
 }
 
+/** The outcome of {@link resolveIdpRoles}. */
+export type IdpRoles = { kind: "roles"; roles: Role[] } | { kind: "none" } | { kind: "conflict" };
+
 /**
- * Resolves the single app role for a sign-in from the IdP claims: the highest mapped role,
- * else `defaultRole`, else `null` (deny).
+ * Resolves the role set for a sign-in from the IdP claims (ADR 0012): every claim value is
+ * mapped through the role map, and the set must be allowed. Without a mapped role it falls
+ * back to `defaultRole`, else `none` (deny); a set with student and another role is a
+ * `conflict` (deny), never trimmed to one of its roles.
  */
-export function resolveIdpRole({
+export function resolveIdpRoles({
   claims,
   claimPath,
   roleMap,
   defaultRole,
-}: RoleResolution): Role | null {
+}: RoleResolution): IdpRoles {
   const mapped = claimValues(readClaim(claims, claimPath)).flatMap((name) => {
     const role = roleMap.get(name);
     return role ? [role] : [];
   });
-  return highestRole(mapped) ?? defaultRole ?? null;
+  const result = validateRoleSet(mapped.length > 0 ? mapped : defaultRole ? [defaultRole] : []);
+  if (result.ok) return { kind: "roles", roles: result.roles };
+  return result.reason === "conflict" ? { kind: "conflict" } : { kind: "none" };
 }
