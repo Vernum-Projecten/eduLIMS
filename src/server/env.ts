@@ -62,6 +62,19 @@ const PROVIDER_VARS = {
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
+/**
+ * Returns why a production `DATABASE_URL` is refused, or `undefined` when it asks for TLS with
+ * certificate and host name verification (`sslmode=verify-full`, optionally with
+ * `sslrootcert=<CA file>`), which node-postgres reads from the URL itself.
+ */
+export function databaseTlsProblem(databaseUrl: string): string | undefined {
+  // NOTE: owner decision on #40 (ASVS V12.3.1, V12.3.2): verified TLS to PostgreSQL in
+  // production, with no opt-out; every other sslmode either skips TLS or skips verification.
+  const mode = new URL(databaseUrl).searchParams.get("sslmode");
+  if (mode === "verify-full") return undefined;
+  return "must use sslmode=verify-full when NODE_ENV=production (TLS with a verified certificate)";
+}
+
 export const envSchema = envFields.superRefine((env, ctx) => {
   for (const vars of Object.values(PROVIDER_VARS)) {
     const missing = vars.filter((name) => env[name] === undefined);
@@ -94,6 +107,8 @@ export const envSchema = envFields.superRefine((env, ctx) => {
       });
     }
   }
+  const tlsProblem = production ? databaseTlsProblem(env.DATABASE_URL) : undefined;
+  if (tlsProblem) ctx.addIssue({ code: "custom", path: ["DATABASE_URL"], message: tlsProblem });
   if (env.NODE_ENV === "production" && env.EDULIMS_DEV_LOGIN) {
     ctx.addIssue({
       code: "custom",

@@ -68,9 +68,9 @@ moves a row to `met` in the same pull request.
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 172 |
 | Status met | 76 |
-| Status partial | 47 |
+| Status partial | 50 |
 | Status planned | 30 |
-| Status open | 19 |
+| Status open | 16 |
 | Status n-a | 173 |
 
 ### V1 Encoding and Sanitization
@@ -681,10 +681,10 @@ Text: [vendor/asvs/en/0x21-V12-Secure-Communication.md](vendor/asvs/en/0x21-V12-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V12.3.1 | 2 | yes | eduLIMS to PostgreSQL, FerroEHR and FerroBRIDGE is plain inside the Compose `backend` network (`compose.yaml`) | review | open |
+| V12.3.1 | 2 | yes | eduLIMS to PostgreSQL uses TLS with `sslmode=verify-full`, refused otherwise in production (`src/server/env.ts`, `compose.yaml`, #40); FerroEHR and FerroBRIDGE stay plain on the internal `backend` network as the accepted residual risk of ADR 0013 | unit `src/server/env.test.ts` | partial |
 | V12.3.2 | 2 | yes | Node.js `fetch` validates certificates; the Keycloak issuer must be `https` in production (`src/server/env.ts`) | unit `src/server/env.test.ts` | met |
-| V12.3.3 | 2 | yes | `FERROEHR_BASE_URL` and `FERROBRIDGE_BASE_URL` are `http` inside Compose (`compose.yaml`); needs an owner decision | review | open |
-| V12.3.4 | 2 | yes | no internal certificates yet (see V12.3.3) | review | open |
+| V12.3.3 | 2 | yes | PostgreSQL: the certificate and host name are verified (`sslmode=verify-full`); `FERROEHR_BASE_URL` and `FERROBRIDGE_BASE_URL` stay `http` inside Compose by decision (ADR 0013, revisit on a second host) | unit `src/server/env.test.ts` | partial |
+| V12.3.4 | 2 | yes | the operator's private CA for PostgreSQL (`config/postgres-tls/ca.crt`, `docs/deployment.md`, "Database TLS"); none for FerroEHR and FerroBRIDGE (ADR 0013) | manual, operator | partial |
 | V12.3.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V13 Configuration
