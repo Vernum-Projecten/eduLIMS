@@ -1,0 +1,1 @@
+- Pages and data for signed-in users are no longer kept in the browser or a shared cache: every page, server function and API response now sends `Cache-Control: no-store`, so the back button on a shared lab computer cannot show the previous user's portal (#41).

@@ -67,10 +67,10 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 172 |
-| Status met | 76 |
-| Status partial | 50 |
+| Status met | 78 |
+| Status partial | 49 |
 | Status planned | 30 |
-| Status open | 16 |
+| Status open | 15 |
 | Status n-a | 173 |
 
 ### V1 Encoding and Sanitization
@@ -748,7 +748,7 @@ Text: [vendor/asvs/en/0x23-V14-Data-Protection.md](vendor/asvs/en/0x23-V14-Data-
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V14.2.1 | 1 | yes | no personal data in URLs: ids only (UUIDv7, #28); sign-in uses POST and the IdP's code flow | review | met |
-| V14.2.2 | 2 | partly | no application cache holds personal data; `Cache-Control` for pages with personal data is not set (V14.3.2) | review | partial |
+| V14.2.2 | 2 | partly | no application cache holds personal data; every session-dependent response is `no-store` in production (V14.3.2) | unit `src/server/security-headers.test.ts` | met |
 | V14.2.3 | 2 | yes | no analytics or third-party scripts (CSP `default-src 'self'`) | unit `src/server/security-headers.test.ts` | met |
 | V14.2.4 | 2 | partly | `.claude/rules/auth-security.md` Privacy: logs carry ids only, pseudonyms in FerroEHR; retention is not decided | review | partial |
 | V14.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -761,7 +761,7 @@ Text: [vendor/asvs/en/0x23-V14-Data-Protection.md](vendor/asvs/en/0x23-V14-Data-
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V14.3.1 | 1 | partly | sign-out clears the session cookie; `Clear-Site-Data` is not sent | e2e `tests/e2e/shell.spec.ts` | partial |
-| V14.3.2 | 2 | yes | `Cache-Control: no-store` only on `/api/health` and `/api/ready`; authenticated pages and server functions need it | review | open |
+| V14.3.2 | 2 | yes | production sends `Cache-Control: no-store` on every page, server function and server route, overriding a handler's own policy; built assets keep their long cache (`src/server/security-headers.ts`, #41) | unit `src/server/security-headers.test.ts`, e2e `tests/e2e/app.spec.ts` | met |
 | V14.3.3 | 2 | yes | browser storage holds the theme, sidebar state and locale only (`src/lib/cookies.ts`, `src/lib/preferences.ts`) | review | met |
 
 ### V15 Secure Coding and Architecture

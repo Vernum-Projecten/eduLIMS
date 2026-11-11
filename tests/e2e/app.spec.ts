@@ -40,6 +40,32 @@ test("responses carry security headers", async ({ request }) => {
   expect(headers["strict-transport-security"]).toContain("max-age=");
 });
 
+test("session-dependent responses are never cached, built assets are (#41)", async ({
+  page,
+  request,
+}) => {
+  await devLogin(page, "teacher@example.test");
+  await expect(page.getByRole("heading", { level: 1, name: "Teacher portal" })).toBeVisible();
+
+  const portal = await page.request.get("/teacher");
+  expect(portal.headers()["cache-control"]).toBe("no-store");
+
+  // A client-side navigation re-reads the session through a server function.
+  const serverFn = page.waitForResponse((response) => response.url().includes("/_serverFn/"));
+  await page
+    .getByRole("navigation", { name: "Main menu" })
+    .getByRole("link", { name: "Practicals" })
+    .click();
+  expect((await serverFn).headers()["cache-control"]).toBe("no-store");
+
+  expect((await request.get("/login")).headers()["cache-control"]).toBe("no-store");
+
+  const script = await page.locator("script[src*='/assets/']").first().getAttribute("src");
+  const asset = await request.get(script ?? "/assets/missing.js");
+  expect(asset.status()).toBe(200);
+  expect(asset.headers()["cache-control"] ?? "").not.toContain("no-store");
+});
+
 test("an IdP sign-in without an eduLIMS role is explained", async ({ page }) => {
   await page.goto("/login?error=no_edulims_role");
   await expect(page.getByRole("alert")).toContainText("no role in eduLIMS");
