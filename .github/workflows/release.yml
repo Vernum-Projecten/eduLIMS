@@ -214,7 +214,7 @@ jobs:
       title: eduLIMS
       description: An open-source laboratory information management system for practical laboratory education
 
-  # ── migrate-image: the schema migration one-shot, from source ─────────────
+  # ── migrate-image: the tools image (migrations and host CLI), from source ──
   migrate-image:
     name: image edulims-migrate (linux/amd64, linux/arm64)
     needs: [plan, github-release]
@@ -228,9 +228,11 @@ jobs:
       tag: ${{ needs.plan.outputs.tag }}
       sha: ${{ github.sha }}
       name: edulims-migrate
-      target: migrate
-      title: eduLIMS migrate
-      description: Applies the eduLIMS database migrations to DATABASE_URL and exits
+      target: tools
+      title: eduLIMS tools
+      description: >-
+        The eduLIMS host CLI: database migrations (the default), retention,
+        break-glass admin grants and the first identity provider
 
   # ── vulnerability-record: every finding recorded, the serious ones judged ──
   # Both images are scanned by their pushed digests with no severity floor and
