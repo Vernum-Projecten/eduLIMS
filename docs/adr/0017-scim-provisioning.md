@@ -61,16 +61,37 @@ Option 3, with `@better-auth/scim` at exactly 1.7.20 like `better-auth` and
   `acquireActiveSCIMUserLink` for that provider's connection: an active SCIM
   user is linked, one the directory deactivated or deleted is refused with
   `account_deprovisioned`, and anyone else signs in as before. Account
-  linking by email stays off (#39).
+  linking by email stays off (#39). Only an immutable claim may carry the
+  directory id: `oid`, `sub`, `objectGUID`, or the account key (the OIDC
+  `sub`, the SAML persistent NameID); `email` or `preferred_username` is
+  refused. Each sign-in stores its directory id on the account
+  (`account.directory_id`), so a later SCIM create links that user instead of
+  making a second one. Whoever controls the directory's `externalId` mapping
+  controls the linking.
+- **One owner per e-mail address** (H1, V6.8.1): a SCIM create or change
+  whose address belongs to a user another sign-in method owns (an account at
+  another provider, a user another provider provisioned, a local user) is
+  refused before the plugin runs, with a generic 409 `uniqueness` that names
+  no user and no provider, and a refused row in the activity log. That a
+  directory learns an address is taken is an accepted risk: every SCIM
+  client is an institution's directory an administrator configured.
 - **Roles follow hybrid ownership (#32).** The plugin's role projection maps
-  a SCIM group (its `externalId`, then its display name) and the user's
-  `roles` values through the provider's own role map. A mapped set is
+  a SCIM group (on its `externalId` alone when it has one, else its display
+  name, which a directory administrator can rename) and the user's `roles`
+  values through the provider's own role map. A mapped set is
   authoritative with the provider as `role_source`; a conflicting set leaves
   no roles; a set the provider took away is removed and the sessions end
   (A07); a local set stays. A user SCIM creates has no roles (the admin
   plugin's default role is not applied), and the provider's default role does
   not apply at that user's sign-in. SCIM gives no role the map does not name,
   so it never gives admin unless the map maps a group to it.
+- **One channel per role set** (security review B1, ASVS V8.2.1): an
+  ID-token claim and SCIM both write `role_source` = the provider, so
+  `user.role_channel` records which one wrote the set (`claim`, `scim`,
+  `local`). Only a set SCIM wrote survives a sign-in without a mapped claim;
+  a set a claim gave, admin included, does not. A SCIM write never removes a
+  set a claim gave, and a claim never removes a set SCIM gave. When both give
+  roles, the claim's set is taken at a sign-in and SCIM's at a SCIM write.
 - **Deactivation:** `active: false` or a delete marks the user
   `deprovisioned_at`, ends every session in the plugin's transaction, and a
   `databaseHooks.session` hook refuses every new session. Records stay;
@@ -80,9 +101,13 @@ Option 3, with `@better-auth/scim` at exactly 1.7.20 like `better-auth` and
   context. `createAuth` checks the first two before it adds the plugins, a
   guard plugin checks the third at the first SCIM request, and without them
   `/api/auth/scim/v2` answers 501 (`src/server/scim/support.test.ts`).
-- **Guards:** a fixed-window rate limit per token (600 requests per minute),
-  a 1 MiB body cap, and an activity-log row for every SCIM write and every
-  refused token (ids and codes only). The plugin's server-only endpoints
+- **Guards:** a fixed-window rate limit of 600 requests per minute per
+  provider for a working token and per client IP (as better-auth reads it)
+  for every other request, in a bounded table that answers 429 when full; a
+  1 MiB body cap; and an activity-log row for every SCIM write, every refused
+  token (`scim_token_refused` with why, once per token per minute) and every
+  refused read or write (403, or 404 for another provider's resource), ids and
+  codes only. The plugin's server-only endpoints
   (decommission, reconcile) are not reachable over HTTP.
 
 ## Consequences

@@ -17,7 +17,12 @@ import type { ProviderSettingsView } from "./idp/registry.ts";
 import { hasPersistentNameId } from "./idp/saml-nameid.ts";
 import { TEST_COMPLETE_ERROR, type TestOutcome } from "./idp/test-flow.ts";
 import { type IdpRoles, resolveIdpRoles } from "./idp-roles.ts";
-import { decideSignInRoles, type SignInRoles, type StoredRoles } from "./role-ownership.ts";
+import {
+  decideSignInRoles,
+  parseRoleChannel,
+  type SignInRoles,
+  type StoredRoles,
+} from "./role-ownership.ts";
 import { logSecurityEvent } from "./security-log.ts";
 
 type ValidateUserInfo = NonNullable<NonNullable<BetterAuthOptions["user"]>["validateUserInfo"]>;
@@ -53,6 +58,7 @@ async function storedRolesOf(ctx: unknown, userId: string): Promise<StoredRoles 
     role: field(found, "role"),
     roleSource: parseRoleSource(field(found, "roleSource")),
     emailVerified: field(found, "emailVerified") === true,
+    roleChannel: parseRoleChannel(field(found, "roleChannel")),
     provisionedBy:
       typeof field(found, "provisionedBy") === "string"
         ? String(field(found, "provisionedBy"))
@@ -204,16 +210,17 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       // NOTE: better-auth 1.7.20 validates the exact record it then inserts
       // (internal-adapter.mjs createUser), so these fields are stored with the user.
       user.emailVerified = emailVerified;
-      if (decision.kind !== "local") {
+      if (decision.kind === "idp" || decision.kind === "default") {
         user["role"] = formatRoles(decision.roles);
         user["roleSource"] = decision.kind === "idp" ? settings.providerId : LOCAL_ROLE_SOURCE;
+        user["roleChannel"] = decision.kind === "idp" ? "claim" : "local";
       }
       return;
     }
     if (!existingId) return;
     const update: Record<string, unknown> = {};
     if (stored?.emailVerified !== emailVerified) update["emailVerified"] = emailVerified;
-    if (decision.kind === "local") {
+    if (decision.kind === "local" || decision.kind === "scim") {
       if (Object.keys(update).length > 0) {
         await ctx.context.internalAdapter.updateUser(existingId, update);
       }
@@ -221,11 +228,25 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
     }
     const role = formatRoles(decision.roles);
     const nextSource = decision.kind === "idp" ? settings.providerId : LOCAL_ROLE_SOURCE;
+    // NOTE: #45 (B1, V8.2.1); a set a claim gave is marked `claim`, so it never outlives the claim.
+    const nextChannel = decision.kind === "idp" ? "claim" : "local";
     const previous = validateRoleValue(stored?.role);
     const previousRole = previous.ok ? formatRoles(previous.roles) : undefined;
-    if (previousRole !== role || stored?.roleSource !== nextSource) {
+    // A provider's set stored before the channel was recorded counts as the claim's.
+    const storedChannel =
+      stored?.roleSource == null || stored.roleSource === LOCAL_ROLE_SOURCE
+        ? "local"
+        : stored.roleChannel === "scim"
+          ? "scim"
+          : "claim";
+    if (
+      previousRole !== role ||
+      stored?.roleSource !== nextSource ||
+      storedChannel !== nextChannel
+    ) {
       update["role"] = role;
       update["roleSource"] = nextSource;
+      update["roleChannel"] = nextChannel;
     }
     if (Object.keys(update).length > 0) {
       await ctx.context.internalAdapter.updateUser(existingId, update);

@@ -16,6 +16,17 @@ export interface StoredRoles {
   emailVerified?: boolean;
   /** The provider that provisioned the user over SCIM (#45), if one did. */
   provisionedBy?: string | null;
+  /** Which channel wrote the stored set (#45, B1): an ID-token claim, SCIM, or eduLIMS. */
+  roleChannel?: RoleChannel | null;
+}
+
+/** The channels that write a role set (#45, B1). */
+export const ROLE_CHANNELS = ["claim", "scim", "local"] as const;
+export type RoleChannel = (typeof ROLE_CHANNELS)[number];
+
+/** Returns `value` when it names a {@link RoleChannel}, else `null`. */
+export function parseRoleChannel(value: unknown): RoleChannel | null {
+  return ROLE_CHANNELS.find((channel) => channel === value) ?? null;
 }
 
 /** The outcome of {@link decideSignInRoles}. */
@@ -24,6 +35,8 @@ export type SignInRoles =
   | { kind: "idp"; roles: Role[] }
   /** The identity provider sent none: the roles an administrator assigned apply. */
   | { kind: "local"; roles: Role[] }
+  /** The identity provider sent none: the set its SCIM directory wrote stays (#45, B1). */
+  | { kind: "scim"; roles: Role[] }
   /** Neither: the provider's default role (or a pending admin grant), stored as a local set. */
   | { kind: "default"; roles: Role[] }
   | { kind: "refused"; reason: typeof NO_ROLE_ERROR | typeof ROLE_CONFLICT_ERROR };
@@ -36,9 +49,10 @@ export type SignInRoles =
  * whose source is `local` applies; a set the IdP once sent does not survive the IdP taking it
  * away (A07). Then `defaultRole`, else `no_edulims_role`.
  *
- * For a user `providerId` provisioned over SCIM (#45), the set its SCIM groups mapped stays when
- * the sign-in carries no mapped role, and the default role never applies: such a user has no
- * roles until the directory maps one or an administrator assigns local ones.
+ * For a user `providerId` provisioned over SCIM (#45), a set SCIM wrote (`roleChannel` `scim`)
+ * stays when the sign-in carries no mapped role; a set a claim wrote does not (B1, V8.2.1), and
+ * the default role never applies: such a user has no roles until the directory maps one or an
+ * administrator assigns local ones.
  */
 export function decideSignInRoles(
   idp: IdpRoles,
@@ -49,9 +63,9 @@ export function decideSignInRoles(
   if (idp.kind === "conflict") return { kind: "refused", reason: ROLE_CONFLICT_ERROR };
   if (idp.kind === "roles") return { kind: "idp", roles: idp.roles };
   const provisioned = providerId !== undefined && stored?.provisionedBy === providerId;
-  if (provisioned && stored.roleSource === providerId) {
+  if (provisioned && stored.roleSource === providerId && stored.roleChannel === "scim") {
     const fromScim = validateRoleValue(stored.role);
-    if (fromScim.ok) return { kind: "idp", roles: fromScim.roles };
+    if (fromScim.ok) return { kind: "scim", roles: fromScim.roles };
     return { kind: "refused", reason: NO_ROLE_ERROR };
   }
   if (stored && isLocallyEditable(stored.roleSource)) {

@@ -179,14 +179,39 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       col.references("identity_provider.provider_id").onDelete("set null"),
     )
     .addColumn("deprovisioned_at", "timestamptz")
+    // Which channel wrote the role set (B1, V8.2.1): an ID-token claim, SCIM, or eduLIMS. Only
+    // `scim` survives a sign-in without a mapped claim; a local set is always `local`.
+    .addColumn("role_channel", "text", (col) =>
+      col.notNull().defaultTo("local").check(sql`role_channel in ('claim', 'scim', 'local')`),
+    )
+    .execute();
+  await db.schema
+    .alterTable("user")
+    .addCheckConstraint(
+      "user_role_channel_source",
+      sql`role_source <> 'local' or role_channel = 'local'`,
+    )
+    .execute();
+
+  // The directory id a sign-in carried (the provider's configured external-id claim, else the
+  // account key), so SCIM links an existing user on it instead of creating a second one.
+  await db.schema.alterTable("account").addColumn("directory_id", "text").execute();
+  await db.schema
+    .createIndex("account_provider_directory_id_idx")
+    .on("account")
+    .columns(["providerId", "directory_id"])
     .execute();
 }
 
 // NOTE: no requirement governs this: our own design. Reverting drops every provisioned
 // directory record, every SCIM token and the deactivation state of every user.
 export async function down(db: Kysely<unknown>): Promise<void> {
+  await db.schema.dropIndex("account_provider_directory_id_idx").execute();
+  await db.schema.alterTable("account").dropColumn("directory_id").execute();
+  await db.schema.alterTable("user").dropConstraint("user_role_channel_source").execute();
   await db.schema
     .alterTable("user")
+    .dropColumn("role_channel")
     .dropColumn("deprovisioned_at")
     .dropColumn("provisioned_by")
     .execute();

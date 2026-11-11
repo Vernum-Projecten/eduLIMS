@@ -1,22 +1,18 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The guard in front of the SCIM endpoint (#45; API4, ASVS V2.4.1, V16.3.1): the rate limit per
-// token, the body cap, the error shape, and the activity-log action of each request.
+// The guard in front of the SCIM endpoint (#45; API4, ASVS V2.4.1, V6.8.1, V16.3.1): the rate
+// limit and its keys, the body cap, the error shape, the e-mail addresses a body sets, the
+// activity-log action of each request and the once-per-window refusal log.
 import { describe, expect, it } from "vitest";
-import {
-  bearerOf,
-  bodyTooLarge,
-  rateKeyOf,
-  ScimRateLimiter,
-  scimErrorResponse,
-  scimWriteAction,
-  scimWriteEvent,
-} from "./gate.ts";
+import { RefusalDeduper, scimResourceAction, scimResourceEvent } from "./audit.ts";
+import { scimBodyAddresses } from "./emails.ts";
+import { scimErrorResponse } from "./gate.ts";
+import { bearerOf, bodyTooLarge, rateKeyOf, ScimRateLimiter } from "./limits.ts";
 
 describe("ScimRateLimiter", () => {
   it("allows the limit per window, then answers with the seconds to wait", () => {
-    const limiter = new ScimRateLimiter({ maxRequests: 2, windowMs: 60_000 });
+    const limiter = new ScimRateLimiter({ maxRequests: 2, windowMs: 60_000, maxKeys: 10 });
     expect(limiter.hit("a", 0)).toBeNull();
     expect(limiter.hit("a", 1_000)).toBeNull();
     expect(limiter.hit("a", 2_000)).toBe(58);
@@ -24,21 +20,35 @@ describe("ScimRateLimiter", () => {
   });
 
   it("starts a new window once the old one ends", () => {
-    const limiter = new ScimRateLimiter({ maxRequests: 1, windowMs: 1_000 });
+    const limiter = new ScimRateLimiter({ maxRequests: 1, windowMs: 1_000, maxKeys: 10 });
     expect(limiter.hit("a", 0)).toBeNull();
     expect(limiter.hit("a", 500)).toBe(1);
     expect(limiter.hit("a", 1_000)).toBeNull();
   });
+
+  it("refuses a new key while every slot holds a live window, and frees ended ones (H3)", () => {
+    const limiter = new ScimRateLimiter({ maxRequests: 5, windowMs: 1_000, maxKeys: 2 });
+    expect(limiter.hit("a", 0)).toBeNull();
+    expect(limiter.hit("b", 0)).toBeNull();
+    expect(limiter.hit("c", 100)).toBe(1);
+    expect(limiter.hit("a", 200)).toBeNull();
+    expect(limiter.hit("c", 1_000)).toBeNull();
+  });
 });
 
-describe("rateKeyOf", () => {
-  it("keys a token by its digest, never the token, and requests without one together", () => {
-    const token = new Headers({ authorization: "Bearer edulims_scim_secret" });
-    expect(bearerOf(token)).toBe("edulims_scim_secret");
-    expect(rateKeyOf(token)).toMatch(/^[0-9a-f]{64}$/);
-    expect(rateKeyOf(token)).not.toContain("secret");
-    expect(rateKeyOf(new Headers())).toBe("anonymous");
+describe("rate-limit keys (H3)", () => {
+  it("keys a working token by its provider and everything else by the client IP", () => {
+    expect(rateKeyOf("campus", "192.0.2.10")).toBe("provider:campus");
+    expect(rateKeyOf(null, "192.0.2.10")).toBe("ip:192.0.2.10");
+    expect(rateKeyOf(null, null)).toBe("ip:unknown");
+  });
+
+  it("reads only a bearer token", () => {
+    expect(bearerOf(new Headers({ authorization: "Bearer edulims_scim_x" }))).toBe(
+      "edulims_scim_x",
+    );
     expect(bearerOf(new Headers({ authorization: "Basic abc" }))).toBeNull();
+    expect(bearerOf(new Headers())).toBeNull();
   });
 });
 
@@ -63,47 +73,91 @@ describe("bodyTooLarge", () => {
 });
 
 describe("scimErrorResponse", () => {
-  it("answers in the SCIM error format with only a status and a fixed detail", async () => {
-    const response = scimErrorResponse(429, "Too many requests", { "retry-after": "5" });
-    expect(response.status).toBe(429);
+  it("answers in the SCIM error format with only a status, a fixed detail and a type", async () => {
+    const response = scimErrorResponse(409, "taken", {}, "uniqueness");
     expect(response.headers.get("content-type")).toBe("application/scim+json");
-    expect(response.headers.get("retry-after")).toBe("5");
     expect(await response.json()).toEqual({
       schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
-      status: "429",
-      detail: "Too many requests",
+      status: "409",
+      scimType: "uniqueness",
+      detail: "taken",
     });
+    const limited = scimErrorResponse(429, "Too many requests", { "retry-after": "5" });
+    expect(limited.headers.get("retry-after")).toBe("5");
   });
 });
 
-describe("scimWriteAction", () => {
+describe("scimBodyAddresses (H1)", () => {
+  it("collects userName and every email of a create or replace, lower case, once", () => {
+    expect(
+      scimBodyAddresses({
+        userName: "S.Visser@example.test",
+        emails: [{ value: "s.visser@example.test" }, { value: "home@example.test" }],
+      }),
+    ).toEqual(["s.visser@example.test", "home@example.test"]);
+  });
+
+  it("collects the values of PATCH operations on userName and emails, with or without a path", () => {
+    expect(
+      scimBodyAddresses({
+        Operations: [
+          { op: "replace", path: 'emails[type eq "work"].value', value: "a@example.test" },
+          { op: "replace", path: "userName", value: "b@example.test" },
+          { op: "replace", value: { emails: [{ value: "c@example.test" }] } },
+          { op: "replace", path: "displayName", value: "d@example.test" },
+        ],
+      }),
+    ).toEqual(["a@example.test", "b@example.test", "c@example.test"]);
+  });
+
+  it("ignores a userName that is not an address", () => {
+    expect(scimBodyAddresses({ userName: "svisser" })).toEqual([]);
+  });
+});
+
+describe("scimResourceAction", () => {
   it.each([
     ["POST", "/scim/v2/Users", "scim_user_created"],
     ["PATCH", "/scim/v2/Users/:userId", "scim_user_updated"],
     ["PUT", "/scim/v2/Users/:userId", "scim_user_updated"],
     ["DELETE", "/scim/v2/Users/:userId", "scim_user_deleted"],
+    ["GET", "/scim/v2/Users/:userId", "scim_user_read"],
     ["POST", "/scim/v2/Groups", "scim_group_created"],
     ["PATCH", "/scim/v2/Groups/:groupId", "scim_group_updated"],
     ["DELETE", "/scim/v2/Groups/:groupId", "scim_group_deleted"],
+    ["GET", "/scim/v2/Groups", "scim_group_read"],
   ])("%s %s is %s", (method, path, action) => {
-    expect(scimWriteAction(method, path)).toBe(action);
+    expect(scimResourceAction(method, path)).toBe(action);
   });
 
-  it("logs no read and nothing outside Users and Groups", () => {
-    expect(scimWriteAction("GET", "/scim/v2/Users")).toBeNull();
-    expect(scimWriteAction("POST", "/scim/v2/Bulk")).toBeNull();
+  it("has no action outside Users and Groups", () => {
+    expect(scimResourceAction("GET", "/scim/v2/Schemas")).toBeNull();
+    expect(scimResourceAction("OPTIONS", "/scim/v2/Users")).toBeNull();
+  });
+
+  it("targets the SCIM resource of the action's kind", () => {
+    const base = { actor: { type: "system" as const }, outcome: "refused" as const };
+    expect(scimResourceEvent("scim_user_read", base, "u1")).toMatchObject({
+      target: { type: "scim_user", id: "u1" },
+    });
+    expect(scimResourceEvent("scim_group_deleted", base, undefined)).not.toHaveProperty("target");
   });
 });
 
-describe("scimWriteEvent", () => {
-  it("targets the SCIM resource of the action's kind", () => {
-    const base = { actor: { type: "system" as const }, outcome: "success" as const };
-    expect(scimWriteEvent("scim_user_created", base, "u1")).toMatchObject({
-      target: { type: "scim_user", id: "u1" },
-    });
-    expect(scimWriteEvent("scim_group_deleted", base, "g1")).toMatchObject({
-      target: { type: "scim_group", id: "g1" },
-    });
-    expect(scimWriteEvent("scim_group_deleted", base, undefined)).not.toHaveProperty("target");
+describe("RefusalDeduper (L2)", () => {
+  it("logs one refused token once per window", () => {
+    const deduper = new RefusalDeduper(1_000, 10);
+    expect(deduper.first("t", 0)).toBe(true);
+    expect(deduper.first("t", 500)).toBe(false);
+    expect(deduper.first("u", 500)).toBe(true);
+    expect(deduper.first("t", 1_000)).toBe(true);
+  });
+
+  it("keeps logging when full, dropping the oldest entry", () => {
+    const deduper = new RefusalDeduper(10_000, 2);
+    expect(deduper.first("a", 0)).toBe(true);
+    expect(deduper.first("b", 0)).toBe(true);
+    expect(deduper.first("c", 1)).toBe(true);
+    expect(deduper.first("a", 2)).toBe(true);
   });
 });

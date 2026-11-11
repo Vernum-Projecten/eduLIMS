@@ -8,6 +8,7 @@ import { mutationOptions, type QueryClient, queryOptions } from "@tanstack/react
 import { STALE_TIME } from "../../lib/query-config.ts";
 import { idpKeys } from "../idp/query-options.ts";
 import { getScimDetail } from "./functions.ts";
+import type { ExternalIdClaim } from "./schemas.ts";
 import type { ScimSettingResult } from "./settings.ts";
 import type { ScimTokenError, ScimTokenIssued, ScimTokenRevoked } from "./tokens.ts";
 
@@ -60,6 +61,9 @@ export function issueScimTokenMutationOptions(
   call: Call<ScimTokenIssued>,
 ) {
   return mutationOptions({
+    // NOTE: #45 (L1); the mutation's result holds the plaintext token, so the cache drops it
+    // the moment no component watches it.
+    gcTime: 0,
     mutationFn: async (data: { providerId: string }): Promise<IssuedScimToken> => {
       const result = await call({ data });
       if (!result.ok) throw new ScimChangeRefused(result.error);
@@ -91,11 +95,11 @@ export function revokeScimTokenMutationOptions(
 export function setExternalIdClaimMutationOptions(
   queryClient: QueryClient,
   call: (options: {
-    data: { providerId: string; claim: string | null };
+    data: { providerId: string; claim: ExternalIdClaim };
   }) => Promise<ScimSettingResult>,
 ) {
   return mutationOptions({
-    mutationFn: async (data: { providerId: string; claim: string | null }) => {
+    mutationFn: async (data: { providerId: string; claim: ExternalIdClaim }) => {
       const result = await call({ data });
       if (!result.ok)
         throw new ScimChangeRefused(result.error === "not_found" ? "not_found" : "invalid");

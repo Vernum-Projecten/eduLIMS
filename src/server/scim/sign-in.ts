@@ -6,6 +6,7 @@
 // claim, else the account key) is the SCIM `externalId` of an active SCIM User of that same
 // provider. Never by email. Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
+import { defineRequestState, hasRequestState } from "@better-auth/core/context";
 import { acquireActiveSCIMUserLink } from "@better-auth/scim";
 import type { SSOOptions } from "@better-auth/sso";
 import type { DBTransactionAdapter } from "better-auth";
@@ -54,6 +55,26 @@ async function wasDeprovisioned(
   return deleted !== null;
 }
 
+/** The directory id of the sign-in this request runs, for the account write that follows. */
+interface SignInDirectoryId {
+  providerId: string;
+  directoryId: string;
+}
+
+const signInDirectoryId = defineRequestState<SignInDirectoryId | null>(() => null);
+
+/**
+ * Returns `data` with the directory id of this request's sign-in added (`directoryId`), when the
+ * account written is that sign-in's account at that provider (#45, M1): SCIM then links the user
+ * on it instead of creating a second one. Other writes are returned as they are.
+ */
+export async function withDirectoryId<T extends Record<string, unknown>>(data: T): Promise<T> {
+  if (!(await hasRequestState())) return data;
+  const current = await signInDirectoryId.get();
+  if (!current || data["providerId"] !== current.providerId) return data;
+  return { ...data, directoryId: current.directoryId };
+}
+
 /**
  * Returns the sso plugin's `resolveUser`: `link` to the provisioned user, `reject` with
  * `account_deprovisioned` for one the directory deactivated or deleted, else `continue` (a user
@@ -65,6 +86,9 @@ export function scimSignInResolver(db: Kysely<DB>): ResolveUser {
     if (!settings) return { action: "continue" };
     const externalId = directoryIdOf(input, settings.scimExternalIdClaim);
     if (!externalId) return { action: "continue" };
+    if (await hasRequestState()) {
+      await signInDirectoryId.set({ providerId: input.providerId, directoryId: externalId });
+    }
     const link = await acquireActiveSCIMUserLink(
       { connectionId: input.providerId, externalId },
       { database },

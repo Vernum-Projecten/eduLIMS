@@ -371,7 +371,9 @@ What a SCIM request does in eduLIMS:
 - **Roles** come from the provider's role map. A SCIM group whose
   `externalId` or display name is a key in the role map, or a value in the
   user's `roles` attribute, gives that role and makes the provider the
-  source of the role set. Without a mapped group the user keeps the roles an
+  source of the role set. A group with an `externalId` is matched on that
+  alone, never on its display name. A role the ID-token claim gave stays
+  until a sign-in without that claim; SCIM does not remove it. Without a mapped group the user keeps the roles an
   administrator gave them in eduLIMS, and has none until then. A group the
   role map does not name gives nothing, so SCIM never makes anyone an
   administrator unless the role map maps a group to `admin`.
@@ -381,14 +383,26 @@ What a SCIM request does in eduLIMS:
   erasing a person is a separate step. `active: true`, or a new
   create with the same `externalId`, lets the user sign in again.
 - **Sign-in** finds the provisioned user through the directory id: by
-  default the account key (the OIDC `sub`, the SAML NameID). When the
-  directory sends another value as `externalId`, set "Claim with the
-  directory ID" on the provider's page to the ID-token claim or SAML
-  attribute that carries the same value.
+  default the account key (the OIDC `sub`, the SAML persistent NameID). When
+  the directory sends another value as `externalId`, set "Claim with the
+  directory ID" on the provider's page to the claim that carries the same
+  value. Only a claim that never changes for a person is accepted: `oid`
+  (Entra ID's object id), `sub` or `objectGUID`. A changeable claim such as
+  `email`, `preferred_username` or `upn` is refused, because whoever can
+  change it could take over another person's account. Each sign-in stores
+  the directory id on the account, so a user who signed in before the
+  directory provisioned them is linked, not duplicated.
+- **E-mail addresses** have one owner. A create or change whose address
+  belongs to a user who signs in through another provider, or whom another
+  provider provisioned, is refused with a 409 that does not say which user;
+  the directory therefore learns that the address is taken.
 
 Every SCIM write and every refused token is in the activity log with ids and
-codes only. The endpoint takes at most 600 requests per minute per token and
-request bodies up to 1 MiB; more gets `429` or `413`. It answers `501` when
+codes only. The endpoint takes at most 600 requests per minute per identity
+provider, and 600 per minute per client IP for requests without a working
+token; request bodies are capped at 1 MiB; more gets `429` or `413`. The
+client IP is the one better-auth reads (the `X-Forwarded-For` the reverse
+proxy sets). It answers `501` when
 the installation cannot run SCIM (the provider's page says so).
 
 ### The token

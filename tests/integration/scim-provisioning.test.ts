@@ -303,21 +303,64 @@ describe("SCIM refusals (#45, ASVS V6, API2)", () => {
     const bad = `edulims_scim_${"A".repeat(43)}`;
     expect((await scim("GET", "/Users", bad)).status).toBe(401);
     expect((await scim("POST", "/Users", bad, userBody("x", "x@example.test"))).status).toBe(401);
-    expect(await actions()).toContain("scim_user_created");
+    // One refused row per token per window (H2, L2), with the reason and no provider.
+    const rows = await db
+      .selectFrom("audit_event")
+      .select(["action", "outcome", "reason_code", "actor_type"])
+      .where("action", "=", "scim_token_refused")
+      .execute();
+    expect(rows).toEqual([
+      {
+        action: "scim_token_refused",
+        outcome: "refused",
+        reason_code: "token_unknown",
+        actor_type: "anonymous",
+      },
+    ]);
   });
 
-  it("refuses a revoked token", async () => {
+  async function refusalReasons(): Promise<(string | null)[]> {
+    const rows = await db
+      .selectFrom("audit_event")
+      .select("reason_code")
+      .where("action", "=", "scim_token_refused")
+      .orderBy("id")
+      .execute();
+    return rows.map((row) => row.reason_code);
+  }
+
+  it("refuses a revoked token, and logs why", async () => {
     await revokeScimToken({ db, actor: { type: "system" } }, "campus");
     expect((await scim("GET", "/Users", tokenA)).status).toBe(401);
+    expect(await refusalReasons()).toEqual(["token_revoked"]);
   });
 
-  it("refuses the token of a disabled provider", async () => {
+  it("refuses the token of a disabled provider, and logs why", async () => {
     await db
       .updateTable("identity_provider")
       .set({ enabled: false })
       .where("provider_id", "=", "campus")
       .execute();
     expect((await scim("GET", "/Users", tokenA)).status).toBe(401);
+    expect(await refusalReasons()).toEqual(["provider_disabled"]);
+  });
+
+  it("refuses an expired token, and logs why", async () => {
+    await db
+      .updateTable("scim_token")
+      .set({
+        created_at: new Date("2026-01-01T00:00:00Z"),
+        expires_at: new Date("2026-02-01T00:00:00Z"),
+      })
+      .where("provider_id", "=", "campus")
+      .execute();
+    expect((await scim("GET", "/Users", tokenA)).status).toBe(401);
+    expect(await refusalReasons()).toEqual(["token_expired"]);
+  });
+
+  it("logs a request without a token as token_missing", async () => {
+    expect((await scim("GET", "/Groups", null)).status).toBe(401);
+    expect(await refusalReasons()).toEqual(["token_missing"]);
   });
 
   it("refuses a body over the size cap with 413", async () => {
@@ -346,7 +389,9 @@ describe("a token of one provider never reaches another provider's users (A01, A
       .where("action", "like", "scim_user_%")
       .orderBy("id")
       .execute();
+    // A cross-provider read is a refused row too (H2, V16.3.2).
     expect(refused).toEqual([
+      { action: "scim_user_read", outcome: "refused", provider: "campus" },
       { action: "scim_user_updated", outcome: "refused", provider: "campus" },
       { action: "scim_user_deleted", outcome: "refused", provider: "campus" },
     ]);

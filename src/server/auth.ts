@@ -107,6 +107,10 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
       // second provider with the email of an existing user is refused with
       // ACCOUNT_NOT_LINKED_ERROR instead of signing in as that user.
       accountLinking: { enabled: false },
+      additionalFields: {
+        // The directory id of the last sign-in (#45): SCIM links an existing user on it.
+        directoryId: { type: "string", required: false, input: false, fieldName: "directory_id" },
+      },
     },
     user: {
       additionalFields: {
@@ -123,6 +127,13 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
           required: false,
           input: false,
           fieldName: "provisioned_by",
+        },
+        // Which channel wrote the role set (#45, B1): `claim`, `scim` or `local`.
+        roleChannel: {
+          type: "string",
+          required: false,
+          input: false,
+          fieldName: "role_channel",
         },
         // When the directory deactivated or deleted the user (#45): no sign-in while it is set.
         deprovisionedAt: {

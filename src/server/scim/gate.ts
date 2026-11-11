@@ -2,115 +2,60 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The guard in front of `/api/auth/scim/v2` (#45, ADR 0017), on whether or not the scim plugin
-// runs: 501 when this deployment cannot run it (support.ts), a rate limit per bearer token and
-// a size cap on request bodies (API4, ASVS V2.4.1), and an activity-log row for every SCIM
-// write and refusal (B4, ASVS V16.3.1). It also refuses a session for a user the directory
-// deprovisioned. Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
+// runs: 501 when this deployment cannot run it (support.ts), the rate limit and body cap
+// (limits.ts; API4, ASVS V2.4.1), one owner per e-mail address (emails.ts; V6.8.1), and the
+// activity log of every request (audit.ts; B4, V16.3.1). It also refuses a session for a user
+// the directory deprovisioned. Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
-import { createHash } from "node:crypto";
-import type { AuthContext, BetterAuthPlugin } from "better-auth";
-import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
+import { getIP } from "@better-auth/core/utils/ip";
+import type { AuthContext, BetterAuthOptions, BetterAuthPlugin } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import type { Kysely } from "kysely";
 import { ACCOUNT_DEPROVISIONED_ERROR } from "../../lib/identity-providers.ts";
 import { requestIdOf } from "../audit/better-auth-hooks.ts";
-import { type AuditEvent, auditProvider, toReasonCode } from "../audit/events.ts";
+import { auditProvider } from "../audit/events.ts";
 import { recordCommittedAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
+import {
+  auditScimRequest,
+  RefusalDeduper,
+  scimResourceAction,
+  scimResourceEvent,
+} from "./audit.ts";
+import { addressTakenElsewhere, scimBodyAddresses } from "./emails.ts";
+import {
+  bearerOf,
+  bodyTooLarge,
+  rateKeyOf,
+  SCIM_LIMITS,
+  type ScimLimits,
+  ScimRateLimiter,
+} from "./limits.ts";
+import { withDirectoryId } from "./sign-in.ts";
 import { hasAsyncContext, type ScimSupport } from "./support.ts";
-import { providerOfScimToken } from "./tokens.ts";
+import { inspectScimToken } from "./verify.ts";
+
+export { SCIM_LIMITS, type ScimLimits, ScimRateLimiter } from "./limits.ts";
 
 const SCIM_MEDIA_TYPE = "application/scim+json";
 const SCIM_ERROR_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:Error";
 
-/** The limits of the SCIM endpoint. */
-export interface ScimLimits {
-  /** Requests one bearer token (or all requests without one) may make per window. */
-  maxRequests: number;
-  windowMs: number;
-  /** The largest request body accepted, in bytes. */
-  maxBodyBytes: number;
-}
-
-// NOTE: no requirement governs this: our own design (#45). A directory sync of a few thousand
-// users stays well inside it; the numbers are a question for the owner in the PR.
-export const SCIM_LIMITS: ScimLimits = {
-  maxRequests: 600,
-  windowMs: 60_000,
-  maxBodyBytes: 1_048_576,
-};
-
-/** Returns a SCIM error response (RFC 7644 §3.12) with only a status and a fixed detail. */
+/** Returns a SCIM error response (RFC 7644 §3.12) with only a status, a fixed detail and type. */
 export function scimErrorResponse(
   status: number,
   detail: string,
   headers: Record<string, string> = {},
+  scimType?: string,
 ): Response {
   return new Response(
-    JSON.stringify({ schemas: [SCIM_ERROR_SCHEMA], status: String(status), detail }),
+    JSON.stringify({
+      schemas: [SCIM_ERROR_SCHEMA],
+      status: String(status),
+      ...(scimType ? { scimType } : {}),
+      detail,
+    }),
     { status, headers: { "content-type": SCIM_MEDIA_TYPE, ...headers } },
   );
-}
-
-/** A fixed-window counter per key, in this process's memory. */
-export class ScimRateLimiter {
-  readonly #limits: Pick<ScimLimits, "maxRequests" | "windowMs">;
-  #windows = new Map<string, { start: number; count: number }>();
-
-  constructor(limits: Pick<ScimLimits, "maxRequests" | "windowMs">) {
-    this.#limits = limits;
-  }
-
-  /** Counts one request for `key`; returns the seconds to wait when it is over the limit. */
-  hit(key: string, now: number = Date.now()): number | null {
-    const window = this.#windows.get(key);
-    if (!window || now - window.start >= this.#limits.windowMs) {
-      if (this.#windows.size > 10_000) this.#prune(now);
-      this.#windows.set(key, { start: now, count: 1 });
-      return null;
-    }
-    window.count += 1;
-    if (window.count <= this.#limits.maxRequests) return null;
-    return Math.max(1, Math.ceil((window.start + this.#limits.windowMs - now) / 1000));
-  }
-
-  #prune(now: number): void {
-    for (const [key, window] of this.#windows) {
-      if (now - window.start >= this.#limits.windowMs) this.#windows.delete(key);
-    }
-  }
-}
-
-/** Returns the bearer token of a request, if it sends one. */
-export function bearerOf(headers: Headers): string | null {
-  const match = headers.get("authorization")?.match(/^Bearer\s+(\S+)$/i);
-  return match?.[1] ?? null;
-}
-
-/** Returns the rate-limit key of a request: a digest of its token, never the token itself. */
-export function rateKeyOf(headers: Headers): string {
-  const token = bearerOf(headers);
-  return token ? createHash("sha256").update(token).digest("hex") : "anonymous";
-}
-
-/** Returns whether a request body is larger than `max` bytes, reading at most `max + 1`. */
-export async function bodyTooLarge(request: Request, max: number): Promise<boolean> {
-  const declared = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > max) return true;
-  if (!request.body) return false;
-  const reader = request.clone().body?.getReader();
-  if (!reader) return false;
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) return false;
-    size += value.byteLength;
-    if (size > max) {
-      // NOTE: no requirement governs this: our own design; cancelling a tee'd clone waits for
-      // the other branch, so the clone is released and dropped instead.
-      reader.releaseLock();
-      return true;
-    }
-  }
 }
 
 function isScimPath(path: string): boolean {
@@ -121,88 +66,49 @@ function field(value: unknown, key: string): unknown {
   return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
 }
 
-function text(value: unknown): string | undefined {
-  return typeof value === "string" && value !== "" ? value : undefined;
-}
+const USER_WRITE_PATHS: ReadonlySet<string> = new Set(["/scim/v2/Users", "/scim/v2/Users/:userId"]);
 
-const USER_WRITES = ["scim_user_created", "scim_user_updated", "scim_user_deleted"] as const;
-const GROUP_WRITES = ["scim_group_created", "scim_group_updated", "scim_group_deleted"] as const;
-type UserWrite = (typeof USER_WRITES)[number];
-type GroupWrite = (typeof GROUP_WRITES)[number];
-type ScimWrite = UserWrite | GroupWrite;
-
-function isUserWrite(action: ScimWrite): action is UserWrite {
-  return (USER_WRITES as readonly string[]).includes(action);
-}
-
-/** Returns the activity-log action of a SCIM request, or `null` for a read. */
-export function scimWriteAction(method: string, path: string): ScimWrite | null {
-  const users = path.startsWith("/scim/v2/Users");
-  if (!users && !path.startsWith("/scim/v2/Groups")) return null;
-  const writes: readonly ScimWrite[] = users ? USER_WRITES : GROUP_WRITES;
-  if (method === "POST") return writes[0] ?? null;
-  if (method === "PUT" || method === "PATCH") return writes[1] ?? null;
-  if (method === "DELETE") return writes[2] ?? null;
-  return null;
-}
-
-function statusOf(returned: unknown): number | undefined {
-  const status = field(returned, "statusCode");
-  return typeof status === "number" ? status : undefined;
-}
-
-type EventBase = Pick<AuditEvent, "actor" | "outcome" | "provider" | "requestId" | "reason">;
-
-/** Builds the event of one SCIM write, with the SCIM resource as its target when known. */
-export function scimWriteEvent(
-  action: ScimWrite,
-  base: EventBase,
-  resourceId: string | undefined,
-): AuditEvent {
-  if (isUserWrite(action)) {
-    return {
-      ...base,
-      action,
-      ...(resourceId ? { target: { type: "scim_user", id: resourceId } } : {}),
-    };
+/**
+ * The before hook of H1: refuses a SCIM User create or change that would take an address
+ * another sign-in method owns, with a generic 409 and a refused activity-log row. A request
+ * without a working token passes on, so the plugin answers it with 401.
+ */
+async function refuseTakenAddress(db: Kysely<DB>, ctx: unknown): Promise<Response | undefined> {
+  const path = field(ctx, "path");
+  const method = field(field(ctx, "request"), "method") ?? field(ctx, "method");
+  if (typeof path !== "string" || !USER_WRITE_PATHS.has(path) || typeof method !== "string") {
+    return undefined;
   }
-  return {
-    ...base,
-    action,
-    ...(resourceId ? { target: { type: "scim_group", id: resourceId } } : {}),
-  };
-}
-
-async function auditScimRequest(db: Kysely<DB>, ctx: unknown): Promise<void> {
-  const path = text(field(ctx, "path")) ?? "";
-  const request = field(ctx, "request");
-  const method = text(field(ctx, "method")) ?? text(field(request, "method")) ?? "GET";
-  const action = scimWriteAction(method, path);
-  if (!action) return;
+  if (!["POST", "PUT", "PATCH"].includes(method)) return undefined;
   const headers = field(ctx, "headers");
-  const token = headers instanceof Headers ? bearerOf(headers) : null;
-  const provider = auditProvider(token ? await providerOfScimToken(db, token) : undefined);
-  const returned = field(field(ctx, "context"), "returned");
-  const params = field(ctx, "params");
-  const resourceId =
-    text(field(params, "userId")) ?? text(field(params, "groupId")) ?? text(field(returned, "id"));
+  const inspected = await inspectScimToken(
+    db,
+    headers instanceof Headers ? bearerOf(headers) : null,
+  );
+  if (!inspected.ok) return undefined;
+  const addresses = scimBodyAddresses(field(ctx, "body"));
+  if (!(await addressTakenElsewhere(db, inspected.providerId, addresses))) return undefined;
+  const action = scimResourceAction(method, "/scim/v2/Users");
+  const provider = auditProvider(inspected.providerId);
   const requestId = requestIdOf(ctx);
-  const known = { ...(provider ? { provider } : {}), ...(requestId ? { requestId } : {}) };
-  if (isAPIError(returned)) {
-    const status = statusOf(returned) ?? 500;
-    const reason = toReasonCode(field(returned.body, "scimType")) ?? toReasonCode(`http_${status}`);
-    const base: EventBase = {
-      actor: provider ? { type: "system" } : { type: "anonymous" },
-      // A 404 is what a token gets for another provider's resource (A01), so it is a refusal.
-      outcome: status === 401 || status === 403 || status === 404 ? "refused" : "failure",
-      ...known,
-      ...(reason ? { reason } : {}),
-    };
-    await recordCommittedAudit(db, scimWriteEvent(action, base, resourceId));
-    return;
+  const userId = field(field(ctx, "params"), "userId");
+  if (action) {
+    await recordCommittedAudit(
+      db,
+      scimResourceEvent(
+        action,
+        {
+          actor: { type: "system" },
+          outcome: "refused",
+          reason: "uniqueness",
+          ...(provider ? { provider } : {}),
+          ...(requestId ? { requestId } : {}),
+        },
+        typeof userId === "string" ? userId : undefined,
+      ),
+    );
   }
-  const base: EventBase = { actor: { type: "system" }, outcome: "success", ...known };
-  await recordCommittedAudit(db, scimWriteEvent(action, base, resourceId));
+  return scimErrorResponse(409, "A resource with these values already exists", {}, "uniqueness");
 }
 
 /**
@@ -216,40 +122,49 @@ export function scimGate(
   limiter: ScimRateLimiter = new ScimRateLimiter(limits),
 ) {
   let asyncContext: Promise<boolean> | undefined;
+  let authOptions: BetterAuthOptions = {};
+  const deduper = new RefusalDeduper(limits.windowMs, limits.maxKeys);
   return {
     id: "edulims-scim-gate",
-    init: (authContext: AuthContext) => ({
-      options: {
-        databaseHooks: {
-          user: {
-            create: {
-              // NOTE: owner decision on #32; a user the directory provisions has no roles until
-              // its groups map one or an administrator assigns one, never a default role.
-              async before(user, ctx) {
-                if (!ctx?.path.startsWith("/scim/v2/")) return;
-                return { data: { ...user, role: null } };
+    init: (authContext: AuthContext) => {
+      authOptions = authContext.options;
+      return {
+        options: {
+          databaseHooks: {
+            account: {
+              create: { before: async (account) => ({ data: await withDirectoryId(account) }) },
+              update: { before: async (account) => ({ data: await withDirectoryId(account) }) },
+            },
+            user: {
+              create: {
+                // NOTE: owner decision on #32; a user the directory provisions has no roles
+                // until its groups map one or an administrator assigns one, never a default.
+                async before(user, ctx) {
+                  if (!ctx?.path.startsWith("/scim/v2/")) return;
+                  return { data: { ...user, role: null } };
+                },
               },
             },
-          },
-          session: {
-            create: {
-              // NOTE: #45; a user the directory deactivated or deleted gets no session by any
-              // sign-in method, until the directory reactivates them.
-              async before(session, ctx) {
-                const adapter = ctx?.context.internalAdapter ?? authContext.internalAdapter;
-                const user: unknown = await adapter.findUserById(session.userId);
-                if (field(user, "deprovisionedAt") instanceof Date) {
-                  throw APIError.from("FORBIDDEN", {
-                    code: ACCOUNT_DEPROVISIONED_ERROR,
-                    message: "Account deactivated by the identity provider",
-                  });
-                }
+            session: {
+              create: {
+                // NOTE: #45; a user the directory deactivated or deleted gets no session by any
+                // sign-in method, until the directory reactivates them.
+                async before(session, ctx) {
+                  const adapter = ctx?.context.internalAdapter ?? authContext.internalAdapter;
+                  const user: unknown = await adapter.findUserById(session.userId);
+                  if (field(user, "deprovisionedAt") instanceof Date) {
+                    throw APIError.from("FORBIDDEN", {
+                      code: ACCOUNT_DEPROVISIONED_ERROR,
+                      message: "Account deactivated by the identity provider",
+                    });
+                  }
+                },
               },
             },
           },
         },
-      },
-    }),
+      };
+    },
     async onRequest(request: Request) {
       const path = new URL(request.url).pathname;
       if (!isScimPath(path)) return;
@@ -258,7 +173,12 @@ export function scimGate(
       if (!(await asyncContext)) {
         return { response: scimErrorResponse(501, "SCIM is not available") };
       }
-      const wait = limiter.hit(rateKeyOf(request.headers));
+      const inspected = await inspectScimToken(db, bearerOf(request.headers));
+      const key = rateKeyOf(
+        inspected.ok ? inspected.providerId : null,
+        getIP(request, authOptions),
+      );
+      const wait = limiter.hit(key);
       if (wait !== null) {
         return {
           response: scimErrorResponse(429, "Too many requests", { "retry-after": String(wait) }),
@@ -270,11 +190,17 @@ export function scimGate(
       return;
     },
     hooks: {
+      before: [
+        {
+          matcher: (ctx: { path?: string }) => ctx.path?.startsWith("/scim/v2/Users") === true,
+          handler: createAuthMiddleware(async (ctx) => refuseTakenAddress(db, ctx)),
+        },
+      ],
       after: [
         {
           matcher: (ctx: { path?: string }) => ctx.path?.startsWith("/scim/v2/") === true,
           handler: createAuthMiddleware(async (ctx) => {
-            await auditScimRequest(db, ctx);
+            await auditScimRequest(db, ctx, deduper);
           }),
         },
       ],

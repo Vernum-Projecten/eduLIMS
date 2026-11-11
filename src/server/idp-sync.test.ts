@@ -106,6 +106,7 @@ describe("createIdpRoleSync", () => {
     expect(await sync(data, ctx)).toBeUndefined();
     expect(data.user["role"]).toBe("teacher");
     expect(data.user["roleSource"]).toBe("microsoft");
+    expect(data.user["roleChannel"]).toBe("claim");
   });
 
   it("syncs the role of an existing user on every sign-in", async () => {
@@ -124,6 +125,7 @@ describe("createIdpRoleSync", () => {
     expect(updateUser).toHaveBeenCalledWith("u1", {
       role: "student",
       roleSource: "keycloak",
+      roleChannel: "claim",
       emailVerified: false,
     });
   });
@@ -249,6 +251,7 @@ describe("createIdpRoleSync", () => {
     expect(updateUser).toHaveBeenCalledWith("u1", {
       role: "teacher,admin",
       roleSource: "microsoft",
+      roleChannel: "claim",
     });
   });
 
@@ -503,7 +506,11 @@ describe("hybrid role ownership (owner decision on #32, B1)", () => {
     });
     const data = oauth("sign-in", "microsoft", { roles: ["edulims-admin"] }, { id: "u1" });
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(updateUser).toHaveBeenCalledWith("u1", { role: "admin", roleSource: "microsoft" });
+    expect(updateUser).toHaveBeenCalledWith("u1", {
+      role: "admin",
+      roleSource: "microsoft",
+      roleChannel: "claim",
+    });
   });
 
   it("moves an unchanged set to the IdP as its source", async () => {
@@ -512,7 +519,11 @@ describe("hybrid role ownership (owner decision on #32, B1)", () => {
     });
     const data = oauth("sign-in", "microsoft", { roles: ["edulims-teacher"] }, { id: "u1" });
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(updateUser).toHaveBeenCalledWith("u1", { role: "teacher", roleSource: "microsoft" });
+    expect(updateUser).toHaveBeenCalledWith("u1", {
+      role: "teacher",
+      roleSource: "microsoft",
+      roleChannel: "claim",
+    });
   });
 
   it("gives an existing user without a local role the default role as a local set", async () => {
@@ -521,7 +532,11 @@ describe("hybrid role ownership (owner decision on #32, B1)", () => {
     });
     const data = oauth("sign-in", "keycloak", { realm_access: { roles: [] } }, { id: "u1" });
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(updateUser).toHaveBeenCalledWith("u1", { role: "student", roleSource: "local" });
+    expect(updateUser).toHaveBeenCalledWith("u1", {
+      role: "student",
+      roleSource: "local",
+      roleChannel: "local",
+    });
   });
 
   it("still refuses a conflicting IdP set when the user holds local roles", async () => {

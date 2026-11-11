@@ -63,11 +63,22 @@ describe("decideSignInRoles (hybrid role ownership, owner decision on #32)", () 
       expect(
         decideSignInRoles(
           none,
-          { role: "teacher", roleSource: campus, provisionedBy: campus },
+          { role: "teacher", roleSource: campus, roleChannel: "scim", provisionedBy: campus },
           "student",
           campus,
         ),
-      ).toEqual({ kind: "idp", roles: ["teacher"] });
+      ).toEqual({ kind: "scim", roles: ["teacher"] });
+    });
+
+    it("drops admin a claim gave once the next sign-in has no mapped claim (B1, V8.2.1)", () => {
+      expect(
+        decideSignInRoles(
+          none,
+          { role: "admin", roleSource: campus, roleChannel: "claim", provisionedBy: campus },
+          "student",
+          campus,
+        ),
+      ).toEqual({ kind: "refused", reason: NO_ROLE_ERROR });
     });
 
     it("has no roles, and no default role, until the directory or an administrator gives one", () => {
@@ -82,7 +93,7 @@ describe("decideSignInRoles (hybrid role ownership, owner decision on #32)", () 
       expect(
         decideSignInRoles(
           none,
-          { role: null, roleSource: campus, provisionedBy: campus },
+          { role: null, roleSource: campus, roleChannel: "scim", provisionedBy: campus },
           "student",
           campus,
         ),
@@ -104,7 +115,7 @@ describe("decideSignInRoles (hybrid role ownership, owner decision on #32)", () 
       expect(
         decideSignInRoles(
           { kind: "roles", roles: ["admin"] },
-          { role: "teacher", roleSource: campus, provisionedBy: campus },
+          { role: "teacher", roleSource: campus, roleChannel: "scim", provisionedBy: campus },
           undefined,
           campus,
         ),

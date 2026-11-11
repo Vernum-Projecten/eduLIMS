@@ -78,9 +78,11 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   scim_user_created: m.audit_action_scim_user_created,
   scim_user_updated: m.audit_action_scim_user_updated,
   scim_user_deleted: m.audit_action_scim_user_deleted,
+  scim_user_read: m.audit_action_scim_user_read,
   scim_group_created: m.audit_action_scim_group_created,
   scim_group_updated: m.audit_action_scim_group_updated,
   scim_group_deleted: m.audit_action_scim_group_deleted,
+  scim_group_read: m.audit_action_scim_group_read,
 };
 
 /** Returns the name of an activity-log action; an action the screen does not know is "Other". */
