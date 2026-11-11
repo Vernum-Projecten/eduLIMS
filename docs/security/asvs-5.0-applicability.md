@@ -67,9 +67,9 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 175 |
-| Status met | 90 |
+| Status met | 91 |
 | Status partial | 49 |
-| Status planned | 28 |
+| Status planned | 27 |
 | Status open | 8 |
 | Status n-a | 170 |
 
@@ -834,7 +834,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts` | met |
-| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts` | met |
+| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`); so is a class the teacher does not teach, the `not_found` of the class service and the class page (`logClassNotFound`, `src/server/classes/access.ts`); class refusals by role or archive are activity-log rows | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts`, `src/server/classes/classes.test.ts`, `src/server/classes/queries.test.ts` | met |
 | V16.3.3 | 2 | yes | rejected uploads (S4) and refused access belong in the B4 audit log | unit tests with S4 and B4 | planned |
 | V16.3.4 | 2 | yes | unexpected errors and an unreachable FerroEHR or FerroBRIDGE (B3, within 5 minutes) | unit tests with B3 | planned |
 

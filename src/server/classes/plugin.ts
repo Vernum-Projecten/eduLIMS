@@ -1,16 +1,19 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// better-auth's organization plugin, set up for classes (#28, ADR 0017): it owns the schema, the
+// better-auth's organization plugin, set up for classes (#28, ADR 0018): it owns the schema, the
 // class roles' access control and the ids; eduLIMS's class service (src/server/classes/) does
 // every write, in one transaction with its activity-log row. The plugin's HTTP endpoints stay
 // unreachable, as the sso plugin's management endpoints do (ADR 0015).
 // Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
 import type { BetterAuthPlugin } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { organization } from "better-auth/plugins";
+import type { Kysely } from "kysely";
 import { classAccessControl, classRoles } from "../../lib/classes.ts";
+import { auditRecorderOf, requestIdOf } from "../audit/better-auth-hooks.ts";
+import type { DB } from "../db/schema.gen.ts";
 
 /** How long an invitation stays valid (owner decision on #28 (4): 30 days), in seconds. */
 export const INVITATION_LIFETIME_SECONDS = 30 * 24 * 60 * 60;
@@ -33,13 +36,18 @@ export function classOrganizations() {
     schema: {
       organization: {
         additionalFields: {
-          academicYear: { type: "string", required: true, fieldName: "academic_year" },
+          academicYear: {
+            type: "string",
+            required: true,
+            input: false,
+            fieldName: "academic_year",
+          },
           archivedAt: { type: "date", required: false, input: false, fieldName: "archived_at" },
         },
       },
       team: {
         additionalFields: {
-          groupSet: { type: "string", required: true, fieldName: "group_set" },
+          groupSet: { type: "string", required: true, input: false, fieldName: "group_set" },
         },
       },
       invitation: {
@@ -80,8 +88,20 @@ export const CLASS_ORGANIZATION_PATHS: readonly string[] = Object.values(
   return typeof path === "string" ? [path] : [];
 });
 
-/** Returns the guard that answers every organization plugin path with 404. */
-export function classOrganizationGuard() {
+/** The refusal of deleting a user who owns a class; the Users screen translates `owns_class`. */
+export const OWNS_CLASS_ERROR = "owns_class";
+export const OWNS_CLASS_REFUSED = { code: "OWNS_CLASS", message: OWNS_CLASS_ERROR };
+
+function field(value: unknown, key: string): unknown {
+  return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
+}
+
+/**
+ * Returns the guards around classes: every organization plugin path answers 404, and
+ * better-auth's `admin/remove-user` refuses a user who owns a class, which would orphan it
+ * (security review of #28; transferring ownership as an administrator is #37).
+ */
+export function classOrganizationGuard(db: Kysely<DB>) {
   return {
     id: "edulims-class-guard",
     hooks: {
@@ -90,6 +110,32 @@ export function classOrganizationGuard() {
           // A second lock behind `disabledPaths`, which matches the request path exactly.
           matcher: (ctx) => typeof ctx.path === "string" && ctx.path.startsWith("/organization"),
           handler: createAuthMiddleware(async () => refuse()),
+        },
+        {
+          matcher: (ctx) => ctx.path === "/admin/remove-user",
+          handler: createAuthMiddleware(async (ctx) => {
+            const userId = field(ctx.body, "userId");
+            if (typeof userId !== "string" || userId === "") return;
+            const owned = await db
+              .selectFrom("member")
+              .select("organizationId")
+              .where("userId", "=", userId)
+              .where("role", "=", "owner")
+              .limit(1)
+              .executeTakeFirst();
+            if (!owned) return;
+            const session = await getSessionFromCtx(ctx);
+            const requestId = requestIdOf(ctx);
+            await auditRecorderOf(ctx.context)?.record({
+              action: "user_deleted",
+              actor: session ? { type: "user", id: session.user.id } : { type: "anonymous" },
+              outcome: "refused",
+              reason: OWNS_CLASS_ERROR,
+              target: { type: "user", id: userId },
+              ...(requestId ? { requestId } : {}),
+            });
+            throw APIError.from("FORBIDDEN", OWNS_CLASS_REFUSED);
+          }),
         },
       ],
     },

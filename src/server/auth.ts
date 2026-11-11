@@ -163,9 +163,9 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         },
       }),
       ssoGuards(db),
-      // Classes and lab groups (#28, ADR 0017); written only by the class service.
+      // Classes and lab groups (#28, ADR 0018); written only by the class service.
       classOrganizations(),
-      classOrganizationGuard(),
+      classOrganizationGuard(db),
       classInvitationAcceptance(db),
       ssoLogout(db, env.BETTER_AUTH_URL, keyring),
       // The activity log (B4): sign-ins, sign-outs, sessions, users and the admin endpoints.

@@ -107,7 +107,10 @@ klas zodra die met dat adres inlogt.
    ze uit een csv-bestand met één adres per regel.
 4. Kies **Lijst controleren**. eduLIMS laat per adres zien wat er gebeurt: het
    wordt uitgenodigd, of het valt af omdat het geen geldig adres is, al in de
-   klas zit, al is uitgenodigd of bij een account met een andere rol hoort.
+   klas zit of al is uitgenodigd. Een adres voor een mededocent zonder
+   docentaccount in eduLIMS valt ook af. Een uitnodiging als student voor een
+   account dat geen studentaccount is, wordt wel gemaakt, maar die persoon komt
+   nooit in de klas.
 5. Kies **Uitnodigen** om de uitnodigingen voor de overgebleven adressen te
    maken.
 6. Kies **Uitnodigingstekst kopiëren** en deel de tekst via je eigen kanaal,

@@ -19,18 +19,10 @@ describe("class labels (#28)", () => {
     expect(classErrorMessage("unknown")).toBe("That did not work. Try again.");
   });
 
-  it("names every preview status, the wrong role per class role", () => {
-    for (const status of INVITE_ROW_STATUSES) {
-      expect(inviteRowStatusLabel(status, "student")).not.toBe("");
-    }
-    expect(inviteRowStatusLabel("wrong_role", "teacher")).toBe(
-      "This account is not a teacher account",
-    );
-    expect(inviteRowStatusLabel("no_account", "teacher")).toBe(
-      "No account yet: ask your colleague to sign in to eduLIMS once, then invite them",
-    );
-    expect(inviteRowStatusLabel("wrong_role", "student")).toBe(
-      "This account is not a student account",
+  it("names every preview status", () => {
+    for (const status of INVITE_ROW_STATUSES) expect(inviteRowStatusLabel(status)).not.toBe("");
+    expect(inviteRowStatusLabel("not_a_teacher")).toBe(
+      "Not a teacher account in eduLIMS yet: your colleague signs in once, and an administrator gives them the teacher role",
     );
   });
 });

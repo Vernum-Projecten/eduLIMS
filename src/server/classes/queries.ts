@@ -9,6 +9,7 @@ import { type ExpressionBuilder, type Kysely, sql } from "kysely";
 import { type ClassRole, isClassRole } from "../../lib/classes.ts";
 import { UUID_PATTERN } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { logClassNotFound } from "./access.ts";
 
 /** A class as every list shows it: the name with its academic year, and the archive state. */
 export interface ClassSummary {
@@ -145,7 +146,10 @@ export async function getTeacherClass(
   classId: string,
   now: Date,
 ): Promise<TeacherClassDetail | null> {
-  if (!UUID_PATTERN.test(classId)) return null;
+  if (!UUID_PATTERN.test(classId)) {
+    logClassNotFound(userId, classId);
+    return null;
+  }
   const head = await db
     .selectFrom("organization")
     .innerJoin("member", "member.organizationId", "organization.id")
@@ -160,7 +164,10 @@ export async function getTeacherClass(
     .where("member.userId", "=", userId)
     .where("member.role", "in", ["owner", "teacher"])
     .executeTakeFirst();
-  if (!head || !isClassRole(head.role)) return null;
+  if (!head || !isClassRole(head.role)) {
+    logClassNotFound(userId, classId);
+    return null;
+  }
   const [members, invitations, groups] = await Promise.all([
     db
       .selectFrom("member")
@@ -358,24 +365,29 @@ export interface StudentInvitation {
 }
 
 /**
- * Returns the pending, unexpired invitations for the student's own address in classes that are
- * not archived; they are accepted at the next sign-in.
+ * Returns the pending, unexpired invitations for the student's own verified address in classes
+ * that are not archived; they are accepted at the next sign-in.
  */
 export async function listStudentInvitations(
   db: Kysely<DB>,
-  email: string,
+  userId: string,
   now: Date,
 ): Promise<StudentInvitation[]> {
   const rows = await db
     .selectFrom("invitation")
     .innerJoin("organization", "organization.id", "invitation.organizationId")
+    // The address must be the user's own and verified, as acceptance requires (#28).
+    .innerJoin("user", (join) =>
+      join.on((eb) => eb(eb.fn("lower", ["user.email"]), "=", eb.ref("invitation.email"))),
+    )
+    .where("user.id", "=", userId)
+    .where("user.emailVerified", "=", true)
     .select([
       "invitation.id",
       "organization.name",
       "organization.academic_year",
       "invitation.expiresAt",
     ])
-    .where("invitation.email", "=", email.trim().toLowerCase())
     .where("invitation.status", "=", "pending")
     .where("invitation.role", "=", "student")
     .where("invitation.expiresAt", ">", now)

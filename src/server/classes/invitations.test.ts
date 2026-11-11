@@ -103,7 +103,8 @@ describe("previewInvitations", () => {
         { email: "new@example.test", status: "duplicate" },
         { email: studentA.email, status: "member" },
         { email: "old@example.test", status: "invited" },
-        { email: teacher.email, status: "wrong_role" },
+        // A student row never tells which accounts exist (security review of #28).
+        { email: teacher.email, status: "new" },
       ],
     });
     expect(await invitationsOf(database, classId)).toHaveLength(1);
@@ -146,7 +147,7 @@ describe("createInvitations", () => {
     expect(result.ok && result.value.created).toBe(1);
   });
 
-  it("refuses a co-teacher invitation for a student (wrong_role) or an unknown address (no_account)", async () => {
+  it("refuses a co-teacher invitation for a student or an unknown address alike (not_a_teacher)", async () => {
     const database = await open();
     const { classId, owner } = await classWithPeople(database);
     const student = await person(database, "outside-student", ["student"]);
@@ -161,11 +162,46 @@ describe("createInvitations", () => {
       value: {
         created: 0,
         rows: [
-          { email: student.email, status: "wrong_role" },
-          { email: "nobody@example.test", status: "no_account" },
+          { email: student.email, status: "not_a_teacher" },
+          { email: "nobody@example.test", status: "not_a_teacher" },
         ],
       },
     });
+  });
+
+  it("never tells an administrator account from a missing one (V8.2.2)", async () => {
+    const database = await open();
+    const { classId, owner } = await classWithPeople(database);
+    const admin = await person(database, "outside-admin", ["admin"]);
+    for (const role of ["student", "teacher"] as const) {
+      const preview = await previewInvitations(
+        database,
+        owner,
+        { classId, role, emails: [admin.email, "nobody@example.test"] },
+        NOW,
+      );
+      const statuses = preview.ok ? preview.value.map((row) => row.status) : [];
+      expect(statuses).toHaveLength(2);
+      expect(statuses[0]).toBe(statuses[1]);
+    }
+  });
+
+  it("invites a teacher's address as a student, and acceptance skips it", async () => {
+    const database = await open();
+    const { classId, owner } = await classWithPeople(database);
+    const teacher = await person(database, "outside-teacher", ["teacher"]);
+    const result = await createInvitations(
+      database,
+      owner,
+      { classId, role: "student", emails: [teacher.email] },
+      NOW,
+    );
+    expect(result.ok && result.value.created).toBe(1);
+    expect(await acceptInvitationsOnSignIn(database, teacher.id, NOW)).toEqual({
+      accepted: 0,
+      skipped: 1,
+    });
+    expect(await memberRoleOf(database, classId, teacher.id)).toBeNull();
   });
 
   it("refuses a co-teacher who invites a co-teacher (#28 (3): only the owner)", async () => {

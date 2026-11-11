@@ -210,9 +210,12 @@ niet in. De lijst is alleen-lezen.
 
 Wie inlogt met een adres waarop een klas heeft uitgenodigd, komt zonder
 verdere stap in die klas. Stuurt de identity provider geen eduLIMS-rol voor
-die persoon, dan geeft een openstaande uitnodiging als student de rol
-student, en alleen die rol, als de e-mailadressen van de provider als
-geverifieerd zijn gemarkeerd. De rollen docent en beheerder komen altijd van
+iemand die voor het eerst inlogt, dan geeft een openstaande uitnodiging als
+student de rol student, en alleen die rol, als de e-mailadressen van de
+provider als geverifieerd zijn gemarkeerd. Een rol die de identity provider
+heeft ingetrokken, komt zo nooit terug. Een gebruiker die eigenaar is van een
+klas kun je niet verwijderen: de eigenaar draagt de klas eerst over aan een
+mededocent. De rollen docent en beheerder komen altijd van
 de identity provider of uit **Gebruikers en rollen**.
 
 Aanmaken, uitnodigen, accepteren, verwijderen, archiveren, kopiëren,

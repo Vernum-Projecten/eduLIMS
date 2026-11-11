@@ -201,7 +201,7 @@ export const getStudentClasses = createServerFn({ method: "GET" })
     const db = getDb();
     const [classes, invitations] = await Promise.all([
       listStudentClasses(db, context.user.id),
-      listStudentInvitations(db, context.user.email, new Date()),
+      listStudentInvitations(db, context.user.id, new Date()),
     ]);
     return { classes, invitations };
   });

@@ -4,9 +4,11 @@
 // Shared setup of the class service's database tests: fictional @example.test people with an
 // app role, and a class with an owner, a co-teacher and students.
 import type { Kysely } from "kysely";
+import { expect } from "vitest";
 import { formatRoles, type Role } from "../../lib/roles.ts";
 import { newId } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { setSecurityLogWriter } from "../security-log.ts";
 import type { ClassActor } from "./access.ts";
 import { createClass } from "./classes.ts";
 
@@ -72,4 +74,31 @@ export function auditRows(db: Kysely<DB>, action: string) {
     .orderBy("occurred_at")
     .orderBy("id")
     .execute();
+}
+
+/** Captures the security stream (stdout) while `run` runs and returns its parsed lines. */
+export async function securityLines(
+  run: () => Promise<unknown>,
+): Promise<Record<string, unknown>[]> {
+  const lines: string[] = [];
+  const restore = setSecurityLogWriter((line) => lines.push(line));
+  try {
+    await run();
+  } finally {
+    restore();
+  }
+  return lines.map((line): Record<string, unknown> => JSON.parse(line));
+}
+
+/** The `authz_fail` line {@link logClassNotFound} writes for `actorId` asking for `classId`. */
+export function classNotFoundLine(actorId: string, classId: string) {
+  return expect.objectContaining({
+    event: "authz_fail",
+    level: "warn",
+    actor_id: actorId,
+    target_type: "class",
+    target_id: classId,
+    reason: "not_class_teacher",
+    status: 404,
+  });
 }

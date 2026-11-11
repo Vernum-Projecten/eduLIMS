@@ -5,7 +5,8 @@
 // ownership and remove a member. Each write runs in one transaction with its activity-log row.
 import "@tanstack/react-start/server-only";
 import type { Kysely, Transaction } from "kysely";
-import { type InvitationRole, memberPermission } from "../../lib/classes.ts";
+import { type InvitationRole, isTeachingRole, memberPermission } from "../../lib/classes.ts";
+import { validateRoleValue } from "../../lib/roles.ts";
 import { recordAudit } from "../audit/record.ts";
 import { newId } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
@@ -236,8 +237,18 @@ export function transferOwnership(
     action: "class_owner_changed",
   } as const;
   return withClass(db, actor, check, async (trx, locked) => {
-    const target = await memberRole(trx, locked.id, input.userId);
-    if (target !== "teacher") return refused("not_class_teacher");
+    const target = await trx
+      .selectFrom("member")
+      .innerJoin("user", "user.id", "member.userId")
+      .select(["member.role", "user.role as appRole"])
+      .where("member.organizationId", "=", locked.id)
+      .where("member.userId", "=", input.userId)
+      .executeTakeFirst();
+    const appRoles = validateRoleValue(target?.appRole);
+    // A co-teacher who lost the app role teacher cannot take the class over (#28).
+    if (target?.role !== "teacher" || !appRoles.ok || !appRoles.roles.includes("teacher")) {
+      return refused("not_class_teacher");
+    }
     await trx
       .updateTable("member")
       .set({ role: "teacher" })
@@ -287,9 +298,10 @@ export async function removeMember(
   input: { classId: string; userId: string },
 ): Promise<ClassResult> {
   assertTeacher(actor);
+  // Only a teacher of the class learns the target's role; anyone else gets `not_found` below.
   const role = await db.transaction().execute(async (trx: Transaction<DB>) => {
     const locked = await lockClass(trx, input.classId, actor.id);
-    return locked ? memberRole(trx, locked.id, input.userId) : null;
+    return locked && isTeachingRole(locked.role) ? memberRole(trx, locked.id, input.userId) : null;
   });
   if (role === "owner") return refused("owner_not_removable");
   const targetRole: InvitationRole = role === "teacher" ? "teacher" : "student";

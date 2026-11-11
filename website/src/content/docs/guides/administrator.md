@@ -201,9 +201,11 @@ read-only.
 
 A person who signs in with an address a class invited joins that class
 without any further step. When the identity provider sends no eduLIMS role
-for that person, a pending invitation as a student gives them the student
-role, and only that role, if the provider's email addresses are marked as
-verified. Teacher and administrator roles always come from the identity
+for a person signing in for the first time, a pending invitation as a
+student gives them the student role, and only that role, if the provider's
+email addresses are marked as verified. It never gives back a role the
+identity provider took away. You cannot delete a user who owns a class:
+the owner transfers the class to a co-teacher first. Teacher and administrator roles always come from the identity
 provider or from **Users and roles**.
 
 Creating, inviting, accepting, removing, archiving, copying, transferring

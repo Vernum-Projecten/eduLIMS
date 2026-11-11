@@ -20,6 +20,7 @@ import { hasRole } from "../authz.ts";
 import { UUID_PATTERN } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { AuthError } from "../middleware.ts";
+import { logSecurityEvent } from "../security-log.ts";
 
 /** Why a class action was refused; the screens map each code to a translated message. */
 export const CLASS_ACTION_ERRORS = [
@@ -66,6 +67,23 @@ export interface ClassActor {
  */
 export function assertTeacher(actor: Pick<ClassActor, "roles">): void {
   if (!hasRole(actor, "teacher")) throw new AuthError(403);
+}
+
+/**
+ * Writes a class the actor does not teach (or no class at all) to the security stream as
+ * `authz_fail` (ASVS V16.3.2): the actor's id and the class id asked for, nothing else. A
+ * malformed id is written as `redacted`.
+ */
+export function logClassNotFound(actorId: string, classId: string): void {
+  logSecurityEvent("warn", "authz_fail", {
+    outcome: "refused",
+    actor_type: "user",
+    actor_id: actorId,
+    target_type: "class",
+    target_id: classId,
+    reason: "not_class_teacher",
+    status: 404,
+  });
 }
 
 /** The locked class and the actor's role in it. */
@@ -150,7 +168,10 @@ export async function withClass<T>(
   assertTeacher(actor);
   return db.transaction().execute(async (trx) => {
     const locked = await lockClass(trx, check.classId, actor.id);
-    if (!locked || !isTeachingRole(locked.role)) return refused<T>("not_found");
+    if (!locked || !isTeachingRole(locked.role)) {
+      logClassNotFound(actor.id, check.classId);
+      return refused<T>("not_found");
+    }
     if (!classCan(locked.role, check.permission)) {
       await recordRefusal(trx, actor, check.action, locked.id, "forbidden");
       return refused<T>("forbidden");
