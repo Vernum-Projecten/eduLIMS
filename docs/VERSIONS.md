@@ -99,3 +99,20 @@ releases on 2026-11-11; `package.json` takes them when the dependency lands.
 | WCAG | 2.1, level AA |
 | SLSA | Build Level 3 |
 | REUSE | 3.3 |
+
+## Vendored security standards
+
+The OWASP documents the security baseline is built on
+([docs/security/README.md](security/README.md)), copied byte for byte into
+`docs/security/vendor/` by the fetch scripts. A pin moves in the script
+(tag, commit, date and the sha256 list) and in this table in the same change.
+`--check` re-fetches each one weekly in the pin freshness workflow.
+
+| Document | Upstream | Tag | Commit | Script |
+|---|---|---|---|---|
+| OWASP ASVS 5.0.0 | `OWASP/ASVS` | `v5.0.0_release` | `5cf9b032440be53ce345ab3c130fda46ba1ce7a2` | `scripts/vendor/owasp-asvs.sh` |
+| OWASP Top 10:2025 | `OWASP/Top10` | none (published from `master`) | `3a31f35346c3f4e90f350395124382fa53af2afe` | `scripts/vendor/owasp-top10.sh` |
+| OWASP API Security Top 10 2023 | `OWASP/API-Security` | `v2.7.0` | `c697e4d031b7a4966863a4923f46d9c666c4b449` | `scripts/vendor/owasp-api-security.sh` |
+| OWASP Cheat Sheet Series (54 sheets) | `OWASP/CheatSheetSeries` | none (no releases) | `9c87d0a0e9411de028b9d7eb853872082d6d3382` | `scripts/vendor/owasp-cheatsheets.sh` |
+| OWASP Top 10 Proactive Controls 2024 | `OWASP/www-project-proactive-controls` | `v4.0.0` | `e5bceb0399a5e9a6182ea996d98acfe78a801d7b` | `scripts/vendor/owasp-proactive-controls.sh` |
+| SPDX licence text `LICENSES/CC-BY-SA-4.0.txt` | `spdx/license-list-data` | `v3.29.0` | `31ba1a50e5397e00a304dbadc76531740e89ee48` | fetched once, `text/CC-BY-SA-4.0.txt` |
