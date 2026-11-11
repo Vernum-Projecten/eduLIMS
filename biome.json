@@ -16,6 +16,7 @@
       "!.claude/skills",
       "!pnpm-lock.yaml",
       "!.github/cff-schema/schema.json",
+      "!docs/security/vendor",
       "!**/*.md",
       "!**/*.svg"
     ]

@@ -45,11 +45,12 @@ Every workflow and composite action follows these rules, and the
 | `ci.yml` `changelog-guard`                           | The change adds a fragment under `changelog.d/`, unless it carries `no-changelog`                                                                                                            | pull requests by people                              |
 | `ci.yml` `tracker-helpers`, `guard-self-tests`       | The `--self-test` of every script under `scripts/gh/` and `scripts/checks/`                                                                                                                  | every change                                         |
 | `ci.yml` `brand`                                     | The brand palette holds its `safe:` contrast claims (`scripts/checks/brand-contrast.sh`), and the served icons match `assets/brand/`                                                         | every change                                         |
+| `ci.yml` `asvs-coverage` | Every ASVS 5.0.0 id of the vendored list has one judged row in `docs/security/asvs-5.0-applicability.md` (`scripts/checks/asvs-coverage.sh`) | every change |
 | `ci.yml` `conclusion`                                | Fails when any job above failed or was cancelled; a skip counts as a pass                                                                                                                    | every change                                         |
 | `pr-guards.yml`                                      | On a title, description, or escape-label change, re-runs the guard it affects in the head commit's CI run                                                                                    | pull-request edits and labels                        |
 | `codeql.yml`                                         | CodeQL `security-extended` for `javascript-typescript` and `actions`                                                                                                                         | push, pull request, weekly                           |
 | `scorecard.yml`                                      | OpenSSF Scorecard, results published, SARIF to code scanning                                                                                                                                 | push to main, weekly, ruleset change                 |
-| `pin-freshness.yml`                                  | Node.js, pnpm, the PostgreSQL service image, actionlint, zizmor, and shellcheck compared with their newest release; one issue when one is behind                                             | weekly                                               |
+| `pin-freshness.yml`                                  | Node.js, pnpm, the PostgreSQL service image, actionlint, zizmor, and shellcheck compared with their newest release; one issue when one is behind. The vendored OWASP trees re-fetched and diffed (`scripts/vendor/owasp-*.sh --check`); one issue on drift | weekly                                               |
 | `release*.yml`, `scan-and-tag.yml`, `image-scan.yml` | The release pipeline (see the contract below)                                                                                                                                                | tags, weekly                                         |
 
 Every lane that needs Node.js uses `.github/actions/setup-node-pnpm`. It
@@ -198,7 +199,7 @@ SLSA v1.0 <https://slsa.dev/spec/v1.0/levels> · GitHub artifact attestations
 <https://docs.github.com/actions/security-guides/using-artifact-attestations-and-reusable-workflows-to-achieve-slsa-v1-build-level-3>
 · CycloneDX <https://cyclonedx.org/> · OpenSSF Scorecard
 <https://scorecard.dev/> · OWASP GitHub Actions Cheat Sheet
-<https://cheatsheetseries.owasp.org/cheatsheets/GitHub_Actions_Security_Cheat_Sheet.html>
+([vendored copy](security/vendor/cheatsheets/GitHub_Actions_Security_Cheat_Sheet.md))
 · zizmor <https://docs.zizmor.sh/> · Rulesets
 <https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets>
 · Conventional Commits <https://www.conventionalcommits.org/en/v1.0.0/>

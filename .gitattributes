@@ -24,3 +24,7 @@ src/components/ui/** linguist-generated=true
 *.woff binary
 *.woff2 binary
 *.xlsx binary
+
+# Vendored OWASP trees: stored byte for byte, so the sha256 sums in each
+# PROVENANCE.md hold on every checkout (scripts/vendor/owasp-*.sh --check).
+docs/security/vendor/** -text
