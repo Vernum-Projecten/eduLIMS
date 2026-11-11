@@ -1,0 +1,1 @@
+- eduLIMS writes every security event (sign-ins, role changes, blocks, refused calls) to its output as one JSON line with ids and codes only, and the optional `compose.logship.yaml` ships those events to the institution's log platform over TLS, as syslog or HTTPS; turn it on with `COMPOSE_FILE` and the `LOGSHIP_` values in `.env` (#44).

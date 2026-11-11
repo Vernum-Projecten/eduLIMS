@@ -574,6 +574,22 @@ jobs:
           bash scripts/checks/asvs-coverage.sh --self-test
           bash scripts/checks/asvs-coverage.sh
 
+  # The optional log shipping override (compose.logship.yaml, ASVS V16.4.3)
+  # merges with compose.yaml, keeps the forwarder hardened, and Fluent Bit
+  # accepts both of its configurations.
+  logship-compose:
+    name: logship-compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The log shipping override is valid and hardened
+        run: bash scripts/checks/logship-compose.sh --with-image
+
   # ── The single required check ───────────────────────────────────────────────
 
   # The ruleset requires this job alone, so jobs can come and go without a
@@ -602,6 +618,7 @@ jobs:
       - brand
       - citation
       - asvs-coverage
+      - logship-compose
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

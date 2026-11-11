@@ -8,6 +8,7 @@ import {
   PROVIDER_DISABLED_ERROR,
   providerIdOf,
   ROLE_CONFLICT_ERROR,
+  SAML_NAMEID_ERROR,
 } from "../lib/identity-providers.ts";
 import type { Role } from "../lib/roles.ts";
 import { AuditRecorder } from "./audit/better-auth-hooks.ts";
@@ -18,6 +19,22 @@ import { samlResponse } from "./idp/test-saml.ts";
 import { PERSISTENT_NAME_ID } from "./idp/validate.ts";
 import { parseRoleMap } from "./idp-roles.ts";
 import { createIdpRoleSync, type IdpRoleSyncOptions } from "./idp-sync.ts";
+import { setSecurityLogWriter } from "./security-log.ts";
+
+/** Captures the security log lines until `restore` is called. */
+function captureSecurityLog(): { lines: string[]; restore: () => void } {
+  const lines: string[] = [];
+  return { lines, restore: setSecurityLogWriter((line) => lines.push(line)) };
+}
+
+/** The parsed security log lines of one event. */
+function events(lines: readonly string[], event: string): unknown[] {
+  return lines
+    .map((line): unknown => JSON.parse(line))
+    .filter(
+      (line) => typeof line === "object" && line !== null && Reflect.get(line, "event") === event,
+    );
+}
 
 type Sync = ReturnType<typeof createIdpRoleSync>;
 type Data = Parameters<Sync>[0];
@@ -245,7 +262,7 @@ describe("createIdpRoleSync", () => {
   });
 
   it("refuses a student with teacher or admin as role_conflict, logging no personal data", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { lines, restore } = captureSecurityLog();
     const { sync, ctx, updateUser } = setup("student");
     const data = oauth(
       "sign-in",
@@ -253,13 +270,20 @@ describe("createIdpRoleSync", () => {
       { email: "u@example.test", realm_access: { roles: ["edulims-student", "edulims-teacher"] } },
       { id: "u1", email: "u@example.test", name: "Test Student" },
     );
-    expect(await sync(data, ctx)).toMatchObject({ error: ROLE_CONFLICT_ERROR });
+    try {
+      expect(await sync(data, ctx)).toMatchObject({ error: ROLE_CONFLICT_ERROR });
+    } finally {
+      restore();
+    }
     expect(updateUser).not.toHaveBeenCalled();
-    expect(warn).toHaveBeenCalledTimes(1);
-    const logged = JSON.stringify(warn.mock.calls);
-    expect(logged).toContain(ROLE_CONFLICT_ERROR);
-    expect(logged).not.toMatch(/u1|example\.test|Test Student/);
-    warn.mockRestore();
+    const conflicts = lines.filter((line) => line.includes('"event":"idp_role_conflict"'));
+    expect(conflicts).toHaveLength(1);
+    expect(JSON.parse(conflicts[0] ?? "null")).toMatchObject({
+      reason: ROLE_CONFLICT_ERROR,
+      provider: "keycloak",
+    });
+    expect(conflicts.join("")).not.toMatch(/u1|example\.test|Test Student/);
+    expect(lines.join("")).not.toMatch(/example\.test|Test Student/);
   });
 
   it("refuses a conflicting set on a first sign-in too", async () => {
@@ -358,6 +382,97 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
       claimNames: ["email", "roles", "sub"],
     });
     expect(data.user["role"]).toBeUndefined();
+  });
+});
+
+describe("the security log of the sign-in gate (ASVS V16.3.1, V16.2.5)", () => {
+  const TRANSIENT = "urn:oasis:names:tc:SAML:2.0:nameid-format:transient";
+  let restore: (() => void) | undefined;
+
+  afterEach(() => {
+    restore?.();
+    restore = undefined;
+  });
+
+  function capture(): string[] {
+    const captured = captureSecurityLog();
+    restore = captured.restore;
+    return captured.lines;
+  }
+
+  it.each([
+    ["a disabled provider", "disabled"],
+    ["a provider eduLIMS does not know", "github"],
+  ])("logs the refusal of %s as provider_disabled", async (_label, providerId) => {
+    const lines = capture();
+    const { sync, ctx } = setup();
+    const data = oauth("sign-in", providerId, {}, { id: "u3", email: "u3@example.test" });
+    expect(await sync(data, ctx)).toMatchObject({ error: PROVIDER_DISABLED_ERROR });
+    expect(events(lines, "authn_login_fail")).toEqual([
+      expect.objectContaining({
+        level: "warn",
+        outcome: "refused",
+        actor_type: "anonymous",
+        target_id: "u3",
+        reason: PROVIDER_DISABLED_ERROR,
+        provider: providerId,
+      }),
+    ]);
+    expect(lines.join("")).not.toMatch(/example\.test/);
+  });
+
+  it("logs the refusal of a SAML sign-in without a persistent NameID", async () => {
+    const lines = capture();
+    const { sync, ctx } = setup();
+    const transient = { ...ctx, body: { SAMLResponse: samlResponse(TRANSIENT) } } as Ctx;
+    const data = oauth("create-user", "keycloak-saml", { Role: ["edulims-teacher"] });
+    expect(await sync(data, transient)).toMatchObject({ error: SAML_NAMEID_ERROR });
+    expect(events(lines, "authn_login_fail")).toEqual([
+      expect.objectContaining({ reason: SAML_NAMEID_ERROR, provider: "keycloak-saml" }),
+    ]);
+    expect(lines.join("")).not.toMatch(/example\.test|SAMLResponse|edulims-teacher/);
+  });
+
+  it("logs a test sign-in with its outcome code only, never the claims or the test", async () => {
+    const lines = capture();
+    const settings = provider("entra", "oidc", "roles");
+    const sync = createIdpRoleSync({
+      settingsOf: async () => settings,
+      testOf: async () => "t".repeat(32),
+      recordTest: async () => undefined,
+    });
+    const { ctx } = setup();
+    const data = oauth("create-user", "entra", {
+      sub: "subject-1",
+      roles: ["edulims-teacher"],
+      email: "claim@example.test",
+    });
+    expect(await sync(data, ctx)).toMatchObject({ error: "idp_test_complete" });
+    expect(events(lines, "idp_test_sign_in")).toEqual([
+      expect.objectContaining({
+        level: "info",
+        reason: "idp_test_complete",
+        test_outcome: "idp",
+        provider: "entra",
+      }),
+    ]);
+    expect(lines.join("")).not.toMatch(/t{32}|subject-1|example\.test|edulims-teacher/);
+  });
+
+  it("logs a test sign-in that a transient NameID ends", async () => {
+    const lines = capture();
+    const settings = provider("keycloak-saml", "saml", "Role");
+    const sync = createIdpRoleSync({
+      settingsOf: async () => settings,
+      testOf: async () => "t".repeat(32),
+      recordTest: async () => undefined,
+    });
+    const { ctx } = setup();
+    const transient = { ...ctx, body: { SAMLResponse: samlResponse(TRANSIENT) } } as Ctx;
+    await sync(oauth("create-user", "keycloak-saml", {}), transient);
+    expect(events(lines, "idp_test_sign_in")).toEqual([
+      expect.objectContaining({ test_outcome: SAML_NAMEID_ERROR }),
+    ]);
   });
 });
 
@@ -467,6 +582,24 @@ describe("the activity log of the IdP role sync (B4)", () => {
         request_id: "req-idp",
         metadata: null,
       },
+    ]);
+  });
+
+  it("sends a recorded refusal to the security log once, through the activity log", async () => {
+    const { lines, restore } = captureSecurityLog();
+    const { sync, ctx, rows } = await audited();
+    try {
+      await sync(oauth("sign-in", "disabled", {}, { id: "u4" }), ctx);
+    } finally {
+      restore();
+    }
+    expect(await rows()).toHaveLength(1);
+    expect(events(lines, "authn_login_fail")).toEqual([
+      expect.objectContaining({
+        reason: PROVIDER_DISABLED_ERROR,
+        target_id: "u4",
+        request_id: "req-idp",
+      }),
     ]);
   });
 

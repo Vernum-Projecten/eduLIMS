@@ -95,3 +95,19 @@ updates:
     commit-message:
       prefix: "build"
       include: "scope"
+
+  - package-ecosystem: "docker-compose"
+    # The digest-pinned service images in compose.yaml, compose.dev.yaml and
+    # compose.logship.yaml (PostgreSQL, FerroEHR, FerroBRIDGE, Keycloak, Fluent
+    # Bit); a bump is a reviewed change of digest.
+    directory: "/"
+    labels:
+      - "dependencies"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: "build"
+      include: "scope"

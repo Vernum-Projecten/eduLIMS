@@ -106,7 +106,7 @@ export async function seedDemoData(db: Kysely<DB>, now: Date): Promise<boolean> 
       .executeTakeFirst();
     if (existing) return false;
     await insertPeople(trx, people);
-    for (const event of activity) await recordAudit(trx, event);
+    for (const event of activity) await recordAudit(trx, event, { stdout: false });
     return true;
   });
 }

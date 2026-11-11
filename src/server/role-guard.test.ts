@@ -8,17 +8,22 @@ import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
 import { parseEnv } from "./env.ts";
 import { guardRoleValue, isOwnRoleWrite, OWN_ROLES_REFUSED } from "./role-guard.ts";
+import { setSecurityLogWriter } from "./security-log.ts";
 import { createTestAuth } from "./test-auth.ts";
 import { VALID_ENV } from "./test-env.ts";
 
 const PASSWORD = "correct-horse-battery";
 let db: Kysely<DB> | undefined;
+let logLines: string[] = [];
+let restoreLog: (() => void) | undefined;
 
 beforeEach(() => {
-  vi.spyOn(console, "warn").mockImplementation(() => {});
+  logLines = [];
+  restoreLog = setSecurityLogWriter((line) => logLines.push(line));
 });
 
 afterEach(async () => {
+  restoreLog?.();
   vi.restoreAllMocks();
   await db?.destroy();
   db = undefined;
@@ -71,7 +76,12 @@ describe("guardRoleValue", () => {
     "throws for %j, logging only the reason",
     (value) => {
       expect(() => guardRoleValue(value)).toThrow();
-      expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toMatch(/student|admin|user/);
+      expect(logLines).toHaveLength(1);
+      expect(JSON.parse(logLines[0] ?? "null")).toMatchObject({
+        event: "authz_role_write_refused",
+        outcome: "refused",
+      });
+      expect(logLines.join("")).not.toMatch(/student|admin|user/);
     },
   );
 });

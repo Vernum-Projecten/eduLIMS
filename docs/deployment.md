@@ -22,6 +22,8 @@ same.
 | `edulims-tools` (profile) | `ghcr.io/vernum-projecten/edulims-migrate` | nothing | the tools image for the operator commands (`admin`, `idp`), run by hand |
 | `edulims` | `ghcr.io/vernum-projecten/edulims` | `127.0.0.1:3000` | the application |
 | `keycloak` (profile) | `quay.io/keycloak/keycloak:26.8.2` | `127.0.0.1:8180` | the optional identity provider |
+| `logship` (`compose.logship.yaml`) | `docker.io/fluent/fluent-bit:5.2.0` | `127.0.0.1:24224` | the optional log forwarder ("Shipping logs off the host") |
+| `logship` (`compose.logship.yaml`) | `docker.io/fluent/fluent-bit:5.2.0` | `127.0.0.1:24224` | the optional log forwarder (below, "Shipping logs off the host") |
 
 Every third-party image is pinned by digest in `compose.yaml`; the eduLIMS
 images are named by the release in `EDULIMS_VERSION`. Nothing else runs: no
@@ -563,6 +565,121 @@ Enable it with `systemctl enable --now edulims-prune.timer`. The command prints
 the number of events, sessions and expired administrator grants it removed. On a development machine,
 `pnpm db:prune` does the same against `DATABASE_URL`. The backups above keep
 deleted rows for another 30 days, until the oldest dump is removed.
+
+## Shipping logs off the host
+
+eduLIMS writes every security event to its stdout as one JSON line, and Docker
+keeps those lines on the host. Someone who takes over the host can erase
+them there. OWASP ASVS 5.0 V16.4.3 asks for logs to be "securely transmitted
+to a logically separate system". Shipping is optional (the decision on #44),
+because it needs a log platform at the institution to send to: a syslog
+server or SIEM that accepts RFC 5424 syslog over TLS, or an HTTPS collector.
+
+### What leaves the host
+
+Only the security events. A Fluent Bit forwarder drops every other line
+(start-up messages, errors). Each event is the line eduLIMS wrote:
+
+```json
+{"time":"2026-11-11T20:40:56.387Z","level":"warn","app":"edulims","log":"security","event":"authz_fail","outcome":"refused","actor_type":"user","actor_id":"0193…","reason":"missing_role","status":403,"required_roles":"teacher","request_id":"0193…"}
+```
+
+`time` is UTC. Besides `level`, `app`, `log` and `event`, a line carries only
+these fields: `outcome`, `actor_type`, `actor_id`, `target_type`,
+`target_id`, `reason`, `provider`, `request_id`, `roles`, `previous_roles`,
+`required_roles`, `ban_expires_at`, `kind` and `status`. They hold ids and
+codes. eduLIMS replaces any value that contains a space or an `@` with
+`redacted`, so a name, an e-mail address, a token or a grade cannot leave the
+host. The events are:
+
+| `event` | When |
+|---|---|
+| every action of the activity log (`authn_login_success`, `authn_login_fail`, `authn_logout`, `authz_role_change`, `session_revoked`, `session_expired`, `user_created`, `user_deleted`, `user_banned`, `user_unbanned`) | the same moment the row is written to the activity log in the Admin portal |
+| `authz_fail` | a server function refused a call: 401 without a session, 403 without the role |
+| `authz_role_write_refused` | a role set eduLIMS does not allow was refused |
+| `idp_role_conflict` | the identity provider sent a role set eduLIMS does not allow |
+| `admin_action_failed` | an Admin portal action failed in the sign-in library |
+| `audit_write_failed` | an activity-log row could not be written |
+
+The activity log in the database stays the record. A line written in a
+transaction that later rolls back can still reach the stream, so read a
+stream event without its database row as an attempt.
+
+### Turn it on (Docker)
+
+The deploy bundle holds `compose.logship.yaml` and the two Fluent Bit
+configurations in `docker/logship/`; keep them beside `compose.yaml`. Add to
+`.env` (`.env.example` lists every `LOGSHIP_` value):
+
+```sh
+COMPOSE_FILE=compose.yaml:compose.logship.yaml
+LOGSHIP_OUTPUT=syslog        # or http
+LOGSHIP_HOST=siem.example.org
+LOGSHIP_PORT=6514
+```
+
+For `http`, also set `LOGSHIP_HTTP_URI` and, for the platform's token,
+`LOGSHIP_HTTP_HEADER` (`Authorization Bearer <token>`). When a private CA
+signed the platform's certificate, put the CA certificate in
+`config/logship/`, readable by uid 65534, and set
+`LOGSHIP_TLS_CA_FILE=/etc/logship/tls/ca.crt`. Then apply it and check that
+the forwarder delivers:
+
+```sh
+docker compose up -d --wait
+docker compose logs logship
+```
+
+How it works: Docker's `fluentd` log driver on the `edulims` service sends
+each stdout line to the `logship` service (Fluent Bit 5.2.0, pinned by
+digest), which listens on `127.0.0.1:24224` only. No container mounts the
+Docker socket. The forwarder runs as uid 65534 with a read-only root
+filesystem and no capabilities, on its own network, so no other container can
+write into the stream. It verifies the platform's certificate. With `syslog`
+each event is one RFC 5424 message (facility 10, security/authorization;
+APP-NAME `edulims`; MSGID `security`; the JSON line as MSG). With `http` it
+posts a JSON array of events per batch. While the platform is unreachable,
+Fluent Bit keeps the events in memory and retries; a restart of the forwarder
+in that time loses them, and the host copy stays.
+
+`docker compose logs edulims` keeps working: Docker reads the lines from its
+local cache.
+
+Turn it off by removing the `COMPOSE_FILE` line and recreating the stack:
+
+```sh
+docker compose up -d --wait --remove-orphans
+```
+
+### Without the forwarder: Docker's syslog driver
+
+When the platform takes syslog over TLS and you do not need the filter,
+Docker can send straight to it. Put this in `compose.override.yaml` and leave
+`compose.logship.yaml` out:
+
+```yaml
+services:
+  edulims:
+    logging:
+      driver: syslog
+      options:
+        syslog-address: tcp+tls://siem.example.org:6514
+        syslog-format: rfc5424micro
+        syslog-facility: authpriv
+        tag: edulims
+```
+
+This ships every line eduLIMS writes, start-up messages and errors included,
+not the security events alone. This route is not tested here.
+
+### Podman hosts
+
+Podman has neither the `fluentd` nor the `syslog` log driver, so
+`compose.logship.yaml` does not apply there. On a systemd host Podman writes
+container output to the journal by default; forward the entries whose
+`CONTAINER_NAME` is the eduLIMS container with the
+host's own tools (`systemd-journal-upload`, or rsyslog with `imjournal` and
+TLS). This route is not tested here.
 
 ## Local development
 

@@ -10,6 +10,7 @@
 // Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
 import type { BetterAuthOptions } from "better-auth";
+import { logSecurityEvent } from "../security-log.ts";
 import { DataKeyError, decryptSecret, encryptSecret, isEnvelope, type Keyring } from "./crypto.ts";
 
 /** The additional authenticated data of a sealed ID token: the account row it belongs to. */
@@ -62,7 +63,13 @@ export function openIdToken(
     if (error instanceof DataKeyError) {
       // NOTE: no requirement governs this: our own design; without the hint sign-out still ends
       // the eduLIMS session, and the IdP asks the user to confirm its own logout.
-      console.error(`crypt_decrypt_fail: ${error.kind} (account ${accountId} id token)`);
+      logSecurityEvent("error", "crypt_decrypt_fail", {
+        outcome: "failure",
+        kind: error.kind,
+        target_type: "account",
+        target_id: accountId,
+        reason: "id_token",
+      });
       return null;
     }
     throw error;

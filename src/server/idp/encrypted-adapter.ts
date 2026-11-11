@@ -12,6 +12,7 @@ import { kyselyAdapter } from "@better-auth/kysely-adapter";
 import type { DBAdapter, DBAdapterInstance, DBTransactionAdapter } from "better-auth";
 import type { Kysely } from "kysely";
 import type { DB } from "../db/schema.gen.ts";
+import { logSecurityEvent } from "../security-log.ts";
 import { sealAccountWrite } from "./account-tokens.ts";
 import { type ConfigColumn, DataKeyError, type Keyring, openConfig, sealConfig } from "./crypto.ts";
 
@@ -29,7 +30,12 @@ function logged<T>(providerId: string, run: () => T): T {
     return run();
   } catch (error) {
     if (error instanceof DataKeyError) {
-      console.error(`crypt_decrypt_fail: ${error.kind} (provider ${providerId})`);
+      logSecurityEvent("error", "crypt_decrypt_fail", {
+        outcome: "failure",
+        kind: error.kind,
+        target_type: "identity_provider",
+        target_id: providerId,
+      });
     }
     throw error;
   }
