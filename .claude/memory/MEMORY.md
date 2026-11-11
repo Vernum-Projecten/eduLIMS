@@ -51,6 +51,9 @@ adding one, and update it instead of duplicating.
 - [Operators run the image](operators-run-the-image.md): no Node or pnpm on
   the host; every operator command is a subcommand of the tools image, run
   with `docker compose run`; recurring jobs run inside the app; owner 2026-11-11
+- [Run commands yourself](run-commands-yourself.md): run the needed local
+  commands (env:sync, migrations, dev stack, dev database grants) and report;
+  never hand them over and wait; owner 2026-11-11
 - [Owner uses Podman](owner-uses-podman.md): `podman compose`, fully
   qualified image names, never touch their running containers unasked
 - [Env file workflow](env-file-workflow.md): never read or edit the local env
