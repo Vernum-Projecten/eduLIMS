@@ -99,10 +99,11 @@ cp .env.example .env        # then set BETTER_AUTH_SECRET (openssl rand -hex 32)
 Start a database in one of two ways:
 
 ```sh
-# With Docker: PostgreSQL 18 and Keycloak with the edulims realm
+# With containers: PostgreSQL 18 and Keycloak with the edulims realm
+# (Podman: podman compose -f compose.dev.yaml up -d)
 docker compose -f compose.dev.yaml up -d
 
-# Without Docker: an embedded PostgreSQL (PGlite) on port 5432, data in .data/
+# Without containers: an embedded PostgreSQL (PGlite) on port 5432, data in .data/
 # (keep it running in its own terminal; comment out the KEYCLOAK_* lines in
 # .env, since there is no Keycloak)
 pnpm dev:db

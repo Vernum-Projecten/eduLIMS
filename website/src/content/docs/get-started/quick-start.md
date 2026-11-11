@@ -21,8 +21,10 @@ reloads on every save. To run eduLIMS on a server, follow
   [`package.json`](https://github.com/Vernum-Projecten/eduLIMS/blob/main/package.json).
   `devEngines` enforces both versions, so an install with another Node.js or
   pnpm fails. On macOS: `brew install node pnpm`.
-- **Docker** with the Compose plugin, for PostgreSQL and Keycloak. Without
-  Docker you can use the embedded database instead (below).
+- **A container engine with Compose**, for PostgreSQL and Keycloak: Docker,
+  or Podman with `podman compose`, which takes the same arguments as every
+  `docker compose` command on this page. Without one you can use the embedded
+  database instead (below).
 
 ## Start the services
 
@@ -49,7 +51,7 @@ docker compose -f compose.dev.yaml --profile ferroehr up -d --wait
 The development credentials are fixed and public. Never point this setup at
 real data.
 
-### Without Docker
+### Without containers
 
 `pnpm dev:db` runs an embedded PostgreSQL ([PGlite](https://pglite.dev)) on
 `localhost:5432`, with its data in `.data/` (git-ignored). Keep it running in

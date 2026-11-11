@@ -32,7 +32,7 @@ ARG OUTPUT=source
 # ── build: install with the lockfile, build, and deploy the production tree ──
 # The official Node.js image at the exact version in .node-version, pinned by
 # index digest. Dependabot (docker ecosystem) proposes the bumps.
-FROM --platform=$BUILDPLATFORM node:26.13.0-trixie@sha256:438603bbb5cda404b9416f0b5c8026f61501ab911760d861ec28c36b5d675725 AS build
+FROM --platform=$BUILDPLATFORM docker.io/library/node:26.13.0-trixie@sha256:438603bbb5cda404b9416f0b5c8026f61501ab911760d861ec28c36b5d675725 AS build
 
 # Node.js 25 removed corepack, so pnpm comes from the npm registry at the
 # exact version package.json names in `packageManager`, checked against the

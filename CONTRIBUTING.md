@@ -13,7 +13,10 @@ before you make a change. The published documentation is at
 
 ## Setup
 
-You need Node.js 26.13.0, pnpm 12.18.0 and Docker with Compose. The
+You need Node.js 26.13.0, pnpm 12.18.0 and a container engine with Compose:
+Docker, or Podman with `podman compose` (every `docker compose` command below
+works the same as `podman compose`). Without one, `pnpm dev:db` runs an
+embedded PostgreSQL instead. The
 `devEngines` field in `package.json` fails the install on any other runtime
 or package manager version.
 
