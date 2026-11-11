@@ -80,3 +80,21 @@ test("an unknown page shows a not-found page inside the app shell", async ({ pag
   await expect(page.getByRole("link", { name: "Back to the home page" })).toBeVisible();
   await expectNoA11yViolations(page);
 });
+
+test("the header shows the brand mark beside the name, and the icons are served", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/");
+  const home = page.getByRole("banner").getByRole("link", { name: "eduLIMS", exact: true });
+  await expect(home).toBeVisible();
+  await expect(home.locator("svg")).toHaveAttribute("aria-hidden", "true");
+  for (const path of [
+    "/favicon.svg",
+    "/favicon.ico",
+    "/apple-touch-icon.png",
+    "/manifest.webmanifest",
+  ]) {
+    expect((await request.get(path)).status(), path).toBe(200);
+  }
+});

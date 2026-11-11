@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="512" height="512" role="img" aria-label="eduLIMS">
+  <!-- SPDX-FileCopyrightText: Ruben Talstra -->
+  <!-- SPDX-License-Identifier: Apache-2.0 -->
+  <title>eduLIMS</title>
+  <desc>The eduLIMS mark with a light rim, so the tile holds 3:1 against a dark background.</desc>
+  <rect fill="#3730a3" width="48" height="48" rx="10.5"/>
+  <rect stroke="#a5b4fc" fill="none" stroke-width="1.5" x="0.75" y="0.75" width="46.5" height="46.5" rx="9.75"/>
+  <g fill="#8b8bd6"><circle cx="10.5" cy="15" r="3"/><circle cx="19.5" cy="15" r="3"/><circle cx="28.5" cy="15" r="3"/><circle cx="37.5" cy="15" r="3"/><circle cx="10.5" cy="24" r="3"/><circle cx="19.5" cy="24" r="3"/><circle cx="37.5" cy="24" r="3"/><circle cx="10.5" cy="33" r="3"/><circle cx="19.5" cy="33" r="3"/><circle cx="28.5" cy="33" r="3"/><circle cx="37.5" cy="33" r="3"/></g>
+  <circle fill="#fbbf24" cx="28.5" cy="24" r="3.9"/>
+</svg>

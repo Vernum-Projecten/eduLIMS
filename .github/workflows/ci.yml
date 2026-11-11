@@ -17,7 +17,7 @@
 #      runs, so it skips in the merge queue, and pr-guards.yml re-runs it when
 #      the title, description or an escape label changes.
 #   5. The self-tests of every helper under scripts/gh/ and scripts/checks/,
-#      and the citation metadata guard.
+#      the citation metadata guard, and the brand contrast check.
 name: CI
 
 on:
@@ -473,6 +473,35 @@ jobs:
           bash scripts/checks/linked-issue.sh --self-test
           bash scripts/checks/pin-freshness.sh --self-test
 
+  # The brand palette's contrast, measured from assets/brand/tokens.css: a
+  # token's `safe:` claim or a row of the brand README that stops matching its
+  # ratio fails (WCAG 2.1 SC 1.4.3 and 1.4.11). The icons the app and the
+  # documentation site serve must be the files in assets/brand/.
+  brand:
+    name: brand
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The palette holds its contrast claims
+        run: |
+          set -euo pipefail
+          bash scripts/checks/brand-contrast.sh --self-test
+          bash scripts/checks/brand-contrast.sh
+      - name: The served icons are the brand files
+        run: |
+          set -euo pipefail
+          for f in favicon.svg favicon.ico apple-touch-icon.png icon-192.png icon-512.png; do
+            cmp "assets/brand/$f" "public/$f"
+          done
+          for f in favicon.svg favicon.ico apple-touch-icon.png edulims-social.png; do
+            cmp "assets/brand/$f" "website/public/$f"
+          done
+
   # CITATION.cff stays CFF-1.2.0-valid (a malformed file breaks the "Cite this
   # repository" button), at the package.json version, and in agreement with
   # .zenodo.json, the file Zenodo archives each release with. The validator is
@@ -520,6 +549,7 @@ jobs:
       - changelog-guard
       - tracker-helpers
       - guard-self-tests
+      - brand
       - citation
     if: always()
     runs-on: ubuntu-latest
