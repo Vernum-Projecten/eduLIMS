@@ -42,6 +42,7 @@ describe("activity log labels (#36)", () => {
       "An upload",
       "Identity provider Keycloak (lab)",
       "An administrator grant",
+      "An analyser",
     ]);
     expect(activityTargetLabel({ type: "identity_provider", id: "gone" })).toBe(
       "Identity provider gone",
@@ -118,6 +119,23 @@ describe("activity log labels (#36)", () => {
     expect(
       activityDetails({ reason: null, provider: null, metadata: { attest_pkce: false } }),
     ).toEqual(["PKCE confirmation withdrawn"]);
+  });
+
+  it("summarises an analyser's status and the counts of a retention run", () => {
+    expect(
+      activityDetails({
+        reason: null,
+        provider: null,
+        metadata: { analyser_status: "maintenance" },
+      }),
+    ).toEqual(["Status: In maintenance"]);
+    expect(
+      activityDetails({
+        reason: null,
+        provider: null,
+        metadata: { removed_audit_events: 1200, removed_sessions: 4, removed_admin_grants: 0 },
+      }),
+    ).toEqual(["Events removed: 1,200", "Sessions removed: 4", "Administrator grants removed: 0"]);
   });
 
   it("says when the metadata cannot be read, and returns nothing for an event without details", () => {

@@ -5,6 +5,7 @@
 // codes, and the metadata of an event as readable, translated parts. The log holds codes; this
 // is the one place they become words.
 import { m } from "@/i18n/messages";
+import { analyserStatusLabel } from "@/lib/i18n/analyser-labels";
 import { formatDateTime, formatNumber } from "@/lib/i18n/format";
 import { rolesLabel } from "@/lib/i18n/labels";
 import { type ProviderLabels, signInMethodLabel } from "@/lib/i18n/user-labels";
@@ -64,6 +65,8 @@ export function activityTargetLabel(
       return m.admin_activity_target_identity_provider({ name: labels[target.id] ?? target.id });
     case "admin_grant":
       return m.admin_activity_target_admin_grant();
+    case "analyser":
+      return m.admin_activity_target_analyser();
     default: {
       const unknown: never = target.type;
       return unknown;
@@ -147,6 +150,18 @@ function metadataParts(metadata: AuditMetadata, labels: ProviderLabels): string[
   if (metadata.test_outcome) {
     const result = activityTestOutcomeLabel(metadata.test_outcome);
     parts.push(m.admin_activity_detail_test_outcome({ result }));
+  }
+  if (metadata.analyser_status) {
+    const status = analyserStatusLabel(metadata.analyser_status);
+    parts.push(m.admin_activity_detail_analyser_status({ status }));
+  }
+  const removed = [
+    [metadata.removed_audit_events, m.admin_activity_detail_removed_events],
+    [metadata.removed_sessions, m.admin_activity_detail_removed_sessions],
+    [metadata.removed_admin_grants, m.admin_activity_detail_removed_grants],
+  ] as const;
+  for (const [value, message] of removed) {
+    if (value !== undefined) parts.push(message({ count: formatNumber(value) }));
   }
   return parts;
 }
