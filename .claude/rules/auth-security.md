@@ -20,15 +20,41 @@ only through SSO; access per role", accepted when an OWASP Top 10
 check finds no open endpoint without login. This file is how the code meets
 both.
 
-## Sign-in: Entra ID or Keycloak through better-auth (S1, ADR 0010)
+## Sign-in: runtime identity providers through better-auth (S1, ADR 0015)
 
 - **better-auth** is the auth library (<https://better-auth.com/docs>), with
-  OpenID Connect providers only: Microsoft Entra ID (the institution's tenant only,
-  `socialProviders.microsoft`) and Keycloak (`genericOAuth` with the
-  `keycloak()` helper), each on when its variables are set, at least one in
-  production. Authorization code flow with PKCE. Never add provider-specific
-  logic outside `src/server/auth.ts` and the role-mapping module. Answer better-auth questions from its docs
-  (the `better-auth` MCP server) at the installed version, never from memory.
+  the **SSO plugin** (`@better-auth/sso`, the same exact version as
+  better-auth) for every identity provider: OIDC (Entra ID, Keycloak, any
+  OpenID provider) and SAML 2.0. Providers live in the database
+  (`ssoProvider` plus eduLIMS's `identity_provider`), managed in Admin →
+  System → Identity providers and by the host CLI (`idp add`), both through
+  the one service `src/server/idp/service.ts`. Nothing about a provider is in
+  the environment. Answer better-auth questions from its docs (the
+  `better-auth` MCP server) and the installed package source, never from
+  memory.
+- **The plugin's management endpoints stay unreachable** (`/sso/register`,
+  `/sso/update-provider`, `/sso/delete-provider`, `/sso/providers`,
+  `/sso/get-provider`, domain verification): `disabledPaths`, a before-hook
+  lock (`src/server/idp/sso-guards.ts`) and `providersLimit: 0`. Never
+  enable `defaultSSO`, `domainVerification`, `trustEmailVerified`,
+  `trustedProviders`, a shared `redirectURI` or organisation provisioning.
+  `/sign-in/sso` takes a provider id only.
+- **Fixed security settings, never options:** PKCE S256 and the scopes
+  `openid email profile`; no UserInfo endpoint, so role claims come from the
+  verified ID token; signed SAML assertions, timestamps, InResponseTo, no
+  IdP-initiated sign-in, a persistent NameID. A disabled provider is refused
+  at the start, the callback and the ACS, and again in the sign-in gate.
+- **Secrets at rest:** client secrets and SAML keys are sealed with
+  AES-256-GCM under `EDULIMS_DATA_KEY` (`src/server/idp/crypto.ts`) by the
+  wrapped adapter (`src/server/idp/encrypted-adapter.ts`); they are
+  write-only in the UI and never leave the server. A decrypt failure fails
+  closed and logs `crypt_decrypt_fail`. No IdP token is kept in the clear:
+  the account hooks (`src/server/idp/account-tokens.ts`) drop the access and
+  refresh tokens and seal the ID token for `id_token_hint`.
+- **SSRF:** an issuer or metadata URL is fetched only after
+  `checkFetchOrigin` (https in production, no private address unless the
+  operator lists the origin in `EDULIMS_IDP_PRIVATE_ORIGINS`).
+  `trustedOrigins` is the app origin, the stored https issuers and that list.
 - The better-auth handler is mounted as a server route under `/api/auth/*`;
   the session lives in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie. No
   token is ever stored in `localStorage` or exposed to client code.
@@ -36,21 +62,23 @@ both.
   may exist while the identity provider registration is pending (risk P-01);
   if one exists, it is enabled only when `NODE_ENV !== "production"` and an
   explicit flag is set, and a test proves it is off in a production build.
-- The client id, client secret, tenant id and the better-auth secret come from
-  the environment (`.env`, never committed; `.env.example` lists the names
-  with empty values).
+- The better-auth secret and the data key come from the environment (`.env`,
+  never committed; `.env.example` lists the names with empty values). The
+  first provider and the first administrator come from the host CLI
+  (`idp add`, `admin grant`, docs/deployment.md "First start"), never from a
+  setup page.
 
 ## Roles: student, teacher, admin (B1)
 
 - A user has exactly the roles the database says (B1: "an administrator
   assigns a role; the user immediately sees only the screens of that role").
   The role names are `student`, `teacher` and `admin`. Roles may
-  be seeded from the provider's role claim on every OIDC sign-in
-  (`OIDC_ROLE_CLAIM`, `OIDC_ROLE_MAP`; no mapped role means no access unless
-  `OIDC_DEFAULT_ROLE` is set), and the eduLIMS database is the source the
-  checks read. Role ownership is **hybrid** (owner decision on #32): a
+  be seeded from the provider's role claim on every SSO sign-in (each
+  provider's role claim, role map and default role; no mapped role means no
+  access unless the provider has a default role or a pending admin grant
+  waits), and the eduLIMS database is the source the checks read. Role ownership is **hybrid** (owner decision on #32): a
   mapped role the IdP sends is authoritative and replaces the set, with the
-  provider stored in `user.role_source`; without one, a set an administrator
+  provider id stored in `user.role_source`; without one, a set an administrator
   assigned in eduLIMS (`role_source = 'local'`) applies
   (`src/server/role-ownership.ts`). Only a local set is editable in the
   Admin portal (`setLocalRoles`, which writes its `authz_role_change` row in

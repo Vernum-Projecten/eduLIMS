@@ -19,7 +19,7 @@ reports, assessments, logs) and **FerroEHR**, an openEHR CDR, for the
 measurements as compositions on the `eduLIMS-lab` template. Afinion results
 arrive as HL7 v2 through **FerroBRIDGE**; Epoch results arrive through the
 Excel upload, which eduLIMS writes to FerroEHR over openEHR REST. eduLIMS
-reads them back with AQL. Sign-in is OpenID Connect through Microsoft Entra ID or Keycloak (ADR 0010).
+reads them back with AQL. Sign-in goes through identity providers (OIDC and SAML 2.0) that administrators manage at runtime with the better-auth SSO plugin (ADR 0015).
 Everything runs as containers with Docker Compose.
 
 This file is the working discipline. The design is `docs/architecture.md`;
@@ -69,9 +69,10 @@ the npm registry at the moment you add it, never from memory.
 - **Language and tooling:** TypeScript 7 (native `tsc`) with the strict
   options in `tsconfig.json`; Biome 2.6 for formatting and lint.
 - **Data:** Kysely on PostgreSQL 18; kysely-codegen for the `Database` types.
-- **Auth:** better-auth with Microsoft Entra ID and/or Keycloak (OIDC,
-  authorization code with PKCE); roles mapped from an ID-token claim
-  (`OIDC_ROLE_CLAIM`, `OIDC_ROLE_MAP`), see ADR 0010.
+- **Auth:** better-auth with the SSO plugin: identity providers (OIDC with
+  PKCE, SAML 2.0) stored in the database and managed in Admin → System, their
+  secrets sealed under `EDULIMS_DATA_KEY`; roles mapped per provider from the
+  ID token or a SAML attribute, see ADR 0015.
 - **Integrations:** openEHR REST API (ITS-REST 1.1.0) and AQL 1.1 to FerroEHR;
   HL7 v2 over MLLP into FerroBRIDGE.
 - **Tests:** Vitest 5 with v8 coverage, Testing Library, Playwright with
@@ -95,10 +96,12 @@ pnpm format               # biome format --write
 pnpm test                 # vitest run (needs the dev stack: a run database beside edulims_test)
 pnpm test:coverage        # with the 70% core thresholds
 pnpm test:e2e             # Playwright + axe (needs the dev stack: a run database beside edulims_e2e)
-pnpm db:migrate           # apply Kysely migrations
+pnpm db:migrate           # apply Kysely migrations (node src/server/cli.ts migrate)
 pnpm db:seed              # the dev-login users (idempotent)
 pnpm db:reset             # empty the LOCAL dev database, then migrate and seed
 pnpm db:generate-types    # regenerate the Kysely Database types
+pnpm idp:add <file|->     # add an identity provider from the host (also idp:list, idp:enable, idp:disable, idp:rekey)
+pnpm admin:grant <email>  # break-glass admin role, pending until the first sign-in (also admin:revoke)
 pnpm check                # the local gate: typecheck, lint, test
 ```
 

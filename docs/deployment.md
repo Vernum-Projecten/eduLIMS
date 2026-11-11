@@ -18,7 +18,8 @@ same.
 | `postgres` | `ghcr.io/ferrohealth/ferroehr-postgres:5.7.0` | nothing | PostgreSQL 18.6 with the `edulims` and `ferroehr` databases |
 | `ferroehr` | `ghcr.io/ferrohealth/ferroehr:5.7.0` | nothing | the CDR, reached at `http://ferroehr:8080` |
 | `ferrobridge` | `ghcr.io/ferrohealth/ferrobridge:0.0.24` | MLLP, port 2575 | receives the Afinion 2 results |
-| `edulims-migrate` | `ghcr.io/vernum-projecten/edulims-migrate` | nothing | applies the migrations, then exits |
+| `edulims-migrate` | `ghcr.io/vernum-projecten/edulims-migrate` | nothing | the tools image with `migrate`: applies the migrations, then exits |
+| `edulims-tools` (profile) | `ghcr.io/vernum-projecten/edulims-migrate` | nothing | the tools image for the operator commands (`admin`, `idp`), run by hand |
 | `edulims` | `ghcr.io/vernum-projecten/edulims` | `127.0.0.1:3000` | the application |
 | `keycloak` (profile) | `quay.io/keycloak/keycloak:26.8.2` | `127.0.0.1:8180` | the optional identity provider |
 
@@ -37,7 +38,7 @@ first start.
 
 ### Why the eduLIMS images use distroless Node.js
 
-The server and the migration image share one base,
+The server and the tools image share one base,
 `gcr.io/distroless/nodejs26-debian13:nonroot`, pinned by digest. It was
 chosen against the two other Node.js 26 bases on 2026-11-11:
 
@@ -55,9 +56,13 @@ ships.
 
 Both images run as uid 65532, own none of their files, and write nothing, so
 they run with `read_only: true`. The server needs no `node_modules`: the
-build bundles every dependency into `.output/`. The migration image holds the
-production `node_modules` and the sources from `pnpm deploy`, and runs
-`src/server/db/migrate.ts` with Node.js 26's type stripping.
+build bundles every dependency into `.output/`. The tools image (published as
+`edulims-migrate`) holds the production `node_modules` and the sources from
+`pnpm deploy`, and runs the host CLI `src/server/cli.ts` with Node.js 26's
+type stripping: `migrate` by default, and `prune`, `admin grant|revoke` and
+`idp add|list|enable|disable|rekey` when the operator names them. It has no
+shell and no package manager, so every operator command is a
+`docker compose run` against it.
 
 ## Prepare the host
 
@@ -174,125 +179,246 @@ running against a schema it does not expect. Read its log with
 integrations answer; point the reverse proxy's or the institution's
 monitoring at it. `docker compose ps` shows each service's health.
 
-## Identity provider
+## Identity providers
 
-eduLIMS signs users in through OpenID Connect with Microsoft Entra ID, with
-Keycloak, or with both on the sign-in page. A provider is on when all of its
-variables are set in `.env` (all or none), and a production server refuses to
-start with no provider at all.
+eduLIMS signs users in through identity providers that administrators manage
+at runtime in **Admin → System → Identity providers**: OpenID Connect (OIDC)
+providers such as Microsoft Entra ID or Keycloak, and SAML 2.0 providers such
+as an institution's federation. Nothing about a provider lives in `.env`;
+each one is a database row with its own sign-in button, role mapping and email
+domains ([ADR 0015](adr/0015-runtime-identity-providers.md)). A new provider
+starts switched off: add it, register the URLs the screen shows at the
+identity provider, test it, then enable it. The first provider of a fresh
+install comes from the host (below, "First start").
 
-- **Microsoft Entra ID** suits an institution that already uses it: students
-  and staff sign in with their institution account, and no identity service
-  runs on the host. Register an app in the institution's tenant with the redirect URI
-  `<BETTER_AUTH_URL>/api/auth/callback/microsoft`, define the app roles
-  `edulims-student`, `edulims-teacher` and `edulims-admin`, assign them to
-  users or groups, and set `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
-  and `MICROSOFT_TENANT_ID`.
-- **Keycloak** fits a deployment without access to the tenant (a pilot, a
-  partner institution, a test environment), or one that federates several
-  sources. Start it with the profile, create the realm and a confidential
-  client with the standard flow, PKCE S256, the redirect URI
-  `<BETTER_AUTH_URL>/api/auth/callback/keycloak` and the valid post logout
-  redirect URI `<BETTER_AUTH_URL>/login` (signing out of eduLIMS also ends
-  the Keycloak session and returns the user to the sign-in page; without it
-  Keycloak shows its own "You are logged out" page), and set `KEYCLOAK_ISSUER`
-  (`https://<keycloak host>/realms/<realm>`; plain `http` is accepted only on
-  localhost outside production), `KEYCLOAK_CLIENT_ID` and
-  `KEYCLOAK_CLIENT_SECRET`. `KEYCLOAK_LABEL` is the sign-in button's text
-  (default "Sign in with Keycloak").
+eduLIMS fixes the security settings of every provider; the screen offers no
+switch for them:
 
-  ```sh
-  COMPOSE_PROFILES=keycloak docker compose up -d --wait
-  ```
+- **OIDC:** the authorization code flow with PKCE (S256) and the scopes
+  `openid email profile` (no refresh token). The issuer is discovered once,
+  when the provider is saved: the discovery document must name exactly that
+  issuer, and its authorization, token and key endpoints must be on the
+  issuer's own origin. Claims come from the verified ID token only, never
+  from the UserInfo endpoint.
+- **SAML:** signed assertions, timestamps (`NotBefore`, `NotOnOrAfter`),
+  InResponseTo checks, no IdP-initiated sign-in, no deprecated algorithms
+  (SHA-1, RSA 1.5, 3DES) and a **persistent NameID**: the account is keyed on
+  the NameID, so a transient one would make a new account at every sign-in.
+  Ask the federation which NameID formats and attributes it releases.
+- **Secrets:** the OIDC client secret and a SAML signing key are write-only:
+  stored encrypted (below, "Data key") and never shown again.
 
-  Keycloak stores its state in its own database on the shared PostgreSQL
-  server, so the backups below cover it. `docker/keycloak/edulims-realm.json`
-  is the development realm; use it as a template only, because its client
-  secret and users are public.
+### The URLs to register
+
+The edit page of each provider shows them with a copy button.
+
+| Protocol | Register at the IdP | Value |
+|---|---|---|
+| OIDC | redirect URI | `<BETTER_AUTH_URL>/api/auth/sso/callback/<provider id>` |
+| OIDC | post-logout redirect URI | `<BETTER_AUTH_URL>/login` |
+| SAML | SP entity ID and metadata | `<BETTER_AUTH_URL>/api/auth/sso/saml2/sp/metadata?providerId=<provider id>` |
+| SAML | assertion consumer service | `<BETTER_AUTH_URL>/api/auth/sso/saml2/sp/acs/<provider id>` |
+
+The provider id is part of these URLs and of every account, so it cannot
+change once the provider exists. Signing out of eduLIMS also ends the session
+at an OIDC provider that advertises an end-session endpoint, which returns
+the user to the sign-in page (RP-initiated logout). SAML single logout runs
+where the IdP's metadata offers it; otherwise only the eduLIMS session ends.
+
+### Microsoft Entra ID
+
+Register an app in the institution's tenant (single tenant), add the redirect
+URI and the post-logout redirect URI above, create a client secret, define the
+app roles `edulims-student`, `edulims-teacher` and `edulims-admin`, and assign
+them to users or groups. Add the optional claim `email` to the ID token: Entra
+ID does not send it by default, and eduLIMS refuses a sign-in without an
+email. In eduLIMS add an OIDC provider with the issuer
+`https://login.microsoftonline.com/<tenant id>/v2.0`; the exact issuer check
+keeps the sign-in to that one tenant.
+
+### Keycloak
+
+Start it with the profile, create the realm and a confidential client with
+the standard flow, PKCE S256, and the redirect and post-logout URIs above;
+add a "User Realm Role" protocol mapper with claim name `realm_access.roles`
+and "Add to ID token" on. The issuer is
+`https://<keycloak host>/realms/<realm>`.
+
+```sh
+COMPOSE_PROFILES=keycloak docker compose up -d --wait
+```
+
+Keycloak stores its state in its own database on the shared PostgreSQL
+server, so the backups below cover it. `docker/keycloak/edulims-realm.json`
+is the development realm, with an OIDC and a SAML client; use it as a
+template only, because its client secret and users are public.
+
+### A SAML federation
+
+Add a SAML provider with the IdP's metadata (paste the XML, or give its URL:
+eduLIMS fetches it once, and "refresh" means saving the provider with the
+URL again after a certificate rotation). Give the federation the SP metadata
+URL above. If the IdP's metadata says `WantAuthnRequestsSigned="true"`, add a
+signing key (a PEM private key) and register its certificate at the IdP.
+
+### Issuers on a private network
+
+Every issuer and metadata URL is fetched from the server, so eduLIMS refuses
+one that resolves to a private, loopback or link-local address: an
+administrator cannot point the server at the internal network (SSRF). An
+identity provider that really runs on-premises is allowed by listing its
+origin in `EDULIMS_IDP_PRIVATE_ORIGINS` (comma-separated, `https` in
+production). Only the host operator can set it.
 
 ### One account per provider
 
 eduLIMS never links accounts across identity providers. A user who first
-signs in with Entra ID cannot later sign in with Keycloak under the same email
-address, or the other way round: the sign-in page answers "This email address
-already signs in through another sign-in method" (error code
-`account_not_linked`) and no session starts. A Keycloak realm with
-self-registration, or a federation that lets users set their own address,
-therefore cannot take over an Entra ID user's account, roles or classes. To
-move a user from one provider to the other, an administrator removes the old
-eduLIMS account first.
+signs in through one provider cannot later sign in through another under the
+same email address: the sign-in page answers "This email address already
+signs in through another sign-in method" (error code `account_not_linked`) and
+no session starts. A provider with self-registration, or a federation that
+lets users set their own address, therefore cannot take over another
+provider's user. To move a user from one provider to another, an
+administrator removes the old eduLIMS account first.
 
 ### Role mapping
 
-eduLIMS knows three roles: `student`, `teacher` and `admin`. At sign-in it
-reads the claim `OIDC_ROLE_CLAIM` (a dot path) from the ID token, and from
-the ID token only, and maps each value through `OIDC_ROLE_MAP`. The defaults:
+eduLIMS knows three roles: `student`, `teacher` and `admin`. Each provider
+has a role claim and a role map. At every sign-in eduLIMS reads the claim (for
+OIDC a dot path into the verified ID token, such as `roles` or
+`realm_access.roles`; for SAML the exact name of an attribute, such as
+`Role`) and maps every value it lists through the role map.
 
-```text
-# OIDC_ROLE_CLAIM: `roles` for Entra ID, `realm_access.roles` for Keycloak
-OIDC_ROLE_MAP=edulims-student:student,edulims-teacher:teacher,edulims-admin:admin
-OIDC_DEFAULT_ROLE=
-```
-
-Every value in the claim is mapped, so a user can hold more than one role.
 The allowed role sets are student, teacher, admin, and teacher with admin
 together ([ADR 0012](adr/0012-multiple-roles-and-portal-switcher.md)).
-Student is exclusive: a token that maps to student and teacher, or student
-and admin, refuses the sign-in with the error `role_conflict`, and the
-sign-in page tells the user to contact their administrator. The refusal is
-logged with the provider id only. A user whose token holds no mapped value
-gets `OIDC_DEFAULT_ROLE`, and is refused with `no_edulims_role` when it is
-unset (deny by default). The mapping stores the role set in the eduLIMS
-database, sorted and comma-separated (`teacher,admin`); the database is what
-every access check reads, so a role changed in eduLIMS applies on the next
-request. Every write of a role set, from the provider, the seed or the
-better-auth admin endpoints, passes the same check.
+Student is exclusive: a sign-in that maps to student and teacher, or student
+and admin, is refused with `role_conflict`. A mapped role is authoritative:
+it replaces the user's role set at every sign-in, and the Users screen names
+the provider as its source. Without a mapped role, the roles an
+administrator gave the user in eduLIMS apply; a new user gets the provider's
+default role, then a waiting administrator grant (below), and is otherwise
+refused with `no_edulims_role` (deny by default). Roles are a set, not a
+ranking: admin does not include teacher.
 
-Roles are a set, not a ranking: admin does not include teacher, and teacher
-does not include admin. Each server function checks the one role it needs.
+For Entra ID, use app roles (claim `roles`), not the `groups` claim: it
+carries group object IDs, and a user in more than 200 groups gets an overage
+claim eduLIMS cannot read. For Keycloak, prefer realm roles
+(`realm_access.roles`) over group paths (`groups`), which change when a group
+is renamed or moved.
 
-#### Microsoft Entra ID: app roles, assigned to users or to groups
+"Test sign-in" on a provider's page signs in through it in a new tab, shows
+the names of the claims it received (never their values) and the role set
+they would give, and signs nobody in.
 
-Define the app roles on the app registration and assign them in the
-enterprise application, to a user directly or to a group (assigning an app
-role to a group needs Entra ID P1 or higher; members of nested groups do not
-inherit it). Entra ID writes the effective app roles of the user, direct and
-through groups, to the `roles` claim of the ID token, which is the default
-`OIDC_ROLE_CLAIM`.
+### Email addresses
 
-Use app roles, not the `groups` claim. The `groups` claim carries group
-object IDs, not names, and a user in more than 200 groups gets an overage
-claim instead of the list, which eduLIMS cannot read. If you still map
-groups, set `OIDC_ROLE_CLAIM=groups`, turn on the groups claim for the ID
-token in the token configuration, and map the object IDs:
+"This provider's email addresses are verified" marks the email a provider
+sends as verified. Turn it on only for a provider that controls every address
+it sends (the institution's own tenant), never for one where users choose
+their address: pending administrator grants and class invitations match a
+verified address only.
 
-```text
-OIDC_ROLE_CLAIM=groups
-OIDC_ROLE_MAP=<object id of the student group>:student,<object id of the teacher group>:teacher,<object id of the admin group>:admin
+## Data key
+
+`EDULIMS_DATA_KEY` encrypts the identity-provider secrets in the database
+with AES-256-GCM, each bound to its provider and field. It is 32 random
+bytes, base64:
+
+```sh
+openssl rand -base64 32
 ```
 
-#### Keycloak: realm roles, direct or through groups
+Production refuses to start without it. Only the `edulims` and
+`edulims-tools` services receive it, and it is not `BETTER_AUTH_SECRET`:
+changing the cookie secret signs everyone out but leaves the providers
+readable. Keep a copy beside the backups but not inside them: a backup
+without the key cannot reveal a client secret, and without the key the
+providers cannot be read. A secret that does not decrypt fails closed and logs
+`crypt_decrypt_fail`.
 
-Give a user a realm role directly, through a group that has the role, or
-through a composite role. Keycloak writes realm roles to
-`realm_access.roles` in the access token by default, which eduLIMS does not
-read, so the client needs a "User Realm Role" protocol mapper with token
-claim name `realm_access.roles` and "Add to ID token" on. That mapper writes
-the effective realm roles: the direct ones, the ones from every group the
-user is in, and the ones a composite role expands to. The development realm
-has that mapper.
+To rotate the key: move the current value to `EDULIMS_DATA_KEY_PREVIOUS`, set
+a new `EDULIMS_DATA_KEY`, restart, re-encrypt every provider, then remove the
+previous key and restart again.
 
-To map group membership instead of roles, add a "Group Membership" mapper
-with claim name `groups`, "Full group path" on and "Add to ID token" on (the
-development realm has one), and map the group paths:
-
-```text
-OIDC_ROLE_CLAIM=groups
-OIDC_ROLE_MAP=/Students:student,/Teachers:teacher,/Administrators:admin
+```sh
+docker compose up -d --wait
+docker compose run --rm edulims-tools idp rekey
 ```
 
-Group paths change when a group is renamed or moved, and realm roles do not,
-so prefer `realm_access.roles`.
+## First start
+
+A fresh install has no identity provider and no administrator. There is no
+setup page: a first-run page on a freshly exposed host would be a race to
+claim the instance. The host operator, who already has host access, adds
+the first provider and the first administrator with the tools image:
+
+1. Write the provider as JSON (the fields of the Admin screen; the client
+   secret comes from the environment, never from the file or a flag):
+
+   ```json
+   {
+     "providerId": "entra",
+     "protocol": "oidc",
+     "settings": {
+       "labelEn": "Microsoft",
+       "labelNl": "Microsoft",
+       "icon": "building",
+       "sortOrder": 0,
+       "roleClaim": "roles",
+       "roleMap": [
+         { "value": "edulims-student", "role": "student" },
+         { "value": "edulims-teacher", "role": "teacher" },
+         { "value": "edulims-admin", "role": "admin" }
+       ],
+       "defaultRole": null,
+       "emailAuthoritative": true,
+       "domains": ["example.edu"]
+     },
+     "oidc": {
+       "issuer": "https://login.microsoftonline.com/<tenant id>/v2.0",
+       "clientId": "<application id>",
+       "clientSecret": ""
+     }
+   }
+   ```
+
+   A SAML provider has `"protocol": "saml"` and
+   `"saml": { "metadataXml": "", "metadataUrl": "<metadata URL>", "spPrivateKey": "" }`
+   instead.
+
+2. Add and enable it, reading the JSON from standard input:
+
+   ```sh
+   EDULIMS_IDP_CLIENT_SECRET='<client secret>' \
+     docker compose run --rm -T -e EDULIMS_IDP_CLIENT_SECRET edulims-tools \
+     idp add - --enable < entra.json
+   docker compose run --rm edulims-tools idp list
+   ```
+
+   The same validation, discovery, encryption and activity-log row as the
+   screen apply (actor `system`). `idp enable <id>` and `idp disable <id>`
+   switch a provider; on the host the last enabled provider can be switched
+   off, which the screen refuses.
+
+3. Make the first administrator. Either the provider's role map maps an IdP
+   role or group to `admin`, or grant the role from the host:
+
+   ```sh
+   docker compose run --rm edulims-tools admin grant <email> --provider entra
+   ```
+
+   An existing user gets the admin role at once (as a local role set). For an
+   email that has not signed in yet, the grant waits for 24 hours and is
+   applied at that email's first sign-in through the named provider, which
+   must be marked "email addresses are verified". `admin revoke <email>`
+   takes the role away again and ends that user's sessions; it never removes
+   the last administrator. Both write the activity log with actor `system`.
+   The same command is the break-glass path when the identity provider is
+   down or no administrator is left.
+
+After that, administrators manage the providers in the Admin screen.
+Developers run the same commands with `pnpm idp:add`, `pnpm idp:list`,
+`pnpm admin:grant <email>` and so on (below, "Local development").
 
 ## Updating
 
@@ -365,11 +491,11 @@ eduLIMS keeps the activity log (who signed in, who changed a role, who
 blocked whom; ids only, no names or addresses) for 12 months, and deletes a
 session 30 days after it expired. The prune command applies both periods. It
 is safe to run more than once: a second run removes nothing new. Run it
-every day from the migrate image, which holds the command:
+every day from the tools image, which holds the command:
 
 ```sh
 # /etc/cron.d/edulims-prune, as root, 03:30 every night
-30 3 * * * root cd /srv/edulims && docker compose run --rm edulims-migrate /app/src/server/db/prune.ts
+30 3 * * * root cd /srv/edulims && docker compose run --rm edulims-migrate prune
 ```
 
 Or, on a host with systemd, a timer instead of cron:
@@ -379,7 +505,7 @@ Or, on a host with systemd, a timer instead of cron:
 [Service]
 Type=oneshot
 WorkingDirectory=/srv/edulims
-ExecStart=/usr/bin/docker compose run --rm edulims-migrate /app/src/server/db/prune.ts
+ExecStart=/usr/bin/docker compose run --rm edulims-migrate prune
 
 # /etc/systemd/system/edulims-prune.timer
 [Timer]
@@ -391,7 +517,7 @@ WantedBy=timers.target
 ```
 
 Enable it with `systemctl enable --now edulims-prune.timer`. The command prints
-the number of events and sessions it removed. On a development machine,
+the number of events, sessions and expired administrator grants it removed. On a development machine,
 `pnpm db:prune` does the same against `DATABASE_URL`. The backups above keep
 deleted rows for another 30 days, until the oldest dump is removed.
 
@@ -400,8 +526,9 @@ deleted rows for another 30 days, until the oldest dump is removed.
 `compose.dev.yaml` runs what `pnpm dev` needs: the same PostgreSQL image with
 the same databases, a read-only `edulims_readonly` role for the Postgres MCP
 server, and Keycloak in development mode with the `edulims` realm imported
-from `docker/keycloak/edulims-realm.json` (users with roles assigned
-directly, through groups, or both, each with its name as password; the
+from `docker/keycloak/edulims-realm.json` (an OIDC and a SAML client, and
+users with roles assigned directly, through groups, or both, each with its
+name as password; the
 [demo accounts](https://edulims.eu/get-started/demo-accounts/) list them).
 The realm is imported when the Keycloak container is created, so a changed
 realm file needs `pnpm dev:db:stop && pnpm dev:db`. It also creates the
@@ -414,10 +541,20 @@ FerroEHR is the opt-in `ferroehr` profile. `pnpm dev:db` starts the stack
 with `podman compose`, or `docker compose` without Podman; the header of
 `compose.dev.yaml` has the commands.
 
-`pnpm db:seed` adds, next to the development login users, a fictional demo
-set: 70 people (students, teachers, administrators and coordinators, every
-address `@example.test`) with Entra ID and Keycloak accounts, live and expired
+`pnpm db:seed` registers the development Keycloak through the admin service
+as two identity providers, `keycloak` (OIDC) and `keycloak-saml` (SAML), when
+it runs and `EDULIMS_IDP_PRIVATE_ORIGINS` allows its origin (the example env
+file does), so `pnpm db:reset && pnpm db:seed` gives working Keycloak buttons.
+It adds, next to the development login users, a fictional demo set: 70
+people (students, teachers, administrators and coordinators, every address
+`@example.test`) with accounts at those two providers, live and expired
 sessions, three blocked students and about four weeks of activity-log events.
 The demo people have no password and no Keycloak user, so nobody signs in as
 one; they exist to fill the Admin portal. The seed prints counts only, and
 running it again changes nothing. `pnpm db:reset` gives a fresh copy.
+
+The host CLI runs on the developer machine through the pnpm scripts, against
+`DATABASE_URL` from `.env`: `pnpm db:migrate`, `pnpm db:prune`,
+`pnpm idp:add <file|->`, `pnpm idp:list`, `pnpm idp:enable <id>`,
+`pnpm idp:disable <id>`, `pnpm idp:rekey`, `pnpm admin:grant <email>` and
+`pnpm admin:revoke <email>`, each `node src/server/cli.ts <command>`.

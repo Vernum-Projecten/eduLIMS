@@ -3,7 +3,7 @@
 
 # 0010. Vendor-neutral sign-in: Microsoft Entra ID and Keycloak
 
-- Status: Accepted
+- Status: Superseded by [0015](0015-runtime-identity-providers.md)
 - Date: 2026-11-11
 - Deciders: maintainer
 - Amends: [0005](0005-better-auth-entra-id.md)

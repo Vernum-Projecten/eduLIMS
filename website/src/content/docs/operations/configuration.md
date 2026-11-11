@@ -27,24 +27,17 @@ passes the rest through from the environment file.
 | `DATABASE_URL`            | yes                |                                                                       | PostgreSQL connection URL (`postgres://` or `postgresql://`) for the eduLIMS database.                                                                        |
 | `BETTER_AUTH_SECRET`      | yes                |                                                                       | Secret that signs the session cookies, at least 32 characters. Generate it with `openssl rand -hex 32`.                                                       |
 | `BETTER_AUTH_URL`         | yes                |                                                                       | The public URL of eduLIMS, for example `https://lims.example.org`. Must use `https` in production. The redirect URIs of the identity providers start with it. |
-| `MICROSOFT_CLIENT_ID`     | with the other two |                                                                       | Application (client) ID of the Entra ID app registration.                                                                                                     |
-| `MICROSOFT_CLIENT_SECRET` | with the other two |                                                                       | Client secret of the app registration.                                                                                                                        |
-| `MICROSOFT_TENANT_ID`     | with the other two |                                                                       | The directory (tenant) ID. The multi-tenant aliases `common`, `organizations` and `consumers` are refused, so only your own tenant signs in.                  |
-| `KEYCLOAK_ISSUER`         | with the other two |                                                                       | Realm issuer URL, `https://<keycloak host>/realms/<realm>`. Plain `http` is accepted only on a loopback host outside production.                              |
-| `KEYCLOAK_CLIENT_ID`      | with the other two |                                                                       | Client ID of the confidential client in the realm.                                                                                                            |
-| `KEYCLOAK_CLIENT_SECRET`  | with the other two |                                                                       | Client secret of that client.                                                                                                                                 |
-| `KEYCLOAK_LABEL` | no | unset | Text of the Keycloak button on the sign-in page, in every language. Unset, the page shows its translated default ("Sign in with Keycloak"). |
-| `OIDC_ROLE_CLAIM`         | no                 | `roles` (Entra ID), `realm_access.roles` (Keycloak)                   | Dot path of the ID-token claim that holds the user's roles.                                                                                                   |
-| `OIDC_ROLE_MAP`           | no                 | `edulims-student:student,edulims-teacher:teacher,edulims-admin:admin` | Comma-separated `provider role:eduLIMS role` pairs. Every mapped value counts; teacher with admin is allowed, student with another role refuses the sign-in (ADR 0012). |
-| `OIDC_DEFAULT_ROLE`       | no                 | unset                                                                 | Role for a user whose token holds no mapped role (`student`, `teacher` or `admin`). Unset means such a user is refused.                                       |
+| `EDULIMS_DATA_KEY` | in production | | 32 random bytes, base64 (`openssl rand -base64 32`): the AES-256-GCM key that encrypts identity-provider secrets in the database. Keep it apart from `BETTER_AUTH_SECRET` and keep a copy outside the backups. |
+| `EDULIMS_DATA_KEY_PREVIOUS` | no | unset | The previous data key, set only while `idp rekey` re-encrypts after a rotation. |
+| `EDULIMS_IDP_PRIVATE_ORIGINS` | no | unset | Comma-separated origins of identity providers on a private or loopback network (an on-premises IdP). Any other issuer must be a public address. |
+| `EDULIMS_IDP_CLIENT_SECRET` | no | unset | Read only by `idp add` on the host: the client secret of the OIDC provider it adds. |
 | `FERROEHR_BASE_URL`       | yes                |                                                                       | Base URL of the FerroEHR openEHR REST API.                                                                                                                    |
 | `FERROBRIDGE_BASE_URL`    | yes                |                                                                       | Base URL of FerroBRIDGE, for its health check.                                                                                                                |
 | `EDULIMS_DEV_LOGIN`       | no                 | `false`                                                               | `true` turns on the email and password login for the seeded development users. Refused when `NODE_ENV=production`.                                            |
 
-An identity provider is on when all three of its variables are set; setting
-one or two of them is an error. A production server refuses to start with no
-identity provider. [Identity providers](/operations/identity-providers/)
-describes the setup on the provider side.
+Identity providers are not configured here: administrators manage them in
+Admin → System → Identity providers, and the first one comes from the host
+CLI ([Identity providers](/operations/identity-providers/), "First start").
 
 ## The Compose stack
 

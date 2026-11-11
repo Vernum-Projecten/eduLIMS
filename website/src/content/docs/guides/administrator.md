@@ -72,7 +72,7 @@ the next time you sign in, on any device.
 
 **Users and roles** lists every account of eduLIMS, 25 to a page. Each row
 shows the name and e-mail address, the roles with where they come from
-(Microsoft Entra ID, Keycloak or eduLIMS), the sign-in methods, the status
+(an identity provider or eduLIMS), the sign-in methods, the status
 (**Active**, **Blocked** or **Never signed in**), the last sign-in and the
 number of active sessions. The screen shows no grades, results or
 submissions.
@@ -119,7 +119,7 @@ worked, and is recorded in the activity log.
 
 Choose **Block user**, write the reason and, if the block should end by
 itself, choose its last day. A blocked user is signed out at once, and every
-sign-in is refused, through Microsoft Entra ID and Keycloak too, until the
+sign-in is refused, through every identity provider too, until the
 last day has passed or you choose **Unblock**. Only administrators see the
 reason. You cannot block your own account.
 
@@ -134,7 +134,7 @@ A user's roles come either from the identity provider or from eduLIMS:
 
 - **From the identity provider.** When the identity provider sends an
   eduLIMS role, it decides: eduLIMS sets the user's roles from it at every
-  sign-in, and the details show **From Microsoft Entra ID** or
+  sign-in, and the details show **From** and the provider's name, such as
   **From Keycloak**. Change these roles in the identity provider; the change
   applies at the user's next sign-in.
 - **From eduLIMS.** When the identity provider sends no eduLIMS role, the
@@ -144,8 +144,9 @@ A user's roles come either from the identity provider or from eduLIMS:
 
 Nobody can change their own roles; ask another administrator.
 
-At every sign-in, eduLIMS reads the user's roles from the ID token and maps
-them to an eduLIMS role:
+At every sign-in, eduLIMS reads the user's roles from the identity provider
+(the ID token's role claim, or a SAML attribute) and maps them through the
+provider's role map. With the usual role map:
 
 - **Microsoft Entra ID:** assign the app role `edulims-student`,
   `edulims-teacher` or `edulims-admin` of the eduLIMS app registration to the
@@ -153,8 +154,41 @@ them to an eduLIMS role:
 - **Keycloak:** give the user the realm role `edulims-student`,
   `edulims-teacher` or `edulims-admin`.
 
-The change applies at the user's next sign-in. The role names are
-configurable ([Identity providers](/operations/identity-providers/)).
+The change applies at the user's next sign-in.
+
+## Identity providers
+
+**System → Identity providers** lists the services people sign in with:
+OpenID Connect providers (such as Microsoft Entra ID or Keycloak) and SAML 2.0
+providers (such as a federation). Each has its own sign-in button, role map
+and email domains.
+
+- **Add OIDC provider** or **Add SAML provider** opens the form. A new
+  provider starts switched off. The client secret and the signing key are
+  stored encrypted and never shown again: leave the field empty to keep them,
+  or fill it to replace them.
+- The provider's page shows the URLs to register at the identity provider,
+  with a copy button.
+- **Test sign-in** signs in through the provider in a new tab and shows which
+  claims arrive and which roles they would give. It signs nobody in, so you
+  can test a provider before you enable it.
+- **Enable** puts the button on the sign-in page; **Disable** takes it off
+  and refuses every sign-in through it. You cannot switch off the last
+  enabled provider here: the host operator can.
+- **Delete provider** removes a provider nobody signed in with. A provider
+  with accounts can only be disabled.
+- **Role map:** each value the provider sends (an app role, a realm role, a
+  group) and the eduLIMS role it gives. **Default role** is for a new user the
+  provider sends no listed value for; leave it at none to refuse them.
+- **This provider's email addresses are verified:** turn it on only for a
+  provider that controls every address it sends, such as the institution's
+  own tenant.
+- **Email domains:** people who type an address in one of these domains on
+  the sign-in page go to this provider.
+
+Every change is recorded in the activity log, without any secret or value.
+Setting up a provider on the identity provider's side is described in
+[Identity providers](/operations/identity-providers/).
 
 ## Planned tasks
 

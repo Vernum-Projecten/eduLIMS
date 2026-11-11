@@ -72,7 +72,7 @@ volgende keer dat je inlogt, op elk apparaat.
 
 **Gebruikers en rollen** toont elk account van eduLIMS, 25 per pagina. Elke
 rij toont de naam en het e-mailadres, de rollen en waar ze vandaan komen
-(Microsoft Entra ID, Keycloak of eduLIMS), de aanmeldmethoden, de status
+(een identity provider of eduLIMS), de aanmeldmethoden, de status
 (**Actief**, **Geblokkeerd** of **Nooit aangemeld**), de laatste aanmelding
 en het aantal actieve sessies. Het scherm toont geen cijfers, resultaten of
 inleveringen.
@@ -125,8 +125,8 @@ in het activiteitenlogboek.
 
 Kies **Gebruiker blokkeren**, schrijf de reden op en kies, als de blokkade
 vanzelf moet aflopen, de laatste dag. Een geblokkeerde gebruiker wordt
-meteen afgemeld, en elke aanmelding wordt geweigerd, ook via Microsoft Entra
-ID en Keycloak, tot de laatste dag voorbij is of je **Deblokkeren** kiest.
+meteen afgemeld, en elke aanmelding wordt geweigerd, ook via elke identity
+provider, tot de laatste dag voorbij is of je **Deblokkeren** kiest.
 Alleen beheerders zien de reden. Je kunt je eigen account niet blokkeren.
 
 ## Een gebruiker een rol geven
@@ -141,7 +141,7 @@ De rollen van een gebruiker komen uit de identity provider of uit eduLIMS:
 
 - **Uit de identity provider.** Stuurt de identity provider een rol voor
   eduLIMS mee, dan beslist die: eduLIMS zet de rollen bij elke aanmelding
-  opnieuw, en de gegevens tonen **Via Microsoft Entra ID** of
+  opnieuw, en de gegevens tonen **Via** en de naam van de provider, zoals
   **Via Keycloak**. Wijzig deze rollen in de identity provider; de wijziging
   werkt vanaf de volgende aanmelding.
 - **Uit eduLIMS.** Stuurt de identity provider geen rol voor eduLIMS mee,
@@ -152,8 +152,9 @@ De rollen van een gebruiker komen uit de identity provider of uit eduLIMS:
 
 Niemand kan zijn eigen rollen wijzigen; vraag een andere beheerder.
 
-Bij elke keer inloggen leest eduLIMS de rollen uit het ID-token en zet ze om
-naar een rol in eduLIMS:
+Bij elke keer inloggen leest eduLIMS de rollen uit de identity provider (de
+rolclaim van het ID-token, of een SAML-attribuut) en zet ze om met de
+rollentoewijzing van die provider. Met de gebruikelijke toewijzing:
 
 - **Microsoft Entra ID:** wijs de app-rol `edulims-student`,
   `edulims-teacher` of `edulims-admin` van de app-registratie van eduLIMS toe
@@ -161,8 +162,42 @@ naar een rol in eduLIMS:
 - **Keycloak:** geef de gebruiker de realmrol `edulims-student`,
   `edulims-teacher` of `edulims-admin`.
 
-De wijziging werkt vanaf de volgende keer dat de gebruiker inlogt. De namen
-van de rollen zijn instelbaar ([Identity providers](/operations/identity-providers/)).
+De wijziging werkt vanaf de volgende keer dat de gebruiker inlogt.
+
+## Identiteitsproviders
+
+**Systeem → Identiteitsproviders** toont de diensten waarmee mensen inloggen:
+OpenID Connect-providers (zoals Microsoft Entra ID of Keycloak) en SAML
+2.0-providers (zoals een federatie). Elke provider heeft een eigen inlogknop,
+rollentoewijzing en e-maildomeinen.
+
+- **OIDC-provider toevoegen** of **SAML-provider toevoegen** opent het
+  formulier. Een nieuwe provider staat eerst uit. Het clientgeheim en de
+  ondertekeningssleutel worden versleuteld opgeslagen en nooit meer getoond:
+  laat het veld leeg om ze te houden, of vul het in om ze te vervangen.
+- De pagina van de provider toont de URL's die je bij de identity provider
+  registreert, met een kopieerknop.
+- **Aanmelding testen** logt in een nieuw tabblad in via de provider en toont
+  welke claims binnenkomen en welke rollen die zouden geven. Niemand wordt
+  aangemeld, dus je kunt een provider testen voordat je hem aanzet.
+- **Aanzetten** zet de knop op de inlogpagina; **Uitzetten** haalt hem weg en
+  weigert elke aanmelding via de provider. De laatste provider die aanstaat
+  kun je hier niet uitzetten; de beheerder van de server wel.
+- **Provider verwijderen** verwijdert een provider waarmee nog niemand heeft
+  ingelogd. Een provider met accounts kun je alleen uitzetten.
+- **Rollentoewijzing:** elke waarde die de provider stuurt (een app-rol, een
+  realmrol, een groep) en de rol in eduLIMS die ze geeft. De **standaardrol**
+  geldt voor een nieuwe gebruiker voor wie de provider geen bekende waarde
+  stuurt; laat hem op geen staan om die gebruiker te weigeren.
+- **De e-mailadressen van deze provider zijn geverifieerd:** zet dit alleen
+  aan voor een provider die elk adres beheert dat hij stuurt, zoals de eigen
+  tenant van de instelling.
+- **E-maildomeinen:** wie op de inlogpagina een adres in een van deze domeinen
+  invult, gaat naar deze provider.
+
+Elke wijziging komt in het activiteitenlogboek, zonder geheimen of waarden.
+Het instellen bij de identity provider zelf staat in
+[Identity providers](/operations/identity-providers/).
 
 ## Geplande taken
 

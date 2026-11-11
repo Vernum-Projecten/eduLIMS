@@ -66,12 +66,12 @@ moves a row to `met` in the same pull request.
 |---|---|
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
-| Applicable (yes or partly) | 172 |
-| Status met | 81 |
-| Status partial | 50 |
+| Applicable (yes or partly) | 175 |
+| Status met | 88 |
+| Status partial | 48 |
 | Status planned | 30 |
-| Status open | 11 |
-| Status n-a | 173 |
+| Status open | 9 |
+| Status n-a | 170 |
 
 ### V1 Encoding and Sanitization
 
@@ -108,7 +108,7 @@ Text: [vendor/asvs/en/0x10-V1-Encoding-and-Sanitization.md](vendor/asvs/en/0x10-
 | V1.3.3 | 2 | yes | planned for the Gen5 upload (S4) and AQL parameters (`.claude/rules/integration.md`) | unit tests with the S4 parser | planned |
 | V1.3.4 | 2 | no | no SVG upload; uploads are `.xlsx` only (S4) | none | n-a |
 | V1.3.5 | 2 | no | no user-supplied Markdown, CSS or templates | none | n-a |
-| V1.3.6 | 2 | partly | FerroEHR and FerroBRIDGE base URLs come only from configuration (`src/server/env.ts`); the integration client is not built yet (S3, S4) | unit `src/server/env.test.ts`, review | partial |
+| V1.3.6 | 2 | partly | FerroEHR and FerroBRIDGE base URLs come only from configuration (`src/server/env.ts`); identity-provider issuers and SAML metadata URLs an administrator enters are refused on a private, loopback or link-local address unless the operator lists the origin in `EDULIMS_IDP_PRIVATE_ORIGINS` (`src/server/idp/validate.ts`, ADR 0015); the integration client is not built yet (S3, S4) | unit `src/server/idp/validate.test.ts`, `src/server/env.test.ts` | partial |
 | V1.3.7 | 2 | no | no server-side templates built from input; React renders | none | n-a |
 | V1.3.8 | 2 | no | no JNDI (Node.js) | none | n-a |
 | V1.3.9 | 2 | no | no memcache | none | n-a |
@@ -402,9 +402,9 @@ Text: [vendor/asvs/en/0x15-V6-Authentication.md](vendor/asvs/en/0x15-V6-Authenti
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V6.8.1 | 2 | yes | account linking is off (`account.accountLinking.enabled: false` in `src/server/auth.ts`, #39): a second IdP's sign-in with an existing user's e-mail is refused with `account_not_linked`; `docs/deployment.md`, "One account per provider" | unit `src/server/account-linking.test.ts` | met |
-| V6.8.2 | 2 | partly | better-auth 1.7.18 validates the ID token of each provider; not proven by a test of ours | integration `tests/integration/keycloak-roles.test.ts`, review | partial |
-| V6.8.3 | 2 | no | no SAML | none | n-a |
+| V6.8.1 | 2 | yes | account linking is off for every SSO provider (`account.accountLinking.enabled: false`, no `trustedProviders`, no domain verification; `src/server/auth.ts`, #39, ADR 0015): a second provider's sign-in with an existing user's e-mail is refused with `account_not_linked`; `docs/deployment.md`, "One account per provider" | unit `src/server/account-linking.test.ts`; integration `tests/integration/sso-sign-in.test.ts` (OIDC then SAML) | met |
+| V6.8.2 | 2 | yes | the sso plugin verifies the ID token signature against the provider's JWKS, and SAML assertions must be signed (`wantAssertionsSigned` forced, `src/server/idp/provider-config.ts`) | unit `src/server/account-linking.test.ts` (signed stub ID token, tampered claims refused); integration `tests/integration/sso-sign-in.test.ts` (OIDC and SAML against the dev Keycloak) | met |
+| V6.8.3 | 2 | yes | SAML providers (ADR 0015): InResponseTo validation on, IdP-initiated sign-in off, required timestamps, and the sso plugin's used-assertion store against replay (`src/server/auth.ts`) | integration `tests/integration/sso-sign-in.test.ts`; replay is the plugin's, not proven by a test of ours | partial |
 | V6.8.4 | 2 | partly | eduLIMS reads no `acr` or `amr` claim; MFA strength is not verified (see V6.3.3) | review | open |
 
 ### V7 Session Management
@@ -507,7 +507,7 @@ Text: [vendor/asvs/en/0x18-V9-Self-contained-Tokens.md](vendor/asvs/en/0x18-V9-S
 |---|---|---|---|---|---|
 | V9.1.1 | 1 | partly | eduLIMS issues no self-contained tokens; the IdP ID token is validated by better-auth (see V6.8.2) | review | partial |
 | V9.1.2 | 1 | partly | the signature algorithm allowlist is better-auth's; not pinned by us | review | partial |
-| V9.1.3 | 1 | yes | keys come from the configured issuer's JWKS (`KEYCLOAK_ISSUER`, the Entra tenant in `src/server/env.ts`) | unit `src/server/env.test.ts` | met |
+| V9.1.3 | 1 | yes | ID-token keys come only from the JWKS endpoint discovered on the provider's own issuer origin when it was saved (`src/server/idp/validate.ts`, ADR 0015) | unit `src/server/idp/validate.test.ts`, `src/server/account-linking.test.ts` | met |
 
 #### V9.2 Token content
 
@@ -527,14 +527,14 @@ Text: [vendor/asvs/en/0x19-V10-OAuth-and-OIDC.md](vendor/asvs/en/0x19-V10-OAuth-
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V10.1.1 | 2 | yes | IdP tokens stay in the server-side `account` table; the client gets the session cookie only (`src/server/session.ts`) | unit `src/server/middleware.test.ts` | met |
-| V10.1.2 | 2 | yes | better-auth binds the callback to the state cookie it set when the flow started | integration `tests/integration/keycloak-roles.test.ts`, review | met |
+| V10.1.2 | 2 | yes | the sso plugin binds the callback to the state it stored when the flow started, with the PKCE verifier and a fingerprint of the provider config (ADR 0015) | unit `src/server/account-linking.test.ts`, `src/server/audit/better-auth-hooks.test.ts` (callback without state refused); integration `tests/integration/sso-sign-in.test.ts` | met |
 
 #### V10.2 OAuth Client
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V10.2.1 | 2 | yes | `state` plus PKCE on both providers (`pkce: true` in `src/server/auth.ts`) | review | met |
-| V10.2.2 | 2 | partly | two authorization servers with separate callback paths; the `iss` response parameter is not checked | review | partial |
+| V10.2.1 | 2 | yes | PKCE S256 and `state` forced on every OIDC provider (`pkce: true` in `src/server/idp/provider-config.ts`; a provider without S256 is refused, `src/server/idp/validate.ts`) | unit `src/server/account-linking.test.ts` (`code_challenge_method=S256`), `src/server/idp/validate.test.ts` | met |
+| V10.2.2 | 2 | yes | one callback path per provider (`/sso/callback/<provider id>`, no shared redirect URI), the discovery document must name exactly the configured issuer, and the ID token's `iss` must equal it (ADR 0015); the `iss` response parameter is not read | unit `src/server/idp/validate.test.ts` (issuer mismatch), `src/server/account-linking.test.ts` (another issuer refused) | met |
 | V10.2.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V10.3 OAuth Resource Server
@@ -572,10 +572,10 @@ Text: [vendor/asvs/en/0x19-V10-OAuth-and-OIDC.md](vendor/asvs/en/0x19-V10-OAuth-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V10.5.1 | 2 | partly | the `nonce` check is better-auth's; not proven by a test of ours | review | partial |
-| V10.5.2 | 2 | yes | better-auth keys accounts on provider id plus `sub` (`account.accountId`); see V6.8.1 for linking by e-mail | review | partial |
-| V10.5.3 | 2 | partly | Keycloak discovery from `KEYCLOAK_ISSUER` (https in production, `src/server/env.ts`); issuer equality is better-auth's | unit `src/server/env.test.ts`, review | partial |
-| V10.5.4 | 2 | partly | `aud` equals the client id: better-auth's check, not proven by a test of ours | review | partial |
+| V10.5.1 | 2 | partly | the sso plugin (1.7.20) sends and checks no `nonce`; a replayed ID token is mitigated by PKCE, `state` and the back-channel code exchange (ADR 0015, "Known gaps"; #74 tracks it and the upstream report) | review | partial |
+| V10.5.2 | 2 | yes | accounts are keyed on provider id plus the verified ID token's `sub` (SAML: the persistent NameID), never the e-mail (ADR 0015) | unit `src/server/account-linking.test.ts`; integration `tests/integration/sso-sign-in.test.ts` | met |
+| V10.5.3 | 2 | yes | issuers are discovered when a provider is saved, over https in production, with an exact issuer match, and the ID token's `iss` must equal it (`src/server/idp/validate.ts`) | unit `src/server/idp/validate.test.ts`, `src/server/account-linking.test.ts` | met |
+| V10.5.4 | 2 | yes | the sso plugin requires `aud` to equal the provider's client id | unit `src/server/account-linking.test.ts` (another audience refused) | met |
 | V10.5.5 | 2 | no | no OIDC back-channel logout | none | n-a |
 
 #### V10.6 OpenID Provider
@@ -601,8 +601,8 @@ Text: [vendor/asvs/en/0x20-V11-Cryptography.md](vendor/asvs/en/0x20-V11-Cryptogr
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V11.1.1 | 2 | yes | no key management policy for `BETTER_AUTH_SECRET`, the client secrets and the database passwords | review | open |
-| V11.1.2 | 2 | yes | no cryptographic inventory yet (TLS at the proxy, HMAC cookies, IdP signatures, Sigstore) | review | open |
+| V11.1.1 | 2 | yes | `EDULIMS_DATA_KEY` (provider secrets) is documented with its generation, storage, rotation (`EDULIMS_DATA_KEY_PREVIOUS`, `idp rekey`) and loss (`docs/deployment.md`, "Data key"); no policy yet for `BETTER_AUTH_SECRET` and the database passwords | review | partial |
+| V11.1.2 | 2 | yes | the AES-256-GCM data key is recorded in ADR 0015; no full cryptographic inventory yet (TLS at the proxy, HMAC cookies, IdP signatures, Sigstore) | review | partial |
 | V11.1.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V11.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -621,8 +621,8 @@ Text: [vendor/asvs/en/0x20-V11-Cryptography.md](vendor/asvs/en/0x20-V11-Cryptogr
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V11.3.1 | 1 | no | eduLIMS encrypts no data itself; TLS is the proxy's | none | n-a |
-| V11.3.2 | 1 | no | eduLIMS encrypts no data itself | none | n-a |
-| V11.3.3 | 2 | no | eduLIMS encrypts no data itself | none | n-a |
+| V11.3.2 | 1 | yes | identity-provider secrets are sealed with AES-256-GCM, a 96-bit random IV per seal (`src/server/idp/crypto.ts`, ADR 0015) | unit `src/server/idp/crypto.test.ts`; DB `src/server/idp/service.test.ts` (raw row holds no plaintext) | met |
+| V11.3.3 | 2 | yes | GCM authenticates every sealed secret, and the provider id and field path are its additional data, so a ciphertext cannot be changed or moved between rows or fields; a failure fails closed (`crypt_decrypt_fail`) | unit `src/server/idp/crypto.test.ts` (tampered, moved, wrong key) | met |
 | V11.3.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V11.3.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -715,7 +715,7 @@ Text: [vendor/asvs/en/0x22-V13-Configuration.md](vendor/asvs/en/0x22-V13-Configu
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V13.3.1 | 2 | partly | secrets live in the host's `.env` and GitHub environments; no vault (`docs/deployment.md`) | review | partial |
+| V13.3.1 | 2 | partly | secrets live in the host's `.env` and GitHub environments; identity-provider secrets live in the database, encrypted under `EDULIMS_DATA_KEY`, which only the `edulims` and `edulims-tools` services receive; no vault (`docs/deployment.md`) | unit `src/server/idp/crypto.test.ts`, review | partial |
 | V13.3.2 | 2 | yes | each container receives only its own secrets (`compose.yaml`) | review | met |
 | V13.3.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V13.3.4 | 3 | no | Level 3, above the L2 target | none | n-a |

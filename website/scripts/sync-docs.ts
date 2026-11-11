@@ -50,10 +50,10 @@ const STATIC_SOURCES: readonly Source[] = [
     sidebarLabel: "Install with Docker Compose",
     extracts: [
       {
-        headings: ["Identity provider", "Identity providers"],
+        headings: ["Identity providers", "Identity provider"],
         slug: "operations/identity-providers",
         title: "Identity providers",
-        lead: "The variables are listed in the [configuration reference](/operations/configuration/). The decision behind the two providers is [ADR 0010](/development/decisions/0010-vendor-neutral-oidc-entra-and-keycloak/).",
+        lead: "Administrators manage the identity providers at runtime in Admin → System → Identity providers; the decision is [ADR 0015](/development/decisions/0015-runtime-identity-providers/), and the data key is in the [configuration reference](/operations/configuration/).",
       },
       { headings: ["Updating", "Upgrading"], slug: "operations/upgrading", title: "Upgrading" },
       { headings: ["Backups"], slug: "operations/backups", title: "Backups" },
