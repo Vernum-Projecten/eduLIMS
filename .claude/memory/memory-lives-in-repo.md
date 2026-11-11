@@ -13,8 +13,8 @@ a file in `.claude/memory/` with a line in `MEMORY.md`, committed and merged
 like any other change. The per-user auto-memory directory is not used for
 project learnings.
 
-**Why:** the plan of approach requires that a new student or a new AI session
-starts with the same framework ("borging in de CollabSpace"). A private note
+**Why:** a new contributor or a new AI session must start with the same
+framework (driver "long-term continuity"). A private note
 helps one machine; a tracked file teaches every session and contributor.
 
 **How to apply:** write the file with the front matter and SPDX header the

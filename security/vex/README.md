@@ -50,7 +50,7 @@ without the reason, and nobody can re-evaluate it later.
 Every finding goes into the record, and the record is published with the
 release. Only HIGH and CRITICAL findings need a statement before the release
 ships. eduLIMS runs on one internal host for lab education, behind the
-institution's network, and the risk analysis asks for scanning and monthly
+institution's network, and risk R-05 asks for scanning and monthly
 updates rather than a manufacturer's per-finding duty, so a statement for
 every LOW finding in the Debian base would cost more than it protects. Raise
 the floor with `vex-coverage.sh --min-severity` if that judgement changes.

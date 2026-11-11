@@ -18,8 +18,7 @@ No specification governs this: our own design, grounded in the OWASP GitHub
 Actions Security Cheat Sheet, SLSA v1.0, OpenSSF Scorecard and Sigstore. The
 pipeline is GitHub Actions, images go to GHCR, and the deployment is Docker
 Compose on one Linux VM (or one Azure environment; the product owner has not
-decided). Azure Pipelines and Azure Container Registry from the plan of
-approach are not used. The full design is `docs/ci-cd.md`; this file is the
+decided). Azure Pipelines and Azure Container Registry are not used (ADR 0002). The full design is `docs/ci-cd.md`; this file is the
 enforceable discipline.
 
 ## Workflow security (every workflow, no exceptions)
@@ -49,8 +48,8 @@ enforceable discipline.
   `conclusion` counts the skip as a pass.
 - **Zero required approvals; the owner arms auto-merge** with
   `gh pr merge <n> --auto`. `--admin` is denied in `.claude/settings.json`.
-  The supervising teacher reviews AI-written changes in the PR as part of the
-  Definition of Done, which is a process step, not a branch rule.
+  Review by a person is a convention in the Definition of Done, a process
+  step, not a branch rule: a green PR auto-merges without an approval.
 - **The CI lanes** mirror the local gate (`pnpm check`):
   `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`,
   `pnpm test:coverage` (fails under 70% on the core, `testing.md`),
@@ -72,7 +71,7 @@ enforceable discipline.
   --owner Vernum-Projecten`.
 - **Images are scanned before they are tagged** (Trivy, pinned to one
   version), and a fixable HIGH or CRITICAL finding stops the tag. This is the
-  "afhankelijkheden scannen in de pipeline" measure of the risk analysis.
+  "scan dependencies in the pipeline" measure of risk R-05.
 - **Base images and Compose service images are pinned by digest**
   (`postgres:18.x@sha256:…`), and Dependabot (`docker`) bumps them.
 - **Releases are immutable:** a bad cut is fixed by a new patch version, never

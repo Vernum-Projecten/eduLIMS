@@ -5,13 +5,13 @@
 
 - Status: Accepted
 - Date: 2026-11-11
-- Deciders: Ruben Talstra (maintainer)
+- Deciders: maintainer
 - Amends: [0005](0005-better-auth-entra-id.md)
 
 ## Context and problem statement
 
 ADR 0005 chose better-auth with Microsoft Entra ID, the identity provider of
-Hanze. Tying eduLIMS to one vendor makes it harder to run the system
+the first target institution. Tying eduLIMS to one vendor makes it harder to run the system
 elsewhere (another institution, a lab without Entra, a local test setup) and
 puts the role model in one vendor's terms. FerroEHR already uses Keycloak as
 its development identity provider. Which identity providers does eduLIMS
@@ -33,7 +33,7 @@ The role comes from the identity provider. On every OIDC sign-in eduLIMS reads
 a claim from the verified ID token (`OIDC_ROLE_CLAIM`, a dot path; the default
 is `roles` for Entra app roles and `realm_access.roles` for Keycloak realm
 roles), translates the provider's role names through `OIDC_ROLE_MAP` (default
-`edulims-student:student,edulims-docent:docent,edulims-beheerder:beheerder`),
+`edulims-student:student,edulims-teacher:teacher,edulims-admin:admin`),
 keeps the highest mapped role and stores it on the user. A sign-in with no
 mapped role is refused unless `OIDC_DEFAULT_ROLE` names a fallback. No
 standard governs the claim layout; this mapping is our own design.
@@ -46,10 +46,10 @@ and is refused in production.
 - Good: no vendor lock-in; any OIDC provider with a role claim can be added
   the same way, and the role names live in configuration, not code.
 - Good: the role is decided by the institution's identity management, so a
-  student cannot obtain a docent role inside eduLIMS.
+  student cannot obtain a teacher role inside eduLIMS.
 - Bad: two providers to test. The role mapping is unit-tested; a real sign-in
   with each provider is tested once the app registration and realm exist.
-- Open: requirement B1 says a beheerder assigns roles in the Beheerportaal.
+- Open: requirement B1 says an administrator assigns roles in the Admin portal.
   With roles synchronised from the provider on every sign-in, a role set in
   eduLIMS is overwritten at the next sign-in. Whether roles are owned by the
   provider, by eduLIMS, or by the provider with an eduLIMS override is a

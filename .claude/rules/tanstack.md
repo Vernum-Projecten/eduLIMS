@@ -32,14 +32,14 @@ decide. In the pinned Start version the server-function input API is
 - **Layout routes carry the access model:** a pathless `_authed` layout whose
   `beforeLoad` reads the session (through a server function) and redirects to
   the login route, and one layout per portal (`_authed/student`,
-  `_authed/docent`, `_authed/beheer`) whose `beforeLoad` checks the role and
+  `_authed/teacher`, `_authed/admin`) whose `beforeLoad` checks the role and
   throws `redirect` or `notFound`. This is navigation UX only. **Every server
   function checks the session and role again**, because a server function is
   an HTTP endpoint anyone can call (`auth-security.md`).
 - **Search params are typed:** `validateSearch` with a Zod schema for every
-  route that reads them (filters on the KPI dashboard: klas, practicum,
-  periode).
-- **Every route sets `head()`** with a Dutch title (WCAG 2.4.2) and has an
+  route that reads them (filters on the KPI dashboard: class, practical,
+  period).
+- **Every route sets `head()`** with a translated title (WCAG 2.4.2) and has an
   `errorComponent` or inherits one, plus `notFoundComponent` where an id in
   the URL can miss.
 - `/new-route` scaffolds a route with its loader, server function and test.
@@ -52,10 +52,10 @@ client with the HTML.
 
 1. Define a **query-options factory** next to the server function it calls
    (`src/server/<area>/queries.ts`): a stable `queryKey` array starting with
-   the area (`["samples", practicumId]`) and a `queryFn` that calls the server
+   the area (`["samples", practicalId]`) and a `queryFn` that calls the server
    function.
 2. The route **loader** calls
-   `context.queryClient.ensureQueryData(samplesQueryOptions(practicumId))`.
+   `context.queryClient.ensureQueryData(samplesQueryOptions(practicalId))`.
    It returns nothing the component needs directly; the cache is the channel.
 3. The component reads with `useSuspenseQuery(samplesQueryOptions(id))`,
    which never shows an empty first paint after SSR.
@@ -99,7 +99,7 @@ export const registerSample = createServerFn({ method: "POST" })
 - Forms are TanStack Form with shadcn `Field` (`react-ui.md` §2, `/new-form`).
 - Tables are TanStack Table v9 rendered with the shadcn `Table` primitives.
   Sorting, filtering and pagination of large sets run on the server; the URL
-  search params hold the table state so a docent can share a filtered view.
+  search params hold the table state so a teacher can share a filtered view.
 
 ## SSR hygiene
 

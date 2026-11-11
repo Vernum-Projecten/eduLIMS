@@ -13,9 +13,6 @@ src/routeTree.gen.ts linguist-generated=true
 # shadcn/ui components are generated from the registry.
 src/components/ui/** linguist-generated=true
 
-# The ArchiMate model and diagram sources are tool exports.
-docs/architecture/*.xml linguist-generated=true
-*.drawio linguist-generated=true
 
 # Binary assets, never diffed as text.
 *.png binary

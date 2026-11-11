@@ -32,8 +32,7 @@ decide the work is done for you.
      change (`/ui-gates`);
    - a role-scoped change has its negative role tests (`auth-security.md`);
    - an integration change ran in the Compose test environment;
-   - `docs/` is updated if the architecture changed, and the ArchiMate model
-     change is flagged for the owner.
+   - `docs/` is updated if the architecture changed.
 
    Anything missing stops the close; say what.
 4. **Relationships** (`scripts/gh/rel.sh tree <n>`): a parent with open

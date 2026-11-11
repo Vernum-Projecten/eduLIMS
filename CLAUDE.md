@@ -3,17 +3,18 @@
 
 # CLAUDE.md
 
-**eduLIMS** is a Laboratory Information Management System for the practical
-lab courses of Hanze LifeScience. Students register samples, measure on the
+**eduLIMS** is an open-source laboratory information management system (LIMS)
+for practical laboratory education. Students register samples, measure on the
 Abbott Afinion 2 and the BioTek Epoch 2, upload the Gen5 Excel export, check
-their results and hand in a lab report; docenten set up practica with a
+their results and hand in a lab report; teachers set up practicals with a
 protocol, a deadline and a rubric, assess with the rubric, and read a KPI
-dashboard; beheerders manage users, roles, classes, analysers and the
-integrations. One web app serves three portals: the **Studentportaal**, the
-**Docentportaal** and the **Beheerportaal**.
+dashboard; administrators manage users, roles, classes, analysers and the
+integrations. One web app serves three portals: the **Student portal**
+(`/student`), the **Teacher portal** (`/teacher`) and the **Admin portal**
+(`/admin`), for the roles `student`, `teacher` and `admin`.
 
 Two databases hold the data, on one PostgreSQL 18 server: the **eduLIMS
-database** for everything educational (users, practica, sample IDs, lab
+database** for everything educational (users, practicals, sample IDs, lab
 reports, assessments, logs) and **FerroEHR**, an openEHR CDR, for the
 measurements as compositions on the `eduLIMS-lab` template. Afinion results
 arrive as HL7 v2 through **FerroBRIDGE**; Epoch results arrive through the
@@ -28,7 +29,7 @@ the current requirements draft is `docs/requirements.md`. Write all prose to
 ## Repo map
 
 - `src/routes/`: TanStack Router file routes. A pathless `_authed` layout
-  guards sign-in; one layout per portal (`student`, `docent`, `beheer`)
+  guards sign-in; one layout per portal (`student`, `teacher`, `admin`)
   guards the role. `src/routeTree.gen.ts` is generated: never edit it.
 - `src/components/`: React components. `ui/` holds the shadcn/ui primitives
   the CLI adds; `<area>/` holds the feature components that compose them.
@@ -44,6 +45,8 @@ the current requirements draft is `docs/requirements.md`. Write all prose to
   `src/` run too). `tests/e2e/`: Playwright journeys with the axe scan.
   `tests/integration/`: tests against the Compose stack. `tests/fixtures/`:
   the fixed pseudonymised test set.
+- `messages/`: the i18n message catalogues (`en` is the source, `nl` the
+  Dutch translation).
 - `docker/`: the Compose stack (eduLIMS, PostgreSQL 18, FerroEHR,
   FerroBRIDGE) and its configuration.
 - `docs/`: `requirements.md` (the draft), `architecture.md`, `ci-cd.md`,
@@ -118,7 +121,7 @@ pnpm check                # the local gate: typecheck, lint, test
 - **Role-scoped access is enforced on the server.** Every server function and
   server route checks the session, the role and the ownership (in the SQL
   query) before it reads data. A student sees only their own work (S7); a
-  docent only their own practica (D3). Route guards are navigation, never
+  teacher only their own practicals (D3). Route guards are navigation, never
   the security boundary. Every role-scoped function has negative tests per
   role (`.claude/rules/auth-security.md`).
 - **WCAG 2.1 AA** on every screen: keyboard operable, labelled, never colour
@@ -138,7 +141,10 @@ pnpm check                # the local gate: typecheck, lint, test
 - **SPDX header on every hand-written file:**
   `SPDX-FileCopyrightText: Ruben Talstra` and
   `SPDX-License-Identifier: Apache-2.0`, in the file's comment syntax.
-- **English for docs, code, comments and commits; Dutch for every UI string.**
+- **Everything is English: docs, code, comments, commits and UI copy.** All
+  user-visible text goes through the i18n layer (English source, Dutch
+  translation in the `nl` locale); never hard-code a user-visible string
+  (ADR 0011).
 - **Branches use conventional types** (`feat/`, `fix/`, `chore/`, `docs/`,
   `refactor/`, `perf/`, `test/`, `ci/`, `build/`, `release/`), and commits
   use conventional commit subjects.
@@ -148,27 +154,24 @@ pnpm check                # the local gate: typecheck, lint, test
 
 ## Definition of Done
 
-From the test strategy ("Wanneer is iets af"), with the merge gate the owner
-chose. A user story is done when all of these hold:
+From the test strategy, with the merge gate the owner chose. A user story is done when all of these hold:
 
 - [ ] The acceptance criterion of the requirement is met and shown in a test
   or a demo (as the criterion stands in the current draft or in the owner's
   decision on the issue).
 - [ ] The new code has unit tests, `pnpm check` is green, the core holds 70%
   coverage, and the CI `conclusion` check is green.
-- [ ] The pull request is reviewed: the supervising teacher reviews AI-written
-  changes, and `security-reviewer` and `ui-reviewer` have no open blockers.
-  The branch rule itself requires zero approvals; review is this process
-  step.
+- [ ] The pull request is reviewed by convention, and `security-reviewer` and
+  `ui-reviewer` have no open blockers. The branch rule itself requires zero
+  approvals and auto-merge lands a green PR; review is a convention, not a
+  gate.
 - [ ] The change ran in the Compose test environment.
-- [ ] `docs/` is updated when the architecture changed, and the ArchiMate
-  model change is flagged for the owner.
+- [ ] `docs/` is updated when the architecture changed.
 - [ ] A user-visible change has a `changelog.d/` fragment.
 
 ## Issue and PR workflow
 
-The tracker is GitHub Issues on `Vernum-Projecten/eduLIMS`; the Azure DevOps
-setup in the plan of approach is replaced by GitHub (Issues, Actions, GHCR).
+The tracker is GitHub Issues on `Vernum-Projecten/eduLIMS` (ADR 0002).
 The open issue list is the worklist (`.claude/rules/issue-workflow.md`). An
 issue carries a native type (`Task`, `Bug`, `Feature`), a priority, a
 `Requirement:` line and `## Acceptance criteria`. Read one with
@@ -193,7 +196,8 @@ prints the open issues with `<Type/Priority>` after each title.
 Path-scoped rules load when you read files in their scope; the rest apply
 always. Read the relevant one before working in an area.
 
-- `rules/writing-style.md`: plain prose, no AI tells, English and Dutch.
+- `rules/writing-style.md`: plain prose, no AI tells, English everywhere,
+  Dutch only as the `nl` translation.
 - `rules/typescript-style.md`, `reliability.md`, `comments.md`,
   `testing.md`: the engineering discipline (strict TS7, Biome, server-only
   code, fail loud, TSDoc budgets, the test levels and the 70% bar).

@@ -181,7 +181,7 @@ labels:
     description: "CI, build, and tooling."
   - name: portal:student
     color: "1D76DB"
-    description: "Studentportaal."
+    description: "Student portal."
   - name: no-changelog
     color: "bfdadc"
     description: "PR escape hatch."
@@ -229,7 +229,7 @@ YAML
   said "$sync_case" "$out" "update: portal:student"
   said "$sync_case" "$out" "create: no-changelog"
   said "$sync_case" "$out" "retire: bug"
-  said "$sync_case" "$calls" "label edit portal:student --color 1d76db --description Studentportaal."
+  said "$sync_case" "$calls" "label edit portal:student --color 1d76db --description Student portal."
   said "$sync_case" "$calls" "label create no-changelog --color bfdadc"
   said "$sync_case" "$calls" "label delete bug --yes"
   never "$sync_case" "$calls" "label edit ci"

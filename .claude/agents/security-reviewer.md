@@ -3,7 +3,7 @@ name: security-reviewer
 description: >
   Read-only security reviewer for eduLIMS diffs and subsystems: role and
   ownership leakage (a student seeing other students' grades or results, S7;
-  a docent seeing another docent's practica, D3), server functions without
+  a teacher seeing another teacher's practicals, D3), server functions without
   session, role or input checks, the OWASP Top 10:2025, privacy (real
   personal data, names or student numbers reaching FerroEHR or logs),
   secrets on the client, injection in SQL and AQL, upload handling, and the
@@ -34,15 +34,15 @@ Read `CLAUDE.md`, `.claude/rules/auth-security.md` in full, `database.md`,
 specification for the FerroEHR boundary, and the docs of the pinned
 better-auth and TanStack Start versions.
 
-The highest risk in the requirements analysis is "een student ziet cijfers of
-resultaten van anderen". Hunt for it first.
+The highest risk in the requirements is R-01, "a student sees grades or
+results of others". Hunt for it first.
 
 Review priority (report in this order):
 
 1. **Broken access control (A01).** For every server function and server
    route the diff adds or touches: is the session read, the role checked, and
    the ownership filtered in the same SQL query, before any data is read?
-   Trace each client-supplied id (practicum, sample, submission, user) to the
+   Trace each client-supplied id (practical, sample, submission, user) to the
    check that ties it to the session user. A route `beforeLoad` guard alone
    is a blocker. KPI and average queries leak too: check the ownership filter
    and the 5-assessment floor. Check that a negative test per role exists.

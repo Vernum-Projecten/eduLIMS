@@ -1,8 +1,8 @@
 ---
 name: new-route
-description: Scaffolds a TanStack Start route for one of the portals with its role guard, a GET server function with session, role and ownership checks and Zod input validation, a query-options factory, a loader that warms the cache with ensureQueryData, a useSuspenseQuery component with a Dutch title, and the unit and role-isolation tests. Use when adding a page or screen to the Student, Docent or Beheer portal.
+description: Scaffolds a TanStack Start route for one of the portals with its role guard, a GET server function with session, role and ownership checks and Zod input validation, a query-options factory, a loader that warms the cache with ensureQueryData, a useSuspenseQuery component with a translated title from the i18n layer, and the unit and role-isolation tests. Use when adding a page or screen to the Student, Teacher or Admin portal.
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash
-argument-hint: "<portal>/<path> e.g. docent/practica/$practicumId"
+argument-hint: "<portal>/<path> e.g. teacher/practicals/$practicalId"
 ---
 
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
@@ -25,13 +25,18 @@ the exact API of the pinned versions.
    in `src/server/auth/` (`requireSession`, `requireRole`), the `db`
    instance in `src/server/db/`. If the auth middleware does not exist yet,
    the route waits for it: report that instead of inventing one inline.
-3. Pick names: area `practica`, route file
-   `src/routes/_authed/docent/practica/$practicumId.tsx`, server code in
-   `src/server/practica/`.
+3. Pick names: area `practicals`, route file
+   `src/routes/_authed/teacher/practicals/$practicalId.tsx`, server code in
+   `src/server/practicals/`.
+4. **Find the i18n layer** (ADR 0011): the message catalogues under
+   `messages/` (`en` is the source, `nl` the translation) and the import the
+   existing routes use for message functions. The snippets below write it as
+   `m` from `@/i18n/messages`; use the real path. Add every new key to both
+   catalogues.
 
 ## The pieces
 
-**`src/server/practica/functions.ts`**: the server function. Session, role
+**`src/server/practicals/functions.ts`**: the server function. Session, role
 and ownership first, then validation, then a query that filters by owner in
 SQL.
 
@@ -45,17 +50,17 @@ import { z } from "zod";
 import { requireRole } from "@/server/auth/middleware";
 import { db } from "@/server/db";
 
-export const practicumInput = z.object({ practicumId: z.uuid() });
+export const practicalInput = z.object({ practicalId: z.uuid() });
 
-/** Returns one practicum the signed-in docent owns (D1, D3). */
-export const getPracticum = createServerFn({ method: "GET" })
-  .middleware([requireRole("docent")])
-  .validator(practicumInput)
+/** Returns one practical the signed-in teacher owns (D1, D3). */
+export const getPractical = createServerFn({ method: "GET" })
+  .middleware([requireRole("teacher")])
+  .validator(practicalInput)
   .handler(async ({ data, context }) => {
     const row = await db
-      .selectFrom("practica")
+      .selectFrom("practicals")
       .select(["id", "title", "deadline"])
-      .where("id", "=", data.practicumId)
+      .where("id", "=", data.practicalId)
       .where("owner_id", "=", context.user.id)
       .executeTakeFirst();
     if (row === undefined) throw notFound();
@@ -63,37 +68,39 @@ export const getPracticum = createServerFn({ method: "GET" })
   });
 ```
 
-**`src/server/practica/queries.ts`**: the query-options factory.
+**`src/server/practicals/queries.ts`**: the query-options factory.
 
 ```ts
 import { queryOptions } from "@tanstack/react-query";
-import { getPracticum } from "./functions";
+import { getPractical } from "./functions";
 
-export const practicumQueryOptions = (practicumId: string) =>
+export const practicalQueryOptions = (practicalId: string) =>
   queryOptions({
-    queryKey: ["practica", practicumId],
-    queryFn: () => getPracticum({ data: { practicumId } }),
+    queryKey: ["practicals", practicalId],
+    queryFn: () => getPractical({ data: { practicalId } }),
   });
 ```
 
 **The route file**: loader warms the cache, the component reads it with
-`useSuspenseQuery`, the head sets a Dutch title.
+`useSuspenseQuery`, the head sets a translated title. No user-visible string
+is hard-coded.
 
 ```tsx
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { practicumQueryOptions } from "@/server/practica/queries";
+import { m } from "@/i18n/messages";
+import { practicalQueryOptions } from "@/server/practicals/queries";
 
-export const Route = createFileRoute("/_authed/docent/practica/$practicumId")({
+export const Route = createFileRoute("/_authed/teacher/practicals/$practicalId")({
   loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(practicumQueryOptions(params.practicumId)),
-  head: () => ({ meta: [{ title: "Practicum | eduLIMS" }] }),
-  component: PracticumPage,
+    context.queryClient.ensureQueryData(practicalQueryOptions(params.practicalId)),
+  head: () => ({ meta: [{ title: m.practical_page_title() }] }),
+  component: PracticalPage,
 });
 
-function PracticumPage() {
-  const { practicumId } = Route.useParams();
-  const { data } = useSuspenseQuery(practicumQueryOptions(practicumId));
+function PracticalPage() {
+  const { practicalId } = Route.useParams();
+  const { data } = useSuspenseQuery(practicalQueryOptions(practicalId));
   return (
     <main id="main" className="mx-auto max-w-5xl p-6">
       <h1 className="text-2xl font-semibold">{data.title}</h1>
@@ -108,11 +115,11 @@ the route.
 
 ## Tests
 
-- **Unit** (`src/server/practica/functions.test.ts` or `tests/unit/`): the
-  handler's query returns only the owner's practicum, against the Compose
+- **Unit** (`src/server/practicals/functions.test.ts` or `tests/unit/`): the
+  handler's query returns only the owner's practical, against the Compose
   PostgreSQL with the fixed test set (`testing.md`).
-- **Role isolation**, one case per refusal: a student gets 403; a docent
-  asking for another docent's practicum gets 404; an anonymous call is
+- **Role isolation**, one case per refusal: a student gets 403; a teacher
+  asking for another teacher's practical gets 404; an anonymous call is
   refused. Cite the requirement in the test name (D3).
 - **E2E** (`tests/e2e/`): the page renders for its role, the axe scan finds
   zero WCAG 2.1 A/AA violations, and the main task works with the keyboard.

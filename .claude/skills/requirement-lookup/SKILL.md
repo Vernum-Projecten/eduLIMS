@@ -19,12 +19,12 @@ a question the draft leaves open.
 
 ## Where to look
 
-1. `docs/requirements.md`: the requirement tables (Studentportaal S1 to S9,
-   Docentportaal D1 to D8, Beheer B1 to B4), the acceptance criteria of the
+1. `docs/requirements.md`: the requirement tables (Student portal S1 to S9,
+   Teacher portal D1 to D8, Admin portal B1 to B4), the acceptance criteria of the
    Must requirements, the quality requirements (ISO 25010), the risk table
    with its measures, and the KPI table with its norms. Search it with Grep
-   for the ID (`\bS4\b`) and for the Dutch topic words (`wellpositie`,
-   `deadline`, `rubric`, `gemiddelde`).
+   for the ID (`\bS4\b`) and for the topic words (`well position`,
+   `deadline`, `rubric`, `average`).
 2. `docs/architecture.md` for where a requirement lands in the design
    (portals, databases, the openEHR template, the integrations).
 3. The closed and open issues that cite the ID
@@ -33,18 +33,17 @@ a question the draft leaves open.
 
 ## How to answer
 
-- Quote the requirement and its acceptance criterion verbatim, in Dutch, with
-  its ID, its MoSCoW priority and the file and section it came from. Add an
-  English one-line paraphrase.
+- Quote the requirement and its acceptance criterion verbatim, with its ID,
+  its MoSCoW priority and the file and section it came from.
 - Name the other requirements, quality requirements and risk measures that
-  constrain the same behaviour (S7 and D3 with the "eigen gegevens" risk
-  measure; S4 with the upload risk and the 10-second performance bar; D5 with
-  the "gemiddelde vanaf 5 beoordelingen" measure).
+  constrain the same behaviour (S7 and D3 with the R-01 "filter on own data" measure; S4 with the upload
+  risk and the 10-second performance bar; D5 with the R-03 "averages only
+  from 5 assessments" measure).
 - **Flag, never fill.** Report explicitly when the draft:
   - has no acceptance criterion for the requirement (Should and Could items
     have none);
   - is vague enough that two implementations could both claim to meet it
-    ("duidelijke foutmelding", "direct");
+    ("a clear error message", "immediately");
   - conflicts with another requirement, with an owner decision on an issue,
     or with what the task asks for;
   - says nothing about the behaviour in question.

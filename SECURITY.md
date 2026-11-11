@@ -3,10 +3,10 @@
 
 # Security policy
 
-eduLIMS is a student project for the research group New Business & ICT at
-Hanze. It runs on one Linux VM inside a Hanze network and holds test data from
-volunteer subjects under a pseudonym, plus the grades of students taking part
-in the practical courses.
+eduLIMS is an open-source laboratory information management system (LIMS) for
+practical laboratory education. A deployment runs on one Linux VM inside the
+institution's network and holds test data from volunteer subjects under a
+pseudonym, plus the grades of students taking part in the practical courses.
 
 ## Supported versions
 
@@ -43,8 +43,9 @@ A confirmed vulnerability gets a GitHub security advisory on this repository.
 It is published together with the release that fixes it.
 
 If a vulnerability could have exposed personal data of students or teachers,
-the maintainer also informs the client and the Hanze privacy officer, so that
-Hanze can decide on a data breach notification under the GDPR (AVG).
+the maintainer also informs the product owner and the institution's privacy
+officer, so that the institution can decide on a data breach notification
+under the GDPR.
 
 ## Scope
 
@@ -59,7 +60,7 @@ In scope:
 Out of scope, and reported to their own projects:
 
 - FerroEHR and FerroBRIDGE;
-- Microsoft Entra ID and the Hanze network;
+- the identity provider (Microsoft Entra ID or Keycloak) and the institution's network;
 - the Gen5 software and the analysers.
 
 ## Verifying a release
@@ -72,4 +73,5 @@ gh attestation verify oci://ghcr.io/vernum-projecten/edulims:<tag> \
   --repo Vernum-Projecten/eduLIMS
 ```
 
-[docs/release.md](docs/release.md) describes the release lane.
+[docs/release.md](docs/release.md) describes the release lane; the published
+documentation is at <https://edulims.eu/docs/>.

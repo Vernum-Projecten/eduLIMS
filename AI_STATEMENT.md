@@ -5,16 +5,16 @@
 
 | | |
 |---|---|
-| Version | 1.0.0 |
+| Version | 1.1.0 |
 | Effective date | 2026-11-11 |
 | Status | Active |
-| Author and maintainer | Ruben Talstra |
+| Author and maintainer | the maintainer ([MAINTAINERS.md](MAINTAINERS.md)) |
 | Review | at every minor release, and on any trigger in section 11 |
 
 This document says how AI tools are used to develop eduLIMS, what they do and
 do not touch, who is accountable, and which controls bound the work. It
-follows the project principle **"AI ondersteunt, mens beslist"** (AI assists,
-a person decides) from the architecture model, view 0.
+follows the project principle **"AI assists, a person decides"**
+([docs/architecture.md](docs/architecture.md#principles)).
 
 The key words **shall**, **should** and **may** mean requirement,
 recommendation and permission.
@@ -27,9 +27,9 @@ documentation.
 
 **eduLIMS ships no AI.** No model is trained, embedded or called while the
 application runs. The optional plausibility check on measured values (D7) is
-a rule-based range check. If the research group later wants an AI function
-inside the application, that function processes real data and first needs a
-GDPR (AVG) check and a model that runs inside Hanze (Adviesrapport, advice 2).
+a rule-based range check. An AI function inside the application would process
+real data, so it would first need a GDPR check and a model that runs inside
+the institution.
 
 ## 2. Terms
 
@@ -58,7 +58,7 @@ requirements, the Definition of Done and the privacy rules.
 |---|---|---|
 | Application code and tests | ai-generated | written in directed sessions, reviewed and merged by the maintainer |
 | CI/CD and infrastructure files | ai-generated | the same review and gates |
-| Documentation | ai-assisted | translated and edited from the maintainer's own coursework documents |
+| Documentation | ai-assisted | drafted from the maintainer's own notes and decisions, edited by the maintainer |
 | Requirements, priorities, architecture decisions | none | decided by the product owner and the maintainer, recorded in `docs/` |
 | Review verdicts and release decisions | none | made by people; see section 7 |
 
@@ -67,11 +67,12 @@ No row is **autonomous**.
 ## 5. Human review
 
 Every change, whoever or whatever wrote it, goes through a pull request and
-the merge queue, and merges only with green CI. By convention the supervising
-teacher reviews the pull request, and the maintainer resolves every comment
-before merging ([GOVERNANCE.md](GOVERNANCE.md#merging)). The maintainer keeps
-track of how many AI-written pull requests needed changes in review, as input
-for the retrospective (Teststrategie, "Het AI-onderdeel testen").
+the merge queue, and merges only with green CI. Review by a person is a
+convention, not a branch rule: a reviewer looks at the pull request, and the
+maintainer resolves every comment before merging
+([GOVERNANCE.md](GOVERNANCE.md#merging)). The maintainer keeps track of how
+many AI-written pull requests needed changes in review, as input for the
+milestone review ([docs/test-strategy.md](docs/test-strategy.md#testing-the-ai-part)).
 
 ## 6. Controls
 
@@ -113,13 +114,13 @@ copied in on purpose (such as the shadcn/ui components) is recorded in
 
 AI use costs energy. The tools are used during development only, never in the
 running application, and with short, focused tasks instead of rewriting whole
-files (Adviesrapport, advice 2).
+files.
 
 ## 11. Review and change
 
 The maintainer reviews this statement at every minor release, and earlier
 when the tooling changes, a vendor's terms change, a binding rule appears
-(for example under the EU AI Act or Hanze policy), or a claim in this document
+(for example under the EU AI Act or an institution's policy), or a claim in this document
 stops being true. A change lands as a pull request, with the version below
 updated.
 
@@ -128,3 +129,4 @@ updated.
 | Version | Date | Change |
 |---|---|---|
 | 1.0.0 | 2026-11-11 | First issue. |
+| 1.1.0 | 2026-11-11 | Institution-neutral wording; review described as a convention. |

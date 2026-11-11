@@ -22,6 +22,6 @@ attribution line: the owner's rule wins.
 - The PreToolUse hook `no_attribution_guard.sh` blocks a `git commit`,
   `git push`, `gh pr|issue|release create|edit|comment` whose text (or
   `--body-file`) carries one. Fix the text; never work around the hook.
-- The plan of approach measures how many AI pull requests changed at review.
+- The test strategy measures how many AI pull requests changed at review.
   That is recorded in plain words in the PR ("Changed after review: …"),
   never as an attribution (`.claude/rules/ai-code-review.md`).

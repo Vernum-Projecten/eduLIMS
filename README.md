@@ -27,9 +27,8 @@
 [![openEHR](https://img.shields.io/badge/openEHR-FerroEHR-0E7C86)](docs/architecture.md)
 [![Biome](https://img.shields.io/badge/lint-Biome-60A5FA?logo=biome&logoColor=white)](biome.json)
 
-eduLIMS is a Laboratory Information Management System (LIMS) for the
-LifeScience practical courses at Hanze University of Applied Sciences. Students
-register samples, run measurements on the lab analysers, check their results
+eduLIMS is an open-source laboratory information management system (LIMS) for
+practical laboratory education. Students register samples, run measurements on the lab analysers, check their results
 and submit a lab report. Teachers set up a practical, grade it with a rubric
 and follow their classes on a KPI dashboard. Measurement data is stored as
 openEHR compositions in FerroEHR; everything about teaching and grading stays
@@ -56,16 +55,11 @@ in a LIMS on its own. eduLIMS closes that gap:
 - Every measurement is traceable through its sample ID to the device, the
   sample and the student.
 
-eduLIMS is a student project carried out for the research group (lectoraat)
-New Business & ICT at Hanze. The client and product owner is Sophie de Klerk
-(senior researcher Health Informatics); the research group oversees the
-project and keeps it maintainable inside its CollabSpace.
-
 ## Status
 
-Implementation started on 2026-11-11. The design work (requirements,
-architecture model, test strategy, KPI dashboard wireframes) is done and is
-recorded under [`docs/`](docs/). The first milestone, `v0.1.0 – Foundation`,
+Implementation started on 2026-11-11. The design (requirements, architecture,
+test strategy, KPI dashboard) is recorded under [`docs/`](docs/); the
+requirements are a working draft under re-evaluation. The first milestone, `v0.1.0 – Foundation`,
 sets up the application shell, sign-in, the database and the CI/CD lane.
 The work is planned in [GitHub milestones](https://github.com/Vernum-Projecten/eduLIMS/milestones)
 and [issues](https://github.com/Vernum-Projecten/eduLIMS/issues).
@@ -115,15 +109,17 @@ behind each choice are in the [decision records](docs/adr/README.md).
 
 ## Documentation
 
+The documentation site is <https://edulims.eu/docs/>; the project's landing
+page is <https://edulims.eu>. The sources in this repository:
+
 - [Architecture](docs/architecture.md): principles, integrations, data split,
-  portals and roles, deployment, and quality requirements. The ArchiMate model
-  and its views are in [`docs/architecture/`](docs/architecture/).
+  portals and roles, deployment, and quality requirements.
 - [Requirements](docs/requirements.md) (working draft, still under discussion): functional requirements S1 to S9, D1
   to D8 and B1 to B4, the quality requirements, risks and KPIs, each with a
   stable ID.
 - [Test strategy](docs/test-strategy.md) and the Definition of Done.
 - [KPI dashboard](docs/kpi-dashboard.md): KPIs, norms, data sources and the
-  two wireframe iterations.
+  two design iterations.
 - [Decision records](docs/adr/README.md).
 - [AI statement](AI_STATEMENT.md): how AI tools are used to build eduLIMS.
 - [Governance](GOVERNANCE.md), [Maintainers](MAINTAINERS.md),

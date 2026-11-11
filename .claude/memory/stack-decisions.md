@@ -1,6 +1,6 @@
 ---
 name: stack-decisions
-description: "The eduLIMS stack as bootstrapped (commit 506a3b1): TanStack Start full SSR on Vite 8 + Nitro, TypeScript 7 native tsc, React 19, TanStack Router/Query/Form/Table, Tailwind 4, shadcn/ui radix-nova, Biome 2.6, Vitest 5, Kysely on PostgreSQL 18, better-auth with Entra ID, Node 26 LTS, pnpm 12"
+description: "The eduLIMS stack as bootstrapped (commit 506a3b1): TanStack Start full SSR on Vite 8 + Nitro, TypeScript 7 native tsc, React 19, TanStack Router/Query/Form/Table, Tailwind 4, shadcn/ui radix-nova, Biome 2.6, Vitest 5, Kysely on PostgreSQL 18, better-auth with Entra ID or Keycloak, Node 26 LTS, pnpm 12"
 metadata:
   type: project
 ---
@@ -8,8 +8,7 @@ metadata:
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-The plan of approach left the frontend and backend framework open ("kies ik
-in de ontwerpfase"). The bootstrap settled it:
+The bootstrap settled the frontend and backend framework:
 
 - **App:** TanStack Start, full SSR, on Vite 8 with Nitro; React 19;
   TanStack Router (file routes), Query (loaders with `ensureQueryData`),
@@ -20,14 +19,14 @@ in de ontwerpfase"). The bootstrap settled it:
   axe for e2e.
 - **Data:** Kysely on PostgreSQL 18 (one server, two databases: eduLIMS and
   FerroEHR). Measurements in FerroEHR over openEHR REST and AQL.
-- **Auth:** better-auth with Microsoft Entra ID over OIDC.
+- **Auth:** better-auth with Microsoft Entra ID or Keycloak over OIDC (ADR 0010).
 - **Runtime:** Node 26.13.0 LTS, pnpm 12.18.0, both pinned in `package.json`
   `devEngines` and `.node-version`; exact versions (`save-exact=true`).
 - **Library skills:** pnpm 12 links the agent skills that TanStack Router,
   Start and Table ship into `.claude/skills/` as gitignored symlinks,
   approved in `pnpm-workspace.yaml` `permissions:`.
 
-**Why:** owner choice for maintainability in the CollabSpace and for AI
+**Why:** owner choice for long-term maintainability and for AI
 assistant support, made at the bootstrap.
 
 **How to apply:** pin and verify every version on the registry when you add

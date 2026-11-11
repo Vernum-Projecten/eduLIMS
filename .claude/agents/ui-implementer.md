@@ -1,8 +1,8 @@
 ---
 name: ui-implementer
 description: >
-  Implementation worker for well-specified UI tasks in the Student, Docent
-  and Beheer portals: TanStack Start routes with loaders, shadcn/ui
+  Implementation worker for well-specified UI tasks in the Student, Teacher
+  and Admin portals: TanStack Start routes with loaders, shadcn/ui
   components, TanStack Form forms, TanStack Table views, the KPI dashboard
   tiles, and their Playwright and axe journeys. The orchestrator hands it the
   screen, the requirement IDs, the server functions it reads and the role
@@ -32,16 +32,17 @@ Non-negotiables (violations are rejected at review):
   hex colours; theme tokens and Tailwind utilities only.
 - **Forms** follow `/new-form`: one Zod schema shared with the server
   function, `form.Field` with `Field`, `FieldLabel`, `aria-invalid` and
-  `FieldError`, Dutch messages, pending state, server refusals at the field.
+  `FieldError`, messages from the i18n layer, pending state, server refusals at the field.
 - **Data** comes from the route loader (`ensureQueryData`) and
   `useSuspenseQuery`; a write goes through `useServerFn` and invalidates its
   keys. No `fetch` to your own API, no role filtering in a component.
 - **WCAG 2.1 AA:** keyboard operable with visible focus, one `h1` and
-  ordered headings, landmarks, a Dutch `title` per route, contrast, never
+  ordered headings, landmarks, a translated `title` per route, contrast, never
   colour alone (an icon and text with every status), real table headers,
   live regions for results, reflow at 320 px.
-- **Dutch UI, English code.** Every string a user reads is Dutch and
-  addresses the reader as "je"; identifiers and comments are English.
+- **English code, translated UI.** Every string a user reads goes through
+  the i18n layer (English source, Dutch translation in `nl`); never hard-code
+  a user-visible string (ADR 0011). Identifiers and comments are English.
 - **Role data stays scoped:** a student sees only their own work; an average
   shows only from 5 assessments; no subject name or student number from
   FerroEHR, only the sample ID.

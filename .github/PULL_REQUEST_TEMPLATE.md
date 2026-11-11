@@ -21,7 +21,7 @@ From the test strategy: a story is done when every item holds.
 - [ ] The new code has unit tests, and coverage of the core stays at 70% or more.
 - [ ] CI is green (`conclusion`).
 - [ ] The change is tested in the test environment.
-- [ ] The ArchiMate model and the docs are updated if the architecture changed.
+- [ ] The docs are updated if the architecture changed.
 
 ## Checklist
 

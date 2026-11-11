@@ -49,8 +49,7 @@ Method:
    depends on a quality requirement or a risk measure elsewhere.
 3. Return:
    - (a) the requirements and spec rules as testable statements, each with
-     its ID or section and a verbatim quote for load-bearing sentences
-     (Dutch quoted as Dutch, with an English paraphrase);
+     its ID or section and a verbatim quote for load-bearing sentences;
    - (b) **gaps, ambiguities and conflicts**, each written as a question the
      owner can answer in one line, with why it matters for the build;
    - (c) what the specifications decide regardless of the draft.

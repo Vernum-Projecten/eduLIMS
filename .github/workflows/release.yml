@@ -212,7 +212,7 @@ jobs:
       target: runtime
       from-tarball: true
       title: eduLIMS
-      description: A laboratory information management system for LifeScience practical education
+      description: An open-source laboratory information management system for practical laboratory education
 
   # ── migrate-image: the schema migration one-shot, from source ─────────────
   migrate-image:

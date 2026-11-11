@@ -33,7 +33,7 @@ Non-negotiables:
   (S6)", …)`), one behaviour per case.
 - **Every refusal gets an asserted negative test:** unknown sample ID,
   invalid well, empty column, late submission, edit after submit, a student
-  calling a docent function, a docent reading another docent's practicum, an
+  calling a teacher function, a teacher reading another teacher's practical, an
   anonymous call.
 - **The fixed pseudonymised test set** under `tests/fixtures/` is the only
   data source. Extend it with synthetic cases when needed; never real names,

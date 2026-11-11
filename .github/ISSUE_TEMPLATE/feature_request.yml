@@ -13,9 +13,9 @@ body:
     id: requirement
     attributes:
       label: Requirement
-      description: The requirement from the requirements analysis this story delivers.
+      description: The requirement in docs/requirements.md this story delivers.
       options:
-        - "S1: Sign in with the Hanze account (Entra ID)"
+        - "S1: Sign in with the institution account (Entra ID or Keycloak)"
         - "S2: View the practical assignment and measurement protocol"
         - "S3: Register samples with a unique sample ID"
         - "S4: Upload and validate the Gen5 Excel export"

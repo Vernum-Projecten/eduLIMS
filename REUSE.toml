@@ -52,7 +52,7 @@ precedence = "closest"
 SPDX-FileCopyrightText = "Ruben Talstra"
 SPDX-License-Identifier = "Apache-2.0"
 
-# Images, the ArchiMate model and diagram sources.
+# Images and diagram sources.
 [[annotations]]
 path = [
   "**/*.png",
@@ -61,7 +61,6 @@ path = [
   "**/*.ico",
   "**/*.webp",
   "**/*.drawio",
-  "docs/architecture/eduLIMS_novius.xml",
 ]
 precedence = "closest"
 SPDX-FileCopyrightText = "Ruben Talstra"

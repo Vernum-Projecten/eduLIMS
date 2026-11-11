@@ -5,13 +5,14 @@
 
 ## I have a question
 
-Start at the [README](README.md) and the documents under [`docs/`](docs/). If
-they do not answer it, open an issue through the
+Start at the documentation on <https://edulims.eu/docs/>, the
+[README](README.md) and the documents under [`docs/`](docs/). If they do not
+answer it, open an issue through the
 [issue chooser](https://github.com/Vernum-Projecten/eduLIMS/issues/new/choose).
 
-eduLIMS is a student project. There is no service-level agreement. During
-practical hours, teachers and students of LifeScience contact the lab and
-application administrator (the beheerder) for access, classes and analysers.
+eduLIMS is an open-source project. There is no service-level agreement.
+During practical hours, teachers and students contact their institution's lab
+and application administrator for access, classes and analysers.
 
 ## I found a defect
 

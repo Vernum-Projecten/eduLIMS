@@ -5,16 +5,16 @@
 
 - Status: Accepted
 - Date: 2026-11-11
-- Deciders: Ruben Talstra (maintainer)
+- Deciders: maintainer
 - Amended by: [0010](0010-vendor-neutral-oidc-entra-and-keycloak.md) (Keycloak as a second provider, roles from the provider)
 
 ## Context and problem statement
 
-Users sign in with their Hanze account (S1). Hanze uses Microsoft Entra ID,
-and Hanze ICT creates the app registration. The PvA chose OpenID Connect with
-the authorization code flow and PKCE; early model views named SURFconext,
-which the PvA replaced. Roles (student, teacher, administrator) come from
-Entra app roles or groups (B1). eduLIMS needs server-side sessions and a place
+Users sign in with their institution account (S1). The first target
+institution uses Microsoft Entra ID, and its IT department creates the app
+registration. Sign-in uses OpenID Connect with the authorization code flow and
+PKCE. Roles (`student`, `teacher`, `admin`) come from Entra app roles or
+groups (B1). eduLIMS needs server-side sessions and a place
 to store users and roles.
 
 ## Decision drivers
@@ -42,7 +42,7 @@ PKCE) and the built-in PostgreSQL adapter, which runs on Kysely and `pg`.
   next to the application tables.
 - Good: the same query builder as the application
   ([0006](0006-kysely-for-app-data.md)).
-- Good: until the Hanze app registration exists, a development tenant or a
+- Good: until the institution's app registration exists, a development tenant or a
   local development-only sign-in can stand in; it is disabled in production.
 - Bad: mapping Entra app roles or groups to eduLIMS roles is project code and
   needs tests (B1, Q-SEC-2).

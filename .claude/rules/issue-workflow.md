@@ -4,9 +4,8 @@
 # Issue workflow (the tracker loop)
 
 **The tracker is GitHub Issues on `Vernum-Projecten/eduLIMS`: the open issue
-list IS the worklist.** The plan of approach names Azure Boards; the owner
-moved the whole development line to GitHub (Issues, Actions, GHCR), so Azure
-DevOps is never used. Issue state is edited only through `gh`; never track work
+list IS the worklist.** The whole development line is on GitHub (Issues,
+Actions, GHCR; ADR 0002), so Azure DevOps is never used. Issue state is edited only through `gh`; never track work
 only in chat. This file is the loop, the label taxonomy, and the cadence.
 Relationships between issues live in `issue-relationships.md`; the board is
 `project-board.md`.
@@ -34,9 +33,9 @@ Relationships between issues live in `issue-relationships.md`; the board is
 2. **Read the contract.** The issue body opens with a plain summary (no
    heading: what and why), then a `Requirement:` line naming the requirement
    IDs it serves (S1 to S9, D1 to D8, B1 to B4, or a quality requirement such as
-   "Toegankelijkheid"), then `## Acceptance criteria` as a checklist. A Must
+   `Q-ACC-1`), then `## Acceptance criteria` as a checklist. A Must
    issue quotes the current draft acceptance criterion of its requirement from
-   `docs/requirements.md` (in Dutch) and adds the engineering criteria under
+   `docs/requirements.md` and adds the engineering criteria under
    it. **The requirements are a working draft under discussion with the
    product owner.** When a requirement is unclear, missing, or conflicts with
    what the issue asks for, comment the question on the issue and ask the
@@ -81,8 +80,8 @@ creation. Until that helper exists, `gh issue create` followed by setting the
 type in the web UI is the fallback; never leave an issue without a type.
 
 The priorities read: `Urgent` is drop everything (a broken login, a role
-leak), `High` is the current milestone's focus, `Medium` is normal, `Low` is the
-backlog. The type maps to the conventional-commit type of the branch and the
+leak), `High` is the current milestone's focus, `Medium` is normal, `Low` is
+someday. The type maps to the conventional-commit type of the branch and the
 commit: a `Bug` is a `fix`, a `Feature` is a `feat`, and a `Task` says which
 one it is with exactly ONE work-kind label.
 
@@ -91,12 +90,12 @@ bootstrap it with `scripts/gh/labels.sh`:
 
 - **Work kind, on a `Task` only, exactly ONE:** `documentation`, `chore`,
   `refactor`, `perf`, `test`, `ci`.
-- **Portal:** `portal:student`, `portal:docent`, `portal:beheer`.
+- **Portal:** `portal:student`, `portal:teacher`, `portal:admin`.
 - **Area:** `auth`, `database`, `upload` (Gen5/Epoch Excel), `openehr`
   (FerroEHR REST and AQL), `hl7` (Afinion via FerroBRIDGE), `kpi`, `infra`.
 - **Workflow:** `security`, `privacy`, `accessibility`, `dependencies`
   (Dependabot), `on-hold` (waits on an input nobody here can provide, such as
-  the Entra app registration from Hanze ICT), and the PR escape hatch
+  the identity provider registration from the institution's IT department), and the PR escape hatch
   `no-changelog`. Blocked-ness is the native blocked-by edge, never a label.
 
 ## Milestones = releases

@@ -79,15 +79,15 @@ can end up in both bundles. The boundary is explicit:
 ## Types model the domain
 
 - **Distinct ids are distinct types** where a mix-up is a privacy defect: a
-  `StudentId`, a `SampleId` (monster-ID), a `PracticumId` and an EHR pseudonym
+  `StudentId`, a `SampleId`, a `PracticalId` and an EHR pseudonym
   are branded types, so passing a student id where a pseudonym belongs fails
   to compile.
 - **Errors are values the caller can branch on.** A server function returns
   or throws a typed error (a discriminated union with a `kind`), never a
-  string the caller has to match. Map it to an HTTP status and a Dutch message
-  at the edge.
+  string the caller has to match. Map it to an HTTP status and a message key from
+  the i18n layer at the edge.
 - **Discriminated unions over boolean flags** for state (submission status
-  `concept | ingediend | beoordeeld`, S8), with an exhaustive `switch` that
+  `draft | submitted | graded`, S8), with an exhaustive `switch` that
   ends in a `never` check.
 - **Dates:** store and compare instants in UTC (`timestamptz`); format for
   the user in `nl-NL` and `Europe/Amsterdam` at render time. Deadline logic

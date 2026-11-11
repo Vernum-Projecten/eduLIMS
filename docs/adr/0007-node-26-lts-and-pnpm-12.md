@@ -5,7 +5,7 @@
 
 - Status: Accepted
 - Date: 2026-11-11
-- Deciders: Ruben Talstra (maintainer)
+- Deciders: maintainer
 
 ## Context and problem statement
 

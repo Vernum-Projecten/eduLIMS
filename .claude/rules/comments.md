@@ -67,7 +67,7 @@ the budgets below.
   `src/server/` and `src/lib/`. A route file's `Route` export and a shadcn
   primitive need none.
 - **Summary line:** one short sentence in the third person present ("Returns
-  the samples of one practicum.", never "Return…" or "This function…"),
+  the samples of one practical.", never "Return…" or "This function…"),
   followed by a blank line before any detail.
 - Use `@param`, `@returns`, `@throws` only when the name and type do not
   already say it. `@throws` names the error class and when.

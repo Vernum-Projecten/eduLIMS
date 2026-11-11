@@ -5,9 +5,8 @@
 
 This strategy describes how eduLIMS is tested. Every test belongs to an
 acceptance criterion in [requirements.md](requirements.md), so each
-requirement can be shown to be met. It is a translation of the owner's
-*Teststrategie eduLIMS*, updated for the chosen tools and for GitHub Actions
-([ADR 0002](adr/0002-github-instead-of-azure-devops.md)).
+requirement can be shown to be met. All automated tests run in GitHub
+Actions ([ADR 0002](adr/0002-github-instead-of-azure-devops.md)).
 
 ## Approach
 
@@ -27,7 +26,7 @@ repeat, so they cover the most important flows only.
 |---|---|---|---|---|
 | Unit | Rules in the core: final grade from the rubric (D4), the five KPIs (K-01, K-04 to K-06, K-08), deadline and locking after sending (S6), sample ID uniqueness (S3) | Vitest | every change, in CI | all tests green; core coverage at least 70% (Q-MAINT-1) |
 | Data | Excel upload: sample IDs, well positions, empty or duplicate values (S4). Afinion: HL7 message to openEHR | a fixed set of good and bad test files; validation against the template `eduLIMS-lab` | every change, in CI | bad files are rejected with a clear message; good files reach FerroEHR correctly |
-| Integration | eduLIMS with FerroEHR (REST and AQL), FerroBRIDGE with an HL7 message, sign-in through Entra ID | a test environment with Docker Compose; the HL7 message is simulated | every release | a measurement appears with the right sample within 1 minute (S5) |
+| Integration | eduLIMS with FerroEHR (REST and AQL), FerroBRIDGE with an HL7 message, sign-in through Microsoft Entra ID or Keycloak | a test environment with Docker Compose; the HL7 message is simulated | every release | a measurement appears with the right sample within 1 minute (S5) |
 | Security | Roles: a student sees no data of others, a teacher only their own classes (Q-SEC-2). Vulnerable libraries (Q-SEC-4) | test accounts per role; OWASP Top 10 checklist (Q-SEC-1); dependency and image scan in CI | every release | no access outside the own role; no known critical vulnerabilities |
 | Performance | Page load time and Excel upload processing (Q-PERF-1, Q-PERF-2) | measured in the test environment with a full practical of test data | before every milestone review | pages within 2 seconds; upload within 10 seconds |
 | Accessibility | Student portal, teacher portal and the dashboard (Q-ACC-1 to Q-ACC-3) | axe scan in Playwright, and a keyboard-only walkthrough | axe on every change; keyboard before every milestone review | no errors at WCAG 2.1 level A and AA |
@@ -41,7 +40,7 @@ repeat, so they cover the most important flows only.
 | Unit, data | Vitest (with jsdom and Testing Library for components), `@vitest/coverage-v8` |
 | Integration | Vitest against the Compose test stack (PostgreSQL 18, FerroEHR); a simulated HL7 sender for FerroBRIDGE |
 | End-to-end, accessibility | Playwright with `@axe-core/playwright` |
-| Security | the dependency and image scans in CI ([ci-cd.md](ci-cd.md)), role tests in Vitest and Playwright |
+| Security | role tests in Vitest and Playwright; in CI ([ci-cd.md](ci-cd.md)): `pnpm audit` and OSV-Scanner on dependencies, CodeQL (`security-extended`) on the code and workflows, Trivy on the pushed image, zizmor and actionlint on the workflows, and OpenSSF Scorecard on the repository |
 
 ## Test data
 
@@ -64,10 +63,13 @@ out is good enough.
 
 - Every AI change goes through the same pipeline as any other code: unit
   tests, data tests and the dependency scan.
-- The supervising teacher then reviews the change in a pull request. Nothing
-  reaches production without green tests and a resolved review.
-- The developer counts how many AI pull requests needed changes in review.
-  That shows in the retrospective whether the AI assistance helps.
+- The change is merged only through a pull request and the merge queue with
+  green CI. Review by a person is a convention, not a gate: the branch rules
+  require no approval, so a pull request can auto-merge once CI is green. By
+  convention a reviewer looks at the change and every review comment is
+  resolved before merging ([GOVERNANCE.md](../GOVERNANCE.md#merging)).
+- The maintainer counts how many AI pull requests needed changes in review.
+  That shows in the milestone review whether the AI assistance helps.
 
 ## Definition of Done
 
@@ -76,11 +78,10 @@ A user story is done only when all of the following hold. The same list is in
 
 - [ ] The acceptance criterion from [requirements.md](requirements.md) is met.
 - [ ] The new code has unit tests, and every test in the pipeline is green.
-- [ ] The supervising teacher has reviewed the pull request and every comment
+- [ ] The pull request has been reviewed by convention and every review comment
       is resolved.
 - [ ] The change is tested in the test environment.
-- [ ] The ArchiMate model and the documentation are updated if the
-      architecture changed.
+- [ ] The architecture documentation is updated if the architecture changed.
 
 ## Reporting
 
