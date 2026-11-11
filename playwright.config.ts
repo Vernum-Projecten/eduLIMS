@@ -1,0 +1,57 @@
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+
+import { defineConfig, devices } from "@playwright/test";
+
+// E2E runs the production build (`pnpm build` first) against a throwaway database:
+// E2E_DATABASE_URL when given (CI service container), otherwise an in-memory PGlite
+// server speaking the Postgres wire protocol, so no Docker is needed locally.
+const PORT = 3100;
+const PGLITE_PORT = 54329;
+const baseURL = `http://localhost:${PORT}`;
+const externalDatabase = process.env["E2E_DATABASE_URL"];
+const databaseUrl =
+  externalDatabase ?? `postgres://postgres:postgres@127.0.0.1:${PGLITE_PORT}/postgres`;
+
+const appEnv = {
+  NODE_ENV: "test",
+  PORT: String(PORT),
+  DATABASE_URL: databaseUrl,
+  BETTER_AUTH_SECRET: "e2e-only-secret-not-for-production-use-0123456789",
+  BETTER_AUTH_URL: baseURL,
+  MICROSOFT_CLIENT_ID: "00000000-0000-0000-0000-000000000001",
+  MICROSOFT_CLIENT_SECRET: "e2e-dummy",
+  MICROSOFT_TENANT_ID: "00000000-0000-0000-0000-000000000002",
+  FERROEHR_BASE_URL: "http://localhost:4001",
+  FERROBRIDGE_BASE_URL: "http://localhost:4002",
+  EDULIMS_DEV_LOGIN: "true",
+};
+
+export default defineConfig({
+  testDir: "tests/e2e",
+  outputDir: "test-results",
+  fullyParallel: true,
+  forbidOnly: Boolean(process.env["CI"]),
+  retries: process.env["CI"] ? 2 : 0,
+  reporter: process.env["CI"] ? [["github"], ["html", { open: "never" }]] : "list",
+  use: { baseURL, locale: "nl-NL", trace: "retain-on-failure" },
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  webServer: [
+    ...(externalDatabase
+      ? []
+      : [
+          {
+            command: `pnpm exec pglite-server --port=${PGLITE_PORT} --max-connections=10`,
+            port: PGLITE_PORT,
+            reuseExistingServer: false,
+          },
+        ]),
+    {
+      command: "pnpm db:migrate && pnpm db:seed && pnpm start",
+      url: `${baseURL}/api/ready`,
+      env: appEnv,
+      reuseExistingServer: false,
+      timeout: 60_000,
+    },
+  ],
+});
