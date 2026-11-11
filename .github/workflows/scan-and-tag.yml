@@ -1,0 +1,138 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# The image vulnerability gate and the tag application, as a reusable workflow
+# release.yml calls.
+#
+# The order is the point: release-image.yml pushes each image by digest with
+# no tag, this workflow scans those digests, and only a passing scan makes them
+# referencable by tag. An image tagged first and scanned after would already be
+# `latest` for anyone pulling it.
+#
+# The gate fails on a HIGH or CRITICAL finding that has a fix (trivy.yaml): a
+# rebuild on a newer base or a dependency bump resolves those. Everything else
+# is judged in the release's vulnerability record, which runs before this
+# workflow.
+name: Scan and tag images (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      app-image:
+        description: The server image name (ghcr.io/...).
+        required: true
+        type: string
+      app-digest:
+        description: The server image's pushed index digest.
+        required: true
+        type: string
+      app-tags:
+        description: The newline-separated tags to apply to the server digest.
+        required: true
+        type: string
+      migrate-image:
+        description: The migrate image name (ghcr.io/...).
+        required: true
+        type: string
+      migrate-digest:
+        description: The migrate image's pushed index digest.
+        required: true
+        type: string
+      migrate-tags:
+        description: The newline-separated tags to apply to the migrate digest.
+        required: true
+        type: string
+
+permissions: {}
+
+env:
+  # The one Trivy version the release record and the scheduled scan run too.
+  TRIVY_VERSION: "0.76.2"
+
+jobs:
+  image-scan:
+    name: image vulnerability scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read # pull the digests the caller pushed
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Trivy from its GitHub release, checked by sha256
+        run: bash scripts/release/install-trivy.sh "$TRIVY_VERSION" "$RUNNER_TEMP/trivy-bin"
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # Trivy reads one platform per run, so each variant of each index is
+      # scanned by the pushed digest. trivy.yaml sets the HIGH/CRITICAL floor,
+      # `ignore-unfixed` and the adjudicated ignore file. No VEX document is
+      # passed: a `pkg:oci/...` product matches a published reference, never
+      # the untagged digest scanned here.
+      - name: Scan every image and platform
+        env:
+          APP: ${{ inputs.app-image }}@${{ inputs.app-digest }}
+          MIGRATE: ${{ inputs.migrate-image }}@${{ inputs.migrate-digest }}
+        run: |
+          set -euo pipefail
+          status=0
+          for ref in "$APP" "$MIGRATE"; do
+            for platform in linux/amd64 linux/arm64; do
+              echo "::group::${ref} ${platform}"
+              trivy image --config trivy.yaml --scanners vuln --platform "$platform" \
+                --exit-code 1 --format table "$ref" || status=1
+              echo "::endgroup::"
+            done
+          done
+          [ "$status" -eq 0 ] || {
+            echo "::error::an image carries a HIGH or CRITICAL finding with a fix available; rebuild on the fixed base or bump the dependency"
+            exit 1
+          }
+
+  # Tags exist only after the scan passes. `imagetools create` over one source
+  # re-tags the same digest, so the attestations bound to it stay valid.
+  apply-tags:
+    name: apply image tags (after the scan gate)
+    needs: image-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      packages: write # tag the digests the caller pushed
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Tag the server image
+        env:
+          IMAGE: ${{ inputs.app-image }}
+          DIGEST: ${{ inputs.app-digest }}
+          TAGS: ${{ inputs.app-tags }}
+        run: |
+          set -euo pipefail
+          args=()
+          while IFS= read -r t; do [ -n "$t" ] && args+=(-t "$t"); done <<< "$TAGS"
+          [ "${#args[@]}" -gt 0 ] || { echo "::error::no tags to apply to ${IMAGE}@${DIGEST}"; exit 1; }
+          docker buildx imagetools create "${args[@]}" "${IMAGE}@${DIGEST}"
+
+      - name: Tag the migrate image
+        env:
+          IMAGE: ${{ inputs.migrate-image }}
+          DIGEST: ${{ inputs.migrate-digest }}
+          TAGS: ${{ inputs.migrate-tags }}
+        run: |
+          set -euo pipefail
+          args=()
+          while IFS= read -r t; do [ -n "$t" ] && args+=(-t "$t"); done <<< "$TAGS"
+          [ "${#args[@]}" -gt 0 ] || { echo "::error::no tags to apply to ${IMAGE}@${DIGEST}"; exit 1; }
+          docker buildx imagetools create "${args[@]}" "${IMAGE}@${DIGEST}"

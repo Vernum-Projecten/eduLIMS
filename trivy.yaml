@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# Trivy configuration for the image gate (.github/workflows/scan-and-tag.yml)
+# and the weekly published-image scan (.github/workflows/image-scan.yml). The
+# release's vulnerability record does not read it: that job passes an empty
+# configuration so it sees every finding.
+#
+# Two choices:
+#
+#   * `ignore-unfixed` (under `vulnerability:`; Trivy ignores the key at the
+#     top level). A finding in the base image with no fix available is not
+#     something a rebuild can resolve, so it does not block the gate. The
+#     release record still judges it against security/vex/.
+#   * HIGH and CRITICAL only. The record covers every other severity.
+#
+# The adjudicated exception for one specific finding is .trivyignore.yaml.
+severity:
+  - HIGH
+  - CRITICAL
+
+vulnerability:
+  ignore-unfixed: true
+
+ignorefile: .trivyignore.yaml
+
+# The OpenVEX documents under security/vex/ are not listed here: Trivy takes
+# VEX sources only as `--vex` arguments, so image-scan.yml passes them. The
+# gate passes none, because a `pkg:oci/...` product matches only a published
+# reference, never the untagged digest the gate scans.

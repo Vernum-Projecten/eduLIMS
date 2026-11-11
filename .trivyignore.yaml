@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# Adjudicated scanner exceptions (Trivy ignore file). Every entry states what is
+# exempt, why, and until when (`expired_at`), so an exception cannot become
+# permanent by inattention. There is no blanket suppression and no lowered
+# severity threshold standing in for one.
+#
+# An entry looks like this:
+#
+#   vulnerabilities:
+#     - id: CVE-2026-00000
+#       statement: "Why the fix cannot ship yet, checkable by a reader."
+#       expired_at: 2027-01-31
+#
+# A finding judged not to affect eduLIMS gets its argument as an OpenVEX
+# statement under security/vex/ instead (security/vex/README.md), which the
+# release record and the weekly scan read. This file is for a fixable finding
+# that blocks the gate while its fix cannot ship yet.
+
+vulnerabilities: []
