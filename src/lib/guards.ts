@@ -7,11 +7,29 @@ import { type ParsedLocation, redirect } from "@tanstack/react-router";
 import type { Role } from "@/lib/roles";
 import { hasRole, portalPathFor, type SessionUser } from "@/server/authz";
 
-/** Only relative, same-origin paths are accepted as post-login targets (no open redirect). */
+/** A placeholder origin to resolve candidate paths against; never requested. */
+const REDIRECT_BASE = "https://edulims.invalid";
+
+/** Control characters, whitespace and backslashes, which browsers strip or rewrite in URLs. */
+const UNSAFE_URL_CHARACTERS = /[\p{Cc}\s\\]/u;
+
+/**
+ * Returns `value` as a post-login target when it is a path on this origin, or `undefined`.
+ *
+ * NOTE: OWASP A01 (open redirect), #29; a tab in `/<TAB>/evil.example` is stripped by browsers
+ * into `//evil.example`, so unsafe characters are refused before the same-origin check.
+ */
 export function safeRedirectPath(value: unknown): string | undefined {
   if (typeof value !== "string" || !value.startsWith("/")) return undefined;
-  if (value.startsWith("//") || value.startsWith("/\\")) return undefined;
-  return value;
+  if (UNSAFE_URL_CHARACTERS.test(value)) return undefined;
+  let url: URL;
+  try {
+    url = new URL(value, REDIRECT_BASE);
+  } catch {
+    return undefined;
+  }
+  if (url.origin !== REDIRECT_BASE) return undefined;
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 export function requireUser({
