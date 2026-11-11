@@ -10,16 +10,28 @@ import {
   Link,
   Outlet,
   Scripts,
+  useRouteContext,
   useRouter,
 } from "@tanstack/react-router";
+import { CircleAlertIcon, CompassIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { SiteHeader } from "@/components/site-header";
+import { AppShell } from "@/components/shell/app-shell";
+import { PublicLayout } from "@/components/shell/public-layout";
+import { ThemeProvider, useThemeState } from "@/components/theme/theme-provider";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+} from "@/components/ui/empty";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { m } from "@/i18n/messages";
 import { getLocale } from "@/lib/i18n/locale";
 import { getSession } from "@/lib/session.functions";
+import { themeClass } from "@/lib/theme";
 import appCss from "@/styles/app.css?url";
 
 export interface RouterContext {
@@ -46,69 +58,86 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     ],
   }),
   shellComponent: RootDocument,
-  component: RootComponent,
+  component: Outlet,
   notFoundComponent: NotFound,
   errorComponent: RouteError,
 });
 
-function RootComponent() {
-  const { user } = Route.useRouteContext();
-  return (
-    <>
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:ring-3 focus:ring-ring"
-      >
-        {m.skip_to_content()}
-      </a>
-      <SiteHeader user={user} />
-      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-8 outline-none">
-        <Outlet />
-      </main>
-      <Toaster />
-    </>
-  );
-}
-
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
+  const theme = useThemeState();
   return (
-    <html lang={getLocale()}>
+    <html lang={getLocale()} className={themeClass(theme.theme)}>
       <head>
         <HeadContent />
       </head>
       <body>
-        <TooltipProvider>{children}</TooltipProvider>
+        <ThemeProvider value={theme}>
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster />
+        </ThemeProvider>
         <Scripts />
       </body>
     </html>
   );
 }
 
+/** Renders a page outside the route tree (not found, error) in the chrome the visitor has. */
+function Chrome({ children }: Readonly<{ children: ReactNode }>) {
+  const user = useRouteContext({ from: "__root__", select: (context) => context.user });
+  return user ? (
+    <AppShell user={user}>{children}</AppShell>
+  ) : (
+    <PublicLayout signedIn={false}>{children}</PublicLayout>
+  );
+}
+
+function StatusPage({
+  icon,
+  title,
+  body,
+  children,
+}: Readonly<{ icon: ReactNode; title: string; body: ReactNode; children: ReactNode }>) {
+  return (
+    <section aria-labelledby="page-title" className="flex flex-1">
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">{icon}</EmptyMedia>
+          <h1 id="page-title" className="text-2xl font-semibold tracking-tight">
+            {title}
+          </h1>
+          <EmptyDescription>{body}</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent className="flex-row flex-wrap justify-center">{children}</EmptyContent>
+      </Empty>
+    </section>
+  );
+}
+
 function NotFound() {
   return (
-    <section aria-labelledby="page-title" className="max-w-3xl">
-      <h1 id="page-title" className="text-2xl font-semibold">
-        {m.not_found_title()}
-      </h1>
-      <p className="mt-2 text-muted-foreground">{m.not_found_body()}</p>
-      <Button asChild className="mt-6">
-        <Link to="/">{m.back_to_home()}</Link>
-      </Button>
-    </section>
+    <Chrome>
+      <StatusPage
+        icon={<CompassIcon aria-hidden="true" />}
+        title={m.not_found_title()}
+        body={m.not_found_body()}
+      >
+        <Button asChild>
+          <Link to="/">{m.back_to_home()}</Link>
+        </Button>
+      </StatusPage>
+    </Chrome>
   );
 }
 
 function RouteError({ reset }: ErrorComponentProps) {
   const router = useRouter();
   return (
-    <section aria-labelledby="page-title" className="max-w-3xl">
-      <h1 id="page-title" className="text-2xl font-semibold">
-        {m.error_title()}
-      </h1>
-      <p role="alert" className="mt-2 text-muted-foreground">
-        {m.error_body()}
-      </p>
-      <div className="mt-6 flex flex-wrap gap-3">
+    <Chrome>
+      <StatusPage
+        icon={<CircleAlertIcon aria-hidden="true" />}
+        title={m.error_title()}
+        body={<span role="alert">{m.error_body()}</span>}
+      >
         <Button
           type="button"
           onClick={() => {
@@ -121,7 +150,7 @@ function RouteError({ reset }: ErrorComponentProps) {
         <Button asChild variant="outline">
           <Link to="/">{m.back_to_home()}</Link>
         </Button>
-      </div>
-    </section>
+      </StatusPage>
+    </Chrome>
   );
 }

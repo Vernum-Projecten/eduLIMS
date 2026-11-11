@@ -67,7 +67,9 @@ test("a student cannot open the teacher portal", async ({ page }) => {
 test("a teacher lands on the teacher portal and can sign out", async ({ page }) => {
   await devLogin(page, "teacher@example.test");
   await expect(page.getByRole("heading", { level: 1, name: "Teacher portal" })).toBeVisible();
-  await page.getByRole("button", { name: "Sign out" }).click();
+  // Signing out lives in the user menu at the foot of the sidebar.
+  await page.getByRole("button", { name: /teacher@example\.test/ }).click();
+  await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/teacher");
   await expect(page).toHaveURL(/\/login\?redirect=%2Fteacher$/);

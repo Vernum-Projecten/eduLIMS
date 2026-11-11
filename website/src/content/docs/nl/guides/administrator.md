@@ -27,6 +27,17 @@ conceptrequirement, die nog kan veranderen.
 
 eduLIMS opent het Beheerportaal als je account de rol beheerder heeft.
 
+## Je weg vinden
+
+De zijbalk links toont de onderdelen van het Beheerportaal; de huidige pagina is
+gemarkeerd. De knop linksboven (of **Ctrl+B**, **Cmd+B** op een Mac) klapt de
+zijbalk in tot pictogrammen en weer uit, en eduLIMS onthoudt die keuze; op een
+telefoon opent de knop de zijbalk als paneel. Boven de pagina laat het
+kruimelpad zien waar je bent. Onderaan de zijbalk staat je naam: kies die voor
+je account en rol, het thema (licht, donker of de instelling van je systeem)
+en **Uitloggen**. Onderdelen die nog niet klaar zijn, tonen **Binnenkort
+beschikbaar**.
+
 ## De taal wijzigen
 
 eduLIMS is er in het Nederlands en het Engels. Kies bovenaan de pagina de

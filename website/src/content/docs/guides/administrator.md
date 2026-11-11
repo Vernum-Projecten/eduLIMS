@@ -27,6 +27,16 @@ still change.
 
 eduLIMS opens the admin portal when your account has the admin role.
 
+## Find your way around
+
+The sidebar on the left lists the sections of the admin portal; the current page
+is highlighted. The button at the top left (or **Ctrl+B**, **Cmd+B** on a Mac)
+folds the sidebar to icons and back, and eduLIMS remembers the choice; on a
+phone it opens the sidebar as a panel. Above the page, the breadcrumb shows
+where you are. Your name sits at the foot of the sidebar: choose it for your
+account and role, the theme (light, dark or your system's setting) and
+**Sign out**. Sections that are not built yet say **Coming soon**.
+
 ## Change the language
 
 eduLIMS is in English and Dutch. Choose the language button in the header

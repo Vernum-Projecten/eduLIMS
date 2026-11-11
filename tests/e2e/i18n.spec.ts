@@ -126,8 +126,14 @@ test("a signed-in user's language is saved and applied on the next sign-in", asy
       fresh.getByRole("heading", { level: 1, name: dutch("portal_student") }),
     ).toBeVisible();
     await expect(fresh.locator("html")).toHaveAttribute("lang", "nl");
-    await expect(fresh.getByRole("button", { name: dutch("sign_out") })).toBeVisible();
     await expectNoA11yViolations(fresh);
+    // Signing out lives in the user menu at the foot of the sidebar.
+    await fresh
+      .getByRole("button", { name: new RegExp(LANGUAGE_USER.replace(".", "\\.")) })
+      .click();
+    await expect(fresh.getByRole("menuitem", { name: dutch("sign_out") })).toBeVisible();
+    await fresh.keyboard.press("Escape");
+    await expect(fresh.getByRole("menu")).toBeHidden();
 
     // Saving English again overrides the Dutch preference.
     await pickLanguage(
