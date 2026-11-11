@@ -25,6 +25,8 @@ export const STALE_TIME = {
    * screen counts it stale at once and refetches on the interval in {@link INTEGRATION_REFETCH_MS}.
    */
   integrationStatus: 0,
+  /** A provider's SCIM section: its token's last use moves with every directory sync. */
+  scimDetail: 15_000,
 } as const;
 
 // NOTE: B3 ("unreachable … within 5 minutes"); our own interval: a check result reaches an open

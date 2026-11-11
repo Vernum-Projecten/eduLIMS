@@ -27,7 +27,7 @@ export async function resolveSessionUser(
 ): Promise<SessionUser | null> {
   const session = await auth.api.getSession({ headers });
   if (!session) return null;
-  const method: unknown = session.session["signInMethod"];
+  const method: unknown = Reflect.get(session.session, "signInMethod");
   const viaDisabledProvider =
     typeof method === "string" &&
     method !== CREDENTIAL_SIGN_IN &&

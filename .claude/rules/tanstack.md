@@ -134,6 +134,7 @@ a new domain adds its row here and there.
 | Login page options (`loginKeys.options`) | 30 s | Providers change rarely; a callback, a language switch or a sign-out starts from an empty cache anyway. |
 | Analyser register page (`analysersKeys.list`) | 30 s | Changes rarely; every create, edit and retire invalidates it anyway (B3). |
 | Integration status (`integrationsKeys.status`) | 0, refetched every 30 s | The scheduled check writes a new result every minute; an open screen shows a failure within the 5 minutes of B3. |
+| A provider's SCIM section (`scimKeys.detail`) | 15 s | Its token's last use moves with every directory sync. |
 | Anything else (the `QueryClient` default) | 30 s | A fallback only; every factory sets its own. |
 
 ### Four states on every data route

@@ -69,6 +69,18 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   analyser_created: m.audit_action_analyser_created,
   analyser_updated: m.audit_action_analyser_updated,
   analyser_retired: m.audit_action_analyser_retired,
+  user_deprovisioned: m.audit_action_user_deprovisioned,
+  user_reprovisioned: m.audit_action_user_reprovisioned,
+  scim_token_created: m.audit_action_scim_token_created,
+  scim_token_rotated: m.audit_action_scim_token_rotated,
+  scim_token_revoked: m.audit_action_scim_token_revoked,
+  scim_token_refused: m.audit_action_scim_token_refused,
+  scim_user_created: m.audit_action_scim_user_created,
+  scim_user_updated: m.audit_action_scim_user_updated,
+  scim_user_deleted: m.audit_action_scim_user_deleted,
+  scim_group_created: m.audit_action_scim_group_created,
+  scim_group_updated: m.audit_action_scim_group_updated,
+  scim_group_deleted: m.audit_action_scim_group_deleted,
 };
 
 /** Returns the name of an activity-log action; an action the screen does not know is "Other". */

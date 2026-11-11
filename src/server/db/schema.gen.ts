@@ -84,6 +84,7 @@ export interface IdentityProvider {
   provider_id: string;
   role_claim: string;
   role_map: Generated<Json>;
+  scim_external_id_claim: string | null;
   sort_order: Generated<number>;
   updated_at: Generated<Timestamp>;
   updated_by: string | null;
@@ -109,6 +110,119 @@ export interface PendingAdminGrant {
   expires_at: Timestamp;
   id: Generated<string>;
   provider_id: string;
+}
+
+export interface ScimConnectionBinding {
+  connectionId: string;
+  connectionKey: string;
+  createdAt: Timestamp;
+  decommissionBatchCount: Generated<number>;
+  decommissionCompletedAt: Timestamp | null;
+  decommissionCursorUserId: string | null;
+  decommissionedAt: Timestamp | null;
+  decommissionLeaseExpiresAt: Timestamp | null;
+  decommissionLeaseId: string | null;
+  decommissionReconciledUserCount: Generated<number>;
+  decommissionRevision: Generated<number>;
+  decommissionStatus: Generated<string>;
+  id: string;
+  provisioningDomainId: string;
+}
+
+export interface ScimGroup {
+  connectionId: string;
+  createdAt: Timestamp;
+  displayName: string;
+  displayNameKey: string;
+  externalId: string | null;
+  externalIdKey: string | null;
+  id: string;
+  orderKey: string;
+  provisioningDomainId: string;
+  revision: Generated<number>;
+  updatedAt: Timestamp;
+}
+
+export interface ScimGroupMember {
+  connectionId: string;
+  createdAt: Timestamp;
+  groupId: string;
+  id: string;
+  membershipKey: string;
+  scimUserId: string;
+}
+
+export interface ScimIdentityTombstone {
+  connectionId: string;
+  deletedAt: Timestamp;
+  externalId: string;
+  externalIdKey: string;
+  id: string;
+  profile: string;
+  provisioningDomainId: string;
+  userId: string;
+}
+
+export interface ScimProjectionGrant {
+  connectionId: string;
+  createdAt: Timestamp;
+  grantKey: string;
+  id: string;
+  provisioningDomainId: string;
+  role: string;
+  scimUserId: string;
+  sourceId: string;
+  sourceKind: string;
+  sourceValue: string | null;
+  updatedAt: Timestamp;
+  userId: string;
+}
+
+export interface ScimSubject {
+  createdAt: Timestamp;
+  id: string;
+  profileSourceId: string | null;
+  revision: number;
+  updatedAt: Timestamp;
+  userId: string;
+}
+
+export interface ScimToken {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  expires_at: Timestamp;
+  id: Generated<string>;
+  last_used_at: Timestamp | null;
+  provider_id: string;
+  revoked_at: Timestamp | null;
+  revoked_by: string | null;
+  superseded_at: Timestamp | null;
+  token_hash: string;
+}
+
+export interface ScimUser {
+  active: boolean;
+  connectionId: string;
+  connectionUserKey: string;
+  createdAt: Timestamp;
+  displayName: string;
+  emailValueIndex: string;
+  externalId: string | null;
+  externalIdKey: string | null;
+  familyName: string | null;
+  formattedName: string;
+  givenName: string | null;
+  id: string;
+  orderKey: string;
+  primaryEmail: string;
+  provisioningDomainId: string;
+  serializedAttributes: string | null;
+  serializedEmails: string;
+  updatedAt: Timestamp;
+  userId: string;
+  userName: string;
+  userNameKey: string;
+  workEmailValueIndex: string;
 }
 
 export interface Session {
@@ -140,6 +254,7 @@ export interface User {
   banned: boolean | null;
   banReason: string | null;
   createdAt: Generated<Timestamp>;
+  deprovisioned_at: Timestamp | null;
   email: string;
   emailVerified: boolean;
   id: string;
@@ -149,6 +264,7 @@ export interface User {
   last_sign_in_at: Timestamp | null;
   locale: string | null;
   name: string;
+  provisioned_by: string | null;
   role: string | null;
   role_source: Generated<string>;
   updatedAt: Generated<Timestamp>;
@@ -171,6 +287,14 @@ export interface DB {
   identity_provider_domain: IdentityProviderDomain;
   integration_checks: IntegrationChecks;
   pending_admin_grant: PendingAdminGrant;
+  scim_token: ScimToken;
+  scimConnectionBinding: ScimConnectionBinding;
+  scimGroup: ScimGroup;
+  scimGroupMember: ScimGroupMember;
+  scimIdentityTombstone: ScimIdentityTombstone;
+  scimProjectionGrant: ScimProjectionGrant;
+  scimSubject: ScimSubject;
+  scimUser: ScimUser;
   session: Session;
   ssoProvider: SsoProvider;
   user: User;

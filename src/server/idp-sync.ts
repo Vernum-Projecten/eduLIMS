@@ -53,6 +53,10 @@ async function storedRolesOf(ctx: unknown, userId: string): Promise<StoredRoles 
     role: field(found, "role"),
     roleSource: parseRoleSource(field(found, "roleSource")),
     emailVerified: field(found, "emailVerified") === true,
+    provisionedBy:
+      typeof field(found, "provisionedBy") === "string"
+        ? String(field(found, "provisionedBy"))
+        : null,
   };
 }
 
@@ -159,7 +163,7 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
     const existingId =
       source.action !== "create-user" && typeof user.id === "string" ? user.id : null;
     const stored = existingId ? await storedRolesOf(ctx, existingId) : null;
-    let decision = decideSignInRoles(fromIdp, stored, settings.defaultRole);
+    let decision = decideSignInRoles(fromIdp, stored, settings.defaultRole, providerId);
     const test = options.testOf ? await options.testOf(ctx, providerId) : null;
     if (test !== null) return endTest(test, testOutcome(decision, profile));
     if (!settings.enabled) {

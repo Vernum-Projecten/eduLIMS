@@ -85,7 +85,7 @@ COPY dist/.output /src/.output
 # hadolint ignore=DL3006
 FROM output-${OUTPUT} AS output
 
-# ── tools: the host CLI (migrate, prune, admin, idp) ─────────────────────────
+# ── tools: the host CLI (migrate, prune, admin, idp, scim) ───────────────────
 # The CLI is TypeScript that Node.js 26 runs directly by stripping the types
 # (`pnpm db:migrate` is `node src/server/cli.ts migrate`). The image runs that
 # file with node itself, so it needs no shell and no package manager, and it

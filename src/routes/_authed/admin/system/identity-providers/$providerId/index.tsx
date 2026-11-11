@@ -9,18 +9,21 @@ import { ProviderActions } from "@/components/admin-idp/provider-actions";
 import { ProviderForm } from "@/components/admin-idp/provider-form";
 import type { ProviderFormValues } from "@/components/admin-idp/provider-form-schema";
 import { ProviderUrls } from "@/components/admin-idp/provider-urls";
+import { ScimSection } from "@/components/admin-idp/scim-section";
 import { Page } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { portalNavigation } from "@/lib/navigation";
 import type { ProviderDetail } from "@/server/idp/queries";
 import { identityProviderQueryOptions } from "@/server/idp/query-options";
+import { scimDetailQueryOptions } from "@/server/scim/query-options";
 
 export const Route = createFileRoute("/_authed/admin/system/identity-providers/$providerId/")({
   loader: async ({ context, params }) => {
-    const provider = await context.queryClient.ensureQueryData(
-      identityProviderQueryOptions(params.providerId),
-    );
+    const [provider] = await Promise.all([
+      context.queryClient.ensureQueryData(identityProviderQueryOptions(params.providerId)),
+      context.queryClient.ensureQueryData(scimDetailQueryOptions(params.providerId)),
+    ]);
     return { label: provider.label };
   },
   head: ({ loaderData }) => ({
@@ -93,6 +96,7 @@ function ProviderPage() {
           }}
         />
       </section>
+      <ScimSection providerId={provider.providerId} />
     </Page>
   );
 }

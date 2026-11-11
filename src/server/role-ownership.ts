@@ -14,6 +14,8 @@ export interface StoredRoles {
   roleSource: RoleSource | null;
   /** Whether the stored email is verified; the sign-in gate keeps it in step with the provider. */
   emailVerified?: boolean;
+  /** The provider that provisioned the user over SCIM (#45), if one did. */
+  provisionedBy?: string | null;
 }
 
 /** The outcome of {@link decideSignInRoles}. */
@@ -33,18 +35,29 @@ export type SignInRoles =
  * the stored set; a conflicting set is refused. Without a mapped role, an allowed stored set
  * whose source is `local` applies; a set the IdP once sent does not survive the IdP taking it
  * away (A07). Then `defaultRole`, else `no_edulims_role`.
+ *
+ * For a user `providerId` provisioned over SCIM (#45), the set its SCIM groups mapped stays when
+ * the sign-in carries no mapped role, and the default role never applies: such a user has no
+ * roles until the directory maps one or an administrator assigns local ones.
  */
 export function decideSignInRoles(
   idp: IdpRoles,
   stored: StoredRoles | null,
   defaultRole: Role | undefined,
+  providerId?: string,
 ): SignInRoles {
   if (idp.kind === "conflict") return { kind: "refused", reason: ROLE_CONFLICT_ERROR };
   if (idp.kind === "roles") return { kind: "idp", roles: idp.roles };
+  const provisioned = providerId !== undefined && stored?.provisionedBy === providerId;
+  if (provisioned && stored.roleSource === providerId) {
+    const fromScim = validateRoleValue(stored.role);
+    if (fromScim.ok) return { kind: "idp", roles: fromScim.roles };
+    return { kind: "refused", reason: NO_ROLE_ERROR };
+  }
   if (stored && isLocallyEditable(stored.roleSource)) {
     const local = validateRoleValue(stored.role);
     if (local.ok) return { kind: "local", roles: local.roles };
   }
-  if (defaultRole) return { kind: "default", roles: [defaultRole] };
+  if (defaultRole && !provisioned) return { kind: "default", roles: [defaultRole] };
   return { kind: "refused", reason: NO_ROLE_ERROR };
 }

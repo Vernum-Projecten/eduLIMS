@@ -51,6 +51,7 @@
     "idp:enable": "node --env-file-if-exists=.env src/server/cli.ts idp enable",
     "idp:disable": "node --env-file-if-exists=.env src/server/cli.ts idp disable",
     "idp:rekey": "node --env-file-if-exists=.env src/server/cli.ts idp rekey",
+    "scim:token": "node --env-file-if-exists=.env src/server/cli.ts scim token",
     "admin:grant": "node --env-file-if-exists=.env src/server/cli.ts admin grant",
     "admin:revoke": "node --env-file-if-exists=.env src/server/cli.ts admin revoke",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
@@ -59,7 +60,9 @@
     "docs:build": "pnpm --filter @edulims/website build"
   },
   "dependencies": {
+    "@better-auth/core": "1.7.20",
     "@better-auth/kysely-adapter": "1.7.20",
+    "@better-auth/scim": "1.7.20",
     "@better-auth/sso": "1.7.20",
     "@fontsource-variable/geist": "5.3.0",
     "@tanstack/charts": "1.5.0",
