@@ -75,7 +75,8 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
 ## Migrations
 
 - One migration per schema change, in `src/server/db/migrations/`, named
-  `<UTC timestamp>_<snake_slug>.ts` and exporting `up` and `down`
+  `<NNNN>_<snake_slug>.ts` (the next free four-digit number, registered in
+  `migrations/index.ts`) and exporting `up` and `down`
   (<https://kysely.dev/docs/migrations>). Write the SQL with Kysely's schema
   builder, or `sql` for a PostgreSQL feature it lacks.
 - **Before 1.0 (greenfield):** there is no production data, so a migration
