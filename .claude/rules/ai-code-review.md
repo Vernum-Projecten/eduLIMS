@@ -39,9 +39,9 @@ never weaken a test because a finding suggested it.
   carries its reason (`typescript-style.md`).
 - **Every AI-written change passes the same pipeline** as hand-written code:
   unit tests, data tests, the dependency scan (the test strategy, section
-  "Het AI-onderdeel testen").
+  "Testing the AI part").
 - **The review count is measured.** The owner tracks how many AI pull requests
-  needed changes at review, as evidence for the retrospective. A PR that
+  needed changes at review, as evidence for the milestone review. A PR that
   changed after review says so in its description ("Changed after review:
   …"), in plain words and without attribution.
 

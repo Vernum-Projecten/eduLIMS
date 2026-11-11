@@ -42,9 +42,9 @@ the SessionStart dump, `/phase-status`, and the board). Limits: at most 100
 sub-issues per parent, 8 nesting levels, one parent per issue.
 
 Use it to split a requirement that is too big for one PR into closeable
-pieces: "S4 Gen5-export uploaden en valideren" becomes the parser, the
+pieces: "S4 Upload and validate a Gen5 export" becomes the parser, the
 sample-ID and well validation, the openEHR composition write, and the
-Studentportaal upload screen, each with its own acceptance criteria. A
+Student portal upload screen, each with its own acceptance criteria. A
 requirement with one PR of work needs no parent.
 
 Milestones stay the release spine. Do not create per-release "epic" parents:
@@ -57,8 +57,8 @@ sequencing: the role model (B1) blocks the role-scoped result view (D3); the
 sample registration (S3) blocks the upload validation (S4). Write it in
 either direction; GitHub stores one edge.
 
-An external wait with no issue here (the Entra app registration from Hanze
-ICT, the lab network route to the VNET) is the `on-hold` label, never a
+An external wait with no issue here (the identity provider registration from
+the institution, the lab network route to the server network) is the `on-hold` label, never a
 `blocked-by` edge.
 
 ### Security alerts (UI only)

@@ -17,9 +17,9 @@ body:
     id: requirement
     attributes:
       label: Requirement
-      description: The requirement from the requirements analysis whose behaviour is wrong.
+      description: The requirement in docs/requirements.md whose behaviour is wrong.
       options:
-        - "S1: Sign in with the Hanze account (Entra ID)"
+        - "S1: Sign in with the institution account (Entra ID or Keycloak)"
         - "S2: View the practical assignment and measurement protocol"
         - "S3: Register samples with a unique sample ID"
         - "S4: Upload and validate the Gen5 Excel export"
@@ -57,9 +57,9 @@ body:
     attributes:
       label: Portal
       options:
-        - Studentportaal
-        - Docentportaal
-        - Beheerportaal
+        - Student portal
+        - Teacher portal
+        - Admin portal
         - An integration (FerroEHR, FerroBRIDGE)
         - Not portal-specific
     validations:

@@ -19,7 +19,8 @@ The short version:
   it.
 - Never real personal data; only pseudonyms in FerroEHR; role and ownership
   checks in every server function.
-- English for code and docs, Dutch for UI strings; an SPDX header
-  (`Ruben Talstra`, `Apache-2.0`) on every hand-written file.
+- Everything in English, including UI copy; all user-visible text goes
+  through the i18n layer (English source, Dutch `nl` translation; ADR 0011);
+  an SPDX header (`Ruben Talstra`, `Apache-2.0`) on every hand-written file.
 - Conventional branches and commits, a PR with `Closes #N` and auto-merge
   armed (`gh pr merge <n> --auto`), and no AI attribution anywhere.

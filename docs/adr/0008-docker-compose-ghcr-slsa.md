@@ -5,13 +5,12 @@
 
 - Status: Accepted
 - Date: 2026-11-11
-- Deciders: Ruben Talstra (maintainer)
+- Deciders: maintainer
 
 ## Context and problem statement
 
 eduLIMS, FerroEHR, FerroBRIDGE and PostgreSQL 18 run together on a Linux VM
-in a Hanze VNET (PvA 4.3). The client has not yet fixed whether hosting stays
-on a Hanze VM or moves to Azure. The project must be economical with compute
+in an isolated network of the institution. Hosting may later move to Azure. The project must be economical with compute
 (Q-SUST-1) and recover within one working day (Q-REL-1).
 
 ## Decision drivers
@@ -39,7 +38,7 @@ provenance, and the VM pulls a released tag with `docker compose pull`.
 ### Consequences
 
 - Good: one host to monitor and one backup routine for both databases.
-- Good: the same Compose setup runs locally, on the Hanze VM and on an Azure
+- Good: the same Compose setup runs locally, on the institution's VM and on an Azure
   VM.
 - Good: `gh attestation verify` proves where an image came from.
 - Bad: no automatic failover. Recovery is a restart or a restore from backup,

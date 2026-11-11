@@ -3,12 +3,13 @@
 
 # Contributing to eduLIMS
 
-eduLIMS is a LIMS for the LifeScience practical courses at Hanze, built for
-the research group New Business & ICT. The design is recorded in
+eduLIMS is an open-source laboratory information management system (LIMS) for
+practical laboratory education. The design is recorded in
 [`docs/architecture.md`](docs/architecture.md) and the draft requirements, with
 stable IDs, in [`docs/requirements.md`](docs/requirements.md). The working
 rules for people and AI sessions are in [`CLAUDE.md`](CLAUDE.md). Read them
-before you make a change.
+before you make a change. The published documentation is at
+<https://edulims.eu/docs/>.
 
 ## Setup
 
@@ -59,7 +60,7 @@ what each test level covers.
 
 - `main` only changes through a pull request and the merge queue.
 - Every required CI check must pass. No approval is required by the branch
-  rules; by convention the supervising teacher reviews pull requests, and an
+  rules; by convention a reviewer looks at every pull request, and an
   open review comment is resolved before merging.
 - Never weaken, skip or delete a test to make a build pass.
 - Work is done when it meets the
@@ -74,7 +75,9 @@ policy and its reasons are in [`AI_STATEMENT.md`](AI_STATEMENT.md) and
 
 ## Writing
 
-Write all prose in English, plainly. Address the reader as "you", use active
+Write everything in English: prose, code, comments, commits and UI copy. All
+user-visible text goes through the i18n layer (English source, Dutch
+translation); never hard-code a user-visible string (ADR 0011). Write plainly. Address the reader as "you", use active
 voice and present tense, and keep sentences short. Avoid em dashes,
 decorative lists of three, and buzzwords such as "robust" or "seamless".
 
@@ -92,8 +95,7 @@ files are covered by [`REUSE.toml`](REUSE.toml) instead.
 
 A change that alters the architecture also updates
 [`docs/architecture.md`](docs/architecture.md), adds or supersedes a record in
-[`docs/adr/`](docs/adr/README.md), and, where a view changes, the ArchiMate
-model in [`docs/architecture/`](docs/architecture/).
+[`docs/adr/`](docs/adr/README.md).
 
 ## Security
 

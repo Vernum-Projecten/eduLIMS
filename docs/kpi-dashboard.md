@@ -4,19 +4,17 @@
 # KPI dashboard
 
 This document describes the design of the KPI dashboard (requirement D5). It
-is a translation of the owner's *KPI-dashboard eduLIMS: wireframe en
-bedrijfsinformatie*, with the visualisation advice from the *Adviesrapport*.
-KPI IDs refer to [requirements.md](requirements.md#kpis).
+is part of the requirements re-evaluation and will change with it. KPI IDs
+refer to [requirements.md](requirements.md#kpis).
 
-The dashboard lives in the teacher portal of eduLIMS, not in Power BI. All
-data is in PostgreSQL, which runs locally, and Power BI cannot reach it
-directly. The measurement data is in openEHR, which is hard to report on in
-Power BI. The wireframes are drawn in Power BI style because the course uses
-Power BI.
+The dashboard lives in the teacher portal of eduLIMS, not in an external BI
+tool. All data is in PostgreSQL on the institution's own server, which an
+external BI service cannot reach directly, and the measurement data is in
+openEHR, which is hard to report on in a generic BI tool.
 
 ## Mission and vision
 
-**Mission.** LifeScience teachers see at a glance how their classes are doing.
+**Mission.** Teachers of practical laboratory courses see at a glance how their classes are doing.
 Today they open every Excel file and photo on its own, and that takes a lot of
 time.
 
@@ -29,12 +27,12 @@ dashboard only gives signals; the teacher decides what to do with them.
 The KPIs are derived with the Balanced Scorecard. Per perspective the design
 first sets what eduLIMS must be good at (the key success factor, KSF) and then
 how to measure it. Every KPI has a norm. The norms are a proposal, to be set
-with the teachers using the baseline from the quantitative analysis.
+with the teachers once a baseline is measured.
 
 | BSC perspective | KSF | KPI | ID | Norm |
 |---|---|---|---|---|
 | Customer (student) | Students pass the practical | Average grade | K-01 | ≥ 6.0 |
-| Customer (student) | Students pass the practical | Pass rate (voldoendes) | K-04 | ≥ 70% |
+| Customer (student) | Students pass the practical | Pass rate | K-04 | ≥ 70% |
 | Internal processes | Submissions arrive on time | Submitted before deadline | K-05 | 100% at the deadline |
 | Internal processes | Fast feedback for students | Grading time (submitting to grading) | K-06 | ≤ 5 working days |
 | Learning and growth | Working as in a real lab | Measurements outside the expected range | K-08 | ≤ 15% |
@@ -59,15 +57,14 @@ student, class, practical, rubric criterion and date.
 
 ## Security
 
-The course taught how to secure a dashboard in the Power BI service. Because
-this dashboard is inside eduLIMS, eduLIMS does the same things itself:
+Because the dashboard is inside eduLIMS, eduLIMS secures it itself:
 
-- Access goes through Entra ID groups, not per person. Only the teacher group
-  opens the dashboard.
-- A teacher sees only their own classes and practicals (row-level security in
-  Power BI terms; Q-SEC-2).
+- Access goes through roles from the identity provider, not per person. Only
+  the `teacher` role opens the dashboard.
+- A teacher sees only their own classes and practicals (row-level security;
+  Q-SEC-2).
 - Names and data of volunteer subjects from FerroEHR never reach the
-  dashboard, only sample IDs (similar to object-level security).
+  dashboard, only sample IDs (object-level security).
 - An average appears only from five assessments on; with fewer, someone's
   grade can be worked out (Q-PRIV-2).
 - Opening the dashboard and every export are logged. All traffic uses HTTPS.
@@ -76,21 +73,17 @@ this dashboard is inside eduLIMS, eduLIMS does the same things itself:
 
 ### Iteration 1: four pages
 
-![Wireframe iteration 1](design/kpi-dashboard-iteration-1.png)
-
 The first version had four pages: two for the teacher, one for the student,
-one for the administrator. Held against the BI theory, it had problems:
+one for the administrator. Held against BI practice, it had problems:
 
 - A KPI dashboard is one page. Four pages make a report.
-- It had sixteen cards, many without a norm. The theory keeps to about five
+- It had sixteen cards, many without a norm. Good practice keeps to about five
   KPIs, each with a norm.
 - The student and administrator pages are not steering information. They
-  belong in the student portal and the administration portal.
+  belong in the student portal and the admin portal.
 - It showed what deviated, but not what the teacher should do about it.
 
 ### Iteration 2: one page
-
-![Wireframe iteration 2](design/kpi-dashboard-iteration-2.png)
 
 The second version is one page for the teacher:
 
@@ -98,14 +91,13 @@ The second version is one page for the teacher:
   the KPI meets the norm, with an icon and text as well as colour (Q-ACC-2).
 - Two charts that explain why a KPI deviates: progress per class (K-02) and
   score per rubric criterion (K-07).
-- A block "Needs action" (Vraagt actie) that names an action per deviation.
+- A block "Needs action" that names an action per deviation.
   This follows the PDCA cycle, where deviations are discussed weekly and
   actions are recorded.
-- Filters on class, practical and period, plus a filter on cohort, which a
-  teacher asked for in the interview.
+- Filters on class, practical and period, plus a filter on cohort.
 
 Iteration 2 is not yet tested with teachers. The next step is a think-aloud
-test with three to five LifeScience teachers, setting the norms with them
+test with three to five teachers, setting the norms with them
 ([test-strategy.md](test-strategy.md)).
 
 ### Charts
@@ -136,15 +128,13 @@ No pie charts or gauges: they take a lot of space and are hard to compare.
 
 | Step | What was done |
 |---|---|
-| Problem diagnosis | Teachers open every file on its own and miss an overview per class (PvA, teacher interview). |
+| Problem diagnosis | Teachers open every file on its own and miss an overview per class. |
 | Design plan | Mission, vision and KPIs derived with the Balanced Scorecard, each with a norm. |
 | Make the design | Iteration 1 with four pages, iteration 2 with one page. |
-| Test the design | Iteration 1 checked against BI theory; iteration 2 extended with the interview. The test with teachers follows. |
+| Test the design | Iteration 1 checked against BI practice. The test with teachers follows. |
 | Look back | What was wrong in iteration 1 and what changed in iteration 2 (above). |
 
 ## Sources
 
-- De Jager, E. and Van Slooten, J. *Navigeren met KPI-dashboards*. Noordhoff.
-- Hanze, Business Intelligence knowledge sessions weeks 3 and 5 (2026).
 - Microsoft Learn: Tips for designing a great Power BI dashboard.
 - W3C (2018). Web Content Accessibility Guidelines (WCAG) 2.1.

@@ -30,7 +30,7 @@ and the release cut assembles the fragments into the new version's section
   `changed`, `deprecated`, `removed`, `fixed`, `security`. No other heading
   exists.
 - **Content:** one or two sentences in English, written for the person who
-  uses or runs eduLIMS (a docent, a beheerder, the person who deploys the
+  uses or runs eduLIMS (a teacher, an administrator, the person who deploys the
   Compose stack): what changed for them, and the upgrade step when a change
   breaks something (a new environment variable, a migration). Name the
   requirement ID when the change delivers one ("Students can upload a Gen5

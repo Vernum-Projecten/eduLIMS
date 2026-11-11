@@ -62,7 +62,7 @@ production `node_modules` and the sources from `pnpm deploy`, and runs
 1. A Linux host with Docker Engine and the Compose plugin, at least 2 vCPU
    and 4 GB of memory. On Azure, the VM, its disks and its backups live in an
    EU region (West Europe or North Europe) and nowhere else: the database
-   holds student data under the AVG (GDPR), and keeping it in the EU keeps the
+   holds student data under the GDPR, and keeping it in the EU keeps the
    transfer question closed.
 2. A reverse proxy on the host that terminates TLS for the eduLIMS hostname
    (and the Keycloak hostname, with the `keycloak` profile) and forwards to
@@ -141,11 +141,11 @@ Keycloak, or with both on the sign-in page. A provider is on when all of its
 variables are set in `.env` (all or none), and a production server refuses to
 start with no provider at all.
 
-- **Microsoft Entra ID** is the default for Hanze: students and staff sign
-  in with their institution account, and no identity service runs on the
-  host. Register an app in the Hanze tenant with the redirect URI
+- **Microsoft Entra ID** suits an institution that already uses it: students
+  and staff sign in with their institution account, and no identity service
+  runs on the host. Register an app in the institution's tenant with the redirect URI
   `<BETTER_AUTH_URL>/api/auth/callback/microsoft`, define the app roles
-  `edulims-student`, `edulims-docent` and `edulims-beheerder`, assign them to
+  `edulims-student`, `edulims-teacher` and `edulims-admin`, assign them to
   users or groups, and set `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
   and `MICROSOFT_TENANT_ID`.
 - **Keycloak** fits a deployment without access to the tenant (a pilot, a
@@ -156,7 +156,7 @@ start with no provider at all.
   (`https://<keycloak host>/realms/<realm>`; plain `http` is accepted only on
   localhost outside production), `KEYCLOAK_CLIENT_ID` and
   `KEYCLOAK_CLIENT_SECRET`. `KEYCLOAK_LABEL` is the sign-in button's text
-  (default "Inloggen met Keycloak").
+  (default "Sign in with Keycloak").
 
   ```sh
   COMPOSE_PROFILES=keycloak docker compose up -d --wait
@@ -169,13 +169,13 @@ start with no provider at all.
 
 ### Role mapping
 
-eduLIMS knows three roles: `student`, `docent` and `beheerder`. At sign-in it
+eduLIMS knows three roles: `student`, `teacher` and `admin`. At sign-in it
 reads the claim `OIDC_ROLE_CLAIM` (a dot path) from the ID token, and from
 the ID token only, and maps each value through `OIDC_ROLE_MAP`. The defaults:
 
 ```text
 # OIDC_ROLE_CLAIM: `roles` for Entra ID, `realm_access.roles` for Keycloak
-OIDC_ROLE_MAP=edulims-student:student,edulims-docent:docent,edulims-beheerder:beheerder
+OIDC_ROLE_MAP=edulims-student:student,edulims-teacher:teacher,edulims-admin:admin
 OIDC_DEFAULT_ROLE=
 ```
 
@@ -186,12 +186,12 @@ mapper on the client with token claim name `realm_access.roles` and "Add to
 ID token" on. The development realm has that mapper. A user whose token
 holds no mapped value gets `OIDC_DEFAULT_ROLE`, and is refused when it is
 unset (deny by default). The mapping seeds the role in the eduLIMS database;
-the database is what every access check reads, so a beheerder can change a
+the database is what every access check reads, so an administrator can change a
 role in eduLIMS and it applies on the next request.
 
 ## Updating
 
-The risk analysis names vulnerable libraries in the containers as a risk and
+Risk R-05 names vulnerable libraries in the containers as a risk and
 asks for monthly image updates. The cadence is:
 
 - **Monthly**, in the first week: deploy the latest eduLIMS release, which
@@ -259,6 +259,6 @@ docker compose up -d --wait
 `compose.dev.yaml` runs what `pnpm dev` needs: the same PostgreSQL image with
 the same databases, a read-only `edulims_readonly` role for the Postgres MCP
 server, and Keycloak in development mode with the `edulims` realm imported
-from `docker/keycloak/edulims-realm.json` (users `student`, `docent` and
-`beheerder`, each with its name as password). FerroEHR is the opt-in
+from `docker/keycloak/edulims-realm.json` (users `student`, `teacher` and
+`admin`, each with its name as password). FerroEHR is the opt-in
 `ferroehr` profile. The header of `compose.dev.yaml` has the commands.

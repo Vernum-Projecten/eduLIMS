@@ -29,8 +29,9 @@ skip is never a pass.
 
 ## What to check by hand (no tool can)
 
-- Every new string a user reads is Dutch, and every new route has a Dutch
-  `title` (WCAG 2.4.2).
+- Every new string a user reads comes from the i18n layer, with its key in
+  both the `en` and the `nl` catalogue, and every new route has a translated
+  `title` (WCAG 2.4.2, ADR 0011). No hard-coded user-visible string.
 - Meaning is never carried by colour alone (1.4.1): look at each new status,
   badge, KPI signal and validation state.
 - The screen at 320 px wide and at 200% zoom scrolls only vertically

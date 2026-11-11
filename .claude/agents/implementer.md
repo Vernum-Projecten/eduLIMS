@@ -16,8 +16,8 @@ color: green
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-You implement one bounded task in eduLIMS (a LIMS for Hanze LifeScience lab
-education on TanStack Start, PostgreSQL 18 and FerroEHR; see `CLAUDE.md`),
+You implement one bounded task in eduLIMS (an open-source LIMS for practical
+laboratory education on TanStack Start, PostgreSQL 18 and FerroEHR; see `CLAUDE.md`),
 exactly as the orchestrator's prompt specifies. Read `CLAUDE.md` and the
 `.claude/rules/*.md` for every area you touch before writing code.
 

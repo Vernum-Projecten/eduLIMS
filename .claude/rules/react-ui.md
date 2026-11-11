@@ -14,10 +14,12 @@ paths:
 
 The UI is React 19 on TanStack Start, styled with Tailwind 4 and built from
 shadcn/ui components (style `radix-nova`, `components.json`). Three portals
-share one app: Studentportaal, Docentportaal and Beheerportaal. The quality
-requirement is **WCAG 2.1 level AA**, checked with axe and a keyboard pass
-(requirements analysis, "Toegankelijkheid"). Every string a user reads is
-Dutch (`writing-style.md`); the root document sets `lang="nl"`.
+share one app: the Student portal, the Teacher portal and the Admin portal.
+The quality requirement is **WCAG 2.1 level AA**, checked with axe and a
+keyboard pass (Q-ACC-1). All UI text goes through the i18n layer (English
+source, Dutch translation); never hard-code a user-visible string
+(`writing-style.md`, ADR 0011). The root document's `lang` follows the active
+locale (`en` or `nl`).
 
 ## 1. shadcn/ui owns the primitives
 
@@ -56,8 +58,9 @@ Every form follows the shadcn TanStack Form guide
   `{isInvalid && <FieldError errors={field.state.meta.errors} />}`.
 - Every control has a visible label (WCAG 1.3.1, 3.3.2); a placeholder is
   never the label. Help text is a `FieldDescription`.
-- Validation messages are Dutch, specific and actionable ("Monster-ID
-  LS-0042 bestaat niet in dit practicum", never "Ongeldige invoer"). The
+- Validation messages come from the i18n layer and are specific and
+  actionable ("Sample ID LS-0042 does not exist in this practical", never
+  "Invalid input"). The
   server's refusal is rendered next to the field it concerns, or at the top of
   the form with focus moved to it.
 - The submit button shows the pending state (`form.state.isSubmitting`) and
@@ -73,12 +76,11 @@ suite runs axe on every route (`testing.md`).
   `div`; use a `button` or a link.
 - **Structure:** one `h1` per page, headings in order, landmarks (`header`,
   `nav`, `main`), a skip link to `main` (1.3.1, 2.4.1). Every route sets a
-  Dutch `title` through its `head()` (2.4.2).
+  translated `title` through its `head()` (2.4.2).
 - **Colour:** text contrast at least 4.5:1, large text and UI components at
   least 3:1 (1.4.3, 1.4.11). **Never carry meaning by colour alone** (1.4.1):
   a KPI signal, a rejected well or an out-of-range measurement shows an icon
-  and text as well (risk analysis, "kleurenblinde of slechtziende
-  gebruiker").
+  and text as well (R-09, "a colour-blind or visually impaired user").
 - **Tables:** real `<th>` headers with `scope`, a caption or `aria-label`; the
   96-well plate view is a table with row and column headers, not a grid of
   divs.
@@ -94,11 +96,11 @@ suite runs axe on every route (`testing.md`).
 - A component renders what its loader returned and nothing more. Never fetch
   "all results" and filter by role in the component; the server function
   filters (`auth-security.md`, S7, D3).
-- A student sees their own grade next to the class and practicum average; an
-  average shows only from 5 assessments upward (risk analysis, "gemiddelde
-  verraadt een individueel cijfer").
+- A student sees their own grade next to the class and practical average; an
+  average shows only from 5 assessments upward (R-03, "an average reveals an
+  individual grade").
 - No name or student number of a subject from FerroEHR appears anywhere;
-  measurements show the monster-ID.
+  measurements show the sample ID.
 
 ## 5. Performance
 

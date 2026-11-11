@@ -13,17 +13,17 @@ paths:
 
 # Authentication, authorisation and security
 
-The highest-scored risk in the requirements analysis is "een student ziet
-cijfers of resultaten van anderen" (score 6), answered by "toegang per rol en
-filter op eigen gegevens in de API (S7, D3)". The quality requirement is
-"inloggen alleen via SSO, toegang per rol", accepted when an OWASP Top 10
+The highest-scored risk in the requirements is R-01, "a student sees grades
+or results of others" (score 6), answered by "access per role and a filter on
+own data in the API (S7, D3)". The quality requirement Q-SEC-1 is "sign-in
+only through SSO; access per role", accepted when an OWASP Top 10
 check finds no open endpoint without login. This file is how the code meets
 both.
 
 ## Sign-in: Entra ID or Keycloak through better-auth (S1, ADR 0010)
 
 - **better-auth** is the auth library (<https://better-auth.com/docs>), with
-  OpenID Connect providers only: Microsoft Entra ID (the Hanze tenant only,
+  OpenID Connect providers only: Microsoft Entra ID (the institution's tenant only,
   `socialProviders.microsoft`) and Keycloak (`genericOAuth` with the
   `keycloak()` helper), each on when its variables are set, at least one in
   production. Authorization code flow with PKCE. Never add provider-specific
@@ -32,44 +32,45 @@ both.
 - The better-auth handler is mounted as a server route under `/api/auth/*`;
   the session lives in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie. No
   token is ever stored in `localStorage` or exposed to client code.
-- **There is no local password login** in production. The plan of approach
-  allows a temporary local login while the Entra app registration is pending;
+- **There is no local password login** in production. A temporary local login
+  may exist while the identity provider registration is pending (risk P-01);
   if one exists, it is enabled only when `NODE_ENV !== "production"` and an
   explicit flag is set, and a test proves it is off in a production build.
 - The client id, client secret, tenant id and the better-auth secret come from
   the environment (`.env`, never committed; `.env.example` lists the names
   with empty values).
 
-## Roles: student, docent, beheerder (B1)
+## Roles: student, teacher, admin (B1)
 
-- A user has exactly the roles the database says (B1: "een beheerder kent een
-  rol toe; de gebruiker ziet direct alleen de schermen van die rol"). Roles may
+- A user has exactly the roles the database says (B1: "an administrator
+  assigns a role; the user immediately sees only the screens of that role").
+  The role names are `student`, `teacher` and `admin`. Roles may
   be seeded from the provider's role claim on every OIDC sign-in
   (`OIDC_ROLE_CLAIM`, `OIDC_ROLE_MAP`; no mapped role means no access unless
   `OIDC_DEFAULT_ROLE` is set), and the eduLIMS database is the source the
-  checks read. Who owns role assignment (provider vs Beheerportaal, B1) is an
+  checks read. Who owns role assignment (provider vs Admin portal, B1) is an
   open owner question in ADR 0010; do not build role editing before it is
   answered.
 - **Authorisation is enforced on the server, in every server function and
   server route, before any data is read.** Use the shared middleware
-  (`requireSession`, `requireRole("docent")`) from `src/server/auth/`. A
+  (`requireSession`, `requireRole("teacher")`) from `src/server/auth/`. A
   route `beforeLoad` guard is navigation UX and never the security boundary.
-- **Ownership is checked, not just role.** A docent reads only the practica
-  they own or are linked to (D3: "niet die van practica van andere
-  docenten"). A student reads only their own samples, submissions and grades
-  (S7: "ziet alleen zijn eigen cijfer"). An id from the client (a practicum
-  id, a sample id) is checked against the session user in the same query
-  (`where practicum.owner_id = :userId`), never fetched first and filtered
+- **Ownership is checked, not just role.** A teacher reads only the
+  practicals they own or are linked to (D3: "not those of practicals of other
+  teachers"). A student reads only their own samples, submissions and grades
+  (S7: "sees only their own grade"). An id from the client (a practical id,
+  a sample id) is checked against the session user in the same query
+  (`where practical.owner_id = :userId`), never fetched first and filtered
   after.
 - **Aggregates leak too.** An average is shown only from 5 assessments up
-  (risk analysis), and the KPI queries apply the same ownership filter as the
+  (R-03), and the KPI queries apply the same ownership filter as the
   detail queries.
 - Every role-scoped server function has a **negative test** per role that
-  proves the refusal (a student calling a docent function gets 403, a docent
-  reading another docent's practicum gets 404 or 403), using the fixed
+  proves the refusal (a student calling a teacher function gets 403, a teacher
+  reading another teacher's practical gets 404 or 403), using the fixed
   pseudonymised test accounts (`testing.md`).
 
-## Privacy (AVG)
+## Privacy (GDPR)
 
 - **Never real personal data** in code, fixtures, seeds, logs, screenshots,
   issues or PRs. The test set uses invented students with pseudonyms.
@@ -80,8 +81,8 @@ both.
   in the eduLIMS database.
 - **Logs carry ids, not people:** a user id, a sample id, a request id. Never
   a name, an e-mail, a grade, a token or a request body.
-- The audit log (B4, and the KPI dashboard's "openen en exporteren komt in
-  het logboek") records who did what, with the user id.
+- The audit log (B4, and the KPI dashboard's "opening the dashboard and
+  every export are logged") records who did what, with the user id.
 
 ## OWASP Top 10 checklist for every change
 
@@ -126,6 +127,6 @@ diff against it.
 - Accept only `.xlsx` up to a configured size limit, check the content (a
   zip with the expected workbook parts), and parse with a maintained library
   in a server function. Never trust the file name or the MIME type alone.
-- Reject the whole file with Dutch, row-level messages when any sample ID is
+- Reject the whole file with translated, row-level messages when any sample ID is
   unknown or any well position is invalid (S4 acceptance criterion); write
   nothing to FerroEHR from a rejected file.

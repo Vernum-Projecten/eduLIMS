@@ -86,8 +86,8 @@ releases on 2026-11-11; `package.json` takes them when the dependency lands.
 | Item | Pin | Where |
 |---|---|---|
 | PostgreSQL | 18 (image `postgres:18.6`, pinned by digest) | Compose files |
-| FerroEHR | the release the research group deploys; openEHR ITS-REST 1.1.0, AQL 1.1 | Compose files |
-| FerroBRIDGE | the release the research group deploys; HL7 v2 over MLLP | Compose files |
+| FerroEHR | the release the deployment pins; openEHR ITS-REST 1.1.0, AQL 1.1 | Compose files |
+| FerroBRIDGE | the release the deployment pins; HL7 v2 over MLLP | Compose files |
 
 ## Standards
 
@@ -97,6 +97,5 @@ releases on 2026-11-11; `package.json` takes them when the dependency lands.
 | Archetype Query Language | AQL 1.1 |
 | HL7 | v2 (Afinion 2 messages) |
 | WCAG | 2.1, level AA |
-| ArchiMate model exchange | ArchiMate 3.1 Open Exchange format |
 | SLSA | Build Level 3 |
 | REUSE | 3.3 |

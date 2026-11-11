@@ -6,10 +6,10 @@
 No specification governs this design. It is grounded in SLSA v1.0, the
 OpenSSF Scorecard, Sigstore, and the OWASP GitHub Actions Security Cheat
 Sheet, and it follows the pipeline of the Ferro family, adapted to a
-TypeScript application built with pnpm. The plan of approach names Azure
-DevOps as the development platform; the owner chose GitHub, and every gate
-that plan asks for (automated tests on each change, a dependency scan, no
-merge without green tests) runs here.
+TypeScript application built with pnpm. The owner chose GitHub over Azure
+DevOps ([ADR 0002](adr/0002-github-instead-of-azure-devops.md)), and every
+gate the test strategy asks for (automated tests on each change, a dependency
+scan, no merge without green tests) runs here.
 
 ## Workflow security rules
 

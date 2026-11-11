@@ -11,8 +11,8 @@ paths:
 
 # Testing discipline
 
-The test strategy ("Teststrategie eduLIMS") ties every test to an acceptance
-criterion of the requirements analysis, so each requirement can show it is
+The test strategy (`docs/test-strategy.md`) ties every test to an acceptance
+criterion of the requirements, so each requirement can show it is
 met. This file turns that strategy into rules for the code. The requirements
 and their criteria are a working draft (`docs/requirements.md`): a test cites
 the ID it encodes, and when a criterion changes, the test changes in the same
@@ -38,9 +38,9 @@ is a question for the owner, never a number you pick.
 | Unit | Core rules: final grade from the rubric (D4), the five KPIs (D5), deadline and lock after submit (S6), sample-ID generation (S3) | Vitest | `*.test.ts` next to the code, or `tests/unit/` | every change (`pnpm test`) |
 | Data | Gen5 Excel: sample IDs, well positions, empty and duplicate values (S4); Afinion HL7 to openEHR (S5) | Vitest with the fixed good and bad files | `tests/unit/` with `tests/fixtures/` | every change |
 | Integration | eduLIMS with FerroEHR (REST, AQL), FerroBRIDGE with an HL7 message, sign-in | Vitest or Playwright against the Compose test stack; the HL7 message is simulated | `tests/integration/` | every release |
-| Security | Role isolation: a student sees nothing of others, a docent only their own classes; vulnerable libraries | role-scoped negative tests with test accounts; dependency scan in CI | next to the server function | every change and every release |
-| Accessibility | Student and Docent portals and the dashboard | Playwright + `@axe-core/playwright`, plus a keyboard-only pass | `tests/e2e/` (`pnpm test:e2e`) | every change in CI, before every milestone review |
-| Performance | Page load and Excel upload with a full practicum of test data | Playwright timings in the test stack | `tests/e2e/` | before every milestone review |
+| Security | Role isolation: a student sees nothing of others, a teacher only their own classes; vulnerable libraries | role-scoped negative tests with test accounts; dependency scan in CI | next to the server function | every change and every release |
+| Accessibility | Student, Teacher and Admin portals and the dashboard | Playwright + `@axe-core/playwright`, plus a keyboard-only pass | `tests/e2e/` (`pnpm test:e2e`) | every change in CI, before every milestone review |
+| Performance | Page load and Excel upload with a full practical of test data | Playwright timings in the test stack | `tests/e2e/` | before every milestone review |
 
 ## Coverage is a mandate
 
@@ -67,9 +67,10 @@ carries one fixed, pseudonymised test set under `tests/fixtures/` that every
 test and every seed uses:
 
 - invented students with pseudonyms (no real names, no real student
-  numbers, no `@hanze.nl` addresses of real people), one docent per role
-  scenario, one beheerder;
-- one practicum with an assignment, a protocol, a deadline and a rubric;
+  numbers, no real e-mail addresses; use `@example.test`), one teacher per
+  role scenario, one administrator; the development users are
+  `student@example.test`, `teacher@example.test` and `admin@example.test`;
+- one practical with an assignment, a protocol, a deadline and a rubric;
 - measurement values for HbA1c, CRP (Afinion 2) and absorbance per well and
   wavelength (Epoch 2);
 - deliberately bad files: a Gen5 Excel with an unknown sample ID, one with a
@@ -83,15 +84,16 @@ people. Fixtures are synthetic, so they can be committed.
 
 - Playwright (`pnpm test:e2e`) drives the built app against the Compose test
   stack, signed in through a test identity provider or a test-only session
-  seed, never against the real Hanze tenant.
+  seed, never against a real institution tenant.
 - **Every route runs an axe scan** with the WCAG 2.1 A and AA tags
   (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`) and asserts zero violations
   (<https://playwright.dev/docs/accessibility-testing>). A known violation is
   fixed, never excluded from the scan.
 - Each portal has a keyboard-only journey (Tab, Shift+Tab, Enter, Space,
   Escape) through its main task.
-- Assert on what the user sees (roles, labels, Dutch text), never on CSS
-  classes or test ids where a role or label exists.
+- Assert on what the user sees (roles, labels, the English source text),
+  never on CSS classes or test ids where a role or label exists. One journey
+  per portal also runs in the `nl` locale, so a missing Dutch message shows.
 
 ## Unit test shapes
 

@@ -8,10 +8,9 @@ metadata:
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-The requirements in `docs/requirements.md` come from the owner's
-requirements analysis and plan of approach (Dutch, MoSCoW). They are **not
-final**: the owner is still discussing them with the product owner, the
-docenten and the students.
+The requirements in `docs/requirements.md` (MoSCoW) are **not final**: they
+are under re-evaluation with the product owner, the teachers and the
+students.
 
 **Why:** the owner, 2026-11-11, during the bootstrap: the requirements are a
 working draft, not the oracle. Building from them as fixed truth would bake
@@ -28,5 +27,3 @@ open questions into code and tests.
 - The external specifications stay authoritative in their own domain: openEHR
   and HL7 for the integrations, WCAG 2.1 AA for accessibility, OWASP for
   security.
-- Related: [[github-not-azure-devops]] (the documents also still say Azure
-  DevOps).

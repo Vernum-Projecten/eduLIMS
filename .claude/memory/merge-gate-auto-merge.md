@@ -14,8 +14,8 @@ approvals. Auto-merge is the hand-off: the PR merges when the queue's checks
 pass.
 
 **Why:** owner decision at the bootstrap, the same gate the Ferro family
-runs. The test strategy's review by the supervising teacher is part of the
-Definition of Done (a process step), not a branch rule.
+runs. Review by a person is a convention in the Definition of Done (a process
+step), not a branch rule.
 
 **How to apply:**
 

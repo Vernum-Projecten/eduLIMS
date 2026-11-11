@@ -5,8 +5,8 @@
 
 Applies to every piece of prose a person reads: the README, the `docs/` pages,
 the `.claude/` rules, agents, skills, and memory, code comments and TSDoc, and
-every commit, PR, and issue body. It does not touch vendored specifications or
-the Dutch source documents of the requirements. It does not loosen the
+every commit, PR, and issue body, plus the English UI messages. It does not
+touch vendored specifications. It does not loosen the
 technical rules; citations, honesty, and the comment budgets in `comments.md`
 still apply.
 
@@ -14,15 +14,18 @@ Write plainly, so the text reads like a person wrote it for another person.
 
 ## Languages
 
-- **English** for docs, code, identifiers, comments, commits, PRs and issues.
-- **Dutch** for every string a user of eduLIMS reads in the UI: labels, buttons,
-  headings, validation messages, error pages, empty states, `aria-label`
-  values and page titles. A Dutch UI string follows the same rules below (no
-  filler, active voice, short sentences) and addresses the reader as "je".
-- Requirement IDs (S1 to S9, D1 to D8, B1 to B4) and Dutch domain terms that
-  have no clean English match (practicum, monster-ID, labverslag, rubric) may
-  appear in English prose as is; define a Dutch term once where it first
-  matters.
+- **English** for everything in the repository: docs, code, identifiers,
+  comments, commits, PRs, issues and the UI copy.
+- **All UI text goes through the i18n layer** (English source, Dutch
+  translation); never hard-code a user-visible string. That covers labels,
+  buttons, headings, validation messages, error pages, empty states,
+  `aria-label` values and page titles (ADR 0011).
+- **Dutch exists only as the `nl` translation.** A Dutch message follows the
+  same rules below (no filler, active voice, short sentences) and addresses
+  the reader as "je". Dutch role and portal names appear only inside the
+  `nl` catalogue, never in code, routes or docs.
+- Use the English domain terms: practical, sample ID, lab report, rubric,
+  Student portal, Teacher portal, Admin portal.
 
 ## Banned tells
 
@@ -67,12 +70,12 @@ Write plainly, so the text reads like a person wrote it for another person.
 
 ## Scope framing
 
-The requirements analysis prioritises with MoSCoW (Must, Should, Could,
+The requirements prioritise with MoSCoW (Must, Should, Could,
 Won't), and the Must requirements carry acceptance criteria. Describe scope
 with those terms and IDs ("S8 is a Should"), and describe build order as build
-order ("the Studentportaal comes first"). Do not invent release labels such as
-"v1" or "deferred" for work the requirements list; a Won't item (Brightspace,
-Portflow integration) is named as a Won't with its decision.
+order ("the Student portal comes first"). Do not invent release labels such as
+"v1" or "deferred" for work the requirements list; a Won't item (an external
+grade-book integration) is named as a Won't with its reason.
 
 ## Code comments and TSDoc
 

@@ -20,16 +20,16 @@ Apache-2.0 ([LICENSE](LICENSE)).
 | The GitHub organization `Vernum-Projecten` | the repository, issues, releases and settings | the organization's owners |
 | The GHCR package `ghcr.io/vernum-projecten/edulims` | the container image, pushed by the release workflow | the organization, through `GITHUB_TOKEN` |
 | `GITHUB_TOKEN` (per workflow run) | the image, its SBOM and its SLSA provenance | GitHub, minted per run |
-| The Microsoft Entra ID app registration | sign-in for eduLIMS | Hanze ICT |
-| The Linux VM and its network | the running deployment | Hanze ICT (infrastructure), the maintainer (Compose stack) |
+| The identity provider's client registration (Microsoft Entra ID or Keycloak) | sign-in for eduLIMS | the institution's IT department |
+| The Linux VM and its network | the running deployment | the institution's IT department (infrastructure), the maintainer (Compose stack) |
 
 ## If the maintainer is unavailable
 
 Nothing published disappears: a release tag and its image stay available, and
 the running deployment keeps running. Nothing new ships. Every gate is a
 committed workflow or script and every decision is written down
-([GOVERNANCE.md](GOVERNANCE.md)), so the research group can name a new
-maintainer who continues from the repository alone.
+([GOVERNANCE.md](GOVERNANCE.md)), so a new maintainer can continue from the
+repository alone.
 
 ## Adding a maintainer
 

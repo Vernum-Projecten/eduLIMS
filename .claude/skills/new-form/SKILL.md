@@ -1,6 +1,6 @@
 ---
 name: new-form
-description: Scaffolds an accessible form with shadcn/ui Field components, TanStack Form and one Zod schema shared with the POST server function that receives it, with Dutch labels and messages, server-side refusals shown at the field, pending state, cache invalidation and tests. Use when adding any form (practicum setup, sample registration, rubric scoring, user and role management).
+description: Scaffolds an accessible form with shadcn/ui Field components, TanStack Form and one Zod schema shared with the POST server function that receives it, with labels and messages from the i18n layer (English source, Dutch translation), server-side refusals shown at the field, pending state, cache invalidation and tests. Use when adding any form (practical setup, sample registration, rubric scoring, user and role management).
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash
 argument-hint: "<form name> e.g. register-sample"
 ---
@@ -31,18 +31,23 @@ Build the form the way the shadcn TanStack Form guide does
 
 **One schema, two users**: `src/server/<area>/schemas.ts`. The form validates
 with it and the server function's `.validator()` parses with it, so client
-and server refuse the same input. Messages are Dutch.
+and server refuse the same input. Messages come from the i18n layer
+(ADR 0011): pass a function so the message resolves in the active locale.
+The snippets import message functions as `m` from `@/i18n/messages`; use the
+path the existing code uses, and add every new key to both the `en` and the
+`nl` catalogue under `messages/`.
 
 ```ts
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
 import { z } from "zod";
+import { m } from "@/i18n/messages";
 
 export const registerSampleSchema = z.object({
-  practicumId: z.uuid(),
-  sampleType: z.enum(["bloed", "serum", "plasma"], { error: "Kies een monstertype." }),
-  note: z.string().max(200, { error: "Maximaal 200 tekens." }),
+  practicalId: z.uuid(),
+  sampleType: z.enum(["blood", "serum", "plasma"], { error: () => m.sample_type_required() }),
+  note: z.string().max(200, { error: () => m.note_too_long({ max: 200 }) }),
 });
 export type RegisterSampleInput = z.infer<typeof registerSampleSchema>;
 ```
@@ -61,18 +66,19 @@ import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { m } from "@/i18n/messages";
 import { registerSample } from "@/server/samples/functions";
 import { registerSampleSchema } from "@/server/samples/schemas";
 
-export function RegisterSampleForm({ practicumId }: { practicumId: string }) {
+export function RegisterSampleForm({ practicalId }: { practicalId: string }) {
   const queryClient = useQueryClient();
   const submit = useServerFn(registerSample);
   const form = useForm({
-    defaultValues: { practicumId, sampleType: "bloed", note: "" },
+    defaultValues: { practicalId, sampleType: "blood", note: "" },
     validators: { onSubmit: registerSampleSchema },
     onSubmit: async ({ value }) => {
       await submit({ data: value });
-      await queryClient.invalidateQueries({ queryKey: ["samples", practicumId] });
+      await queryClient.invalidateQueries({ queryKey: ["samples", practicalId] });
     },
   });
 
@@ -89,7 +95,7 @@ export function RegisterSampleForm({ practicumId }: { practicumId: string }) {
             const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
             return (
               <Field data-invalid={isInvalid}>
-                <FieldLabel htmlFor={field.name}>Opmerking</FieldLabel>
+                <FieldLabel htmlFor={field.name}>{m.sample_note_label()}</FieldLabel>
                 <Input
                   id={field.name}
                   name={field.name}
@@ -107,7 +113,7 @@ export function RegisterSampleForm({ practicumId }: { practicumId: string }) {
       <form.Subscribe selector={(s) => s.isSubmitting}>
         {(isSubmitting) => (
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Bezig met opslaan…" : "Monster registreren"}
+            {isSubmitting ? m.saving() : m.sample_register_submit()}
           </Button>
         )}
       </form.Subscribe>
@@ -134,7 +140,7 @@ checkbox and radio variants before copying this.
 ## Tests
 
 - **Schema unit tests:** every rule accepts the valid case and refuses each
-  invalid case with its Dutch message.
+  invalid case with its message, in the `en` and the `nl` locale.
 - **Server function tests:** the validator rejects a crafted payload that
   bypasses the form; the role and ownership checks refuse other users.
 - **E2E:** fill the form with the keyboard only, submit, see the result;

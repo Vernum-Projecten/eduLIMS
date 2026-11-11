@@ -5,13 +5,12 @@
 
 - Status: Accepted
 - Date: 2026-11-11
-- Deciders: Ruben Talstra (maintainer)
+- Deciders: maintainer
 
 ## Context and problem statement
 
-The PvA (3.6) left the frontend and backend framework to the design phase, to
-be chosen on maintainability inside the CollabSpace and on support by the AI
-coding assistant. eduLIMS needs business rules and access checks on the
+The frontend and backend framework had to be chosen on long-term
+maintainability and on support by the AI coding assistant. eduLIMS needs business rules and access checks on the
 server (Q-SEC-2), pages within 2 seconds (Q-PERF-1), forms and tables for
 teachers, and one deployable container.
 

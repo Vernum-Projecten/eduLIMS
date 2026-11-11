@@ -42,15 +42,15 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .createTable("samples")
     .addColumn("id", "uuid", (c) => c.primaryKey().defaultTo(sql`uuidv7()`))
     .addColumn("sample_code", "text", (c) => c.notNull().unique())
-    .addColumn("practicum_id", "uuid", (c) =>
-      c.notNull().references("practica.id").onDelete("restrict"),
+    .addColumn("practical_id", "uuid", (c) =>
+      c.notNull().references("practicals.id").onDelete("restrict"),
     )
     .addColumn("student_id", "uuid", (c) =>
       c.notNull().references("users.id").onDelete("restrict"),
     )
     .addColumn("created_at", "timestamptz", (c) => c.notNull().defaultTo(sql`now()`))
     .execute();
-  await db.schema.createIndex("samples_practicum_id_idx").on("samples").column("practicum_id").execute();
+  await db.schema.createIndex("samples_practical_id_idx").on("samples").column("practical_id").execute();
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {

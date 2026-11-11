@@ -4,9 +4,6 @@ Copyright 2026 Ruben Talstra
 Licensed under the Apache License, Version 2.0; see the LICENSE file for the
 terms.
 
-eduLIMS was developed as a student project for the research group (lectoraat)
-New Business & ICT at Hanze University of Applied Sciences, Groningen.
-
 The UI components under src/components/ui/ are generated from shadcn/ui
 (https://ui.shadcn.com), published by shadcn under the MIT License; see
 LICENSES/MIT.txt and REUSE.toml.

@@ -7,8 +7,8 @@ The tracker is GitHub Issues (`issue-workflow.md`); milestones are the release
 spine; the native issue type and the `Priority` field carry type and
 priority; native edges carry decomposition and sequencing
 (`issue-relationships.md`). The **"eduLIMS Roadmap"** Project under the
-`Vernum-Projecten` organisation exists so the product owner, the supervisor
-and the lectoraat see what is planned, in progress and shipped without reading
+`Vernum-Projecten` organisation exists so the product owner and other
+stakeholders see what is planned, in progress and shipped without reading
 the raw issue list. It is a **view over the tracker, never a second tracker.**
 The one sanctioned write path is `scripts/gh/project.sh`, which finds the
 board by title (so a recreated board needs no edit) and needs the `project`

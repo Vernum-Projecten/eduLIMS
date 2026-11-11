@@ -6,7 +6,7 @@
 # The release gate (scan-and-tag.yml) scans an image when it is built, which
 # catches what was known that day. A CVE published a week later applies to the
 # image the lab host is running, so this lane scans the `latest` tag every
-# week. The risk analysis names vulnerable libraries in the containers as a
+# week. Risk R-05 names vulnerable libraries in the containers as a
 # risk and asks for monthly image updates; a weekly scan means a finding waits
 # at most a week for someone to see it, and the monthly update
 # (docs/deployment.md) ships the fix.

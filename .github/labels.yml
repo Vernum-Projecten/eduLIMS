@@ -40,16 +40,16 @@ labels:
   # Area: the part of eduLIMS the change touches. An issue may carry several.
   - name: portal:student
     color: "1d76db"
-    description: "Studentportaal: samples, measurements, lab reports, grades (S1 to S7)."
-  - name: portal:docent
+    description: "Student portal: samples, measurements, lab reports, grades (S1 to S7)."
+  - name: portal:teacher
     color: "0e8a16"
-    description: "Docentportaal: practicals, results, rubric grading (D1 to D5)."
-  - name: portal:beheer
+    description: "Teacher portal: practicals, results, rubric grading (D1 to D5)."
+  - name: portal:admin
     color: "5319e7"
-    description: "Beheerportaal: users, roles, analysers, integrations (B1 to B4)."
+    description: "Admin portal: users, roles, analysers, integrations (B1 to B4)."
   - name: auth
     color: "b60205"
-    description: "Sign-in through Entra ID (better-auth), sessions, and role checks."
+    description: "Sign-in through Entra ID or Keycloak (better-auth), sessions, and role checks."
   - name: database
     color: "006b75"
     description: "PostgreSQL schema, migrations, and queries."
@@ -64,7 +64,7 @@ labels:
     description: "The Gen5 Excel upload and its validation (S4)."
   - name: kpi-dashboard
     color: "f9d0c4"
-    description: "The KPI dashboard of the Docentportaal (D5)."
+    description: "The KPI dashboard of the Teacher portal (D5)."
   - name: ui
     color: "e6c3a5"
     description: "Shared interface components, layout, and styling."
@@ -76,7 +76,7 @@ labels:
     description: "Security fix or hardening."
   - name: privacy
     color: "d93f0b"
-    description: "Personal data, pseudonymisation, and GDPR (AVG) duties."
+    description: "Personal data, pseudonymisation, and GDPR duties."
   - name: infra
     color: "bfdadc"
     description: "CI/CD, supply chain, Docker Compose, and deployment."
@@ -84,8 +84,8 @@ labels:
     color: "0366d6"
     description: "Dependency updates (used by Dependabot)."
 
-  # Requirement priority from the requirements analysis (MoSCoW). The
-  # Priority issue field orders the backlog; this label records the
+  # Requirement priority from docs/requirements.md (MoSCoW). The
+  # Priority issue field orders the open issues; this label records the
   # requirement's agreed class.
   - name: moscow:must
     color: "b60205"

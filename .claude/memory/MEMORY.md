@@ -13,8 +13,8 @@ adding one, and update it instead of duplicating.
   acceptance criteria and KPIs are under discussion; cite IDs, flag gaps and
   ask the owner, never invent or complete one; owner 2026-11-11
 - [GitHub, not Azure DevOps](github-not-azure-devops.md): Issues, Actions,
-  GHCR on Vernum-Projecten/eduLIMS replace Azure Boards, Repos, Pipelines and
-  ACR from the plan of approach; owner 2026-11
+  GHCR on Vernum-Projecten/eduLIMS instead of Azure Boards, Repos, Pipelines
+  and ACR; owner 2026-11
 - [No AI attribution](no-ai-attribution.md): no Co-Authored-By, no
   "Generated with", no robot emoji, no ai-assisted label anywhere, as in the
   Ferro family; hook-enforced
@@ -22,14 +22,14 @@ adding one, and update it instead of duplicating.
   required `conclusion` check, 0 required approvals; arm
   `gh pr merge <n> --auto` on open; never `--admin`
 - [Licence, SPDX and languages](spdx-and-languages.md): Apache-2.0, SPDX
-  header `Ruben Talstra` on every hand-written file; English docs and code,
-  Dutch UI strings
+  header `Ruben Talstra` on every hand-written file; everything English, UI
+  text through the i18n layer with Dutch as the `nl` translation (ADR 0011)
 
 ## Stack
 
 - [Stack decisions](stack-decisions.md): TanStack Start full SSR on Vite 8 and
   Nitro, TypeScript 7 native tsc, React 19, shadcn/ui radix-nova, Biome 2.6,
-  Vitest 5, Kysely on PostgreSQL 18, better-auth with Entra ID, Node 26 LTS,
+  Vitest 5, Kysely on PostgreSQL 18, better-auth with Entra ID or Keycloak, Node 26 LTS,
   pnpm 12 with library skills linked into .claude/skills
 
 ## Family rules (carried from the Ferro repositories)
