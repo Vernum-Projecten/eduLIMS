@@ -98,6 +98,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["messages/*.json"],
+      "assist": {
+        "actions": {
+          "source": {
+            "useSortedKeys": "on"
+          }
+        }
+      }
     }
   ]
 }
