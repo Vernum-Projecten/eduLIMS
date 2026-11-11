@@ -31,7 +31,7 @@ passes the rest through from the environment file.
 | `EDULIMS_DATA_KEY_PREVIOUS` | no | unset | The previous data key, set only while `idp rekey` re-encrypts after a rotation. |
 | `EDULIMS_IDP_PRIVATE_ORIGINS` | no | unset | Comma-separated origins of identity providers on a private or loopback network (an on-premises IdP). Any other issuer must be a public address. |
 | `EDULIMS_IDP_CLIENT_SECRET` | no | unset | Read only by `idp add` on the host: the client secret of the OIDC provider it adds. |
-| `FERROEHR_BASE_URL`       | yes                |                                                                       | Base URL of the FerroEHR openEHR REST API.                                                                                                                    |
+| `FERROEHR_BASE_URL`       | yes                |                                                                       | Base URL of the FerroEHR openEHR REST API. The integration status checks it with `OPTIONS` every minute.                                                       |
 | `FERROBRIDGE_BASE_URL`    | yes                |                                                                       | Base URL of FerroBRIDGE, for its health check.                                                                                                                |
 | `EDULIMS_DEV_LOGIN`       | no                 | `false`                                                               | `true` turns on the email and password login for the seeded development users. Refused when `NODE_ENV=production`.                                            |
 
@@ -78,7 +78,8 @@ variable without a value stops `docker compose` before any container starts.
 | --------------------------- | ------- | ------------------------------------------- |
 | `EDULIMS_DEV_DB_PORT`       | `5432`  | Host port of the development PostgreSQL.    |
 | `EDULIMS_DEV_KEYCLOAK_PORT` | `8180`  | Host port of the development Keycloak.      |
-| `EDULIMS_DEV_FERROEHR_PORT` | `8080`  | Host port of FerroEHR (profile `ferroehr`). |
+| `EDULIMS_DEV_FERROEHR_PORT` | `8080`  | Host port of FerroEHR (profile `ferro`). |
+| `EDULIMS_DEV_FERROBRIDGE_PORT` | `8081` | Host port of FerroBRIDGE (profile `ferro`). |
 
 The test commands read these from the shell, not from `.env`:
 

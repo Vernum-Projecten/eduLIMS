@@ -9,6 +9,7 @@ import { getAuth } from "../auth.ts";
 import { DEV_PASSWORD, DEV_USERS } from "../demo-accounts.ts";
 import { getEnv } from "../env.ts";
 import { keyringOf } from "../idp/crypto.ts";
+import { seedDemoAnalysers } from "./demo/analysers.ts";
 import { seedDemoData, seedSummary } from "./demo/seed-demo.ts";
 import { getDb } from "./index.ts";
 import { seedDevProviders } from "./seed-providers.ts";
@@ -52,6 +53,8 @@ try {
     actor: { type: "system" },
   });
   for (const line of providerLines) process.stdout.write(`${line}\n`);
+  const analysers = await seedDemoAnalysers(db);
+  process.stdout.write(`analysers: ${analysers} added\n`);
 
   const now = new Date();
   const created = await seedDemoData(db, now);

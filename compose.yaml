@@ -164,7 +164,9 @@ services:
       - "${FERROBRIDGE_MLLP_BIND_HOST:-127.0.0.1}:${FERROBRIDGE_MLLP_PORT:-2575}:2575"
     environment:
       FERROBRIDGE_CONFIG: /etc/ferrobridge/ferrobridge.toml
-      FERROBRIDGE__CDR__BASE_URL: http://ferroehr:8080/ferroehr/rest/openehr/v1
+      # FerroBRIDGE 0.0.24 names the CDR `cdr.endpoint.url`; it refuses an
+      # unknown key and does not start (scripts/checks/ferro-compose.sh).
+      FERROBRIDGE__CDR__ENDPOINT__URL: http://ferroehr:8080/ferroehr/rest/openehr/v1
       FERROBRIDGE__HL7V2__LISTEN: 0.0.0.0:2575
       FERROBRIDGE__TELEMETRY__FORMAT: auto
       FERROBRIDGE__TELEMETRY__FILTER: ${FERROBRIDGE_LOG_FILTER:-info}

@@ -168,6 +168,35 @@ describe("logAuditEvent (B4, ASVS V16.2.5)", () => {
     });
   });
 
+  it("logs an analyser change with its id and new status only (B3, #35)", () => {
+    const lines = capture();
+    logAuditEvent({
+      action: "analyser_retired",
+      actor: { type: "user", id: "a1" },
+      outcome: "success",
+      target: { type: "analyser", id: "01900000-0000-7000-8000-000000000001" },
+      metadata: { analyser_status: "retired" },
+    });
+    const line = parse(lines[0]);
+    expect(Object.keys(line).sort()).toEqual(
+      [
+        ...ENVELOPE,
+        "outcome",
+        "actor_type",
+        "actor_id",
+        "target_type",
+        "target_id",
+        "analyser_status",
+      ].sort(),
+    );
+    expect(line).toMatchObject({
+      event: "analyser_retired",
+      target_type: "analyser",
+      target_id: "01900000-0000-7000-8000-000000000001",
+      analyser_status: "retired",
+    });
+  });
+
   it("logs a failed retention prune as an error with its reason code (#65)", () => {
     const lines = capture();
     logAuditEvent({

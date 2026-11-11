@@ -68,8 +68,8 @@ moves a row to `met` in the same pull request.
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 175 |
 | Status met | 90 |
-| Status partial | 49 |
-| Status planned | 28 |
+| Status partial | 50 |
+| Status planned | 27 |
 | Status open | 8 |
 | Status n-a | 170 |
 
@@ -108,7 +108,7 @@ Text: [vendor/asvs/en/0x10-V1-Encoding-and-Sanitization.md](vendor/asvs/en/0x10-
 | V1.3.3 | 2 | yes | planned for the Gen5 upload (S4) and AQL parameters (`.claude/rules/integration.md`) | unit tests with the S4 parser | planned |
 | V1.3.4 | 2 | no | no SVG upload; uploads are `.xlsx` only (S4) | none | n-a |
 | V1.3.5 | 2 | no | no user-supplied Markdown, CSS or templates | none | n-a |
-| V1.3.6 | 2 | partly | FerroEHR and FerroBRIDGE base URLs come only from configuration (`src/server/env.ts`); identity-provider issuers and SAML metadata URLs an administrator enters are refused on a private, loopback, link-local or special-purpose address, IPv4-mapped, NAT64 and 6to4 forms included (`net.BlockList`, `src/server/idp/addresses.ts`), unless the operator lists the origin in `EDULIMS_IDP_PRIVATE_ORIGINS`. The SAML metadata fetch resolves once and checks the addresses it connects to, follows no redirect and stops at 100 KB. OIDC discovery at save time is checked, then fetched by the sso plugin, which trusts only the private origins and resolves the host again right before the fetch (two resolutions, both checked). At sign-in the plugin does the same for the token and key endpoints, because `trustedOrigins` holds only the app and the private origins (`src/server/idp/validate.ts`, `src/server/auth.ts`, ADR 0015, #92). The integration client is not built yet (S3, S4) | unit `src/server/idp/validate.test.ts`, `src/server/auth.test.ts`, `src/server/env.test.ts` | partial |
+| V1.3.6 | 2 | partly | FerroEHR and FerroBRIDGE base URLs come only from configuration (`src/server/env.ts`); identity-provider issuers and SAML metadata URLs an administrator enters are refused on a private, loopback, link-local or special-purpose address, IPv4-mapped, NAT64 and 6to4 forms included (`net.BlockList`, `src/server/idp/addresses.ts`), unless the operator lists the origin in `EDULIMS_IDP_PRIVATE_ORIGINS`. The SAML metadata fetch resolves once and checks the addresses it connects to, follows no redirect and stops at 100 KB. OIDC discovery at save time is checked, then fetched by the sso plugin, which trusts only the private origins and resolves the host again right before the fetch (two resolutions, both checked). At sign-in the plugin does the same for the token and key endpoints, because `trustedOrigins` holds only the app and the private origins (`src/server/idp/validate.ts`, `src/server/auth.ts`, ADR 0015, #92). The B3 health check builds its two targets from `FERROEHR_BASE_URL` and `FERROBRIDGE_BASE_URL` alone, takes an empty strict input and follows no redirect (`src/server/integrations/probe.ts`, `schemas.ts`); the openEHR client for S3 and S4 is not built yet | unit `src/server/idp/validate.test.ts`, `src/server/auth.test.ts`, `src/server/env.test.ts`, `src/server/integrations/probe.test.ts`, `src/server/integrations/checks.test.ts` | partial |
 | V1.3.7 | 2 | no | no server-side templates built from input; React renders | none | n-a |
 | V1.3.8 | 2 | no | no JNDI (Node.js) | none | n-a |
 | V1.3.9 | 2 | no | no memcache | none | n-a |
@@ -707,7 +707,7 @@ Text: [vendor/asvs/en/0x22-V13-Configuration.md](vendor/asvs/en/0x22-V13-Configu
 | V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); how eduLIMS authenticates to FerroEHR and FerroBRIDGE is not built yet (S3, S4) | review | partial |
 | V13.2.2 | 2 | yes | one database role per service (`docker/postgres/init/20-edulims.sh`); containers run non-root with `cap_drop: [ALL]` (`compose.yaml`, `docker/Dockerfile`) | review | met |
 | V13.2.3 | 2 | yes | Compose refuses to start without each password (`${VAR:?}` in `compose.yaml`) | review | met |
-| V13.2.4 | 2 | partly | outbound targets are configured URLs only (`src/server/env.ts`); no egress allowlist at the network level | review | partial |
+| V13.2.4 | 2 | partly | outbound targets are configured URLs only (`src/server/env.ts`), the B3 health check included (`src/server/integrations/probe.ts`); no egress allowlist at the network level | unit `src/server/integrations/checks.test.ts`, review | partial |
 | V13.2.5 | 2 | partly | the `egress` network is attached only to the services that need it (`compose.yaml`); no proxy allowlist | review | partial |
 | V13.2.6 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -836,7 +836,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 | V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts` | met |
 | V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts` | met |
 | V16.3.3 | 2 | yes | rejected uploads (S4) and refused access belong in the B4 audit log | unit tests with S4 and B4 | planned |
-| V16.3.4 | 2 | yes | unexpected errors and an unreachable FerroEHR or FerroBRIDGE (B3, within 5 minutes) | unit tests with B3 | planned |
+| V16.3.4 | 2 | yes | an unreachable FerroEHR or FerroBRIDGE is checked every minute, stored with its error class and shown in the Admin portal within 5 minutes (B3, `src/server/integrations/`); a failed scheduled run is logged by its class only; other unexpected errors are not logged centrally yet | unit `src/server/integrations/checks.test.ts`, e2e `tests/e2e/admin-analysers.spec.ts` | partial |
 
 #### V16.4 Log Protection
 

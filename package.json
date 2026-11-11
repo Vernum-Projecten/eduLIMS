@@ -25,7 +25,8 @@
   "scripts": {
     "dev": "vite dev",
     "dev:db": "bash scripts/dev/compose.sh up -d --wait",
-    "dev:db:stop": "bash scripts/dev/compose.sh down",
+    "dev:db:ferro": "bash scripts/dev/compose.sh --profile ferro up -d --wait",
+    "dev:db:stop": "bash scripts/dev/compose.sh --profile ferro down",
     "dev:db:logs": "bash scripts/dev/compose.sh logs -f",
     "dev:setup": "pnpm dev:db && pnpm db:migrate && pnpm db:seed",
     "env:sync": "bash scripts/dev/env-sync.sh",

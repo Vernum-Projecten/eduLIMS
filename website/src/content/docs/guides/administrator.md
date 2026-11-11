@@ -190,11 +190,63 @@ Every change is recorded in the activity log, without any secret or value.
 Setting up a provider on the identity provider's side is described in
 [Identity providers](/operations/identity-providers/).
 
+## Analysers and integrations
+
+**Analysers and integrations** shows whether eduLIMS reaches the services
+that hold the measurements, and the register of the lab analysers.
+
+### Integration status
+
+The top of the page shows FerroEHR (where the measurements are stored) and
+FerroBRIDGE (which receives the HL7 messages of the Afinion 2). For each one
+you see:
+
+- **The state,** as an icon with text: **Available**, **Unavailable**,
+  **Refused (authentication)** (the service answers but refuses the
+  credentials eduLIMS uses), **Not checked yet**, or
+  **Unknown: no check in the last 5 minutes**.
+- **Last check** and **Last success:** how long ago, and the date and time.
+- **Response time:** how long the service took to answer, in milliseconds.
+- **Reason,** after a failure: for example **No connection to the service**,
+  or that it did not answer within 5 seconds. The reason never shows an
+  address, a password or what the service answered.
+
+eduLIMS checks both services every minute by itself, and the page updates
+while it is open, so a service that stops shows as **Unavailable** within a
+few minutes without a reload. **Check now** checks both at once. When a
+service is unavailable, ask the person who runs the server to look at it;
+the addresses eduLIMS checks are part of the server configuration, and you
+cannot change them on this page.
+
+### Analyser register
+
+The register lists every analyser with its model, serial number, location,
+route to FerroEHR (**HL7 through FerroBRIDGE** for the Afinion 2, which sends
+its results itself; **Excel upload** for the Epoch 2, whose export students
+upload), status (**In use**, **In maintenance** or **Retired**) and the time
+of its last change.
+
+- **Search** by part of the model, serial number or location. **Filter** with
+  **Status** and **Route**, **sort** with the column headers and choose the
+  **rows per page**, as on **Users and roles**. The search and the filters
+  are part of the address.
+- **Add analyser** opens a form: the model, the serial number from the type
+  plate, the location, the route, the status and optional notes. A model can
+  hold a serial number once; eduLIMS says so at the field when it is taken.
+  Notes are for the analyser, never for personal data.
+- **Edit** in the row menu (the button at the end of the row) opens the same
+  form with the analyser's values.
+- **Retire** in the row menu takes an analyser out of use after you confirm
+  it. A retired analyser stays in the register, so earlier results keep
+  their device, but it can no longer be changed. This cannot be undone.
+
+Only administrators can change the register. Every addition, change and
+retirement is recorded in the activity log.
+
 ## Planned tasks
 
 | Task                                                                          | Requirement                      |
 | ----------------------------------------------------------------------------- | -------------------------------- |
 | Create users and assign a role                                                | [B1](/development/requirements/) |
 | Create classes and link students to a class, by hand or by CSV import         | [B2](/development/requirements/) |
-| Register the analysers and see whether FerroBRIDGE and FerroEHR are reachable | [B3](/development/requirements/) |
 | Read the log of uploads, HL7 messages and errors                              | [B4](/development/requirements/) |

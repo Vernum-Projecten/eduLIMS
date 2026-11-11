@@ -17,7 +17,8 @@
 #      runs, so it skips in the merge queue, and pr-guards.yml re-runs it when
 #      the title, description or an escape label changes.
 #   5. The self-tests of every helper under scripts/gh/ and scripts/checks/,
-#      the citation metadata guard, and the brand contrast check.
+#      the citation metadata guard, the brand contrast check, and the Ferro
+#      services' own check of the Compose configuration.
 name: CI
 
 on:
@@ -591,6 +592,21 @@ jobs:
       - name: The log shipping override is valid and hardened
         run: bash scripts/checks/logship-compose.sh --with-image
 
+  # FerroEHR and FerroBRIDGE accept the environment compose.yaml and
+  # compose.dev.yaml give them: each pinned image's own `config check`, offline.
+  ferro-compose:
+    name: ferro-compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The Ferro services accept their Compose configuration
+        run: bash scripts/checks/ferro-compose.sh
+
   # ── The single required check ───────────────────────────────────────────────
 
   # The ruleset requires this job alone, so jobs can come and go without a
@@ -620,6 +636,7 @@ jobs:
       - citation
       - asvs-coverage
       - logship-compose
+      - ferro-compose
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

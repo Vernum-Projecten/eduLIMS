@@ -19,10 +19,9 @@ export const RETENTION_PRUNE_LOCK_KEY = 6_502_026_111;
 export const TEST_DATABASE_LOCK_KEY = 7_212_026_018;
 
 /**
- * Reserved for the scheduled integration check (B3, #35): one replica checks FerroEHR and
- * FerroBRIDGE per interval.
+ * Guards the scheduled integration check (B3, #35): one replica checks FerroEHR and FerroBRIDGE
+ * per interval (`src/server/integrations/checks.ts`).
  */
-// TODO(#35): the integration checks use this key in place of their own `CHECK_LOCK_KEY`.
 export const INTEGRATION_CHECK_LOCK_KEY = 3_502_026_011;
 
 /** All keys of this registry, by name. */

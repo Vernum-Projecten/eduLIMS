@@ -62,7 +62,12 @@ export function UserRowActions({ user }: Readonly<{ user: UserRow }>) {
         triggerRef={triggerRef}
       >
         <DropdownMenuItem asChild>
-          <Link to="/admin/users/$userId" params={{ userId: user.id }} search={(prev) => prev}>
+          <Link
+            from="/admin/users"
+            to="/admin/users/$userId"
+            params={{ userId: user.id }}
+            search={(prev) => prev}
+          >
             <EyeIcon aria-hidden="true" />
             {m.admin_users_view_details()}
           </Link>
