@@ -42,11 +42,38 @@ describe("migrations", () => {
     expect(up.results?.map((r) => r.status)).toEqual(Object.keys(migrations).map(() => "Success"));
   });
 
-  it("0003_user_last_portal reverts to a user table without the last_portal column", async () => {
+  it("0004_user_role_check reverts to no check and refuses a conflicting role set", async () => {
     db = await createTestDb();
+    const insert = (database: Kysely<DB>, role: string) =>
+      database
+        .insertInto("user")
+        .values({
+          id: `u-${role}`,
+          name: "R",
+          email: `${role}@example.test`,
+          emailVerified: true,
+          role,
+        })
+        .execute();
     const migrator = createMigrator(db);
     const down = await migrator.migrateDown();
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0004_user_role_check", "Success"],
+    ]);
+    await expect(insert(db, "student,admin")).resolves.toBeDefined();
+    await db.deleteFrom("user").where("role", "=", "student,admin").execute();
+    const up = await migrator.migrateToLatest();
+    expect(up.error).toBeUndefined();
+    // Last: a refused statement aborts the test transaction.
+    await expect(insert(db, "student,admin")).rejects.toThrow(/check constraint/);
+  });
+
+  it("0003_user_last_portal reverts to a user table without the last_portal column", async () => {
+    db = await createTestDb();
+    const migrator = createMigrator(db);
+    const down = await migrator.migrateTo("0002_user_locale");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0004_user_role_check", "Success"],
       ["0003_user_last_portal", "Success"],
     ]);
     const user = (await db.introspection.getTables()).find((t) => t.name === "user");
@@ -61,6 +88,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0004_user_role_check", "Success"],
       ["0003_user_last_portal", "Success"],
       ["0002_user_locale", "Success"],
     ]);

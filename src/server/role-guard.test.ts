@@ -7,7 +7,7 @@ import { createAuth } from "./auth.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
 import { parseEnv } from "./env.ts";
-import { guardRoleValue } from "./role-guard.ts";
+import { guardRoleValue, isOwnRoleWrite, OWN_ROLES_REFUSED } from "./role-guard.ts";
 import { VALID_ENV } from "./test-env.ts";
 
 const PASSWORD = "correct-horse-battery";
@@ -71,6 +71,96 @@ describe("guardRoleValue", () => {
     (value) => {
       expect(() => guardRoleValue(value)).toThrow();
       expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toMatch(/student|admin|user/);
+    },
+  );
+});
+
+describe("isOwnRoleWrite", () => {
+  it("is true for set-role and update-user with data.role on the session user", () => {
+    expect(isOwnRoleWrite("/admin/set-role", { userId: "a1", role: "teacher" }, "a1")).toBe(true);
+    expect(isOwnRoleWrite("/admin/update-user", { userId: "a1", data: { role: "x" } }, "a1")).toBe(
+      true,
+    );
+  });
+
+  it("is false for another user, other data, other paths and without a session", () => {
+    expect(isOwnRoleWrite("/admin/set-role", { userId: "u2", role: "teacher" }, "a1")).toBe(false);
+    expect(isOwnRoleWrite("/admin/update-user", { userId: "a1", data: { name: "A" } }, "a1")).toBe(
+      false,
+    );
+    expect(isOwnRoleWrite("/admin/ban-user", { userId: "a1" }, "a1")).toBe(false);
+    expect(isOwnRoleWrite("/admin/set-role", { userId: "a1", role: "admin" }, undefined)).toBe(
+      false,
+    );
+    expect(isOwnRoleWrite("/admin/set-role", null, "a1")).toBe(false);
+  });
+
+  it("compares a numeric user id as the endpoint coerces it", () => {
+    expect(isOwnRoleWrite("/admin/set-role", { userId: 7, role: "admin" }, "7")).toBe(true);
+  });
+});
+
+describe("own role changes through the admin API (A01, ADR 0012)", () => {
+  async function adminId(database: Kysely<DB>) {
+    const row = await database
+      .selectFrom("user")
+      .select("id")
+      .where("email", "=", "admin@example.test")
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+
+  it("refuses set-role on the administrator's own account with 403", async () => {
+    const { auth, database } = await setup();
+    const headers = await adminHeaders(auth);
+    const id = await adminId(database);
+    const error = await auth.api
+      .setRole({ body: { userId: id, role: ["teacher", "admin"] }, headers })
+      .catch((e: unknown) => e);
+    expect(error).toMatchObject({ statusCode: 403, body: { code: OWN_ROLES_REFUSED.code } });
+    expect(await storedRole(database, "admin@example.test")).toBe("admin");
+  });
+
+  it("refuses update-user with data.role on the administrator's own account with 403", async () => {
+    const { auth, database } = await setup();
+    const headers = await adminHeaders(auth);
+    const id = await adminId(database);
+    const error = await auth.api
+      .adminUpdateUser({ body: { userId: id, data: { role: "teacher,admin" } }, headers })
+      .catch((e: unknown) => e);
+    expect(error).toMatchObject({ statusCode: 403 });
+    expect(await storedRole(database, "admin@example.test")).toBe("admin");
+  });
+
+  it("still lets the administrator change their own name", async () => {
+    const { auth, database } = await setup();
+    const headers = await adminHeaders(auth);
+    const id = await adminId(database);
+    await auth.api.adminUpdateUser({ body: { userId: id, data: { name: "Renamed" } }, headers });
+    expect(await storedRole(database, "admin@example.test")).toBe("admin");
+  });
+});
+
+describe("the role column CHECK (0004_user_role_check)", () => {
+  it.each(["student", "teacher", "admin", "teacher,admin", null])("accepts %j", async (role) => {
+    const { database } = await setup();
+    await database
+      .insertInto("user")
+      .values({ id: "u-check", name: "C", email: "c@example.test", emailVerified: true, role })
+      .execute();
+    expect(await storedRole(database, "c@example.test")).toBe(role);
+  });
+
+  it.each(["student,admin", "student,teacher", "admin,teacher", "user", ""])(
+    "refuses %j in the database itself",
+    async (role) => {
+      const { database } = await setup();
+      await expect(
+        database
+          .insertInto("user")
+          .values({ id: "u-check", name: "C", email: "c@example.test", emailVerified: true, role })
+          .execute(),
+      ).rejects.toThrow(/check constraint/);
     },
   );
 });

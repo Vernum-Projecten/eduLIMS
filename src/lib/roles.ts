@@ -12,6 +12,9 @@ export type Role = (typeof ROLES)[number];
 export const DEFAULT_ROLE = "student" satisfies Role;
 export const ADMIN_ROLE = "admin" satisfies Role;
 
+/** better-auth error message when a user tries to change their own roles (ADR 0012). */
+export const OWN_ROLES_ERROR = "cannot_change_own_roles";
+
 /** Returns `value` when it names a role, so a typo or an unknown value never grants access. */
 export function isRole(value: unknown): value is Role {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value);

@@ -38,12 +38,15 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
           defaultRole: options.defaultRole,
         })
       : { kind: "none" as const };
-    if (resolved.kind === "conflict") {
-      // Logs the provider only: never the user, the e-mail or the claims (A09, privacy).
-      console.warn(`sign-in refused: ${ROLE_CONFLICT_ERROR} (provider ${providerId})`);
-      return { error: ROLE_CONFLICT_ERROR, errorDescription: "Conflicting eduLIMS roles" };
-    }
-    if (resolved.kind === "none") {
+    if (resolved.kind !== "roles") {
+      // NOTE: A07; a role the IdP took away ends the live access too, not only the next sign-in.
+      if (typeof user.id === "string")
+        await ctx.context.internalAdapter.deleteUserSessions(user.id);
+      if (resolved.kind === "conflict") {
+        // Logs the provider only: never the user, the e-mail or the claims (A09, privacy).
+        console.warn(`sign-in refused: ${ROLE_CONFLICT_ERROR} (provider ${providerId})`);
+        return { error: ROLE_CONFLICT_ERROR, errorDescription: "Conflicting eduLIMS roles" };
+      }
       return { error: NO_ROLE_ERROR, errorDescription: "No eduLIMS role assigned" };
     }
     const role = formatRoles(resolved.roles);

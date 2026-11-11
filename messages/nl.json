@@ -24,6 +24,8 @@
   "login_description": "Log in met je organisatieaccount om eduLIMS te gebruiken.",
   "login_error_no_role": "Je account heeft nog geen rol in eduLIMS. Neem contact op met een beheerder.",
   "login_error_role_conflict": "Je account heeft rollen die niet samengaan. Neem contact op met je beheerder.",
+  "role_error_own_roles": "Je kunt je eigen rollen niet wijzigen. Vraag een andere beheerder.",
+  "role_error_not_allowed": "Deze combinatie van rollen kan niet: een student kan niet ook docent of beheerder zijn.",
   "portal_switcher_label": "Portalen",
   "portal_switcher_open": "Wissel van portaal",
   "portal_switcher_current": "(huidig portaal)",

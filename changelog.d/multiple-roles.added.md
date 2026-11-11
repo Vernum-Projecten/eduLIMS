@@ -6,4 +6,5 @@
   provider sends counts, whether assigned directly or through a group; a
   student role combined with teacher or administrator refuses the sign-in
   with a message to contact the administrator. Upgrade step: run
-  `pnpm db:migrate`, which adds the nullable `user.last_portal` column.
+  `pnpm db:migrate`, which adds the nullable `user.last_portal` column and a
+  check that `user.role` holds an allowed role set.

@@ -61,8 +61,19 @@ Role sets: option 2. Display: option 2, the portal switcher.
 - Every write of a role set passes the same check in a better-auth
   `databaseHooks.user` hook (`src/server/role-guard.ts`): the IdP sync, the
   seed, and the admin plugin's create-user, set-role and update-user.
-- A stored set that is not allowed (written around eduLIMS, straight into
-  the database) gives the session no roles at all: fail closed.
+- A stored set that is not allowed gives the session no roles at all: fail
+  closed. The database holds the rule too: a `CHECK` on `user.role`
+  (migration `0004_user_role_check`) allows only `student`, `teacher`,
+  `admin` and `teacher,admin`, because better-auth's admin permission check
+  splits the raw string.
+- Nobody changes their own roles. A better-auth `hooks.before` guard refuses
+  `set-role`, and `update-user` with `data.role`, on the session user's own
+  id with 403 `cannot_change_own_roles`, so an administrator cannot give
+  their own account teacher access without the identity provider. This holds
+  until the owner decides who owns role assignment (ADR 0010, B1).
+- A sign-in refused with `no_edulims_role` or `role_conflict` also revokes
+  the user's existing sessions, so a role the identity provider removed ends
+  the live access as well.
 
 ### The portal is in the URL
 

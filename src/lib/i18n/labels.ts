@@ -3,8 +3,8 @@
 
 import { m } from "@/i18n/messages";
 // Display names for domain values that the code stores in English.
-import type { IdentityProviderOption } from "@/lib/identity-providers";
-import type { Role } from "@/lib/roles";
+import { type IdentityProviderOption, ROLE_CONFLICT_ERROR } from "@/lib/identity-providers";
+import { OWN_ROLES_ERROR, type Role } from "@/lib/roles";
 import type { Theme } from "@/lib/theme";
 
 /** Returns the display name of `role` in the active locale. */
@@ -26,6 +26,16 @@ export function roleLabel(role: Role): string {
 /** Returns the display names of a role set in the active locale ("Teacher · Administrator"). */
 export function rolesLabel(roles: readonly Role[]): string {
   return roles.map(roleLabel).join(" · ");
+}
+
+/**
+ * Returns the translated message for a refused role write, from the better-auth error message
+ * (`cannot_change_own_roles`, `role_conflict`), or `null` for any other error.
+ */
+export function roleWriteErrorMessage(message: string | undefined): string | null {
+  if (message === OWN_ROLES_ERROR) return m.role_error_own_roles();
+  if (message === ROLE_CONFLICT_ERROR) return m.role_error_not_allowed();
+  return null;
 }
 
 /** Returns the login button text: the operator's configured label, else the localized default. */

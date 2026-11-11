@@ -15,9 +15,12 @@ const claimPaths = { microsoft: "roles", keycloak: "realm_access.roles" };
 
 function setup(defaultRole?: "student") {
   const updateUser = vi.fn(async () => null);
-  const ctx = { context: { internalAdapter: { updateUser } } } as unknown as Ctx;
+  const deleteUserSessions = vi.fn(async () => undefined);
+  const ctx = {
+    context: { internalAdapter: { updateUser, deleteUserSessions } },
+  } as unknown as Ctx;
   const sync = createIdpRoleSync({ claimPaths, roleMap, defaultRole });
-  return { sync, ctx, updateUser };
+  return { sync, ctx, updateUser, deleteUserSessions };
 }
 
 function oauth(
@@ -57,6 +60,38 @@ describe("createIdpRoleSync", () => {
     const data = oauth("sign-in", "keycloak", { realm_access: { roles: ["other"] } }, { id: "u1" });
     expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
     expect(updateUser).not.toHaveBeenCalled();
+  });
+
+  it("revokes the live sessions of an existing user refused for no role (A07)", async () => {
+    const { sync, ctx, deleteUserSessions } = setup();
+    const data = oauth("sign-in", "keycloak", { realm_access: { roles: [] } }, { id: "u1" });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(deleteUserSessions).toHaveBeenCalledWith("u1");
+  });
+
+  it("revokes the live sessions of an existing user refused for conflicting roles (A07)", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { sync, ctx, deleteUserSessions } = setup();
+    const claims = { roles: ["edulims-student", "edulims-admin"] };
+    const data = oauth("link-account", "microsoft", claims, { id: "u2" });
+    expect(await sync(data, ctx)).toMatchObject({ error: ROLE_CONFLICT_ERROR });
+    expect(deleteUserSessions).toHaveBeenCalledWith("u2");
+    vi.restoreAllMocks();
+  });
+
+  it("revokes nothing for a refused first sign-in, which has no sessions", async () => {
+    const { sync, ctx, deleteUserSessions } = setup();
+    expect(await sync(oauth("create-user", "microsoft", {}), ctx)).toMatchObject({
+      error: NO_ROLE_ERROR,
+    });
+    expect(deleteUserSessions).not.toHaveBeenCalled();
+  });
+
+  it("revokes nothing when the sign-in is allowed", async () => {
+    const { sync, ctx, deleteUserSessions } = setup();
+    const data = oauth("sign-in", "microsoft", { roles: ["edulims-teacher"] }, { id: "u1" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(deleteUserSessions).not.toHaveBeenCalled();
   });
 
   it("rejects providers without a configured claim path", async () => {
