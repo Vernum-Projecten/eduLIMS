@@ -22,6 +22,10 @@ const appEnv = {
   MICROSOFT_CLIENT_ID: "00000000-0000-0000-0000-000000000001",
   MICROSOFT_CLIENT_SECRET: "e2e-dummy",
   MICROSOFT_TENANT_ID: "00000000-0000-0000-0000-000000000002",
+  // Unreachable on purpose: the button renders; discovery is never needed by the tests.
+  KEYCLOAK_ISSUER: "http://127.0.0.1:9/realms/edulims",
+  KEYCLOAK_CLIENT_ID: "edulims-e2e",
+  KEYCLOAK_CLIENT_SECRET: "e2e-dummy",
   FERROEHR_BASE_URL: "http://localhost:4001",
   FERROBRIDGE_BASE_URL: "http://localhost:4002",
   EDULIMS_DEV_LOGIN: "true",

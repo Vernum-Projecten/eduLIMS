@@ -13,9 +13,14 @@ test("home page renders with landmarks and a skip link", async ({ page }) => {
   await expectNoA11yViolations(page);
 });
 
-test("login page has no WCAG A/AA violations", async ({ page }) => {
+test("login page offers each configured identity provider without WCAG A/AA violations", async ({
+  page,
+}) => {
   await page.goto("/login");
-  await expect(page.getByRole("button", { name: "Inloggen met Hanze-account" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Inloggen met Hanze-account (Microsoft)" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Inloggen met Keycloak" })).toBeVisible();
   await expectNoA11yViolations(page);
 });
 
@@ -33,6 +38,12 @@ test("responses carry security headers", async ({ request }) => {
   expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
   expect(headers["x-content-type-options"]).toBe("nosniff");
   expect(headers["strict-transport-security"]).toContain("max-age=");
+});
+
+test("an IdP sign-in without an eduLIMS role is explained", async ({ page }) => {
+  await page.goto("/login?error=no_edulims_role");
+  await expect(page.getByRole("alert")).toContainText("geen rol in eduLIMS");
+  await expectNoA11yViolations(page);
 });
 
 test("anonymous visitors are redirected from /docent to /login", async ({ page }) => {
