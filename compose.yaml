@@ -1,0 +1,289 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# The eduLIMS production stack on one Linux host: eduLIMS, FerroEHR (the
+# openEHR CDR), FerroBRIDGE (the HL7 v2 MLLP face in front of FerroEHR) and one
+# PostgreSQL 18 server holding a database for eduLIMS and one for FerroEHR.
+# docs/deployment.md is the procedure; this header is the summary.
+#
+#   cp .env.example .env            # then fill in every value it marks required
+#   mkdir -p config/ferrobridge     # config/ferroehr.toml, config/ferrobridge/ferrobridge.toml
+#   docker compose pull
+#   docker compose up -d --wait
+#
+# WHAT YOU PROVIDE beside this file:
+#   .env                          every secret and setting (.env.example lists them)
+#   config/ferroehr.toml          FerroEHR's server configuration
+#   config/ferrobridge/           FerroBRIDGE's ferrobridge.toml, with the [hl7v2]
+#                                 section, and the TLS files it names
+#   docker/postgres/init/20-edulims.sh   from the release's deploy bundle
+#
+# IMAGES are pinned by tag and digest. The digest is what Docker pulls; the tag
+# is there for the reader. A release of eduLIMS changes EDULIMS_VERSION in
+# .env; the FerroEHR and FerroBRIDGE pins move in this file when this
+# repository bumps them.
+#
+# PORTS bind the loopback interface by default. A published port is DNAT'd
+# ahead of the host firewall's own chains, so a port on 0.0.0.0 is reachable
+# from the network even when the firewall says otherwise
+# (https://docs.docker.com/engine/network/packet-filtering-firewalls/). The
+# reverse proxy that terminates TLS for eduLIMS runs on the host and reaches
+# 127.0.0.1:3000. The MLLP port is the one that must face the lab network, so
+# set FERROBRIDGE_MLLP_BIND_HOST to the host's lab-facing address.
+#
+# IDENTITY PROVIDER. eduLIMS signs users in with Microsoft Entra ID, with
+# Keycloak, or with both (docs/deployment.md, "Identity provider"). Keycloak
+# is the optional `keycloak` profile, so a host that uses Entra ID alone runs
+# no Keycloak at all:
+#
+#   COMPOSE_PROFILES=keycloak docker compose up -d --wait
+#
+# NETWORKS. `backend` is internal: no container on it alone can reach the
+# internet, and PostgreSQL and FerroEHR sit on it alone. eduLIMS also joins
+# `egress`, because sign-in calls the identity provider; FerroBRIDGE and
+# Keycloak join it for their published ports.
+#
+# Every service drops all capabilities and adds back only what it needs,
+# refuses privilege escalation, and restarts unless stopped.
+
+name: edulims
+
+services:
+  # ── PostgreSQL 18, one server, two databases (three with Keycloak) ────────
+  # FerroEHR's PostgreSQL image: postgres:18.6 with Debian's security updates
+  # applied at its build, upstream's gosu replaced, and an init script that
+  # creates the FerroEHR role, database and schemas. eduLIMS adds its own init
+  # script beside it. One server keeps one process, one volume and one backup
+  # job on the host, where two servers would double each.
+  postgres:
+    image: ghcr.io/ferrohealth/ferroehr-postgres:5.7.0@sha256:3b7dbfce603b4ff3c8a29366655f195baf2bfeaf903a1bf1be851ba69293743a
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # Read by the image's 10-ferroehr-init.sh.
+      PG_INIT_USER: ${FERROEHR_DB_USER:-ferroehr}
+      PG_INIT_PASSWORD: ${FERROEHR_DB_PASSWORD:?set FERROEHR_DB_PASSWORD in .env}
+      PG_INIT_DB: ${FERROEHR_DB_NAME:-ferroehr}
+      # Read by docker/postgres/init/20-edulims.sh.
+      EDULIMS_DB_USER: ${EDULIMS_DB_USER:-edulims}
+      EDULIMS_DB_PASSWORD: ${EDULIMS_DB_PASSWORD:?set EDULIMS_DB_PASSWORD in .env}
+      EDULIMS_DB_NAME: ${EDULIMS_DB_NAME:-edulims}
+      # The Keycloak database is created only when its password is set, which
+      # a host running the `keycloak` profile does in .env.
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER:-keycloak}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-}
+      KEYCLOAK_DB_NAME: ${KEYCLOAK_DB_NAME:-keycloak}
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./docker/postgres/init/20-edulims.sh:/docker-entrypoint-initdb.d/20-edulims.sh:ro
+      # pg_dump writes here (docs/deployment.md, "Backups").
+      - ${EDULIMS_BACKUP_DIR:-./backups}:/backup
+    # The entrypoint starts as root to own the data directory, then drops to
+    # `postgres`; these are the capabilities that takes.
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/run/postgresql
+    shm_size: 256mb
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  # ── FerroEHR, the openEHR CDR ─────────────────────────────────────────────
+  # No published port: eduLIMS and FerroBRIDGE reach it on the backend
+  # network at http://ferroehr:8080.
+  ferroehr:
+    image: ghcr.io/ferrohealth/ferroehr:5.7.0@sha256:44c9268cb8a154df118a10ffe84329633f22923ea2cc54261ff0cea57a2ee7e7
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FERROEHR_CONFIG: /etc/ferroehr/ferroehr.toml
+      FERROEHR__DATABASE__URL: postgres://${FERROEHR_DB_USER:-ferroehr}:${FERROEHR_DB_PASSWORD:?set FERROEHR_DB_PASSWORD in .env}@postgres:5432/${FERROEHR_DB_NAME:-ferroehr}
+      FERROEHR__TELEMETRY__FORMAT: json
+      FERROEHR__TELEMETRY__FILTER: ${FERROEHR_LOG_FILTER:-info}
+      # FerroEHR reports its installation to FerroPULSE unless told not to.
+      # The backend network has no route out, so the report could not leave
+      # anyway; saying so here keeps the boot log free of failed attempts.
+      FERROEHR__USAGE_REPORT__ENABLED: "false"
+    volumes:
+      - ./config/ferroehr.toml:/etc/ferroehr/ferroehr.toml:ro
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/ferroehr", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+
+  # ── FerroBRIDGE, HL7 v2 over MLLP into FerroEHR ────────────────────────────
+  # Lab analysers send results over MLLP (TLS with client certificates, set up
+  # in config/ferrobridge/ferrobridge.toml); FerroBRIDGE commits them to
+  # FerroEHR.
+  ferrobridge:
+    image: ghcr.io/ferrohealth/ferrobridge:0.0.24@sha256:6e14c783955da9ecd5683fbe781542580e2ebae18d0f4c07e888a1c086e05e59
+    restart: unless-stopped
+    depends_on:
+      ferroehr:
+        condition: service_healthy
+    ports:
+      - "${FERROBRIDGE_MLLP_BIND_HOST:-127.0.0.1}:${FERROBRIDGE_MLLP_PORT:-2575}:2575"
+    environment:
+      FERROBRIDGE_CONFIG: /etc/ferrobridge/ferrobridge.toml
+      FERROBRIDGE__CDR__BASE_URL: http://ferroehr:8080/ferroehr/rest/openehr/v1
+      FERROBRIDGE__HL7V2__LISTEN: 0.0.0.0:2575
+      FERROBRIDGE__TELEMETRY__FORMAT: auto
+      FERROBRIDGE__TELEMETRY__FILTER: ${FERROBRIDGE_LOG_FILTER:-info}
+      FERROBRIDGE__USAGE_REPORT__ENABLED: "false"
+      FERROBRIDGE__USAGE_REPORT__STATE_DIR: /home/nonroot/state
+    volumes:
+      - ./config/ferrobridge:/etc/ferrobridge:ro
+      - ferrobridge-state:/home/nonroot/state
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks: [backend, egress]
+    # The image's HEALTHCHECK runs `ferrobridge healthcheck` (GET
+    # /health/readiness on the loopback); compose keeps it.
+
+  # ── eduLIMS schema migrations, a one-shot ─────────────────────────────────
+  # Runs `pnpm db:migrate` and exits. `docker compose up` runs it before the
+  # server on every start, and a migration that is already applied is a no-op.
+  edulims-migrate:
+    image: ghcr.io/vernum-projecten/edulims-migrate:${EDULIMS_VERSION:?set EDULIMS_VERSION in .env}
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${EDULIMS_DB_USER:-edulims}:${EDULIMS_DB_PASSWORD:?set EDULIMS_DB_PASSWORD in .env}@postgres:5432/${EDULIMS_DB_NAME:-edulims}
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks: [backend]
+
+  # ── eduLIMS ───────────────────────────────────────────────────────────────
+  edulims:
+    image: ghcr.io/vernum-projecten/edulims:${EDULIMS_VERSION:?set EDULIMS_VERSION in .env}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      edulims-migrate:
+        condition: service_completed_successfully
+      # Inert without the `keycloak` profile (required: false).
+      keycloak:
+        condition: service_healthy
+        required: false
+    ports:
+      - "${EDULIMS_BIND_HOST:-127.0.0.1}:${EDULIMS_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${EDULIMS_DB_USER:-edulims}:${EDULIMS_DB_PASSWORD:?set EDULIMS_DB_PASSWORD in .env}@postgres:5432/${EDULIMS_DB_NAME:-edulims}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL in .env}
+      # Each identity provider is on when its variables are set. A key with
+      # no value passes the variable through from .env only when it is set
+      # there, so an unused provider stays absent rather than empty.
+      MICROSOFT_CLIENT_ID:
+      MICROSOFT_CLIENT_SECRET:
+      MICROSOFT_TENANT_ID:
+      KEYCLOAK_ISSUER:
+      KEYCLOAK_CLIENT_ID:
+      KEYCLOAK_CLIENT_SECRET:
+      KEYCLOAK_LABEL:
+      OIDC_ROLE_CLAIM:
+      OIDC_ROLE_MAP:
+      OIDC_DEFAULT_ROLE:
+      FERROEHR_BASE_URL: http://ferroehr:8080/ferroehr/rest/openehr/v1
+      FERROBRIDGE_BASE_URL: http://ferrobridge:8080
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks: [backend, egress]
+    # The image's HEALTHCHECK probes GET /api/health; compose keeps it.
+
+  # ── Keycloak, the optional identity provider (profile `keycloak`) ─────────
+  # Production mode (`start`) on its own database in the shared PostgreSQL
+  # server. TLS ends at the host's reverse proxy, which forwards
+  # X-Forwarded-* headers to 127.0.0.1:8180; KEYCLOAK_HOSTNAME is the public
+  # URL users and eduLIMS reach it on, so every token's `iss` is that URL. The
+  # realm is created by an administrator or imported once
+  # (docs/deployment.md); this file imports nothing.
+  keycloak:
+    profiles: [keycloak]
+    image: quay.io/keycloak/keycloak:26.8.2@sha256:723b1d6e254c0fc96d5cffec860c7e0744d6a3277822b865bb538cf891575e41
+    command: ["start"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
+      # `:-` and not `:?`: Compose interpolates every service, profiled or not,
+      # so a required marker here would stop a host that runs no Keycloak.
+      # Keycloak itself refuses to start without either value.
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-}
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      # The first start creates this administrator; change its password in the
+      # admin console and remove both lines from .env afterwards.
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-}
+    ports:
+      - "${KEYCLOAK_BIND_HOST:-127.0.0.1}:${KEYCLOAK_PORT:-8180}:8080"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # Keycloak rebuilds its Quarkus application under /opt/keycloak at the
+    # first `start` with options it was not built with, so its root
+    # filesystem stays writable.
+    networks: [backend, egress]
+    # The image ships bash and no HTTP client, so the probe asks the
+    # management port's readiness endpoint over bash's /dev/tcp.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /health/ready HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '^HTTP/1.1 200' <&3"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+networks:
+  backend:
+    internal: true
+  egress: {}
+
+volumes:
+  pgdata:
+  ferrobridge-state:

@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# The build context for docker/Dockerfile. The build stage needs the sources,
+# the manifests and the lockfile, and the release lane adds dist/.output.
+# Everything else stays out, so a local secret or a stale build never reaches
+# an image layer.
+
+# Version control and editor state
+.git
+.github
+.idea
+.vscode
+.claude
+
+# Dependencies and build output: the build stage makes its own
+node_modules
+.output
+.nitro
+.tanstack
+.vinxi
+dist/*
+!dist/.output
+coverage
+*.tsbuildinfo
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+secrets
+config
+
+# Deployment files the image does not use
+compose*.yaml
+docker/postgres
+docs
+changelog.d
+CHANGELOG.md
+security
+scripts/release
+*.log
+docker/keycloak
