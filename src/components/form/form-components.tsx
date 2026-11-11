@@ -63,9 +63,10 @@ export function SubmitButton({
 /**
  * The form-level errors (a server refusal that concerns no single field), at the top of the
  * form. When they appear, focus moves to them, so a keyboard and screen-reader user lands on
- * the reason (WCAG 3.3.1).
+ * the reason (WCAG 3.3.1). `title={null}` leaves the title out where the message says it all
+ * (a refused sign-in).
  */
-export function FormErrors({ title = m.form_errors_title() }: Readonly<{ title?: string }>) {
+export function FormErrors({ title = m.form_errors_title() }: Readonly<{ title?: string | null }>) {
   const form = useFormContext();
   // A joined string is a stable selection, so the component renders only when the text changes.
   const text = useStore(form.store, (state) =>
@@ -87,7 +88,7 @@ export function FormErrors({ title = m.form_errors_title() }: Readonly<{ title?:
       className="outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <CircleAlertIcon aria-hidden="true" />
-      <AlertTitle>{title}</AlertTitle>
+      {title !== null && <AlertTitle>{title}</AlertTitle>}
       <AlertDescription>
         {messages.length === 1 ? (
           messages[0]

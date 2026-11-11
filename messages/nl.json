@@ -485,6 +485,7 @@
   "login_error_saml_nameid": "De inlog van je instelling stuurde geen vaste identificatie, dus eduLIMS kan je niet laten inloggen. Neem contact op met een beheerder.",
   "login_last_method": "De vorige keer meldde je je aan met {method}.",
   "login_no_method": "Er is geen inlogmethode ingesteld. Neem contact op met een beheerder.",
+  "login_no_method_title": "Geen inlogmethode",
   "login_with_provider": "Inloggen met {provider}",
   "main_menu": "Hoofdmenu",
   "nav_activity_log": "Activiteitenlogboek",

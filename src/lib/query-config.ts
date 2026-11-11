@@ -13,6 +13,11 @@ export const STALE_TIME = {
   adminUsersList: 30_000,
   /** The user detail sheet: its active sessions change on every sign-in, so it ages faster. */
   adminUserDetail: 15_000,
+  /**
+   * The sign-in methods of the login page: an administrator rarely changes a provider, and a
+   * full page load (a callback, a language switch) or a sign-out starts from an empty cache.
+   */
+  loginOptions: 30_000,
 } as const;
 
 /** The `staleTime` of a query that sets none (every factory should; see {@link STALE_TIME}). */

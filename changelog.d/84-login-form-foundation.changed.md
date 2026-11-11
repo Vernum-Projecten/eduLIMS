@@ -1,0 +1,1 @@
+- The sign-in page keeps a field error when you leave the field, moves focus to the first field to fix after a refused submit, and shows a refused sign-in (wrong password, a blocked account, an unknown institution email) at the field or the top of the form; it shows a retry when the sign-in options cannot load (S1, #84).
