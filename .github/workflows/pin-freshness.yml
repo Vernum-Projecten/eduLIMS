@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# The freshness half of the pin discipline (our own design, ported from the
+# Ferro family). Dependabot moves the `uses:` references, the npm packages
+# and the docker/ base images. scripts/checks/pin-freshness.sh reads the pins
+# it does not (Node.js, pnpm, the PostgreSQL service image, actionlint,
+# zizmor, shellcheck) and this workflow opens one issue when one is behind.
+#
+# It opens an issue and does not fail: a weekly red job trains a maintainer to
+# ignore red jobs, and a newer upstream release is not a broken build.
+name: Pin freshness
+
+on:
+  schedule:
+    # Mondays 06:17 UTC: off the hour and after the weekly Dependabot run.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  freshness:
+    name: pin freshness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compare every unwatched pin with its newest upstream release
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          status=0
+          bash scripts/checks/pin-freshness.sh > freshness.txt || status=$?
+          cat freshness.txt
+          # 0 every pin current, 1 at least one behind, 2 a release could not
+          # be read. Only 1 opens an issue; 2 fails the job, because a pin
+          # that could not be compared is not a pin known to be fresh.
+          if [ "$status" -eq 2 ]; then
+            echo "a release could not be read; the comparison is incomplete" >&2
+            exit 1
+          fi
+          echo "stale=$([ "$status" -eq 1 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Open an issue when a pin is behind
+        if: steps.check.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: A tool or runtime pin is behind its newest upstream release
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          open="$(gh issue list --state open --limit 500 --json title \
+            --jq "[.[] | select(.title == \"$TITLE\")] | length")"
+          if [ "$open" -ne 0 ]; then
+            echo "an open issue already carries this report; not opening a second"
+            exit 0
+          fi
+          {
+            echo "\`scripts/checks/pin-freshness.sh\` found a pin behind its newest upstream release."
+            echo
+            echo "Move the pin in the file the line names, and re-run CI."
+            echo
+            echo '```text'
+            cat freshness.txt
+            echo '```'
+            echo
+            echo "Reported by [this run]($RUN_URL)."
+          } > body.md
+          # fields.sh files the issue as a Task at Low priority and effort. The
+          # default token may not read the organisation's issue types; then
+          # the issue lands with its labels alone and triage sets the three.
+          bash scripts/gh/fields.sh new task low low \
+            --title "$TITLE" --body-file body.md --label ci --label dependencies

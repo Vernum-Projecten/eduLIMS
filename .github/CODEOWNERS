@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# The default owner of every path. GitHub requests a review from this owner on
+# each pull request; the ruleset requires no approval, so the request informs
+# and does not block.
+* @rubentalstra

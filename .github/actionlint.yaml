@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# actionlint configuration.
+# https://github.com/rhysd/actionlint/blob/main/docs/config.md
+#
+# actionlint runs shellcheck over every `run:` block. The SC2016 exclusion the
+# workflows need is passed at invoke time through SHELLCHECK_OPTS (see the
+# actionlint job of ci.yml), which this file has no key for.
+
+# Every job runs on a GitHub-hosted runner, so no custom label is declared.
+self-hosted-runner:
+  labels: []
+
+# null turns off the configuration-variables check, so a `vars.*` used later is
+# accepted without a list here.
+config-variables: null

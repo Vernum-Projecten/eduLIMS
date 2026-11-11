@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# Automated dependency updates for three ecosystems: the npm packages pnpm
+# resolves (pnpm-lock.yaml), the GitHub Actions the workflows and the
+# composite actions pin, and the base images under docker/.
+#
+# Every entry waits out a cooldown between a release and the pull request
+# that proposes it, so a compromised or yanked release has time to be caught
+# first (the OWASP CI/CD Security Cheat Sheet's third-party-code control).
+# Security updates are exempt: an advisory-driven bump arrives at once.
+#
+# The commit messages carry the scope, so every title is a Conventional
+# Commits header the pr-title guard accepts: `build(deps): ...`,
+# `build(deps-dev): ...`, and `ci(deps): ...`.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    labels:
+      - "dependencies"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    # A package executes at install and ships in the server bundle, so it
+    # waits longer than an action does.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    open-pull-requests-limit: 10
+    # package.json pins exact versions (.npmrc save-exact), and a bump keeps
+    # them exact.
+    versioning-strategy: increase
+    groups:
+      # A group claims a package in file order, so the named families come
+      # before the catch-all. Majors stay in their family group: a TanStack
+      # major moves router, start and query together or not at all.
+      tanstack:
+        patterns: ["@tanstack/*"]
+      types:
+        patterns: ["@types/*"]
+      tooling:
+        patterns:
+          - "@biomejs/*"
+          - "vitest"
+          - "@vitest/*"
+          - "vite"
+          - "@vitejs/*"
+          - "@tailwindcss/vite"
+          - "typescript"
+      # One pull request for every other minor and patch bump. A major of
+      # anything else stays its own review.
+      npm-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "build"
+      include: "scope"
+
+  - package-ecosystem: "github-actions"
+    # "/" covers .github/workflows only; a composite action under
+    # .github/actions is scanned only when its directory is listed.
+    directories:
+      - "/"
+      - "/.github/actions/*"
+    labels:
+      - "dependencies"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    # Seven days is the floor zizmor's dependabot-cooldown audit enforces.
+    cooldown:
+      default-days: 7
+    groups:
+      # One pull request for every minor and patch action bump; a major stays
+      # its own review.
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  - package-ecosystem: "docker"
+    # The Docker Compose deployment's images, pinned by digest; a bump is a
+    # reviewed change of digest.
+    directory: "/docker"
+    labels:
+      - "dependencies"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: "build"
+      include: "scope"

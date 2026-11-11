@@ -1,0 +1,65 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+name: Task
+description: Plan work with no new behaviour (docs, CI, refactoring, tests, maintenance).
+type: Task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The type is already Task. Add exactly one work-kind label
+        (documentation, chore, refactor, perf, test, ci): it picks the branch
+        prefix and the commit type.
+  - type: dropdown
+    id: requirement
+    attributes:
+      label: Requirement
+      description: The requirement this task supports, if any.
+      options:
+        - "S1: Sign in with the Hanze account (Entra ID)"
+        - "S2: View the practical assignment and measurement protocol"
+        - "S3: Register samples with a unique sample ID"
+        - "S4: Upload and validate the Gen5 Excel export"
+        - "S5: Check measurement results per sample (Afinion, Epoch)"
+        - "S6: Submit a lab report before the deadline"
+        - "S7: View feedback and grade"
+        - "S8: View the submission status"
+        - "S9: Submit a resit or a new version"
+        - "D1: Create a practical"
+        - "D2: Link classes or students to a practical"
+        - "D3: View the measurement results of all students"
+        - "D4: Grade a submission with the rubric"
+        - "D5: KPI dashboard"
+        - "D6: Export grades (CSV)"
+        - "D7: Flag implausible measurement values"
+        - "D8: Reuse a rubric between practicals"
+        - "B1: Manage users and roles"
+        - "B2: Manage classes"
+        - "B3: Manage analysers and integrations"
+        - "B4: View the log of uploads, HL7 messages and errors"
+        - "Quality requirement (ISO 25010: security, privacy, accessibility, ...)"
+        - "None: no requirement covers this"
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What the task changes, and why it is needed now.
+    validations:
+      required: true
+  - type: textarea
+    id: criterion
+    attributes:
+      label: Acceptance criterion
+      description: How a reviewer sees the task is done.
+      placeholder: CI runs the e2e lane on every pull request and the axe scan finds no level A or AA violation.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Links, constraints, or the order this task has to happen in.
+    validations:
+      required: false

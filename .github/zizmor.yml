@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+# zizmor configuration (docs.zizmor.sh/configuration). Only a finding with a
+# recorded reason is ignored here; everything else fails the zizmor job of
+# ci.yml at --min-severity=low.
+rules:
+  # zizmor 1.32 asks for GitHub's self-repository form (`uses: $/...`) for an
+  # in-repository action. actionlint 1.7.12, the newest release and the one
+  # ci.yml pins, rejects that form as an action reference with no ref, so the
+  # tree keeps `./...`. Remove this ignore, and rewrite the calls, when
+  # actionlint parses `$/`.
+  self-repository:
+    ignore:
+      - ci.yml

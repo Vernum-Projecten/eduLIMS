@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+name: Feature request
+description: Propose a user story for a requirement, or a new capability.
+type: Feature
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The type is already Feature, and a maintainer sets the priority and
+        the MoSCoW label during triage.
+  - type: dropdown
+    id: requirement
+    attributes:
+      label: Requirement
+      description: The requirement from the requirements analysis this story delivers.
+      options:
+        - "S1: Sign in with the Hanze account (Entra ID)"
+        - "S2: View the practical assignment and measurement protocol"
+        - "S3: Register samples with a unique sample ID"
+        - "S4: Upload and validate the Gen5 Excel export"
+        - "S5: Check measurement results per sample (Afinion, Epoch)"
+        - "S6: Submit a lab report before the deadline"
+        - "S7: View feedback and grade"
+        - "S8: View the submission status"
+        - "S9: Submit a resit or a new version"
+        - "D1: Create a practical"
+        - "D2: Link classes or students to a practical"
+        - "D3: View the measurement results of all students"
+        - "D4: Grade a submission with the rubric"
+        - "D5: KPI dashboard"
+        - "D6: Export grades (CSV)"
+        - "D7: Flag implausible measurement values"
+        - "D8: Reuse a rubric between practicals"
+        - "B1: Manage users and roles"
+        - "B2: Manage classes"
+        - "B3: Manage analysers and integrations"
+        - "B4: View the log of uploads, HL7 messages and errors"
+        - "Quality requirement (ISO 25010: security, privacy, accessibility, ...)"
+        - "None: a new requirement (say so below)"
+    validations:
+      required: true
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      description: Who wants what, and why.
+      placeholder: As a teacher, I want to see which class falls behind, so that I can plan extra support.
+    validations:
+      required: true
+  - type: textarea
+    id: criterion
+    attributes:
+      label: Acceptance criterion
+      description: >-
+        The test that shows the story is done, as concrete as the requirements
+        analysis states it (a number, a time limit, a role that may or may not
+        see something).
+      placeholder: The dashboard shows the five KPIs with their norm on one page and loads within 2 seconds.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you weighed, and why you set them aside.
+    validations:
+      required: false
+  - type: textarea
+    id: risks
+    attributes:
+      label: Security, privacy and accessibility
+      description: >-
+        Does the story touch personal data, a role boundary, or a screen that
+        must meet WCAG 2.1 AA? Name what a reviewer has to check.
+    validations:
+      required: false
