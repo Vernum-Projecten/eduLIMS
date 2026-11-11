@@ -10,6 +10,8 @@ import starlightLlmsTxt from "starlight-llms-txt";
 import { rehypeFocusableTables } from "./src/plugins/rehype-focusable-tables.ts";
 
 const repository = "https://github.com/Vernum-Projecten/eduLIMS";
+const socialImage = "https://edulims.eu/edulims-social.png";
+const socialAlt = "eduLIMS: open-source LIMS for practical laboratory education";
 
 export default defineConfig({
   site: "https://edulims.eu",
@@ -25,9 +27,26 @@ export default defineConfig({
       title: "eduLIMS",
       description:
         "An open-source laboratory information management system for practical laboratory education.",
-      logo: { src: "./src/assets/logo.svg" },
+      // The lockup carries the name, so it replaces the text title; its alt is the title.
+      logo: {
+        light: "../assets/brand/edulims-lockup-light.svg",
+        dark: "../assets/brand/edulims-lockup-dark.svg",
+        replacesTitle: true,
+      },
       favicon: "/favicon.svg",
-      head: [{ tag: "script", attrs: { src: "/search-label.js", defer: true } }],
+      customCss: ["./src/styles/brand.css"],
+      head: [
+        { tag: "script", attrs: { src: "/search-label.js", defer: true } },
+        { tag: "link", attrs: { rel: "icon", href: "/favicon.ico", sizes: "32x32" } },
+        { tag: "link", attrs: { rel: "apple-touch-icon", href: "/apple-touch-icon.png" } },
+        { tag: "meta", attrs: { property: "og:image", content: socialImage } },
+        { tag: "meta", attrs: { property: "og:image:width", content: "1280" } },
+        { tag: "meta", attrs: { property: "og:image:height", content: "640" } },
+        { tag: "meta", attrs: { property: "og:image:alt", content: socialAlt } },
+        { tag: "meta", attrs: { name: "twitter:image", content: socialImage } },
+        { tag: "meta", attrs: { name: "twitter:image:alt", content: socialAlt } },
+        { tag: "meta", attrs: { name: "theme-color", content: "#3730a3" } },
+      ],
       social: [{ icon: "github", label: "GitHub", href: repository }],
       editLink: { baseUrl: `${repository}/edit/main/website/` },
       lastUpdated: false,

@@ -5,6 +5,7 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { LogOutIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { BrandMark } from "@/components/brand-mark";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
@@ -24,8 +25,11 @@ export function SiteHeader({ user }: Readonly<{ user: SessionUser | null }>) {
   return (
     <header className="border-b">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-4 py-3">
-        <Link to="/" className="font-semibold">
-          eduLIMS
+        <Link to="/" className="flex items-center gap-2 rounded-md text-lg tracking-tight">
+          <BrandMark />
+          <span>
+            edu<span className="font-bold text-primary">LIMS</span>
+          </span>
         </Link>
         {items.length > 0 && (
           <nav aria-label={m.main_menu()}>

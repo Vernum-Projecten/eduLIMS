@@ -1,0 +1,15 @@
+/* SPDX-FileCopyrightText: Ruben Talstra */
+/* SPDX-License-Identifier: Apache-2.0 */
+/* The eduLIMS indigo as the Starlight accent (assets/brand/tokens.css). Links and
+   accent text use --sl-color-accent on light (9.93:1 on white) and
+   --sl-color-accent-high on dark (11.89:1 on Starlight's dark background). */
+:root {
+  --sl-color-accent-low: #1e1b4b;
+  --sl-color-accent: #4f46e5;
+  --sl-color-accent-high: #c7d2fe;
+}
+:root[data-theme="light"] {
+  --sl-color-accent-low: #e0e7ff;
+  --sl-color-accent: #3730a3;
+  --sl-color-accent-high: #312e81;
+}

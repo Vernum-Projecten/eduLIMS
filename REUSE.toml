@@ -65,6 +65,25 @@ precedence = "closest"
 SPDX-FileCopyrightText = "Ruben Talstra"
 SPDX-License-Identifier = "Apache-2.0"
 
+# The brand rasters (assets/brand/README.md) and their served copies in the app's
+# public/ and the documentation site's website/public/. The wordmark and the social
+# card's lettering are Space Grotesk 2.000 (SIL OFL 1.1, the Space Grotesk Project
+# Authors) outlined to paths: artwork made with the font, not the font software, so
+# the files carry the repository's licence. The SVGs carry their own SPDX comment.
+[[annotations]]
+path = [
+  "assets/brand/*.png",
+  "assets/brand/*.ico",
+  "public/*.png",
+  "public/*.ico",
+  "public/manifest.webmanifest",
+  "website/public/*.png",
+  "website/public/*.ico",
+]
+precedence = "closest"
+SPDX-FileCopyrightText = "Ruben Talstra"
+SPDX-License-Identifier = "Apache-2.0"
+
 # Test fixtures: pseudonymised, made-up data only.
 [[annotations]]
 path = ["tests/fixtures/**", "test/fixtures/**"]

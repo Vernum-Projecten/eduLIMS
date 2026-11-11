@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="512" height="512" role="img" aria-label="eduLIMS">
+  <!-- SPDX-FileCopyrightText: Ruben Talstra -->
+  <!-- SPDX-License-Identifier: Apache-2.0 -->
+  <title>eduLIMS</title>
+  <desc>Twelve wells of a 96-well microplate on an indigo tile; the amber well is the sample.</desc>
+  <rect fill="#3730a3" width="48" height="48" rx="10.5"/>
+  <g fill="#8b8bd6"><circle cx="10.5" cy="15" r="3"/><circle cx="19.5" cy="15" r="3"/><circle cx="28.5" cy="15" r="3"/><circle cx="37.5" cy="15" r="3"/><circle cx="10.5" cy="24" r="3"/><circle cx="19.5" cy="24" r="3"/><circle cx="37.5" cy="24" r="3"/><circle cx="10.5" cy="33" r="3"/><circle cx="19.5" cy="33" r="3"/><circle cx="28.5" cy="33" r="3"/><circle cx="37.5" cy="33" r="3"/></g>
+  <circle fill="#fbbf24" cx="28.5" cy="24" r="3.9"/>
+</svg>

@@ -1,6 +1,16 @@
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/edulims-lockup-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/brand/edulims-lockup-light.svg">
+  <img src="assets/brand/edulims-lockup-light.svg" alt="eduLIMS" width="290">
+</picture>
+
+</div>
+
 # eduLIMS
 
 [![Release](https://img.shields.io/github/v/release/Vernum-Projecten/eduLIMS?sort=semver&logo=github&label=release)](https://github.com/Vernum-Projecten/eduLIMS/releases/latest)

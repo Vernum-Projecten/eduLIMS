@@ -1,0 +1,41 @@
+/* SPDX-FileCopyrightText: Ruben Talstra */
+/* SPDX-License-Identifier: Apache-2.0 */
+/* eduLIMS brand tokens. Import this file, or copy the values.
+
+   Every core token says what it is safe for on each of three grounds, measured
+   against --edulims-surface (light), --edulims-night (dark) and --edulims-indigo
+   (the tile the mark is drawn on). WCAG 2.1 asks 4.5:1 for body text and 3:1 for
+   a graphical object or large text (SC 1.4.3 and 1.4.11), so "graphics" means
+   the mark, a rule or an icon, never a label. scripts/checks/brand-contrast.sh
+   measures the values and fails when a claim here stops being true. */
+:root {
+  /* Core palette */
+  --edulims-indigo: #3730a3; /* the tile, brand text on light; safe: light: text, dark: neither, tile: neither */
+  --edulims-indigo-light: #a5b4fc; /* rim on dark, brand text on dark; safe: light: neither, dark: text, tile: text */
+  --edulims-well: #8b8bd6; /* the eleven empty wells, drawn on the tile only; safe: light: neither, dark: text, tile: graphics */
+  --edulims-amber: #fbbf24; /* the sample well, highlights on dark; safe: light: neither, dark: text, tile: text */
+  --edulims-amber-deep: #d97706; /* the sample well of the glyph on light; safe: light: graphics, dark: text, tile: graphics */
+  --edulims-ink: #0f172a; /* text on light; safe: light: text, dark: neither, tile: neither */
+  --edulims-mist: #f1f5f9; /* text on dark; safe: light: neither, dark: text, tile: text */
+  --edulims-night: #0b1220; /* dark background; safe: light: text, dark: neither, tile: neither */
+  --edulims-surface: #f8fafc; /* light background; safe: light: neither, dark: text, tile: text */
+
+  /* Roles */
+  --edulims-brand: var(--edulims-indigo);
+  --edulims-accent: var(--edulims-amber);
+  --edulims-fg: var(--edulims-ink);
+  --edulims-bg: var(--edulims-surface);
+
+  /* The brand colour as text. Indigo reaches 9.49:1 on the light surface and
+     1.88:1 on the dark one, so text in the brand colour switches to the light
+     indigo in the dark scheme. Amber is never text on light: neither amber
+     token reaches 4.5:1 there. */
+  --edulims-brand-text: var(--edulims-indigo);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --edulims-fg: var(--edulims-mist);
+    --edulims-bg: var(--edulims-night);
+    --edulims-brand-text: var(--edulims-indigo-light);
+  }
+}
