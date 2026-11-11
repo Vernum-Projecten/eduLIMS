@@ -285,10 +285,19 @@ test.describe("demo accounts (development login on)", () => {
 
     const devTable = page.getByRole("table", { name: "Development login" });
     await expect(devTable).toContainText("student@example.test");
-    await expect(devTable.getByRole("rowheader", { name: "Teacher" })).toBeVisible();
+    await expect(devTable.getByRole("rowheader", { name: "Teacher", exact: true })).toBeVisible();
+    await expect(
+      devTable.getByRole("rowheader", { name: "Teacher · Administrator" }),
+    ).toBeVisible();
     await expect(page.getByText("Password for every account: eduLIMS-dev-only")).toBeVisible();
     const keycloakTable = page.getByRole("table", { name: "Keycloak (realm edulims)" });
     await expect(keycloakTable.getByRole("row", { name: /Administrator admin/ })).toBeVisible();
+    await expect(
+      keycloakTable.getByRole("row", { name: /coordinator Group membership/ }),
+    ).toBeVisible();
+    await expect(
+      keycloakTable.getByRole("row", { name: /Refused: conflicting roles conflict/ }),
+    ).toBeVisible();
     await expect(page.getByText("The password is the username.")).toBeVisible();
     await expect(page.getByText("These are public development credentials.")).toBeVisible();
     await expectNoA11yViolations(page);

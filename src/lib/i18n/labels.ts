@@ -23,6 +23,11 @@ export function roleLabel(role: Role): string {
   }
 }
 
+/** Returns the display names of a role set in the active locale ("Teacher · Administrator"). */
+export function rolesLabel(roles: readonly Role[]): string {
+  return roles.map(roleLabel).join(" · ");
+}
+
 /** Returns the login button text: the operator's configured label, else the localized default. */
 export function providerLabel(provider: IdentityProviderOption): string {
   if (provider.label) return provider.label;

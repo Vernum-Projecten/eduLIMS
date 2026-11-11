@@ -14,8 +14,8 @@ import { m } from "@/i18n/messages";
 import { type NavItem, normalizePath, type PortalNavigation } from "@/lib/navigation";
 
 /**
- * The portal navigation (from the sidebar-07 block's `NavMain`): one group per portal the
- * user may open, each with its overview and sections. The current page carries
+ * The portal navigation (from the sidebar-07 block's `NavMain`): one group per portal given
+ * (the current portal), with its overview and sections. The current page carries
  * `aria-current="page"`; collapsed to icons, every item shows its label as a tooltip.
  */
 export function NavMain({ portals }: Readonly<{ portals: readonly PortalNavigation[] }>) {

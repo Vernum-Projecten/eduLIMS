@@ -23,6 +23,11 @@
   "portal_admin_intro": "Hier beheer je straks gebruikers, rollen en de koppelingen met FerroEHR en FerroBRIDGE.",
   "login_description": "Log in met je organisatieaccount om eduLIMS te gebruiken.",
   "login_error_no_role": "Je account heeft nog geen rol in eduLIMS. Neem contact op met een beheerder.",
+  "login_error_role_conflict": "Je account heeft rollen die niet samengaan. Neem contact op met je beheerder.",
+  "portal_switcher_label": "Portalen",
+  "portal_switcher_open": "Wissel van portaal",
+  "portal_switcher_current": "(huidig portaal)",
+  "portal_switch_save_failed": "Je portaalkeuze kon niet worden opgeslagen. Je komt de volgende keer op je gebruikelijke portaal uit.",
   "login_error_failed": "Inloggen is mislukt. Probeer het opnieuw of neem contact op met een beheerder.",
   "login_no_method": "Er is geen inlogmethode ingesteld. Neem contact op met een beheerder.",
   "login_microsoft": "Inloggen met Microsoft",
@@ -80,7 +85,7 @@
   "loading": "Laden…",
   "home_sign_in_hint": "Log in met je organisatieaccount om je portaal te openen.",
   "demo_accounts_title": "Demo-accounts",
-  "demo_accounts_role": "Rol",
+  "demo_accounts_role": "Rollen",
   "demo_accounts_fill_in": "Invullen",
   "demo_accounts_use": "Gebruiken",
   "demo_accounts_use_label": "Gebruiken: testaccount voor {role}",
@@ -90,5 +95,11 @@
   "demo_accounts_dev_login_hint": "Vul een account in met Gebruiken en kies daarna Inloggen met testaccount. Wachtwoord voor elk account: {password}",
   "demo_accounts_keycloak_title": "Keycloak (realm {realm})",
   "demo_accounts_keycloak_hint": "Kies Inloggen met Keycloak en gebruik daarna een van deze accounts. Het wachtwoord is de gebruikersnaam.",
-  "demo_accounts_account": "Account"
+  "demo_accounts_account": "Account",
+  "demo_accounts_grant": "Rollen via",
+  "demo_accounts_grant_groups": "Groepslidmaatschap",
+  "demo_accounts_grant_direct": "Directe rol",
+  "demo_accounts_grant_both": "Groep en directe rol",
+  "demo_accounts_refused_conflict": "Geweigerd: rollen gaan niet samen",
+  "demo_accounts_refused_no_role": "Geweigerd: geen rol"
 }
