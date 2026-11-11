@@ -91,7 +91,44 @@ suite runs axe on every route (`testing.md`).
   horizontal scrolling (1.4.4, 1.4.10).
 - **Motion:** respect `prefers-reduced-motion` for animations.
 
-## 4. Data on screen follows the role
+## 4. Charts: TanStack Charts through `EduChart`
+
+Every chart and dashboard uses **TanStack Charts** (`@tanstack/charts`, ADR
+0016) and renders through `EduChart` (`src/components/charts/edu-chart.tsx`),
+never `Chart` directly and never another chart library. Learn the API from
+the installed package (`node_modules/@tanstack/charts/docs/`, its type
+definitions) and <https://tanstack.com/charts/latest>, never from memory.
+
+- **Name and description:** a translated `ariaLabel` (what the chart shows)
+  and a `description` (how to read it, including the arrow keys), which
+  `EduChart` shows and links with `aria-describedby`.
+- **Table view:** pass `table` (caption, the rows, column definitions with
+  formatted cells, a row key). "View as table" shows the same rows with
+  `th scope`; essential values never live only in a tooltip (SC 1.1.1,
+  1.3.1).
+- **Never colour alone:** give each series its own shape (`dot`, `hexagon`,
+  a ring) or a direct label, and pass `legend` with the same shape and name
+  (SC 1.4.1, R-09). A threshold or norm line carries text.
+- **Colour:** paint series with `chartSeriesColor(i)` (`src/lib/charts/`),
+  which reads the theme tokens `--chart-1` to `--chart-6`; never a hex in a
+  definition. The palette holds 3:1 or more on its background, checked by
+  `scripts/checks/brand-contrast.sh`; a new colour goes into
+  `assets/brand/tokens.css` first.
+- **Formatting:** axis ticks and tooltip rows format through
+  `src/lib/i18n/format.ts` (active locale, `APP_TIME_ZONE`), passed
+  explicitly; the library's default formatting follows the browser locale,
+  which can differ from the server's.
+- **Typed rows:** keep the original row as the datum and read it in tooltip
+  `content` and `onFocusChange` (`point.datum`), without casts.
+- **SSR:** charts render on the server; give a fixed `height` and keep the
+  definition deterministic (no clock, no random, no `window`). Memoize a
+  definition that captures labels on the locale.
+- **Point size:** an explicit square-root radius scale (`sqrtRadiusScale`),
+  so the area, not the radius, follows the value.
+- **Data** comes from the route loader like any other screen (§5); a chart
+  never fetches or filters by role.
+
+## 5. Data on screen follows the role
 
 - A component renders what its loader returned and nothing more. Never fetch
   "all results" and filter by role in the component; the server function
@@ -102,7 +139,7 @@ suite runs axe on every route (`testing.md`).
 - No name or student number of a subject from FerroEHR appears anywhere;
   measurements show the sample ID.
 
-## 5. Performance
+## 6. Performance
 
 Pages load within 2 seconds (requirements, "Performance"). Load data in the
 route loader so SSR sends it with the HTML, paginate tables on the server,

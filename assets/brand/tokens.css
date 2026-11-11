@@ -20,6 +20,22 @@
   --edulims-night: #0b1220; /* dark background; safe: light: text, dark: neither, tile: neither */
   --edulims-surface: #f8fafc; /* light background; safe: light: neither, dark: text, tile: text */
 
+  /* Chart palette: the categorical series colours for charts (src/components/charts/).
+     The light set is drawn on the light surface, the dark set on the dark background;
+     each holds 3:1 on its own ground (SC 1.4.11), which brand-contrast.sh checks. */
+  --edulims-chart-light-1: #3730a3; /* indigo; safe: light: text, dark: neither, tile: neither */
+  --edulims-chart-light-2: #b45309; /* deep amber; safe: light: text, dark: graphics, tile: neither */
+  --edulims-chart-light-3: #0f766e; /* teal; safe: light: text, dark: graphics, tile: neither */
+  --edulims-chart-light-4: #be185d; /* raspberry; safe: light: text, dark: graphics, tile: neither */
+  --edulims-chart-light-5: #4d7c0f; /* olive; safe: light: text, dark: graphics, tile: neither */
+  --edulims-chart-light-6: #0369a1; /* ocean; safe: light: text, dark: graphics, tile: neither */
+  --edulims-chart-dark-1: #a5b4fc; /* light indigo; safe: light: neither, dark: text, tile: text */
+  --edulims-chart-dark-2: #fbbf24; /* amber; safe: light: neither, dark: text, tile: text */
+  --edulims-chart-dark-3: #2dd4bf; /* light teal; safe: light: neither, dark: text, tile: text */
+  --edulims-chart-dark-4: #f472b6; /* pink; safe: light: neither, dark: text, tile: graphics */
+  --edulims-chart-dark-5: #a3e635; /* lime; safe: light: neither, dark: text, tile: text */
+  --edulims-chart-dark-6: #38bdf8; /* sky; safe: light: neither, dark: text, tile: text */
+
   /* Roles */
   --edulims-brand: var(--edulims-indigo);
   --edulims-accent: var(--edulims-amber);

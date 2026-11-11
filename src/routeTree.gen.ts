@@ -17,6 +17,7 @@ import { Route as AuthedStudentRouteImport } from './routes/_authed/student'
 import { Route as AuthedTeacherRouteImport } from './routes/_authed/teacher'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiReadyRouteImport } from './routes/api/ready'
+import { Route as DevChartsRouteImport } from './routes/dev/charts'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedAdminActivityRouteImport } from './routes/_authed/admin/activity'
 import { Route as AuthedAdminClassesRouteImport } from './routes/_authed/admin/classes'
@@ -74,6 +75,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
 const ApiReadyRoute = ApiReadyRouteImport.update({
   id: '/api/ready',
   path: '/api/ready',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevChartsRoute = DevChartsRouteImport.update({
+  id: '/dev/charts',
+  path: '/dev/charts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedAdminIndexRoute = AuthedAdminIndexRouteImport.update({
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/teacher': typeof AuthedTeacherRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
+  '/dev/charts': typeof DevChartsRoute
   '/admin/activity': typeof AuthedAdminActivityRoute
   '/admin/classes': typeof AuthedAdminClassesRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
@@ -207,6 +214,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
+  '/dev/charts': typeof DevChartsRoute
   '/admin/activity': typeof AuthedAdminActivityRoute
   '/admin/classes': typeof AuthedAdminClassesRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
@@ -237,6 +245,7 @@ export interface FileRoutesById {
   '/_authed/teacher': typeof AuthedTeacherRouteWithChildren
   '/api/health': typeof ApiHealthRoute
   '/api/ready': typeof ApiReadyRoute
+  '/dev/charts': typeof DevChartsRoute
   '/_authed/admin/activity': typeof AuthedAdminActivityRoute
   '/_authed/admin/classes': typeof AuthedAdminClassesRoute
   '/_authed/admin/integrations': typeof AuthedAdminIntegrationsRoute
@@ -267,6 +276,7 @@ export interface FileRouteTypes {
     | '/teacher'
     | '/api/health'
     | '/api/ready'
+    | '/dev/charts'
     | '/admin/activity'
     | '/admin/classes'
     | '/admin/integrations'
@@ -292,6 +302,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/api/health'
     | '/api/ready'
+    | '/dev/charts'
     | '/admin/activity'
     | '/admin/classes'
     | '/admin/integrations'
@@ -321,6 +332,7 @@ export interface FileRouteTypes {
     | '/_authed/teacher'
     | '/api/health'
     | '/api/ready'
+    | '/dev/charts'
     | '/_authed/admin/activity'
     | '/_authed/admin/classes'
     | '/_authed/admin/integrations'
@@ -348,6 +360,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiReadyRoute: typeof ApiReadyRoute
+  DevChartsRoute: typeof DevChartsRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -407,6 +420,13 @@ declare module '@tanstack/react-router' {
       path: '/api/ready'
       fullPath: '/api/ready'
       preLoaderRoute: typeof ApiReadyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/charts': {
+      id: '/dev/charts'
+      path: '/dev/charts'
+      fullPath: '/dev/charts'
+      preLoaderRoute: typeof DevChartsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed/admin/': {
@@ -641,6 +661,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiReadyRoute: ApiReadyRoute,
+  DevChartsRoute: DevChartsRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

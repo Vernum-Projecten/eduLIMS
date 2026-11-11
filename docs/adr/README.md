@@ -23,6 +23,7 @@ Each significant architecture or technology decision is recorded here in the
 | [0012](0012-multiple-roles-and-portal-switcher.md) | Multiple roles per user and a portal switcher | Proposed |
 | [0013](0013-internal-transport-security.md) | Transport security inside the Compose stack | Proposed |
 | [0014](0014-session-lifetimes.md) | Session lifetimes: 8 hours sliding, 24 hours at most | Proposed |
+| [0016](0016-charts-tanstack-charts.md) | Charts: TanStack Charts, through one accessible wrapper | Proposed |
 
 ## Adding a record
 

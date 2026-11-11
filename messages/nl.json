@@ -282,5 +282,21 @@
   "ui_more": "Meer",
   "ui_command_title": "Opdrachtmenu",
   "ui_command_description": "Zoek een opdracht om uit te voeren.",
-  "ui_notifications": "Meldingen"
+  "ui_notifications": "Meldingen",
+  "chart_view_as_table": "Als tabel bekijken",
+  "chart_legend": "Legenda",
+  "dev_charts_title": "Voorbeelden van grafieken",
+  "dev_charts_intro": "Een pagina voor ontwikkeling die de gedeelde basis voor grafieken laat zien met verzonnen demogegevens. In productie is deze pagina er niet.",
+  "dev_charts_scatter_heading": "Practica: inleveringen en gemiddeld cijfer",
+  "dev_charts_scatter_label": "Spreidingsdiagram van {count} verzonnen practica: inleveringen tegen gemiddeld cijfer",
+  "dev_charts_scatter_description": "Elk punt is één practicum. Verder naar rechts betekent meer inleveringen, hoger betekent een hoger gemiddeld cijfer en een groter punt een grotere klas. Het studiejaar is te zien als cirkel (jaar 1), zeshoek (jaar 2) of ring (jaar 3). Gebruik de pijltjestoetsen om van punt naar punt te gaan.",
+  "dev_charts_table_caption": "Verzonnen practica met hun inleveringen, gemiddeld cijfer, klasgrootte en studiejaar",
+  "dev_charts_practical": "Practicum",
+  "dev_charts_submissions": "Inleveringen",
+  "dev_charts_average_grade": "Gemiddeld cijfer",
+  "dev_charts_class_size": "Klasgrootte",
+  "dev_charts_academic_year": "Studiejaar",
+  "dev_charts_year": "Jaar {year}",
+  "dev_charts_focused": "Geselecteerd: {practical}, {submissions} inleveringen, gemiddeld cijfer {grade}, klasgrootte {size}, jaar {year}.",
+  "dev_charts_focused_none": "Er is geen punt geselecteerd. Beweeg de aanwijzer over een punt, of ga met Tab naar de grafiek en gebruik de pijltjestoetsen."
 }

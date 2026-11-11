@@ -61,6 +61,16 @@ describe("formatNumber", () => {
     expect(formatNumber(0.12345, { locale: "nl", maximumFractionDigits: 3 })).toBe("0,123");
     expect(formatNumber(2)).toBe("2");
   });
+
+  it("pads to the minimum number of decimals, as a grade on one decimal needs", () => {
+    expect(
+      formatNumber(7, { locale: "en", minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    ).toBe("7.0");
+    expect(
+      formatNumber(6.85, { locale: "nl", minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+    ).toBe("6,9");
+    expect(formatNumber(3, { locale: "en", minimumFractionDigits: 3 })).toBe("3.000");
+  });
 });
 
 describe("formatRelativeTime", () => {

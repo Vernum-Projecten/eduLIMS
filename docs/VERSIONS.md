@@ -39,6 +39,7 @@ this file in the same change.
 | `@tanstack/react-query` | 5.107.1 |
 | `@tanstack/react-form` | 1.33.5 |
 | `@tanstack/react-table` | 9.3.1 |
+| `@tanstack/charts` | 1.5.0 |
 | `react`, `react-dom` | 19.3.1 |
 | `@types/react`, `@types/react-dom` | 19.3.0 |
 | `vite` | 8.3.7 |
