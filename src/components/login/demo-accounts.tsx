@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { ChevronDownIcon, InfoIcon, KeyRoundIcon } from "lucide-react";
+import { useId } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -18,59 +18,64 @@ import { m } from "@/i18n/messages";
 import { roleLabel } from "@/lib/i18n/labels";
 import type { DemoAccount, DemoAccounts } from "@/server/demo-accounts";
 
-const CELL = "whitespace-normal break-all align-middle";
-
-function AccountTable({
-  caption,
-  usernameHeader,
+/** One group of demo accounts: a heading and hint above a role/account table. */
+function AccountGroup({
+  title,
+  hint,
   accounts,
   onUse,
 }: Readonly<{
-  caption: string;
-  usernameHeader: string;
+  title: string;
+  hint: string;
   accounts: readonly DemoAccount[];
   onUse?: (account: DemoAccount) => void;
 }>) {
+  const headingId = useId();
   return (
-    <Table className="text-xs">
-      <TableCaption className="mt-2 text-left">{caption}</TableCaption>
-      <TableHeader>
-        <TableRow>
-          <TableHead scope="col">{m.demo_accounts_role()}</TableHead>
-          <TableHead scope="col">{usernameHeader}</TableHead>
-          <TableHead scope="col">{m.field_password()}</TableHead>
-          {onUse && (
-            <TableHead scope="col">
-              <span className="sr-only">{m.demo_accounts_fill_in()}</span>
+    <section aria-labelledby={headingId} className="flex flex-col gap-1.5">
+      <h3 id={headingId} className="text-sm font-medium">
+        {title}
+      </h3>
+      <p className="text-xs text-muted-foreground">{hint}</p>
+      <Table aria-labelledby={headingId} className="text-sm">
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col" className="w-0 whitespace-nowrap">
+              {m.demo_accounts_role()}
             </TableHead>
-          )}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {accounts.map((account) => (
-          <TableRow key={account.username}>
-            <TableHead scope="row" className={CELL}>
-              {roleLabel(account.role)}
-            </TableHead>
-            <TableCell className={`${CELL} font-mono`}>{account.username}</TableCell>
-            <TableCell className={`${CELL} font-mono`}>{account.password}</TableCell>
+            <TableHead scope="col">{m.demo_accounts_account()}</TableHead>
             {onUse && (
-              <TableCell className="text-right">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={m.demo_accounts_use_label({ role: roleLabel(account.role) })}
-                  onClick={() => onUse(account)}
-                >
-                  {m.demo_accounts_use()}
-                </Button>
-              </TableCell>
+              <TableHead scope="col" className="w-0">
+                <span className="sr-only">{m.demo_accounts_fill_in()}</span>
+              </TableHead>
             )}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {accounts.map((account) => (
+            <TableRow key={account.username}>
+              <TableHead scope="row" className="whitespace-nowrap font-normal">
+                {roleLabel(account.role)}
+              </TableHead>
+              <TableCell className="font-mono text-xs">{account.username}</TableCell>
+              {onUse && (
+                <TableCell className="text-right">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label={m.demo_accounts_use_label({ role: roleLabel(account.role) })}
+                    onClick={() => onUse(account)}
+                  >
+                    {m.demo_accounts_use()}
+                  </Button>
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </section>
   );
 }
 
@@ -83,6 +88,7 @@ export function DemoAccountsPanel({
   accounts,
   onUse,
 }: Readonly<{ accounts: DemoAccounts; onUse: (account: DemoAccount) => void }>) {
+  const devPassword = accounts.devLogin[0]?.password ?? "";
   return (
     <Collapsible className="rounded-lg border bg-card">
       <h2>
@@ -103,20 +109,20 @@ export function DemoAccountsPanel({
           </Button>
         </CollapsibleTrigger>
       </h2>
-      <CollapsibleContent className="flex flex-col gap-4 px-3 pb-3">
-        <AccountTable
-          caption={m.demo_accounts_dev_login()}
-          usernameHeader={m.field_email()}
-          accounts={accounts.devLogin}
-          onUse={onUse}
-        />
+      <CollapsibleContent className="flex flex-col gap-5 px-3 pt-1 pb-3">
         {accounts.keycloak && (
-          <AccountTable
-            caption={m.demo_accounts_keycloak({ realm: accounts.keycloak.realm })}
-            usernameHeader={m.demo_accounts_username()}
+          <AccountGroup
+            title={m.demo_accounts_keycloak_title({ realm: accounts.keycloak.realm })}
+            hint={m.demo_accounts_keycloak_hint()}
             accounts={accounts.keycloak.accounts}
           />
         )}
+        <AccountGroup
+          title={m.demo_accounts_dev_login_title()}
+          hint={m.demo_accounts_dev_login_hint({ password: devPassword })}
+          accounts={accounts.devLogin}
+          onUse={onUse}
+        />
         <Alert>
           <InfoIcon aria-hidden="true" />
           <AlertDescription>{m.demo_accounts_note()}</AlertDescription>

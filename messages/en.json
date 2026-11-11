@@ -80,13 +80,15 @@
   "loading": "Loading…",
   "home_sign_in_hint": "Sign in with your organisation account to open your portal.",
   "demo_accounts_title": "Demo accounts",
-  "demo_accounts_dev_login": "Development login: sign in with the test-account form above.",
-  "demo_accounts_keycloak": "Keycloak, realm {realm}: sign in with the Keycloak button.",
   "demo_accounts_role": "Role",
-  "demo_accounts_username": "Username",
   "demo_accounts_fill_in": "Fill in",
   "demo_accounts_use": "Use",
   "demo_accounts_use_label": "Use the {role} test account",
   "demo_accounts_filled": "The {role} test account is filled in. Select Sign in with a test account to continue.",
-  "demo_accounts_note": "These are public development credentials. They work only while the development login is on, never in production."
+  "demo_accounts_note": "These are public development credentials. They work only while the development login is on, never in production.",
+  "demo_accounts_dev_login_title": "Development login",
+  "demo_accounts_dev_login_hint": "Fill in an account with Use, then select Sign in with a test account. Password for every account: {password}",
+  "demo_accounts_keycloak_title": "Keycloak (realm {realm})",
+  "demo_accounts_keycloak_hint": "Select Sign in with Keycloak, then use one of these. The password is the username.",
+  "demo_accounts_account": "Account"
 }

@@ -80,13 +80,15 @@
   "loading": "Laden…",
   "home_sign_in_hint": "Log in met je organisatieaccount om je portaal te openen.",
   "demo_accounts_title": "Demo-accounts",
-  "demo_accounts_dev_login": "Ontwikkellogin: log in met het testaccountformulier hierboven.",
-  "demo_accounts_keycloak": "Keycloak, realm {realm}: log in met de Keycloak-knop.",
   "demo_accounts_role": "Rol",
-  "demo_accounts_username": "Gebruikersnaam",
   "demo_accounts_fill_in": "Invullen",
   "demo_accounts_use": "Gebruiken",
   "demo_accounts_use_label": "Gebruiken: testaccount voor {role}",
   "demo_accounts_filled": "Het testaccount voor {role} is ingevuld. Kies Inloggen met testaccount om verder te gaan.",
-  "demo_accounts_note": "Dit zijn openbare ontwikkelgegevens. Ze werken alleen zolang de ontwikkellogin aanstaat, nooit in productie."
+  "demo_accounts_note": "Dit zijn openbare ontwikkelgegevens. Ze werken alleen zolang de ontwikkellogin aanstaat, nooit in productie.",
+  "demo_accounts_dev_login_title": "Ontwikkellogin",
+  "demo_accounts_dev_login_hint": "Vul een account in met Gebruiken en kies daarna Inloggen met testaccount. Wachtwoord voor elk account: {password}",
+  "demo_accounts_keycloak_title": "Keycloak (realm {realm})",
+  "demo_accounts_keycloak_hint": "Kies Inloggen met Keycloak en gebruik daarna een van deze accounts. Het wachtwoord is de gebruikersnaam.",
+  "demo_accounts_account": "Account"
 }

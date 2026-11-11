@@ -283,14 +283,13 @@ test.describe("demo accounts (development login on)", () => {
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
 
-    const devTable = page.getByRole("table", { name: /Development login/ });
+    const devTable = page.getByRole("table", { name: "Development login" });
     await expect(devTable).toContainText("student@example.test");
-    await expect(devTable).toContainText("eduLIMS-dev-only");
     await expect(devTable.getByRole("rowheader", { name: "Teacher" })).toBeVisible();
-    const keycloakTable = page.getByRole("table", { name: /Keycloak, realm edulims/ });
-    await expect(
-      keycloakTable.getByRole("row", { name: /Administrator admin admin/ }),
-    ).toBeVisible();
+    await expect(page.getByText("Password for every account: eduLIMS-dev-only")).toBeVisible();
+    const keycloakTable = page.getByRole("table", { name: "Keycloak (realm edulims)" });
+    await expect(keycloakTable.getByRole("row", { name: /Administrator admin/ })).toBeVisible();
+    await expect(page.getByText("The password is the username.")).toBeVisible();
     await expect(page.getByText("These are public development credentials.")).toBeVisible();
     await expectNoA11yViolations(page);
 
