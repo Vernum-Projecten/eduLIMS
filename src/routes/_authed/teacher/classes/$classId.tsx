@@ -4,7 +4,7 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArchiveIcon, SearchXIcon, Trash2Icon } from "lucide-react";
+import { ArchiveIcon, ArchiveRestoreIcon, SearchXIcon, Trash2Icon } from "lucide-react";
 import { ConfirmButton } from "@/components/admin-users/admin-action";
 import { CopyClassDialog, EditClassDialog } from "@/components/classes/class-dialogs";
 import { ClassGroups } from "@/components/classes/class-groups";
@@ -14,21 +14,13 @@ import { ClassName, classLabel } from "@/components/classes/class-name";
 import { useClassMutation } from "@/components/classes/use-class-mutation";
 import { PageSkeleton } from "@/components/shell/page-skeleton";
 import { RouteErrorState, StatusPage } from "@/components/shell/route-error";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { m } from "@/i18n/messages";
 import { classCan } from "@/lib/classes";
 import { formatNumber } from "@/lib/i18n/format";
 import { portalNavigation, sectionOf } from "@/lib/navigation";
-import { archiveClassFn, deleteClassFn } from "@/server/classes/functions";
+import { archiveClassFn, deleteClassFn, unarchiveClassFn } from "@/server/classes/functions";
 import {
   type ClassPage,
   classMutationOptions,
@@ -41,12 +33,13 @@ export const Route = createFileRoute("/_authed/teacher/classes/$classId")({
   validateSearch: classPageSearchSchema,
   loader: async ({ context, params }) => {
     const page = await context.queryClient.ensureQueryData(classPageQueryOptions(params.classId));
-    return { label: classLabel(page) };
+    // The top-bar breadcrumb reads `crumb` (AppBreadcrumb).
+    return { crumb: classLabel(page) };
   },
   head: ({ loaderData }) => ({
     meta: [
       {
-        title: `${loaderData?.label ?? m.classes_page()} | ${sectionOf("teacher", "classes").label()} | ${portalNavigation("teacher").label()} | eduLIMS`,
+        title: `${loaderData?.crumb ?? m.classes_page()} | ${sectionOf("teacher", "classes").label()} | ${portalNavigation("teacher").label()} | eduLIMS`,
       },
     ],
   }),
@@ -113,10 +106,32 @@ function ClassLifecycle({ page }: Readonly<{ page: ClassPage }>) {
   );
 }
 
+/** "Reopen" of an archived class, for its owner (owner decision on #28). */
+function ReopenClass({ page }: Readonly<{ page: ClassPage }>) {
+  const queryClient = useQueryClient();
+  const reopen = useClassMutation(
+    classMutationOptions(queryClient, useServerFn(unarchiveClassFn)),
+    () => m.classes_unarchived_done({ name: page.name }),
+  );
+  if (!classCan(page.myRole, { class: ["unarchive"] })) return null;
+  return (
+    <ConfirmButton
+      icon={ArchiveRestoreIcon}
+      label={m.classes_unarchive()}
+      title={m.classes_unarchive_title({ name: page.name })}
+      description={m.classes_unarchive_description()}
+      confirm={m.classes_unarchive_confirm()}
+      pending={reopen.isPending}
+      onConfirm={() => reopen.mutate({ classId: page.id })}
+    />
+  );
+}
+
 function ClassActions({ page }: Readonly<{ page: ClassPage }>) {
   const archived = page.archivedAt !== null;
   return (
     <>
+      {archived && <ReopenClass page={page} />}
       {!archived && classCan(page.myRole, { class: ["update"] }) && (
         <EditClassDialog classId={page.id} name={page.name} academicYear={page.academicYear} />
       )}
@@ -135,22 +150,8 @@ function ClassPageView() {
   const { data: page } = useSuspenseQuery(classPageQueryOptions(classId));
   const students = page.members.filter((member) => member.role === "student").length;
   const pending = page.invitations.length;
-  const section = sectionOf("teacher", "classes");
   return (
     <section aria-labelledby="page-title" className="flex flex-col gap-6">
-      <Breadcrumb aria-label={m.classes_breadcrumb()}>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link to="/teacher/classes">{section.label()}</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>{classLabel(page)}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-col gap-1">
           <h1 id="page-title" className="text-2xl font-semibold tracking-tight">

@@ -251,10 +251,14 @@ export function portalOfPath(pathname: string): PortalNavigation | null {
   );
 }
 
-/** The breadcrumb trail of a page: its portal, then the page itself. */
+/**
+ * The breadcrumb trail of a page: its portal, then its section. `nested` is set on a page
+ * below a section (`/teacher/classes/<id>`), whose own name the route supplies.
+ */
 export interface Breadcrumb {
   portal: PortalNavigation;
   page: NavItem;
+  nested: boolean;
 }
 
 /** Returns the breadcrumb for `pathname`, or `null` for a page outside the portals. */
@@ -262,7 +266,9 @@ export function breadcrumbFor(pathname: string): Breadcrumb | null {
   const path = normalizePath(pathname);
   for (const portal of PORTALS) {
     const page = [portal.overview, ...portal.sections].find((item) => item.to === path);
-    if (page) return { portal, page };
+    if (page) return { portal, page, nested: false };
+    const section = portal.sections.find((item) => path.startsWith(`${item.to}/`));
+    if (section) return { portal, page: section, nested: true };
   }
   return null;
 }

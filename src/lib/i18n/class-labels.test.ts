@@ -24,7 +24,10 @@ describe("class labels (#28)", () => {
       expect(inviteRowStatusLabel(status, "student")).not.toBe("");
     }
     expect(inviteRowStatusLabel("wrong_role", "teacher")).toBe(
-      "No teacher account with this address",
+      "This account is not a teacher account",
+    );
+    expect(inviteRowStatusLabel("no_account", "teacher")).toBe(
+      "No account yet: ask your colleague to sign in to eduLIMS once, then invite them",
     );
     expect(inviteRowStatusLabel("wrong_role", "student")).toBe(
       "This account is not a student account",

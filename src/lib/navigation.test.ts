@@ -113,6 +113,13 @@ describe("breadcrumbFor", () => {
     expect(breadcrumbFor("/admin")?.portal.label()).toBe("Admin portal");
   });
 
+  it("names the section of a page below it, marked nested (#28)", () => {
+    const crumb = breadcrumbFor("/teacher/classes/01960000-0000-7000-8000-000000000001");
+    expect(crumb?.page.id).toBe("classes");
+    expect(crumb?.nested).toBe(true);
+    expect(breadcrumbFor("/teacher/classes")?.nested).toBe(false);
+  });
+
   it("returns null outside the portals", () => {
     expect(breadcrumbFor("/")).toBeNull();
     expect(breadcrumbFor("/login")).toBeNull();

@@ -9,14 +9,17 @@ import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
 import {
   archiveClass,
-  copyClass,
+  classHasWork,
   createClass,
   deleteClass,
   removeMember,
   transferOwnership,
+  unarchiveClass,
   updateClass,
 } from "./classes.ts";
-import { createGroups } from "./groups.ts";
+import { copyClass } from "./copy.ts";
+import { createGroups, moveStudent } from "./groups.ts";
+import { createInvitations } from "./invitations.ts";
 import { auditRows, classWithPeople, join, NOW, person } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
@@ -201,15 +204,65 @@ describe("archiveClass", () => {
 });
 
 describe("deleteClass", () => {
-  it("is refused once the class has students (has_work), and logged", async () => {
+  it("is refused once the class holds work (has_work), and logged", async () => {
     const database = await open();
     const { classId, owner } = await classWithPeople(database);
-    expect(await deleteClass(database, owner, { classId })).toEqual({
+    expect(await deleteClass(database, owner, { classId }, async () => true)).toEqual({
       ok: false,
       error: "has_work",
     });
     expect(await auditRows(database, "class_deleted")).toEqual([
       expect.objectContaining({ outcome: "refused", reason_code: "has_work" }),
+    ]);
+  });
+
+  it("counts members and lab groups as no work (owner decision on #28)", async () => {
+    const database = await open();
+    const { classId } = await classWithPeople(database);
+    expect(await classHasWork(database, classId)).toBe(false);
+  });
+
+  it("deletes a class with members, invitations and groups in one go, and logs it", async () => {
+    const database = await open();
+    const { classId, owner, studentA } = await classWithPeople(database);
+    await createInvitations(
+      database,
+      owner,
+      { classId, role: "student", emails: ["late@example.test"] },
+      NOW,
+    );
+    const groups = await createGroups(
+      database,
+      owner,
+      { classId, groupSet: "Pairs", names: ["Group 1"] },
+      NOW,
+    );
+    if (!groups.ok) throw new Error(groups.error);
+    await moveStudent(
+      database,
+      owner,
+      {
+        classId,
+        userId: studentA.id,
+        groupSet: "Pairs",
+        groupId: groups.value.groupIds[0] ?? null,
+      },
+      NOW,
+    );
+    expect(await deleteClass(database, owner, { classId })).toEqual({ ok: true, value: null });
+    const left = await Promise.all([
+      database.selectFrom("member").select("id").where("organizationId", "=", classId).execute(),
+      database
+        .selectFrom("invitation")
+        .select("id")
+        .where("organizationId", "=", classId)
+        .execute(),
+      database.selectFrom("team").select("id").where("organizationId", "=", classId).execute(),
+      database.selectFrom("teamMember").select("id").execute(),
+    ]);
+    expect(left).toEqual([[], [], [], []]);
+    expect(await auditRows(database, "class_deleted")).toEqual([
+      expect.objectContaining({ outcome: "success", target_id: classId }),
     ]);
   });
 
@@ -240,6 +293,50 @@ describe("deleteClass", () => {
       ok: false,
       error: "not_found",
     });
+  });
+});
+
+describe("unarchiveClass (owner decision on #28)", () => {
+  it("lets the owner reopen an archived class, logged", async () => {
+    const database = await open();
+    const { classId, owner } = await classWithPeople(database);
+    await archiveClass(database, owner, { classId }, NOW);
+    expect(await unarchiveClass(database, owner, { classId })).toEqual({ ok: true, value: null });
+    const row = await database
+      .selectFrom("organization")
+      .select("archived_at")
+      .where("id", "=", classId)
+      .executeTakeFirstOrThrow();
+    expect(row.archived_at).toBeNull();
+    const edit = { classId, name: "LS-2B", academicYear: "2026-2027" };
+    expect(await updateClass(database, owner, edit)).toEqual({ ok: true, value: null });
+    expect(await auditRows(database, "class_unarchived")).toEqual([
+      expect.objectContaining({ outcome: "success", actor_id: owner.id, target_id: classId }),
+    ]);
+  });
+
+  it("refuses a class that is not archived (not_archived)", async () => {
+    const database = await open();
+    const { classId, owner } = await classWithPeople(database);
+    expect(await unarchiveClass(database, owner, { classId })).toEqual({
+      ok: false,
+      error: "not_archived",
+    });
+  });
+
+  it("refuses a co-teacher, a teacher of another class and a student", async () => {
+    const database = await open();
+    const { classId, owner, coTeacher, outsider, studentA } = await classWithPeople(database);
+    await archiveClass(database, owner, { classId }, NOW);
+    expect(await unarchiveClass(database, coTeacher, { classId })).toEqual({
+      ok: false,
+      error: "forbidden",
+    });
+    expect(await unarchiveClass(database, outsider, { classId })).toEqual({
+      ok: false,
+      error: "not_found",
+    });
+    await expect(unarchiveClass(database, studentA, { classId })).rejects.toThrow(AuthError);
   });
 });
 

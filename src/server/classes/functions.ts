@@ -11,13 +11,14 @@ import { getDb } from "../db/index.ts";
 import { requireRole } from "../middleware.ts";
 import {
   archiveClass,
-  copyClass,
   createClass,
   deleteClass,
   removeMember,
   transferOwnership,
+  unarchiveClass,
   updateClass,
 } from "./classes.ts";
+import { copyClass } from "./copy.ts";
 import {
   autoSplit,
   copyGroupSet,
@@ -97,6 +98,12 @@ export const archiveClassFn = createServerFn({ method: "POST" })
   .middleware([teacher])
   .validator(classIdInput)
   .handler(({ data, context }) => archiveClass(getDb(), context.user, data, new Date()));
+
+/** Reopens an archived class. */
+export const unarchiveClassFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(classIdInput)
+  .handler(({ data, context }) => unarchiveClass(getDb(), context.user, data));
 
 /** Deletes a class that holds no work. */
 export const deleteClassFn = createServerFn({ method: "POST" })

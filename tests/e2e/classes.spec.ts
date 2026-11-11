@@ -19,8 +19,8 @@ const JOINER = "classes-join@example.test";
 const CLASS = `LS-${Date.now().toString(36).slice(-5).toUpperCase()}`;
 
 /** The class name as a screen reader reads it: the name, then ", academic year" and the year. */
-function yearName(year: string): RegExp {
-  return new RegExp(`^${CLASS} ?, academic year ${year}`);
+function yearName(year: string): string {
+  return `${CLASS}, academic year ${year}`;
 }
 
 async function settle(page: Page): Promise<void> {
@@ -76,7 +76,9 @@ test("a teacher creates a class and lands on its page (#28)", async ({ page }) =
   await dialog.getByRole("button", { name: "Create class" }).click();
   await expect(page).toHaveURL(/\/teacher\/classes\/[0-9a-f-]{36}$/);
   // The name with the academic year, read as one name (owner decision on #28).
-  await expect(page.getByRole("heading", { level: 1, name: yearName("2026–2027") })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: yearName("2026–2027"), exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("tab", { name: "Members (1)" })).toHaveAttribute(
     "aria-selected",
     "true",
@@ -121,7 +123,7 @@ test("a student joins every inviting class on sign-in, without an accept step (#
     await devLogin(page, email);
     await expect(page).toHaveURL(/\/student$/);
     const classes = page.getByRole("region", { name: "Your classes" });
-    await expect(classes.getByText(CLASS)).toBeVisible();
+    await expect(classes.getByText(yearName("2026–2027"), { exact: true })).toBeAttached();
   }
   await axe(page);
 });
@@ -202,7 +204,9 @@ test("a failed read of the class page shows the error state and its retry (#28)"
   await page.unroute(pattern);
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(heading).toHaveCount(0);
-  await expect(page.getByRole("heading", { level: 1, name: yearName("2026–2027") })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: yearName("2026–2027"), exact: true }),
+  ).toBeVisible();
 });
 
 test("archiving makes the class read-only; a copy starts a new year (#28)", async ({ page }) => {
@@ -225,7 +229,9 @@ test("archiving makes the class read-only; a copy starts a new year (#28)", asyn
   const dialog = page.getByRole("dialog", { name: "Copy to a new academic year" });
   await expect(dialog.getByLabel("Academic year")).toHaveValue("2027-2028");
   await dialog.getByRole("button", { name: "Copy class" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: yearName("2027–2028") })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: yearName("2027–2028"), exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("tab", { name: "Members (1)" })).toBeVisible();
   await page.getByRole("tab", { name: "Lab groups" }).click();
   await expect(page.getByRole("heading", { name: "Groups in Pairs" })).toBeVisible();
@@ -267,3 +273,22 @@ for (const theme of ["light", "dark"] as const) {
     }
   });
 }
+
+test("the owner reopens an archived class; the top bar names it (#28)", async ({ page }) => {
+  await signInAsOwner(page);
+  await page.goto("/teacher/classes?archived=true");
+  await page.getByRole("link", { name: `${yearName("2026–2027")}, archived` }).click();
+  const crumbs = page.getByRole("banner").getByRole("navigation", { name: "Breadcrumb" });
+  await expect(crumbs.getByRole("link", { name: "Classes" })).toBeVisible();
+  await expect(crumbs).toContainText(`${CLASS} 2026–2027 (archived)`);
+  const reopen = page.getByRole("button", { name: "Reopen" });
+  await expectHydrated(reopen);
+  await reopen.click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Reopen class" }).click();
+  await expect(page.getByText(`${CLASS} is reopened.`)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: yearName("2026–2027"), exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Archive" })).toBeVisible();
+  await axe(page);
+});

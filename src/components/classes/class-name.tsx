@@ -25,7 +25,8 @@ export function classLabel(
 /**
  * A class name everywhere it appears (#28, owner decision): the name, then the academic year as
  * a `secondary` badge and, for an archived class, an "Archived" `outline` badge with an icon and
- * text. Screen readers read the badges as part of the name ("LS-2A, academic year 2026–2027").
+ * text. Screen readers read one sentence in place of the parts ("LS-2A, academic year
+ * 2026–2027"), so element boundaries never add a stray space.
  */
 export function ClassName({
   name,
@@ -33,18 +34,21 @@ export function ClassName({
   archived = false,
   className,
 }: Readonly<{ name: string; academicYear: string; archived?: boolean; className?: string }>) {
+  const values = { name, year: displayYear(academicYear) };
   return (
     <span className={cn("inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1", className)}>
-      <span className="min-w-0 break-words">
-        {name}
-        <span className="sr-only">{m.classes_year_prefix()}</span>
+      <span className="sr-only">
+        {archived ? m.classes_accessible_name_archived(values) : m.classes_accessible_name(values)}
       </span>
-      <Badge variant="secondary" className="font-normal">
-        {displayYear(academicYear)}
+      <span aria-hidden="true" className="min-w-0 break-words">
+        {name}
+      </span>
+      <Badge aria-hidden="true" variant="secondary" className="font-normal">
+        {values.year}
       </Badge>
       {archived && (
-        <Badge variant="outline" className="font-normal">
-          <ArchiveIcon aria-hidden="true" data-icon="inline-start" />
+        <Badge aria-hidden="true" variant="outline" className="font-normal">
+          <ArchiveIcon data-icon="inline-start" />
           {m.classes_archived()}
         </Badge>
       )}

@@ -29,7 +29,7 @@ export function isTeachingRole(role: ClassRole): boolean {
 
 /** What can be done to a class, by resource; the class roles below grant subsets. */
 export const CLASS_STATEMENTS = {
-  class: ["update", "archive", "delete", "copy", "transfer"],
+  class: ["update", "archive", "unarchive", "delete", "copy", "transfer"],
   student: ["invite", "remove"],
   coTeacher: ["invite", "remove"],
   group: ["manage"],
@@ -46,7 +46,7 @@ export const classAccessControl = createAccessControl(CLASS_STATEMENTS);
  */
 export const classRoles = {
   owner: classAccessControl.newRole({
-    class: ["update", "archive", "delete", "copy", "transfer"],
+    class: ["update", "archive", "unarchive", "delete", "copy", "transfer"],
     student: ["invite", "remove"],
     coTeacher: ["invite", "remove"],
     group: ["manage"],

@@ -89,7 +89,7 @@ elkaar te houden zijn. **Gearchiveerd** toont de klassen van eerdere jaren.
 
 De pagina van de klas heeft drie tabbladen: **Leden**, **Uitnodigingen** en
 **Practicumgroepen**. Alleen de eigenaar kan de klas bewerken, archiveren,
-kopiëren of verwijderen, mededocenten uitnodigen en een mededocent eigenaar
+heropenen, kopiëren of verwijderen, mededocenten uitnodigen en een mededocent eigenaar
 maken. Een mededocent nodigt studenten uit, verwijdert ze en beheert de
 practicumgroepen.
 
@@ -100,7 +100,9 @@ klas zodra die met dat adres inlogt.
 
 1. Open het tabblad **Uitnodigingen**.
 2. Kies **Student**, of **Mededocent** als je eigenaar bent. Een mededocent
-   moet al een docentaccount in eduLIMS hebben.
+   moet al een docentaccount in eduLIMS hebben: een uitnodiging maakt niemand
+   docent, dus vraag een collega zonder account om eerst één keer in te
+   loggen.
 3. Typ of plak de adressen, één per regel of gescheiden door komma's, of lees
    ze uit een csv-bestand met één adres per regel.
 4. Kies **Lijst controleren**. eduLIMS laat per adres zien wat er gebeurt: het
@@ -136,12 +138,14 @@ van groep.
 
 - **Archiveren** maakt een klas alleen-lezen: geen uitnodigingen, nieuwe
   leden of groepswijzigingen. De leden en groepen blijven bewaard en de klas
-  staat onder **Gearchiveerd**.
+  staat onder **Gearchiveerd**. De eigenaar kan een gearchiveerde klas
+  **Heropenen** om die weer te wijzigen.
 - **Kopiëren naar nieuw jaar** maakt een klas met dezelfde naam, het
   volgende studiejaar, dezelfde mededocenten en dezelfde groepsindelingen,
   zonder studenten. Nodig daar de nieuwe studenten uit.
-- **Verwijderen** is voor een klas die je per vergissing hebt aangemaakt. Een
-  klas met studenten kun je niet verwijderen; archiveer die dan.
+- **Verwijderen** is voor een klas die je per vergissing hebt aangemaakt. De
+  klas verdwijnt met de leden, uitnodigingen en practicumgroepen. Een klas met
+  practica, inzendingen of cijfers kun je niet verwijderen; archiveer die dan.
 
 ## Uitloggen
 

@@ -69,6 +69,7 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   class_created: m.audit_action_class_created,
   class_updated: m.audit_action_class_updated,
   class_archived: m.audit_action_class_archived,
+  class_unarchived: m.audit_action_class_unarchived,
   class_owner_changed: m.audit_action_class_owner_changed,
   class_deleted: m.audit_action_class_deleted,
   class_copied: m.audit_action_class_copied,

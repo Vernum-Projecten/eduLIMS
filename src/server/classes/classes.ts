@@ -6,7 +6,6 @@
 import "@tanstack/react-start/server-only";
 import type { Kysely, Transaction } from "kysely";
 import { type InvitationRole, memberPermission } from "../../lib/classes.ts";
-import { validateRoleValue } from "../../lib/roles.ts";
 import { recordAudit } from "../audit/record.ts";
 import { newId } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
@@ -26,7 +25,7 @@ export interface ClassFields {
   academicYear: string;
 }
 
-function userActor(actor: ClassActor) {
+export function userActor(actor: ClassActor) {
   return { type: "user", id: actor.id } as const;
 }
 
@@ -56,7 +55,7 @@ export async function createClass(
   });
 }
 
-async function insertClass(trx: Kysely<DB>, input: ClassFields, now: Date): Promise<string> {
+export async function insertClass(trx: Kysely<DB>, input: ClassFields, now: Date): Promise<string> {
   const id = newId();
   await trx
     .insertInto("organization")
@@ -71,7 +70,7 @@ async function insertClass(trx: Kysely<DB>, input: ClassFields, now: Date): Prom
   return id;
 }
 
-async function addMember(
+export async function addMember(
   trx: Kysely<DB>,
   classId: string,
   userId: string,
@@ -143,29 +142,56 @@ export function archiveClass(
 }
 
 /**
- * Returns whether a class holds work that deleting it would destroy. Until practicals exist,
- * a student member counts as work: their submissions and grades will hang off that membership.
+ * Reopens an archived class (the owner only, owner decision on #28): it is writable again and
+ * back in the default list. Reopening a class that is not archived is `not_archived`.
  */
-export async function classHasWork(trx: Kysely<DB>, classId: string): Promise<boolean> {
-  // TODO(#98): refuse once practicals, submissions or grades of the class exist (D2, S6, D4).
-  const student = await trx
-    .selectFrom("member")
-    .select("id")
-    .where("organizationId", "=", classId)
-    .where("role", "=", "student")
-    .limit(1)
-    .executeTakeFirst();
-  return student !== undefined;
+export function unarchiveClass(
+  db: Kysely<DB>,
+  actor: ClassActor,
+  input: { classId: string },
+): Promise<ClassResult> {
+  const check = {
+    classId: input.classId,
+    permission: { class: ["unarchive"] },
+    action: "class_unarchived",
+    allowArchived: true,
+  } as const;
+  return withClass(db, actor, check, async (trx, locked) => {
+    if (!locked.archived) return refused("not_archived");
+    await trx
+      .updateTable("organization")
+      .set({ archived_at: null })
+      .where("id", "=", locked.id)
+      .execute();
+    await recordAudit(trx, {
+      action: "class_unarchived",
+      actor: userActor(actor),
+      outcome: "success",
+      target: { type: "class", id: locked.id },
+    });
+    return done(null);
+  });
 }
 
 /**
- * Deletes a class created by mistake (the owner only): refused once the class holds work
- * (`has_work`) and for an archived class, which is history (#28).
+ * Returns whether a class holds work that deleting it would destroy: practicals, submissions or
+ * grades (owner decision on #28). Members, invitations and lab groups are not work.
+ */
+export async function classHasWork(_trx: Kysely<DB>, _classId: string): Promise<boolean> {
+  // TODO(#98): refuse once practicals, submissions or grades of the class exist (D2, S6, D4).
+  return false;
+}
+
+/**
+ * Deletes a class created by mistake (the owner only), with its memberships, invitations and lab
+ * groups in the same transaction; refused once the class holds work (`has_work`, `hasWork`) and
+ * for an archived class, which is history (#28).
  */
 export function deleteClass(
   db: Kysely<DB>,
   actor: ClassActor,
   input: { classId: string },
+  hasWork: (trx: Kysely<DB>, classId: string) => Promise<boolean> = classHasWork,
 ): Promise<ClassResult> {
   const check = {
     classId: input.classId,
@@ -173,7 +199,7 @@ export function deleteClass(
     action: "class_deleted",
   } as const;
   return withClass(db, actor, check, async (trx, locked) => {
-    if (await classHasWork(trx, locked.id)) {
+    if (await hasWork(trx, locked.id)) {
       await recordAudit(trx, {
         action: "class_deleted",
         actor: userActor(actor),
@@ -183,6 +209,7 @@ export function deleteClass(
       });
       return refused("has_work");
     }
+    // The foreign keys cascade: members, invitations, lab groups and their places go with it.
     await trx.deleteFrom("organization").where("id", "=", locked.id).execute();
     await recordAudit(trx, {
       action: "class_deleted",
@@ -192,103 +219,6 @@ export function deleteClass(
     });
     return done(null);
   });
-}
-
-async function teachersToCopy(trx: Kysely<DB>, classId: string): Promise<string[]> {
-  const rows = await trx
-    .selectFrom("member")
-    .innerJoin("user", "user.id", "member.userId")
-    .select(["member.userId", "user.role"])
-    .where("member.organizationId", "=", classId)
-    .where("member.role", "=", "teacher")
-    .orderBy("member.createdAt")
-    .orderBy("member.id")
-    .execute();
-  // A co-teacher who lost the app role teacher is not carried over (#28).
-  return rows
-    .filter((row) => {
-      const roles = validateRoleValue(row.role);
-      return roles.ok && roles.roles.includes("teacher");
-    })
-    .map((row) => row.userId);
-}
-
-/**
- * Copies a class to a new academic year (the owner only, archived or not): the same name, the
- * new year, the same co-teachers and the same lab groups per group set, without students, group
- * members, invitations or work (#28). The actor owns the copy.
- */
-export function copyClass(
-  db: Kysely<DB>,
-  actor: ClassActor,
-  input: { classId: string; academicYear: string },
-  now: Date,
-): Promise<ClassResult<{ classId: string }>> {
-  const check = {
-    classId: input.classId,
-    permission: { class: ["copy"] },
-    action: "class_copied",
-    allowArchived: true,
-  } as const;
-  return withClass(db, actor, check, async (trx, locked) => {
-    const source = await trx
-      .selectFrom("organization")
-      .select("name")
-      .where("id", "=", locked.id)
-      .executeTakeFirstOrThrow();
-    const classId = await insertClass(
-      trx,
-      { name: source.name, academicYear: input.academicYear },
-      now,
-    );
-    await addMember(trx, classId, actor.id, "owner", now);
-    for (const userId of await teachersToCopy(trx, locked.id)) {
-      if (userId !== actor.id) await addMember(trx, classId, userId, "teacher", now);
-    }
-    await copyGroups(trx, locked.id, classId, null, now);
-    await recordAudit(trx, {
-      action: "class_copied",
-      actor: userActor(actor),
-      outcome: "success",
-      target: { type: "class", id: classId },
-      metadata: { class_id: locked.id },
-    });
-    return done({ classId });
-  });
-}
-
-/**
- * Copies the lab groups of `fromClassId` (one group set, or all when `groupSet` is `null`) into
- * `toClassId` without their members; returns how many groups it created.
- */
-export async function copyGroups(
-  trx: Kysely<DB>,
-  fromClassId: string,
-  toClassId: string,
-  groupSet: string | null,
-  now: Date,
-): Promise<number> {
-  let query = trx
-    .selectFrom("team")
-    .select(["name", "group_set"])
-    .where("organizationId", "=", fromClassId);
-  if (groupSet !== null) query = query.where("group_set", "=", groupSet);
-  const groups = await query.orderBy("group_set").orderBy("createdAt").orderBy("id").execute();
-  if (groups.length === 0) return 0;
-  await trx
-    .insertInto("team")
-    .values(
-      groups.map((group) => ({
-        id: newId(),
-        name: group.name,
-        group_set: group.group_set,
-        organizationId: toClassId,
-        createdAt: now,
-        updatedAt: now,
-      })),
-    )
-    .execute();
-  return groups.length;
 }
 
 /**

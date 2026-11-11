@@ -87,7 +87,7 @@ apart. **Archived** shows the classes of earlier years.
    page opens.
 
 The class page has three tabs: **Members**, **Invitations** and **Lab
-groups**. Only the owner can edit, archive, copy or delete the class, invite
+groups**. Only the owner can edit, archive, reopen, copy or delete the class, invite
 co-teachers and make a co-teacher the owner. A co-teacher invites and
 removes students and manages the lab groups.
 
@@ -98,7 +98,9 @@ next time they sign in with that address.
 
 1. Open the **Invitations** tab.
 2. Choose **Student**, or **Co-teacher** if you own the class. A co-teacher
-   must already have a teacher account in eduLIMS.
+   must already have a teacher account in eduLIMS: an invitation never makes
+   someone a teacher, so ask a colleague without an account to sign in once
+   first.
 3. Type or paste the addresses, one per line or separated by commas, or read
    them from a CSV file with one address per line.
 4. Choose **Check list**. eduLIMS shows what happens to every address: it
@@ -131,12 +133,14 @@ most one group per set. Students never change groups themselves.
 ### At the end of the year
 
 - **Archive** makes a class read-only: no invitations, new members or group
-  changes. It keeps its members and groups and moves to **Archived**.
+  changes. It keeps its members and groups and moves to **Archived**. The
+  owner can **Reopen** an archived class to change it again.
 - **Copy to a new year** creates a class with the same name, the next
   academic year, the same co-teachers and the same group sets, without
   students. Invite the new students there.
-- **Delete** is for a class created by mistake. A class with students cannot
-  be deleted; archive it instead.
+- **Delete** is for a class created by mistake. It removes the class with its
+  members, invitations and lab groups. A class with practicals, submissions or
+  grades cannot be deleted; archive it instead.
 
 ## Sign out
 

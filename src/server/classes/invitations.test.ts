@@ -146,7 +146,7 @@ describe("createInvitations", () => {
     expect(result.ok && result.value.created).toBe(1);
   });
 
-  it("refuses a co-teacher invitation for a student or an unknown address (wrong_role)", async () => {
+  it("refuses a co-teacher invitation for a student (wrong_role) or an unknown address (no_account)", async () => {
     const database = await open();
     const { classId, owner } = await classWithPeople(database);
     const student = await person(database, "outside-student", ["student"]);
@@ -162,7 +162,7 @@ describe("createInvitations", () => {
         created: 0,
         rows: [
           { email: student.email, status: "wrong_role" },
-          { email: "nobody@example.test", status: "wrong_role" },
+          { email: "nobody@example.test", status: "no_account" },
         ],
       },
     });

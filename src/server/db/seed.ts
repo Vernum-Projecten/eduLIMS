@@ -74,6 +74,9 @@ try {
       `  sessions:            ${summary.activeSessions} active, ${summary.expiredSessions} expired\n` +
       `  blocked users:       ${summary.blockedUsers}\n` +
       `  activity-log events: ${summary.auditEvents}\n` +
+      `  classes:             ${summary.classes} (${summary.archivedClasses} archived), ` +
+      `${summary.classMembers} members, ${summary.labGroups} lab groups, ` +
+      `${summary.pendingInvitations} pending invitations\n` +
       "The demo people sign in through an identity provider only: they have no password and are " +
       "not in the development Keycloak realm, so they cannot sign in locally. Use the dev-login " +
       "and Keycloak demo accounts above.\n",

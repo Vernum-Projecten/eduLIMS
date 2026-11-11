@@ -28,6 +28,7 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "class_created",
   "class_updated",
   "class_archived",
+  "class_unarchived",
   "class_owner_changed",
   "class_deleted",
   "class_copied",

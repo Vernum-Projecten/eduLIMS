@@ -18,7 +18,8 @@ import {
   refused,
   withClass,
 } from "./access.ts";
-import { copyGroups, memberRole, refreshGroupCounts } from "./classes.ts";
+import { memberRole, refreshGroupCounts } from "./classes.ts";
+import { copyGroups } from "./copy.ts";
 
 type GroupChange = "created" | "renamed" | "deleted" | "members" | "split" | "copied";
 

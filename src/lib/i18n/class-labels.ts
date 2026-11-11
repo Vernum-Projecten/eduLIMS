@@ -29,7 +29,8 @@ export type InviteRowStatusValue =
   | "duplicate"
   | "member"
   | "invited"
-  | "wrong_role";
+  | "wrong_role"
+  | "no_account";
 
 /** Returns what happens to one address of an invitation list. */
 export function inviteRowStatusLabel(
@@ -47,6 +48,8 @@ export function inviteRowStatusLabel(
       return m.classes_invite_row_member();
     case "invited":
       return m.classes_invite_row_invited();
+    case "no_account":
+      return m.classes_invite_row_no_account();
     case "wrong_role":
       return role === "teacher"
         ? m.classes_invite_row_not_teacher()
@@ -67,6 +70,8 @@ export function classErrorMessage(code: string | null): string {
       return m.classes_error_forbidden();
     case "archived":
       return m.classes_error_archived();
+    case "not_archived":
+      return m.classes_error_not_archived();
     case "owner_not_removable":
       return m.classes_error_owner_not_removable();
     case "not_class_teacher":
