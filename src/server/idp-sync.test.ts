@@ -366,6 +366,29 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
     expect(data.user["roleSource"]).toBe("local");
   });
 
+  it("never restores a role the IdP took away from an existing user (#28 review)", async () => {
+    const hasStudentInvitation = vi.fn(async () => true);
+    const ctx = {
+      context: {
+        internalAdapter: {
+          updateUser: vi.fn(async () => null),
+          deleteUserSessions: vi.fn(async () => undefined),
+          // A student set the IdP once sent and no longer does (A07).
+          findUserById: vi.fn(async () => ({
+            role: "student",
+            roleSource: "entra",
+            emailVerified: true,
+          })),
+        },
+      },
+    } as unknown as Ctx;
+    const settings = provider("entra", "oidc", "roles", { emailAuthoritative: true });
+    const sync = createIdpRoleSync({ settingsOf: async () => settings, hasStudentInvitation });
+    const data = oauth("sign-in", "entra", { roles: [] }, { id: "u1", email: "back@example.test" });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(hasStudentInvitation).not.toHaveBeenCalled();
+  });
+
   it("never lets an invitation override a role the IdP sends (#28 (2))", async () => {
     const hasStudentInvitation = vi.fn(async () => true);
     const { sync, ctx } = authoritative({ hasStudentInvitation });

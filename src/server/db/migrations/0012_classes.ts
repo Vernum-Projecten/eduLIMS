@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// Classes and lab groups (#28, B2, D2, ADR 0017): better-auth's organization plugin tables in
+// Classes and lab groups (#28, B2, D2, ADR 0018): better-auth's organization plugin tables in
 // the camelCase form of 0001_auth, with eduLIMS's own fields in snake_case. A class is an
 // `organization` whose slug is its id; a lab group is a `team` in a named group set. Ids are
 // UUIDv7 text from the one generator of src/server/db/ids.ts.

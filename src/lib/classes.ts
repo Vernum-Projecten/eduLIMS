@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Classes and lab groups (#28, B2, D2): a class is a better-auth organization, a lab group a
-// team (ADR 0017). The class roles and what each may do are the one rule the server checks and
+// team (ADR 0018). The class roles and what each may do are the one rule the server checks and
 // the screens read. Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import { createAccessControl } from "better-auth/plugins/access";
 

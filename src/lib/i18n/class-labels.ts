@@ -29,14 +29,10 @@ export type InviteRowStatusValue =
   | "duplicate"
   | "member"
   | "invited"
-  | "wrong_role"
-  | "no_account";
+  | "not_a_teacher";
 
 /** Returns what happens to one address of an invitation list. */
-export function inviteRowStatusLabel(
-  status: InviteRowStatusValue,
-  role: "teacher" | "student",
-): string {
+export function inviteRowStatusLabel(status: InviteRowStatusValue): string {
   switch (status) {
     case "new":
       return m.classes_invite_row_new();
@@ -48,12 +44,8 @@ export function inviteRowStatusLabel(
       return m.classes_invite_row_member();
     case "invited":
       return m.classes_invite_row_invited();
-    case "no_account":
-      return m.classes_invite_row_no_account();
-    case "wrong_role":
-      return role === "teacher"
-        ? m.classes_invite_row_not_teacher()
-        : m.classes_invite_row_not_student();
+    case "not_a_teacher":
+      return m.classes_invite_row_not_a_teacher();
     default: {
       const unknown: never = status;
       return unknown;

@@ -34,7 +34,7 @@ import {
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { m } from "@/i18n/messages";
-import { classCan, type InvitationRole, memberPermission } from "@/lib/classes";
+import { classCan, memberPermission } from "@/lib/classes";
 import { parseEmailList } from "@/lib/forms/email-list";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
 import { classErrorMessage, classRoleLabel, inviteRowStatusLabel } from "@/lib/i18n/class-labels";
@@ -92,10 +92,7 @@ function listKeyOf(value: InviteForm): string {
 }
 
 /** The preview of a list: every address with what will happen to it, before anything is sent. */
-function InvitePreview({
-  rows,
-  role,
-}: Readonly<{ rows: readonly PreviewRow[]; role: InvitationRole }>) {
+function InvitePreview({ rows }: Readonly<{ rows: readonly PreviewRow[] }>) {
   const fresh = rows.filter((row) => row.status === "new").length;
   const headingId = useId();
   return (
@@ -117,12 +114,12 @@ function InvitePreview({
             {row.status === "new" ? (
               <Badge variant="secondary">
                 <CircleCheckIcon aria-hidden="true" data-icon="inline-start" />
-                {inviteRowStatusLabel(row.status, role)}
+                {inviteRowStatusLabel(row.status)}
               </Badge>
             ) : (
               <Badge variant="outline">
                 <CircleAlertIcon aria-hidden="true" data-icon="inline-start" />
-                {inviteRowStatusLabel(row.status, role)}
+                {inviteRowStatusLabel(row.status)}
               </Badge>
             )}
           </li>
@@ -173,7 +170,6 @@ function InvitePeopleForm({ page }: Readonly<{ page: ClassPage }>) {
   // A changed list or role needs a new preview before anything is created.
   const listKey = useStore(form.store, (state) => listKeyOf(state.values));
   const rows = previewed?.key === listKey ? previewed.rows : null;
-  const role = useStore(form.store, (state) => state.values.role);
   const fileId = useId();
   const fileHelpId = useId();
 
@@ -232,7 +228,7 @@ function InvitePeopleForm({ page }: Readonly<{ page: ClassPage }>) {
             <FieldDescription id={fileHelpId}>{m.classes_invite_csv_help()}</FieldDescription>
           </Field>
         </FieldGroup>
-        {rows && <InvitePreview rows={rows} role={role} />}
+        {rows && <InvitePreview rows={rows} />}
         <div className="flex flex-wrap gap-2">
           {rows ? (
             <form.SubmitButton icon={<SendIcon aria-hidden="true" data-icon="inline-start" />}>

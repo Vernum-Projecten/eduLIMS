@@ -16,7 +16,7 @@ import {
   listStudentInvitations,
   listTeacherClasses,
 } from "./queries.ts";
-import { classWithPeople, NOW, person } from "./test-helpers.ts";
+import { classNotFoundLine, classWithPeople, NOW, person, securityLines } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -144,9 +144,17 @@ describe("getTeacherClass", () => {
   it("returns null to a teacher of another class, a student of it and an unknown id (D3, R-01)", async () => {
     const database = await open();
     const { classId, outsider, studentA } = await classWithPeople(database);
-    expect(await getTeacherClass(database, outsider.id, classId, NOW)).toBeNull();
-    expect(await getTeacherClass(database, studentA.id, classId, NOW)).toBeNull();
-    expect(await getTeacherClass(database, outsider.id, "not-a-uuid", NOW)).toBeNull();
+    const lines = await securityLines(async () => {
+      expect(await getTeacherClass(database, outsider.id, classId, NOW)).toBeNull();
+      expect(await getTeacherClass(database, studentA.id, classId, NOW)).toBeNull();
+      expect(await getTeacherClass(database, outsider.id, "not-a-uuid", NOW)).toBeNull();
+    });
+    // Each probe leaves a trace (V16.3.2), ids only.
+    expect(lines).toEqual([
+      classNotFoundLine(outsider.id, classId),
+      classNotFoundLine(studentA.id, classId),
+      classNotFoundLine(outsider.id, "not-a-uuid"),
+    ]);
   });
 });
 
@@ -215,11 +223,24 @@ describe("listStudentClasses and listStudentInvitations (S2, R-01)", () => {
       { classId, role: "student", emails: [joiner.email, "other@example.test"] },
       NOW,
     );
-    const own = await listStudentInvitations(database, joiner.email, NOW);
+    const own = await listStudentInvitations(database, joiner.id, NOW);
     expect(own).toEqual([
       expect.objectContaining({ className: "LS-2A", academicYear: "2026-2027" }),
     ]);
     const later = new Date(NOW.getTime() + 31 * DAY);
-    expect(await listStudentInvitations(database, joiner.email, later)).toEqual([]);
+    expect(await listStudentInvitations(database, joiner.id, later)).toEqual([]);
+  });
+
+  it("shows an unverified student no invitations (security review of #28)", async () => {
+    const database = await open();
+    const { classId, owner } = await classWithPeople(database);
+    const joiner = await person(database, "joiner", ["student"], { verified: false });
+    await createInvitations(
+      database,
+      owner,
+      { classId, role: "student", emails: [joiner.email] },
+      NOW,
+    );
+    expect(await listStudentInvitations(database, joiner.id, NOW)).toEqual([]);
   });
 });

@@ -105,8 +105,10 @@ next time they sign in with that address.
    them from a CSV file with one address per line.
 4. Choose **Check list**. eduLIMS shows what happens to every address: it
    will be invited, or it is left out because it is not a valid address, is
-   already in the class, is already invited, or belongs to an account with
-   another role.
+   already in the class or is already invited. A co-teacher address without a
+   teacher account in eduLIMS is left out too. A student invitation for an
+   account that is not a student account is created, but that person never
+   joins the class.
 5. Choose **Invite** to create the invitations for the addresses that remain.
 6. Choose **Copy invitation text** and share the text through your own
    channel, such as the course page. It has the sign-in link and the steps.

@@ -60,9 +60,12 @@ Option 3, on `better-auth` 1.7.20.
 - **Invitations without email:** `invitationExpiresIn` is 30 days and no
   `sendInvitationEmail` is set. A session-create hook accepts every pending,
   unexpired invitation for the user's verified email on each sign-in. When
-  the identity provider sends no eduLIMS role, a pending student invitation
-  grants the app role student, and only that (owner decision on #28). Ended
-  invitations are pruned after 90 days.
+  the identity provider sends no eduLIMS role at a person's first sign-in, a
+  pending student invitation grants the app role student, and only that; it
+  never restores a role the identity provider took away (owner decisions on
+  #28). The invitation preview never tells which accounts exist. Ended
+  invitations are pruned after 90 days. Deleting a user who owns a class is
+  refused (`owns_class`) until the ownership moves.
 
 ## Consequences
 

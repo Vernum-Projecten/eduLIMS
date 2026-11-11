@@ -97,14 +97,13 @@ test("a teacher invites by paste and by CSV, after a preview (#28)", async ({ pa
   await form.getByLabel("Or read addresses from a CSV file").setInputFiles({
     name: "students.csv",
     mimeType: "text/csv",
-    buffer: Buffer.from("classes-bo@example.test\nclasses-co@example.test\n"),
+    buffer: Buffer.from("classes-bo@example.test\nnot-valid@\n"),
   });
   await expect(page.getByText("2 addresses added from the file.")).toBeVisible();
   await form.getByRole("button", { name: "Check list" }).click();
   const preview = form.getByRole("region", { name: "Check before inviting" });
   await expect(preview.getByRole("status")).toHaveText("3 to invite, 2 left out.");
-  await expect(preview.getByText("Not a valid email address")).toBeVisible();
-  await expect(preview.getByText("This account is not a student account")).toBeVisible();
+  await expect(preview.getByText("Not a valid email address")).toHaveCount(2);
   await axe(page);
   await form.getByRole("button", { name: "Invite 3" }).click();
   await expect(page.getByText("3 invitations created.")).toBeVisible();

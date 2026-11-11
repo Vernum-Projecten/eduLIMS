@@ -20,7 +20,15 @@ import {
 import { copyClass } from "./copy.ts";
 import { createGroups, moveStudent } from "./groups.ts";
 import { createInvitations } from "./invitations.ts";
-import { auditRows, classWithPeople, join, NOW, person } from "./test-helpers.ts";
+import {
+  auditRows,
+  classNotFoundLine,
+  classWithPeople,
+  join,
+  NOW,
+  person,
+  securityLines,
+} from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -33,6 +41,9 @@ async function open(): Promise<Kysely<DB>> {
   db = await createTestDb();
   return db;
 }
+
+const roleOfMember = (database: Kysely<DB>, classId: string, userId: string) =>
+  roleOf(database, classId, userId);
 
 async function roleOf(database: Kysely<DB>, classId: string, userId: string) {
   const row = await database
@@ -134,11 +145,17 @@ describe("updateClass", () => {
     ]);
   });
 
-  it("answers not_found to a teacher of another class (D3)", async () => {
+  it("answers not_found to a teacher of another class (D3), and logs the probe (V16.3.2)", async () => {
     const database = await open();
     const { classId, outsider } = await classWithPeople(database);
     const input = { classId, name: "LS-2B", academicYear: "2026-2027" };
-    expect(await updateClass(database, outsider, input)).toEqual({ ok: false, error: "not_found" });
+    const lines = await securityLines(async () => {
+      expect(await updateClass(database, outsider, input)).toEqual({
+        ok: false,
+        error: "not_found",
+      });
+    });
+    expect(lines).toEqual([classNotFoundLine(outsider.id, classId)]);
   });
 
   it("answers not_found to an id that is no UUID", async () => {
@@ -417,6 +434,21 @@ describe("transferOwnership", () => {
     ]);
   });
 
+  it("refuses a co-teacher who lost the app role teacher as the new owner", async () => {
+    const database = await open();
+    const { classId, owner, coTeacher } = await classWithPeople(database);
+    await database
+      .updateTable("user")
+      .set({ role: "admin" })
+      .where("id", "=", coTeacher.id)
+      .execute();
+    expect(await transferOwnership(database, owner, { classId, userId: coTeacher.id })).toEqual({
+      ok: false,
+      error: "not_class_teacher",
+    });
+    expect(await roleOfMember(database, classId, owner.id)).toBe("owner");
+  });
+
   it("refuses a student or a stranger as the new owner", async () => {
     const database = await open();
     const { classId, owner, studentA, outsider } = await classWithPeople(database);
@@ -478,13 +510,21 @@ describe("removeMember", () => {
     });
   });
 
-  it("answers not_found to a teacher of another class", async () => {
+  it("answers not_found to a teacher of another class, even about the owner, and logs it", async () => {
     const database = await open();
-    const { classId, outsider, studentA } = await classWithPeople(database);
-    expect(await removeMember(database, outsider, { classId, userId: studentA.id })).toEqual({
-      ok: false,
-      error: "not_found",
+    const { classId, owner, outsider, studentA } = await classWithPeople(database);
+    const lines = await securityLines(async () => {
+      for (const userId of [studentA.id, owner.id]) {
+        expect(await removeMember(database, outsider, { classId, userId })).toEqual({
+          ok: false,
+          error: "not_found",
+        });
+      }
     });
+    expect(lines).toEqual([
+      classNotFoundLine(outsider.id, classId),
+      classNotFoundLine(outsider.id, classId),
+    ]);
   });
 
   it("refuses a student with 403", async () => {

@@ -67,17 +67,29 @@ export async function acceptInvitationsOnSignIn(
     if (!user?.emailVerified) return { accepted: 0, skipped: 0 };
     const parsed = validateRoleValue(user.role);
     const roles = parsed.ok ? parsed.roles : [];
+    const email = user.email.trim().toLowerCase();
+    // NOTE: no requirement governs this: our own design. Class rows first, in id order, as
+    // withClass locks them, then the invitations, so the two never wait on each other in a cycle.
+    await trx
+      .selectFrom("organization")
+      .innerJoin("invitation", "invitation.organizationId", "organization.id")
+      .select("organization.id")
+      .where("invitation.email", "=", email)
+      .where("invitation.status", "=", "pending")
+      .orderBy("organization.id")
+      .forUpdate("organization")
+      .execute();
     const pending = await trx
       .selectFrom("invitation")
       .innerJoin("organization", "organization.id", "invitation.organizationId")
       .select(["invitation.id", "invitation.organizationId", "invitation.role"])
-      .where("invitation.email", "=", user.email.trim().toLowerCase())
+      .where("invitation.email", "=", email)
       .where("invitation.status", "=", "pending")
       .where("invitation.expiresAt", ">", now)
       .where("organization.archived_at", "is", null)
       .orderBy("invitation.createdAt")
       .orderBy("invitation.id")
-      .forUpdate()
+      .forUpdate("invitation")
       .execute();
     let accepted = 0;
     let skipped = 0;

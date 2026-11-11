@@ -169,11 +169,12 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       return { error: PROVIDER_DISABLED_ERROR, errorDescription: "Identity provider disabled" };
     }
     const email = typeof user.email === "string" ? user.email : "";
-    // NOTE: owner decision on #28 (2); an invitation grants only `student`, and only to a
-    // verified email when the IdP sends no eduLIMS role. It comes before the admin grant.
+    // NOTE: owner decisions on #28; an invitation grants only `student`, to a verified email
+    // the IdP sends no role for, at a first sign-in only: it never restores a role the IdP took.
     if (
       decision.kind === "refused" &&
       decision.reason === NO_ROLE_ERROR &&
+      source.action === "create-user" &&
       settings.emailAuthoritative &&
       email !== "" &&
       (await options.hasStudentInvitation?.(email))

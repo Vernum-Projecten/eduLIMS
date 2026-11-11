@@ -133,6 +133,8 @@ export function adminActionErrorMessage(code: string): string {
       return m.admin_users_error_roles_not_local();
     case "role_set_not_allowed":
       return m.role_error_not_allowed();
+    case "owns_class":
+      return m.admin_users_error_owns_class();
     default:
       return m.admin_users_error_failed();
   }
