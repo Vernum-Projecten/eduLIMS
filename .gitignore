@@ -165,3 +165,6 @@ test-results/
 # Operator config and database backups on a deployment host
 /config/
 /backups/
+
+# The local PGlite database of `pnpm dev:db`
+/.data/

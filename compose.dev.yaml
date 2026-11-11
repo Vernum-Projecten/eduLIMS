@@ -7,7 +7,7 @@
 # host with `pnpm dev`, so it reloads on every save.
 #
 #   docker compose -f compose.dev.yaml up -d --wait
-#   cp .env.example .env.local      # the dev values below are already in it
+#   cp .env.example .env            # the dev values below are already in it
 #   pnpm db:migrate
 #   pnpm dev
 #

@@ -24,6 +24,7 @@
   },
   "scripts": {
     "dev": "vite dev",
+    "dev:db": "mkdir -p .data && pglite-server --db=.data/pglite --port=5432 --max-connections=10",
     "build": "vite build",
     "start": "node --env-file-if-exists=.env .output/server/index.mjs",
     "typecheck": "pnpm i18n && tsc --noEmit",

@@ -3,7 +3,9 @@
 
 # Deploying eduLIMS
 
-eduLIMS runs with Docker Compose on one Linux host, beside FerroEHR (the
+eduLIMS runs with Compose on one Linux host (Docker Engine, or Podman with
+`podman compose`; the commands below use `docker compose`, and `podman
+compose` takes the same arguments), beside FerroEHR (the
 openEHR CDR) and FerroBRIDGE (the HL7 v2 MLLP face), on one PostgreSQL 18
 server that holds a separate database and role for each. The host is a VM at
 the institution or one Azure VM; the choice is open, and the procedure is the

@@ -93,7 +93,6 @@
   },
   "enabledMcpjsonServers": [
     "shadcn",
-    "github",
     "playwright",
     "tanstack",
     "better-auth",

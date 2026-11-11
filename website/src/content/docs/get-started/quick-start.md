@@ -20,8 +20,11 @@ reloads on every save. To run eduLIMS on a server, follow
 - **pnpm 12:** the exact version is the `packageManager` field of
   [`package.json`](https://github.com/Vernum-Projecten/eduLIMS/blob/main/package.json).
   `devEngines` enforces both versions, so an install with another Node.js or
-  pnpm fails. Corepack or `pnpm self-update` gives you the pinned pnpm.
-- **Docker** with the Compose plugin.
+  pnpm fails. On macOS: `brew install node pnpm`.
+- **A container engine with Compose**, for PostgreSQL and Keycloak: Docker,
+  or Podman with `podman compose`, which takes the same arguments as every
+  `docker compose` command on this page. Without one you can use the embedded
+  database instead (below).
 
 ## Start the services
 
@@ -48,12 +51,25 @@ docker compose -f compose.dev.yaml --profile ferroehr up -d --wait
 The development credentials are fixed and public. Never point this setup at
 real data.
 
-## Configure, migrate and run
+### Without containers
 
-Copy the example environment file to `.env.local`. Its development values
-match `compose.dev.yaml`. Then install, migrate, seed and start:
+`pnpm dev:db` runs an embedded PostgreSQL ([PGlite](https://pglite.dev)) on
+`localhost:5432`, with its data in `.data/` (git-ignored). Keep it running in
+its own terminal. There is no Keycloak then, so sign in with the development
+login and comment out the `KEYCLOAK_*` lines in `.env`.
 
 ```sh
+pnpm dev:db
+```
+
+## Configure, migrate and run
+
+Copy the example environment file to `.env` and set `BETTER_AUTH_SECRET`
+(`openssl rand -hex 32`) and `EDULIMS_DEV_LOGIN=true`. Its other development
+values match `compose.dev.yaml`. Then install, migrate, seed and start:
+
+```sh
+cp .env.example .env
 pnpm install
 pnpm db:migrate
 pnpm db:seed
