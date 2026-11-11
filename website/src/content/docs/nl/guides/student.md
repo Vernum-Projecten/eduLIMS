@@ -46,6 +46,18 @@ beschikbaar**.
 Een studentaccount heeft alleen de rol student. Geef je ook les, dan krijg je
 een apart medewerkersaccount voor het Docentportaal.
 
+## Sneltoetsen
+
+Druk buiten een tekstveld op **?** om alle sneltoetsen te zien, met de
+toetsen voor jouw computer; je opent de lijst ook met **Sneltoetsen** in het
+gebruikersmenu onderaan de zijbalk. Met meer dan één portaal wissel je met
+**Alt+1** en **Alt+2** (**Option+1** en **Option+2** op een Mac). Op een
+pagina met een zoekveld ga je met **/** of **Ctrl+K** (**⌘K** op een Mac)
+naar dat veld. Sneltoetsen werken nooit terwijl je in een veld typt of
+terwijl een menu of venster open is. Zitten **?** en **/** in de weg,
+bijvoorbeeld bij spraakbediening, zet dan in die lijst **Sneltoetsen met één
+toets** uit.
+
 ## De taal wijzigen
 
 eduLIMS is er in het Nederlands en het Engels. Kies bovenaan de pagina de

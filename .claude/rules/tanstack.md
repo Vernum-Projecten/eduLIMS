@@ -12,7 +12,7 @@ paths:
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# TanStack Start, Router, Query, Form and Table
+# TanStack Start, Router, Query, Form, Table and Hotkeys
 
 eduLIMS is a full-SSR TanStack Start app (Vite 8, Nitro). Answer API questions
 from the pinned packages, never from memory: the library skills pnpm links
@@ -161,6 +161,46 @@ export const registerSample = createServerFn({ method: "POST" })
 - The adapter server-renders the SVG at `initialWidth` and adopts it after
   hydration. Keep the definition deterministic and memoized; pass the data
   the loader returned, never fetch inside a chart.
+
+## Hotkeys: keyboard shortcuts
+
+Keyboard shortcuts are `@tanstack/react-hotkeys` (the `react-hotkeys` skill
+in `.claude/skills/`, and the `hotkeys-core` and `app-hotkeys` skills
+shipped in `node_modules/@tanstack/hotkeys/skills/`). No hand-written
+`keydown` listener on `window` or `document`; a widget's own `onKeyDown`
+on its element stays fine.
+
+- **One registry, `src/lib/shortcuts.ts`.** Every shortcut is defined there
+  once: an id, its hotkeys (`Mod` for ⌘/Ctrl, physical `[Digit1]` codes where
+  the key position matters), a scope and a translated `label`. Bindings and
+  every display read it: `shortcutLabel` for a visible label (`⌥1`, `Ctrl+K`),
+  `shortcutKeys` for `Kbd` parts, `ariaKeyShortcuts` for `aria-keyshortcuts`.
+  Never type a key string in a component; the shortcuts dialog lists the
+  registry, so a shortcut missing there is missing from the dialog.
+- **Bind with `useHotkey`/`useHotkeys` where the action lives**, passing the
+  registry's hotkeys and `meta: { name: label() }`. `ShortcutsProvider`
+  (`src/components/shortcuts/`) wraps the signed-in shell in a
+  `HotkeysProvider` with the user's platform (`useShortcutPlatform`, so `Mod`
+  and the labels agree after hydration) and `ignoreDefaultPrevented` for
+  Radix overlays.
+- **Scopes:** `global` shortcuts work on every signed-in page (portal
+  switching, `?`); `page` shortcuts exist only while the page that registers
+  them is mounted (the search shortcut through `useRegisterSearchShortcut`).
+  A dialog that owns the keyboard wraps its content in a `HotkeysProvider`
+  with a per-instance `scope` and `exclusive`, as the shortcuts dialog does.
+- **Never in inputs, never over an overlay.** Keep the default
+  `ignoreInputs` for single keys and Alt/Shift chords, and set
+  `ignoreInputs: true` on a `Mod` chord that must not fire in a field. A
+  shortcut that would act behind an open dialog, sheet or menu sets
+  `preventDefault: false`, returns when `isOverlayOpen(document)`, and
+  prevents the default itself only when it acts.
+- **Single-key shortcuts (WCAG 2.1.4):** a shortcut without Ctrl, Alt or ⌘
+  (`isCharacterKeyShortcut`) is `enabled` only while
+  `useCharacterKeyShortcuts()` is on; the dialog's switch turns them off.
+- **Tests:** unit tests render the hook inside
+  `<HotkeysProvider defaultOptions={{ platform }}>`, dispatch real
+  `KeyboardEvent`s and call `HotkeyManager.resetInstance()` after each case;
+  e2e emulates macOS and Windows through `navigator.platform`.
 
 ## SSR hygiene
 

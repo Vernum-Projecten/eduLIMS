@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
+import { useHotkeys } from "@tanstack/react-hotkeys";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import { m } from "@/i18n/messages";
 import type { PortalNavigation } from "@/lib/navigation";
-import { browserPlatform, isApplePlatform, portalShortcutIndex } from "@/lib/portal-shortcuts";
+import { PORTAL_HOTKEYS, portalShortcut } from "@/lib/shortcuts";
 import { saveLastPortal } from "@/server/preferences/functions";
 
 /**
@@ -29,41 +30,29 @@ export function useSwitchPortal(): (portal: PortalNavigation) => void {
   );
 }
 
-const noSubscription = () => () => {};
-
 /**
- * Returns whether the browser runs on an Apple platform, so shortcuts show ⌥ instead of Alt.
- * The server and the hydration pass render the non-Apple label; the client corrects it after.
- */
-export function useApplePlatform(): boolean {
-  return useSyncExternalStore(
-    noSubscription,
-    () => isApplePlatform(browserPlatform()),
-    () => false,
-  );
-}
-
-/**
- * Listens for Alt+1 to Alt+9 (⌥1 on macOS) anywhere on the page and opens the portal at that
- * position. Active only with two portals or more; a key press it does not act on keeps its
- * default.
+ * Binds Alt+1 to Alt+9 (⌥1 on macOS) to the user's portals in switcher order, from the shortcut
+ * registry. Active only with two portals or more. The bindings match the physical digit key,
+ * fire once per press, skip text fields and any other modifier, and leave digits past the last
+ * portal to the browser.
  */
 export function usePortalShortcuts(
   portals: readonly PortalNavigation[],
   current: PortalNavigation | null,
 ): void {
   const switchPortal = useSwitchPortal();
-  useEffect(() => {
-    if (portals.length < 2) return;
-    function onKeyDown(event: KeyboardEvent) {
-      const index = portalShortcutIndex(event, portals.length);
-      if (index === null) return;
-      const portal = portals[index];
-      if (!portal) return;
-      event.preventDefault();
-      if (portal.role !== current?.role) switchPortal(portal);
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [portals, current, switchPortal]);
+  const reachable = portals.length < 2 ? [] : portals.slice(0, PORTAL_HOTKEYS.length);
+  useHotkeys(
+    reachable.flatMap((portal, index) => {
+      const shortcut = portalShortcut(index, portal.label);
+      if (!shortcut) return [];
+      return shortcut.hotkeys.map((hotkey) => ({
+        hotkey,
+        callback: () => {
+          if (portal.role !== current?.role) switchPortal(portal);
+        },
+        options: { requireReset: true, meta: { name: shortcut.label() } },
+      }));
+    }),
+  );
 }

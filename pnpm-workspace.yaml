@@ -13,6 +13,8 @@ packages:
   - website
 
 permissions:
+  "@tanstack/react-hotkeys":
+    skills: true
   "@tanstack/react-router":
     skills: true
   "@tanstack/react-start":

@@ -48,6 +48,18 @@ portal shows only what that role may see: as an administrator you do not see
 grades or results. The user menu at the foot of the sidebar lists all your
 roles.
 
+## Keyboard shortcuts
+
+Press **?** anywhere outside a text field to see every keyboard shortcut,
+with the keys for your computer; you can also open the list with
+**Keyboard shortcuts** in the user menu at the foot of the sidebar. With
+more than one portal, **Alt+1** and **Alt+2** (**Option+1** and **Option+2**
+on a Mac) switch between them. On a page with a search field, **/** or
+**Ctrl+K** (**⌘K** on a Mac) moves to it. Shortcuts never fire while you
+type in a field or while a menu or dialog is open. If **?** and **/** get in
+the way, for example with speech input, turn off **Single-key shortcuts** in
+that list.
+
 ## Change the language
 
 eduLIMS is in English and Dutch. Choose the language button in the header

@@ -1,8 +1,12 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react";
+import { ChevronsUpDownIcon, KeyboardIcon, LogOutIcon } from "lucide-react";
+import { useRef } from "react";
 import { useSignOut } from "@/components/shell/use-sign-out";
+import { useOpenShortcutsDialog } from "@/components/shortcuts/shortcuts-provider";
+import { useCharacterKeyShortcuts } from "@/components/shortcuts/use-character-key-shortcuts";
+import { useShortcutPlatform } from "@/components/shortcuts/use-shortcut-platform";
 import { ThemeSubmenu } from "@/components/theme/theme-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -24,6 +29,12 @@ import {
 import { m } from "@/i18n/messages";
 import { roleLabel } from "@/lib/i18n/labels";
 import { initials } from "@/lib/navigation";
+import {
+  ariaKeyShortcuts,
+  isCharacterKeyShortcut,
+  SHORTCUTS,
+  shortcutLabel,
+} from "@/lib/shortcuts";
 import type { SessionUser } from "@/server/authz";
 
 function UserIdentity({ user }: Readonly<{ user: SessionUser }>) {
@@ -44,18 +55,26 @@ function UserIdentity({ user }: Readonly<{ user: SessionUser }>) {
 
 /**
  * The user menu at the foot of the sidebar (from the sidebar-07 block's `NavUser`): the
- * avatar with initials, name, e-mail and roles, the theme submenu and signing out.
+ * avatar with initials, name, e-mail and roles, the theme submenu, the keyboard shortcuts and
+ * signing out.
  */
 export function NavUser({ user }: Readonly<{ user: SessionUser }>) {
   const { isMobile } = useSidebar();
   const { signOut, pending } = useSignOut();
+  const openShortcuts = useOpenShortcutsDialog();
+  const [characterKeys] = useCharacterKeyShortcuts();
+  const platform = useShortcutPlatform();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const shortcutHotkeys = SHORTCUTS.showShortcuts.hotkeys.filter(
+    (hotkey) => characterKeys || !isCharacterKeyShortcut(hotkey),
+  );
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         {/* Non-modal like the language menu: a modal menu hides focusable content (axe). */}
         <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
+          <DropdownMenuTrigger asChild ref={trigger}>
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
@@ -86,6 +105,20 @@ export function NavUser({ user }: Readonly<{ user: SessionUser }>) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <ThemeSubmenu />
+              <DropdownMenuItem
+                onSelect={() => openShortcuts(trigger.current)}
+                aria-keyshortcuts={
+                  shortcutHotkeys.length ? ariaKeyShortcuts(shortcutHotkeys, platform) : undefined
+                }
+              >
+                <KeyboardIcon aria-hidden="true" />
+                {m.shortcuts_dialog_title()}
+                {shortcutHotkeys.map((hotkey) => (
+                  <DropdownMenuShortcut key={hotkey} aria-hidden="true">
+                    {shortcutLabel(hotkey, platform)}
+                  </DropdownMenuShortcut>
+                ))}
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled={pending} onSelect={() => void signOut()}>

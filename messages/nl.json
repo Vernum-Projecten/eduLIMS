@@ -298,5 +298,14 @@
   "dev_charts_academic_year": "Studiejaar",
   "dev_charts_year": "Jaar {year}",
   "dev_charts_focused": "Geselecteerd: {practical}, {submissions} inleveringen, gemiddeld cijfer {grade}, klasgrootte {size}, jaar {year}.",
-  "dev_charts_focused_none": "Er is geen punt geselecteerd. Beweeg de aanwijzer over een punt, of ga met Tab naar de grafiek en gebruik de pijltjestoetsen."
+  "dev_charts_focused_none": "Er is geen punt geselecteerd. Beweeg de aanwijzer over een punt, of ga met Tab naar de grafiek en gebruik de pijltjestoetsen.",
+  "shortcuts_dialog_title": "Sneltoetsen",
+  "shortcuts_dialog_description": "Deze sneltoetsen werken overal in eduLIMS, behalve terwijl je in een veld typt.",
+  "shortcuts_or": "of",
+  "shortcuts_close": "Sluiten",
+  "shortcuts_character_keys_label": "Sneltoetsen met één toets",
+  "shortcuts_character_keys_description": "Zet ? en / uit als ze in de weg zitten, bijvoorbeeld bij spraakbediening.",
+  "shortcut_open_portal": "Naar het {portal}",
+  "shortcut_show_shortcuts": "De sneltoetsen tonen",
+  "shortcut_focus_search": "Naar het zoekveld, op pagina's met een zoekveld"
 }
