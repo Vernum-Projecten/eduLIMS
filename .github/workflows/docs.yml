@@ -15,7 +15,19 @@ name: Docs
 on:
   push:
     branches: [main]
+  # A pull request builds the site only when it can change it; the run on main is
+  # unfiltered, so a code change that breaks a docs link still shows there.
   pull_request:
+    paths:
+      - "**/*.md"
+      - "website/**"
+      - "docs/**"
+      - "assets/**"
+      - "CITATION.cff"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions: {}
