@@ -13,6 +13,9 @@ import { type Env, getEnv, isKeycloakConfigured, isMicrosoftConfigured } from ".
 import { createIdpRoleSync } from "./idp-sync.ts";
 import { applySavedLocaleOnSignIn } from "./preferences/locale-cookie.ts";
 
+/** Where an identity provider returns the user after signing out of it: the eduLIMS sign-in page. */
+export const POST_LOGOUT_PATH = "/login";
+
 const DEFAULT_ROLE_CLAIMS: Record<IdentityProviderId, string> = {
   microsoft: "roles",
   keycloak: "realm_access.roles",
@@ -46,7 +49,8 @@ function microsoftProvider(env: Env) {
   };
 }
 
-function keycloakProviders(env: Env) {
+/** The Keycloak provider for the generic OAuth plugin, or none when Keycloak is not configured. */
+export function keycloakProviders(env: Env) {
   const { KEYCLOAK_ISSUER, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET } = env;
   if (!KEYCLOAK_ISSUER || !KEYCLOAK_CLIENT_ID || !KEYCLOAK_CLIENT_SECRET) return [];
   return [
@@ -55,6 +59,9 @@ function keycloakProviders(env: Env) {
       clientId: KEYCLOAK_CLIENT_ID,
       clientSecret: KEYCLOAK_CLIENT_SECRET,
       pkce: true,
+      // NOTE: OpenID Connect RP-Initiated Logout 1.0 §2-3; Keycloak returns the user to this
+      // registered URI (resolved against BETTER_AUTH_URL) instead of its "You are logged out" page.
+      postLogoutRedirectURI: POST_LOGOUT_PATH,
     }),
   ];
 }

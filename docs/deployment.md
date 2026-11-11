@@ -153,8 +153,11 @@ start with no provider at all.
 - **Keycloak** fits a deployment without access to the tenant (a pilot, a
   partner institution, a test environment), or one that federates several
   sources. Start it with the profile, create the realm and a confidential
-  client with the standard flow, PKCE S256 and the redirect URI
-  `<BETTER_AUTH_URL>/api/auth/callback/keycloak`, and set `KEYCLOAK_ISSUER`
+  client with the standard flow, PKCE S256, the redirect URI
+  `<BETTER_AUTH_URL>/api/auth/callback/keycloak` and the valid post logout
+  redirect URI `<BETTER_AUTH_URL>/login` (signing out of eduLIMS also ends
+  the Keycloak session and returns the user to the sign-in page; without it
+  Keycloak shows its own "You are logged out" page), and set `KEYCLOAK_ISSUER`
   (`https://<keycloak host>/realms/<realm>`; plain `http` is accepted only on
   localhost outside production), `KEYCLOAK_CLIENT_ID` and
   `KEYCLOAK_CLIENT_SECRET`. `KEYCLOAK_LABEL` is the sign-in button's text
