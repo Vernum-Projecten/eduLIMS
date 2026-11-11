@@ -62,6 +62,12 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
   (`concept`, `ingediend`, `beoordeeld`, S8). The application validates too,
   but the database is the last line.
 - **Names:** `snake_case`, plural table names, `<table>_id` foreign keys.
+  The better-auth tables (`user`, `session`, `account`, `verification`) are
+  singular, and `audit_event` sits beside them with the same form.
+- **The activity log** (`audit_event`, B4) holds ids and codes only and is
+  written through `recordAudit` (`src/server/audit/record.ts`), inside the
+  transaction of the action it records. `pnpm db:prune` applies the retention
+  periods (12 months for events, 30 days for expired sessions).
 - **No personal data in FerroEHR, and the pseudonym map lives here:** the
   table that maps a student to their EHR pseudonym is the only place the two
   meet, and only server code with a reason reads it.

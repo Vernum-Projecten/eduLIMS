@@ -97,7 +97,7 @@ pnpm install
 pnpm env:sync               # creates or updates your local env file from the example, with a fresh secret
 pnpm dev:db                 # PostgreSQL 18 and Keycloak from compose.dev.yaml, waits until healthy
 pnpm db:migrate
-pnpm db:seed                # student@, teacher@ and admin@example.test, password eduLIMS-dev-only
+pnpm db:seed                # student@, teacher@ and admin@example.test (password eduLIMS-dev-only), plus fictional demo data
 pnpm dev                    # http://localhost:3000
 ```
 

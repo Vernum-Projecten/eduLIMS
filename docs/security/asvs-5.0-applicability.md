@@ -67,9 +67,9 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 172 |
-| Status met | 74 |
+| Status met | 75 |
 | Status partial | 47 |
-| Status planned | 31 |
+| Status planned | 30 |
 | Status open | 20 |
 | Status n-a | 173 |
 
@@ -823,7 +823,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V16.2.1 | 2 | partly | the B4 audit log records who did what (user id, time); application logs are plain `console` lines today | review | planned |
+| V16.2.1 | 2 | partly | the B4 activity log (`audit_event`) records who did what to which object, with outcome, time and request id (`src/server/audit/`); application logs are plain `console` lines today | unit `src/server/audit/record.test.ts` | partial |
 | V16.2.2 | 2 | yes | timestamps in UTC (`timestamptz`, `.claude/rules/database.md`); container clocks follow the host | review | partial |
 | V16.2.3 | 2 | yes | logs go to the container's stdout only; documented with the log inventory (V16.1.1) | review | planned |
 | V16.2.4 | 2 | yes | no common log format yet (JSON lines planned with B4) | review | planned |
@@ -833,8 +833,8 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V16.3.1 | 2 | partly | refused IdP sign-ins are logged without personal data (`src/server/idp-sync.ts`); successful sign-ins are not | unit `src/server/idp-sync.test.ts` | partial |
-| V16.3.2 | 2 | partly | refused role writes are logged (`src/server/role-guard.ts`); 401 and 403 from server functions are not | unit `src/server/role-guard.test.ts` | partial |
+| V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts` | met |
+| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); 401 and 403 from server functions are not | unit `src/server/audit/better-auth-hooks.test.ts` | partial |
 | V16.3.3 | 2 | yes | rejected uploads (S4) and refused access belong in the B4 audit log | unit tests with S4 and B4 | planned |
 | V16.3.4 | 2 | yes | unexpected errors and an unreachable FerroEHR or FerroBRIDGE (B3, within 5 minutes) | unit tests with B3 | planned |
 

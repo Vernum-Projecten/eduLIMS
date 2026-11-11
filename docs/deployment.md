@@ -309,6 +309,42 @@ docker compose exec -T postgres pg_restore -U postgres --clean --if-exists -d fe
 docker compose up -d --wait
 ```
 
+## Retention of the activity log and of sessions
+
+eduLIMS keeps the activity log (who signed in, who changed a role, who
+blocked whom; ids only, no names or addresses) for 12 months, and deletes a
+session 30 days after it expired. The prune command applies both periods. It
+is safe to run more than once: a second run removes nothing new. Run it
+every day from the migrate image, which holds the command:
+
+```sh
+# /etc/cron.d/edulims-prune, as root, 03:30 every night
+30 3 * * * root cd /srv/edulims && docker compose run --rm edulims-migrate /app/src/server/db/prune.ts
+```
+
+Or, on a host with systemd, a timer instead of cron:
+
+```ini
+# /etc/systemd/system/edulims-prune.service
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/edulims
+ExecStart=/usr/bin/docker compose run --rm edulims-migrate /app/src/server/db/prune.ts
+
+# /etc/systemd/system/edulims-prune.timer
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Enable it with `systemctl enable --now edulims-prune.timer`. The command prints
+the number of events and sessions it removed. On a development machine,
+`pnpm db:prune` does the same against `DATABASE_URL`. The backups above keep
+deleted rows for another 30 days, until the oldest dump is removed.
+
 ## Local development
 
 `compose.dev.yaml` runs what `pnpm dev` needs: the same PostgreSQL image with
@@ -324,3 +360,11 @@ realm file needs `pnpm dev:db:stop && pnpm dev:db`. It also creates the throwawa
 FerroEHR is the opt-in `ferroehr` profile. `pnpm dev:db` starts the stack
 with `podman compose`, or `docker compose` without Podman; the header of
 `compose.dev.yaml` has the commands.
+
+`pnpm db:seed` adds, next to the development login users, a fictional demo
+set: 70 people (students, teachers, administrators and coordinators, every
+address `@example.test`) with Entra ID and Keycloak accounts, live and expired
+sessions, three blocked students and about four weeks of activity-log events.
+The demo people have no password and no Keycloak user, so nobody signs in as
+one; they exist to fill the Admin portal. The seed prints counts only, and
+running it again changes nothing. `pnpm db:reset` gives a fresh copy.

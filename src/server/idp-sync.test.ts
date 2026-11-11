@@ -1,8 +1,12 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it, vi } from "vitest";
+import type { Kysely } from "kysely";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NO_ROLE_ERROR, ROLE_CONFLICT_ERROR } from "../lib/identity-providers.ts";
+import { AuditRecorder } from "./audit/better-auth-hooks.ts";
+import type { DB } from "./db/schema.gen.ts";
+import { createTestDb } from "./db/test-db.ts";
 import { parseRoleMap } from "./idp-roles.ts";
 import { createIdpRoleSync } from "./idp-sync.ts";
 
@@ -173,5 +177,92 @@ describe("createIdpRoleSync", () => {
     expect(await sync(data, ctx)).toBeUndefined();
     expect(data.user["role"]).toBeUndefined();
     expect(updateUser).not.toHaveBeenCalled();
+  });
+});
+
+describe("the activity log of the IdP role sync (B4)", () => {
+  let db: Kysely<DB> | undefined;
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await db?.destroy();
+    db = undefined;
+  });
+
+  async function audited() {
+    const database = await createTestDb();
+    db = database;
+    const ctx = {
+      context: {
+        internalAdapter: {
+          updateUser: vi.fn(async () => null),
+          deleteUserSessions: vi.fn(async () => undefined),
+        },
+        edulimsAudit: new AuditRecorder(database),
+      },
+      headers: new Headers({ "x-request-id": "req-idp" }),
+    } as unknown as Ctx;
+    const sync = createIdpRoleSync({ claimPaths, roleMap });
+    const rows = () =>
+      database
+        .selectFrom("audit_event")
+        .select(["action", "actor_type", "target_id", "outcome", "reason_code", "provider"])
+        .select(["request_id", "metadata"])
+        .execute();
+    return { sync, ctx, rows };
+  }
+
+  it("records a role_conflict refusal with the user id and the provider", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { sync, ctx, rows } = await audited();
+    const claims = { roles: ["edulims-student", "edulims-admin"] };
+    await sync(oauth("sign-in", "microsoft", claims, { id: "u2" }), ctx);
+    expect(await rows()).toEqual([
+      {
+        action: "authn_login_fail",
+        actor_type: "anonymous",
+        target_id: "u2",
+        outcome: "refused",
+        reason_code: ROLE_CONFLICT_ERROR,
+        provider: "microsoft",
+        request_id: "req-idp",
+        metadata: null,
+      },
+    ]);
+  });
+
+  it("records a no_edulims_role refusal of a first sign-in without a target", async () => {
+    const { sync, ctx, rows } = await audited();
+    await sync(oauth("create-user", "keycloak", { realm_access: { roles: [] } }), ctx);
+    expect(await rows()).toEqual([
+      expect.objectContaining({
+        action: "authn_login_fail",
+        target_id: null,
+        reason_code: NO_ROLE_ERROR,
+        provider: "keycloak",
+      }),
+    ]);
+  });
+
+  it("records a role change the IdP made, with the old and the new set", async () => {
+    const { sync, ctx, rows } = await audited();
+    const user = { id: "u3", role: "student" };
+    await sync(oauth("sign-in", "microsoft", { roles: ["edulims-teacher"] }, user), ctx);
+    expect(await rows()).toEqual([
+      expect.objectContaining({
+        action: "authz_role_change",
+        actor_type: "system",
+        target_id: "u3",
+        outcome: "success",
+        metadata: { roles: "teacher", previous_roles: "student" },
+      }),
+    ]);
+  });
+
+  it("records nothing when the role is unchanged", async () => {
+    const { sync, ctx, rows } = await audited();
+    const user = { id: "u4", role: "teacher" };
+    await sync(oauth("sign-in", "microsoft", { roles: ["edulims-teacher"] }, user), ctx);
+    expect(await rows()).toEqual([]);
   });
 });

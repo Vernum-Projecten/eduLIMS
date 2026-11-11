@@ -9,6 +9,7 @@ import { APIError, type BetterAuthOptions } from "better-auth";
 import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { ROLE_CONFLICT_ERROR } from "../lib/identity-providers.ts";
 import { formatRoles, OWN_ROLES_ERROR, validateRoleValue } from "../lib/roles.ts";
+import { auditRecorderOf, requestIdOf } from "./audit/better-auth-hooks.ts";
 
 type UserHooks = NonNullable<NonNullable<BetterAuthOptions["databaseHooks"]>["user"]>;
 
@@ -85,9 +86,19 @@ export function isOwnRoleWrite(
 export const refuseOwnRoleWrites = createAuthMiddleware(async (ctx) => {
   if (!ROLE_WRITE_PATHS.has(ctx.path)) return;
   const session = await getSessionFromCtx(ctx);
-  if (isOwnRoleWrite(ctx.path, ctx.body, session?.user.id)) {
+  const userId = session?.user.id;
+  if (userId && isOwnRoleWrite(ctx.path, ctx.body, userId)) {
     // Logs the reason only, never the user (A09, privacy).
     console.warn(`role write refused: ${OWN_ROLES_ERROR}`);
+    const requestId = requestIdOf(ctx);
+    await auditRecorderOf(ctx.context)?.record({
+      action: "authz_role_change",
+      actor: { type: "user", id: userId },
+      outcome: "refused",
+      reason: OWN_ROLES_ERROR,
+      target: { type: "user", id: userId },
+      ...(requestId ? { requestId } : {}),
+    });
     throw APIError.from("FORBIDDEN", OWN_ROLES_REFUSED);
   }
 });

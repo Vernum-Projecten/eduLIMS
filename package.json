@@ -43,6 +43,7 @@
     "db:migrate": "node --env-file-if-exists=.env src/server/db/migrate.ts",
     "db:seed": "pnpm i18n && NODE_ENV=development node --env-file-if-exists=.env src/server/db/seed.ts",
     "db:reset": "NODE_ENV=development node --env-file-if-exists=.env src/server/db/reset.ts && pnpm db:migrate && pnpm db:seed",
+    "db:prune": "node --env-file-if-exists=.env src/server/db/prune.ts",
     "db:generate-types": "kysely-codegen --dialect postgres --out-file src/server/db/schema.gen.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "i18n": "paraglide-js compile --project ./project.inlang --silent",
