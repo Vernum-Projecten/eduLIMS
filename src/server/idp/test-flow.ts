@@ -98,7 +98,7 @@ export function testIdOfCallback(
 ): { providerId: string; test: string } | null {
   if (typeof callbackURL !== "string") return null;
   try {
-    const url = new URL(callbackURL, "http://callback.invalid");
+    const url = new URL(callbackURL, "https://callback.invalid");
     const match = TEST_PATH.exec(url.pathname);
     const test = url.searchParams.get("test");
     if (!match?.[1] || !test || !/^[A-Za-z0-9_-]{32}$/.test(test)) return null;

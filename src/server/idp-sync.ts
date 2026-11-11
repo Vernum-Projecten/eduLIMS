@@ -69,7 +69,7 @@ function roleClaims(
 }
 
 function testOutcome(decision: SignInRoles, profile: Record<string, unknown>): TestOutcome {
-  const claimNames = Object.keys(profile).sort();
+  const claimNames = Object.keys(profile).sort((a, b) => a.localeCompare(b, "en"));
   if (decision.kind === "refused") return { outcome: decision.reason, roles: [], claimNames };
   return { outcome: decision.kind, roles: [...decision.roles], claimNames };
 }

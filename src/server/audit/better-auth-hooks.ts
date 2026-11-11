@@ -132,7 +132,7 @@ function oauthError(returned: unknown): string | undefined {
   const location = returned.headers instanceof Headers ? returned.headers.get("location") : null;
   if (!location) return "oauth_callback_failed";
   try {
-    const error = text(new URL(location, "http://callback.invalid").searchParams.get("error"));
+    const error = text(new URL(location, "https://callback.invalid").searchParams.get("error"));
     return error ? normalizeSignInError(error) : undefined;
   } catch {
     return "oauth_callback_failed";

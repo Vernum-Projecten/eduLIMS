@@ -234,6 +234,22 @@ describe("updateProvider", () => {
     });
   });
 
+  it("records no domain change when only the order differs", async () => {
+    const { ctx, database } = await setup();
+    // A collation that ignores punctuation sorts these two the other way round from code points.
+    const domains = ["ab.example.edu", "a-c.example.edu"];
+    await createProvider(ctx, { ...OIDC, settings: { ...SETTINGS, domains } });
+    await updateProvider(ctx, {
+      ...OIDC,
+      settings: { ...SETTINGS, labelEn: "Entra", domains: [...domains].reverse() },
+      oidc: { ...OIDC.oidc, clientSecret: "" },
+    });
+    expect((await auditRows(database)).at(-1)).toMatchObject({
+      action: "idp_updated",
+      metadata: { fields: ["label"] },
+    });
+  });
+
   it("records a secret rotation without its value", async () => {
     const { ctx, database } = await setup();
     await createProvider(ctx, OIDC);

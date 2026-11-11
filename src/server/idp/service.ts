@@ -296,9 +296,11 @@ export async function updateProvider(
       .where("provider_id", "=", providerId)
       .orderBy("domain")
       .execute();
+    // Both sides sorted the same way: PostgreSQL's collation can order domains differently.
+    const byCodePoint = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
     const domainsChanged =
-      JSON.stringify(oldDomains.map((row) => row.domain)) !==
-      JSON.stringify([...settings.domains].sort());
+      JSON.stringify(oldDomains.map((row) => row.domain).sort(byCodePoint)) !==
+      JSON.stringify([...settings.domains].sort(byCodePoint));
     const row = settingsRow(settings);
     const fields = changedSettings(before, row, domainsChanged);
     const extra: ("idp_secret_rotated" | "idp_metadata_refreshed")[] = [];
