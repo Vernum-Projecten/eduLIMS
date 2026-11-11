@@ -1,0 +1,288 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1582" height="1474" viewBox="0 0 1582 1474" font-family="Liberation Sans, Arial, Helvetica, sans-serif" xmlns:c2pa="http://c2pa.org/manifest"><metadata><c2pa:manifest>AAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYToyMzYwNTVhMi0zYjc2LTRiOWUtODgwNy1jMTk2ZmE2MjA2YjMAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaAuPRyWd/tR/H9KtHJykVaQAAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDoyZTE2ZjRmNy03NjJlLTQzODktYjU3OC00M2Y2YmJlNmM5ZWVscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNoRdn4+RE2gEAkUlCcb+aqWgAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFggtCqU2I5renYx38e6x8TEepokY0QFtYfqvumegOC+K2+kZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaHL/Bd/B2cxRqIL1EFepfjAAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRNAAAAAAAAAAAAAAAAAGRoYXNoWCBvk9FGV7jXaqWQyqLzU67GM7UmRB5Nnn0OeNq5/7ej92RuYW1lbmp1bWJmIG1hbmlmZXN0amV4Y2x1c2lvbnOBomVzdGFydBjWZmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOjIzNjA1NWEyLTNiNzYtNGI5ZS04ODA3LWMxOTZmYTYyMDZiMy9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOjZkM2VkNTAyLTY5YTYtNDY1Yy1hYjg5LWNhNmViYTE4ZWVhN3JjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCC0KpTYjmt6djHfx7rHxMR6miRjRAW1h+q+6Z6A4L4rb6JjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFggmTofMrUFnqSQdFQklgKkjiTUo4CIK/7lwTDw3H3xTSuiY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFgg97Lu7Sc8hOT9WJXADW8s7/Wqv6qOjKaqoUnp16/x16B0Y2xhaW1fZ2VuZXJhdG9yX2luZm+jZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj+OPEz5o+nMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1+UCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9+1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQLqd2vn2CS1iQOxOS+y/iaXmwbF7qIs04CsUfEWFniHMNXOxLTuFvB+fCDmcki0KByJA7T8LP0W6M2dzPGGB5fk=</c2pa:manifest></metadata>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="20" y="28" font-size="17" font-weight="bold" fill="#0B2E4F">1. Landschap: eduLIMS in het Novius Architectuur Raamwerk</text>
+<g transform="translate(0,44)">
+<rect x="20.0" y="20.0" width="372.0" height="1390.0" rx="10" fill="#FCE3CB" stroke="#9A9A9A" stroke-width="1"/>
+<text x="30.0" y="39.0" font-size="13" font-weight="bold" fill="#333">Klanten &amp; dienstverlening</text>
+<rect x="28.0" y="60.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="38.0" y="79.0" font-size="13" font-weight="bold" fill="#333">Producten en diensten</text>
+<rect x="40.0" y="90.0" width="160.0" height="56.0" rx="0" fill="#F6A55B" stroke="#4A4A4A" stroke-width="1.1"/>
+<rect x="180.0" y="96.0" width="14" height="10" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M180.0 96.0h7v3h-7z" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="120.0" y="117.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Laboratoriumpracticum</text><text x="120.0" y="131.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">met eduLIMS</text>
+<rect x="28.0" y="446.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="38.0" y="465.0" font-size="13" font-weight="bold" fill="#333">Bedrijfsservices</text>
+<rect x="40.0" y="476.0" width="160.0" height="56.0" rx="28.0" fill="#F6A55B" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="120.0" y="510.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Practica inrichten</text>
+<rect x="212.0" y="476.0" width="160.0" height="56.0" rx="28.0" fill="#F6A55B" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="292.0" y="503.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Monsters registreren en</text><text x="292.0" y="517.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">volgen</text>
+<rect x="40.0" y="544.0" width="160.0" height="56.0" rx="28.0" fill="#F6A55B" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="120.0" y="571.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Metingen uitvoeren en</text><text x="120.0" y="585.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">resultaten ontvangen</text>
+<rect x="212.0" y="544.0" width="160.0" height="56.0" rx="28.0" fill="#F6A55B" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="292.0" y="571.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Labjournaal en verslag</text><text x="292.0" y="585.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">indienen</text>
+<rect x="40.0" y="612.0" width="160.0" height="56.0" rx="28.0" fill="#F6A55B" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="120.0" y="646.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Practica beoordelen</text>
+<rect x="212.0" y="612.0" width="160.0" height="56.0" rx="28.0" fill="#F6A55B" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="292.0" y="639.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Feedback en beoordeling</text><text x="292.0" y="653.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">ontvangen</text>
+<rect x="28.0" y="832.0" width="356.0" height="172.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="38.0" y="851.0" font-size="13" font-weight="bold" fill="#333">Kanalen en media</text>
+<rect x="40.0" y="862.0" width="160.0" height="56.0" rx="0" fill="#F6A55B" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="191.0" cy="873.0" r="4" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M187.0 873.0h-8" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="120.0" y="896.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Studentportaal (web)</text>
+<rect x="212.0" y="862.0" width="160.0" height="56.0" rx="0" fill="#F6A55B" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="363.0" cy="873.0" r="4" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M359.0 873.0h-8" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="292.0" y="896.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Docentportaal (web)</text>
+<rect x="28.0" y="1014.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="38.0" y="1033.0" font-size="13" font-weight="bold" fill="#333">Klanten en partijen</text>
+<rect x="40.0" y="1044.0" width="160.0" height="56.0" rx="0" fill="#F6A55B" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="187.0" cy="1052.0" r="2.6" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M187.0 1054.6v6m-4 -4h8m-4 4l-3.5 4.5m3.5 -4.5l3.5 4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="120.0" y="1078.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Student LifeScience</text>
+<rect x="410.0" y="20.0" width="372.0" height="1390.0" rx="10" fill="#FFF1C2" stroke="#9A9A9A" stroke-width="1"/>
+<text x="420.0" y="39.0" font-size="13" font-weight="bold" fill="#333">Processen &amp; organisatie</text>
+<rect x="418.0" y="60.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="428.0" y="79.0" font-size="13" font-weight="bold" fill="#333">Bedrijfsobjecten</text>
+<rect x="430.0" y="90.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/><path d="M430.0 103.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="510.0" y="127.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Practicumopdracht</text>
+<rect x="602.0" y="90.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/><path d="M602.0 103.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="682.0" y="127.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Meetprotocol</text>
+<rect x="430.0" y="158.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/><path d="M430.0 171.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="510.0" y="195.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Beoordelingsrubric</text>
+<rect x="602.0" y="158.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/><path d="M602.0 171.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="682.0" y="195.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Monster</text>
+<rect x="430.0" y="226.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/><path d="M430.0 239.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="510.0" y="263.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Meetresultaat</text>
+<rect x="602.0" y="226.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/><path d="M602.0 239.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="682.0" y="263.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Labjournaal / verslag</text>
+<rect x="430.0" y="294.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/><path d="M430.0 307.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="510.0" y="324.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Beoordeling (feedback +</text><text x="510.0" y="338.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">cijfer)</text>
+<rect x="418.0" y="446.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="428.0" y="465.0" font-size="13" font-weight="bold" fill="#333">Bedrijfsfuncties en processen</text>
+<rect x="430.0" y="476.0" width="160.0" height="56.0" rx="7" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M571.0 486.0l6 -4l6 4v9l-6 -4l-6 4z" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="510.0" y="510.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Practicumbeheer</text>
+<rect x="602.0" y="476.0" width="160.0" height="56.0" rx="7" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M743.0 486.0l6 -4l6 4v9l-6 -4l-6 4z" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="682.0" y="510.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Practicumuitvoering</text>
+<rect x="430.0" y="544.0" width="160.0" height="56.0" rx="7" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M571.0 554.0l6 -4l6 4v9l-6 -4l-6 4z" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="510.0" y="578.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Beoordeling</text>
+<rect x="602.0" y="544.0" width="160.0" height="56.0" rx="7" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M743.0 554.0l6 -4l6 4v9l-6 -4l-6 4z" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="682.0" y="578.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Laboratoriumbeheer</text>
+<rect x="430.0" y="612.0" width="160.0" height="56.0" rx="7" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M571.0 622.0l6 -4l6 4v9l-6 -4l-6 4z" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="510.0" y="639.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Applicatieontwikkeling</text><text x="510.0" y="653.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">en -beheer</text>
+<rect x="418.0" y="832.0" width="356.0" height="172.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="428.0" y="851.0" font-size="13" font-weight="bold" fill="#333">Besturing</text>
+<rect x="430.0" y="862.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="574.0" cy="873.0" r="4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/><circle cx="580.0" cy="873.0" r="4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="510.0" y="896.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Ontwikkelteam eduLIMS</text>
+<rect x="602.0" y="862.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/><path d="M602.0 875.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="682.0" y="892.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">KPI-overzicht per</text><text x="682.0" y="906.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">practicum</text>
+<rect x="418.0" y="1014.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="428.0" y="1033.0" font-size="13" font-weight="bold" fill="#333">Rollen en organisatie</text>
+<rect x="430.0" y="1044.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="577.0" cy="1052.0" r="2.6" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M577.0 1054.6v6m-4 -4h8m-4 4l-3.5 4.5m3.5 -4.5l3.5 4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="510.0" y="1078.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Docent LifeScience</text>
+<rect x="602.0" y="1044.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="749.0" cy="1052.0" r="2.6" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M749.0 1054.6v6m-4 -4h8m-4 4l-3.5 4.5m3.5 -4.5l3.5 4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="682.0" y="1071.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Lectoraat New Business</text><text x="682.0" y="1085.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">&amp; ICT</text>
+<rect x="430.0" y="1112.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M571.0 1118.0h10a3 4.5 0 0 1 0 9h-10a3 4.5 0 0 1 0 -9z" stroke="#4A4A4A" stroke-width="1" fill="none"/><ellipse cx="571.0" cy="1122.5" rx="3" ry="4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="510.0" y="1146.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Student-analist</text>
+<rect x="602.0" y="1112.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M743.0 1118.0h10a3 4.5 0 0 1 0 9h-10a3 4.5 0 0 1 0 -9z" stroke="#4A4A4A" stroke-width="1" fill="none"/><ellipse cx="743.0" cy="1122.5" rx="3" ry="4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="682.0" y="1146.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Practicumeigenaar</text>
+<rect x="430.0" y="1180.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M571.0 1186.0h10a3 4.5 0 0 1 0 9h-10a3 4.5 0 0 1 0 -9z" stroke="#4A4A4A" stroke-width="1" fill="none"/><ellipse cx="571.0" cy="1190.5" rx="3" ry="4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="510.0" y="1214.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Beoordelaar</text>
+<rect x="602.0" y="1180.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M743.0 1186.0h10a3 4.5 0 0 1 0 9h-10a3 4.5 0 0 1 0 -9z" stroke="#4A4A4A" stroke-width="1" fill="none"/><ellipse cx="743.0" cy="1190.5" rx="3" ry="4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="682.0" y="1214.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Beheerder analysers</text>
+<rect x="430.0" y="1248.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M571.0 1254.0h10a3 4.5 0 0 1 0 9h-10a3 4.5 0 0 1 0 -9z" stroke="#4A4A4A" stroke-width="1" fill="none"/><ellipse cx="571.0" cy="1258.5" rx="3" ry="4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="510.0" y="1275.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Product owner</text><text x="510.0" y="1289.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">(lectoraat)</text>
+<rect x="602.0" y="1248.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M743.0 1254.0h10a3 4.5 0 0 1 0 9h-10a3 4.5 0 0 1 0 -9z" stroke="#4A4A4A" stroke-width="1" fill="none"/><ellipse cx="743.0" cy="1258.5" rx="3" ry="4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="682.0" y="1282.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Ontwikkelaar (student)</text>
+<rect x="430.0" y="1316.0" width="160.0" height="56.0" rx="0" fill="#FFD65C" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M571.0 1322.0h10a3 4.5 0 0 1 0 9h-10a3 4.5 0 0 1 0 -9z" stroke="#4A4A4A" stroke-width="1" fill="none"/><ellipse cx="571.0" cy="1326.5" rx="3" ry="4.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="510.0" y="1343.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Reviewer (begeleidend</text><text x="510.0" y="1357.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">docent)</text>
+<rect x="800.0" y="20.0" width="372.0" height="1390.0" rx="10" fill="#DCEBF6" stroke="#9A9A9A" stroke-width="1"/>
+<text x="810.0" y="39.0" font-size="13" font-weight="bold" fill="#333">Informatie &amp; applicaties</text>
+<rect x="808.0" y="60.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="818.0" y="79.0" font-size="13" font-weight="bold" fill="#333">Data</text>
+<rect x="820.0" y="90.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/><path d="M820.0 103.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="900.0" y="113.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Onderwijsgegevens</text><text x="900.0" y="127.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">(practica, groepen,</text><text x="900.0" y="141.1" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">inzendingen)</text>
+<rect x="992.0" y="90.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/><path d="M992.0 103.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="1072.0" y="127.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Beoordelingsrecord</text>
+<rect x="820.0" y="158.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/><path d="M820.0 171.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="900.0" y="188.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">openEHR-compositie</text><text x="900.0" y="202.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">laboratoriumuitslag</text>
+<rect x="992.0" y="158.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/><path d="M992.0 171.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="1072.0" y="188.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Operationeel template</text><text x="1072.0" y="202.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">eduLIMS-lab (OPT)</text>
+<rect x="820.0" y="226.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/><path d="M820.0 239.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="900.0" y="263.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">HL7 v2 ORU^R01-bericht</text>
+<rect x="992.0" y="226.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/><path d="M992.0 239.0h160.0" stroke="#4A4A4A" stroke-width="1"/>
+
+<text x="1072.0" y="263.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Gen5-export (Excel)</text>
+<rect x="808.0" y="446.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="818.0" y="465.0" font-size="13" font-weight="bold" fill="#333">Applicatieservices en -functies</text>
+<rect x="820.0" y="476.0" width="160.0" height="56.0" rx="28.0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="900.0" y="510.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Practicumbeheer</text>
+<rect x="992.0" y="476.0" width="160.0" height="56.0" rx="28.0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="1072.0" y="510.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Practicumwerkruimte</text>
+<rect x="820.0" y="544.0" width="160.0" height="56.0" rx="28.0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="900.0" y="571.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Monsterregistratie en</text><text x="900.0" y="585.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">ID's</text>
+<rect x="992.0" y="544.0" width="160.0" height="56.0" rx="28.0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="1072.0" y="578.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Meetresultaten inzien</text>
+<rect x="820.0" y="612.0" width="160.0" height="56.0" rx="28.0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="900.0" y="646.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Verslag indienen</text>
+<rect x="992.0" y="612.0" width="160.0" height="56.0" rx="28.0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="1072.0" y="639.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Excel-upload</text><text x="1072.0" y="653.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">meetresultaten</text>
+<rect x="820.0" y="680.0" width="160.0" height="56.0" rx="28.0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="900.0" y="707.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Eigen cijfer en</text><text x="900.0" y="721.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">gemiddelde</text>
+<rect x="992.0" y="680.0" width="160.0" height="56.0" rx="28.0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="1072.0" y="714.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Beoordelen met rubric</text>
+<rect x="820.0" y="748.0" width="160.0" height="56.0" rx="28.0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="900.0" y="775.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">KPI-dashboard (cijfers,</text><text x="900.0" y="789.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">gemiddelden, voortgang)</text>
+<rect x="992.0" y="748.0" width="160.0" height="56.0" rx="28.0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="1072.0" y="775.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Authenticatie (SSO /</text><text x="1072.0" y="789.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">OIDC)</text>
+<rect x="808.0" y="832.0" width="356.0" height="172.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="818.0" y="851.0" font-size="13" font-weight="bold" fill="#333">Applicatie-interfaces</text>
+<rect x="820.0" y="862.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="971.0" cy="873.0" r="4" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M967.0 873.0h-8" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="900.0" y="896.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">eduLIMS REST API</text>
+<rect x="992.0" y="862.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="1143.0" cy="873.0" r="4" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1139.0 873.0h-8" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1072.0" y="889.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">HL7 v2 MLLP-listener</text><text x="1072.0" y="903.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">(TCP)</text>
+<rect x="820.0" y="930.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="971.0" cy="941.0" r="4" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M967.0 941.0h-8" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="900.0" y="957.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">openEHR ITS-REST 1.1 /</text><text x="900.0" y="971.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">AQL</text>
+<rect x="808.0" y="1014.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="818.0" y="1033.0" font-size="13" font-weight="bold" fill="#333">Applicatiecomponenten</text>
+<rect x="820.0" y="1044.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+<rect x="963.0" y="1049.0" width="12" height="11" stroke="#4A4A4A" stroke-width="1" fill="none"/><rect x="960.0" y="1051.0" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/><rect x="960.0" y="1055.4" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/>
+<text x="900.0" y="1078.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">eduLIMS Studentportaal</text>
+<rect x="992.0" y="1044.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+<rect x="1135.0" y="1049.0" width="12" height="11" stroke="#4A4A4A" stroke-width="1" fill="none"/><rect x="1132.0" y="1051.0" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/><rect x="1132.0" y="1055.4" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/>
+<text x="1072.0" y="1078.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">eduLIMS Docentportaal</text>
+<rect x="820.0" y="1112.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+<rect x="963.0" y="1117.0" width="12" height="11" stroke="#4A4A4A" stroke-width="1" fill="none"/><rect x="960.0" y="1119.0" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/><rect x="960.0" y="1123.4" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/>
+<text x="900.0" y="1146.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">eduLIMS Kern (API)</text>
+<rect x="992.0" y="1112.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+<rect x="1135.0" y="1117.0" width="12" height="11" stroke="#4A4A4A" stroke-width="1" fill="none"/><rect x="1132.0" y="1119.0" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/><rect x="1132.0" y="1123.4" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/>
+<text x="1072.0" y="1146.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">SURFconext (Hanze-SSO)</text>
+<rect x="820.0" y="1180.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+<rect x="963.0" y="1185.0" width="12" height="11" stroke="#4A4A4A" stroke-width="1" fill="none"/><rect x="960.0" y="1187.0" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/><rect x="960.0" y="1191.4" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/>
+<text x="900.0" y="1214.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Gen5 3.11 (BioTek)</text>
+<rect x="992.0" y="1180.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+<rect x="1135.0" y="1185.0" width="12" height="11" stroke="#4A4A4A" stroke-width="1" fill="none"/><rect x="1132.0" y="1187.0" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/><rect x="1132.0" y="1191.4" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/>
+<text x="1072.0" y="1214.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">FerroBRIDGE</text>
+<rect x="820.0" y="1248.0" width="160.0" height="56.0" rx="0" fill="#9CC7E6" stroke="#4A4A4A" stroke-width="1.1"/>
+<rect x="963.0" y="1253.0" width="12" height="11" stroke="#4A4A4A" stroke-width="1" fill="none"/><rect x="960.0" y="1255.0" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/><rect x="960.0" y="1259.4" width="6" height="2.6" fill="#fff" stroke="#4A4A4A"/>
+<text x="900.0" y="1282.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">FerroEHR (openEHR CDR)</text>
+<rect x="1190.0" y="20.0" width="372.0" height="1390.0" rx="10" fill="#E2EBDC" stroke="#9A9A9A" stroke-width="1"/>
+<text x="1200.0" y="39.0" font-size="13" font-weight="bold" fill="#333">Technologie</text>
+<rect x="1198.0" y="60.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="1208.0" y="79.0" font-size="13" font-weight="bold" fill="#333">Artefacten en materialen</text>
+<rect x="1210.0" y="90.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1352.0 95.0h7l4 4v9h-11zM1359.0 95.0v4h4" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1290.0" y="117.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">eduLIMS</text><text x="1290.0" y="131.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">container-images</text>
+<rect x="1382.0" y="90.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1524.0 95.0h7l4 4v9h-11zM1531.0 95.0v4h4" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1462.0" y="124.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">FerroBRIDGE image</text>
+<rect x="1210.0" y="158.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1352.0 163.0h7l4 4v9h-11zM1359.0 163.0v4h4" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1290.0" y="185.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">FerroEHR</text><text x="1290.0" y="199.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">container-image</text>
+<rect x="1382.0" y="158.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1524.0 163.0h7l4 4v9h-11zM1531.0 163.0v4h4" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1462.0" y="192.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">docker-compose.yml</text>
+<rect x="1210.0" y="226.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1352.0 231.0h7l4 4v9h-11zM1359.0 231.0v4h4" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1290.0" y="260.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Gen5 3.11-installatie</text>
+<rect x="1382.0" y="226.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1524.0 231.0h7l4 4v9h-11zM1531.0 231.0v4h4" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1462.0" y="260.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">eduLIMS-lab.opt</text>
+<rect x="1210.0" y="294.0" width="160.0" height="56.0" rx="0" fill="#8FB283" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1350.0 305.0l3 -5h7l3 5l-3 5h-7z" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1290.0" y="328.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Microplaat</text>
+<rect x="1382.0" y="294.0" width="160.0" height="56.0" rx="0" fill="#8FB283" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1522.0 305.0l3 -5h7l3 5l-3 5h-7z" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1462.0" y="328.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Afinion-testcartridge</text>
+<rect x="1210.0" y="362.0" width="160.0" height="56.0" rx="0" fill="#8FB283" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1350.0 373.0l3 -5h7l3 5l-3 5h-7z" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1290.0" y="389.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Monster (fysiek,</text><text x="1290.0" y="403.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">gelabeld)</text>
+<rect x="1198.0" y="446.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="1208.0" y="465.0" font-size="13" font-weight="bold" fill="#333">Technologieservices en -functies</text>
+<rect x="1210.0" y="476.0" width="160.0" height="56.0" rx="28.0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="1290.0" y="510.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Containerhosting</text>
+<rect x="1382.0" y="476.0" width="160.0" height="56.0" rx="28.0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="1462.0" y="503.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Database (PostgreSQL</text><text x="1462.0" y="517.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">18)</text>
+<rect x="1198.0" y="832.0" width="356.0" height="172.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="1208.0" y="851.0" font-size="13" font-weight="bold" fill="#333">Technologie-interfaces en netwerken</text>
+<rect x="1210.0" y="862.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1350.0 873.0h14" stroke="#4A4A4A" stroke-width="1" fill="none"/><circle cx="1351.0" cy="873.0" r="1.8" fill="#4A4A4A"/><circle cx="1363.0" cy="873.0" r="1.8" fill="#4A4A4A"/>
+<text x="1290.0" y="896.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Lab-netwerk (Hanze)</text>
+<rect x="1382.0" y="862.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1522.0 873.0h14" stroke="#4A4A4A" stroke-width="1" fill="none"/><circle cx="1523.0" cy="873.0" r="1.8" fill="#4A4A4A"/><circle cx="1535.0" cy="873.0" r="1.8" fill="#4A4A4A"/>
+<text x="1462.0" y="896.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Eigen VNET (Hanze)</text>
+<rect x="1198.0" y="1014.0" width="356.0" height="376.0" rx="10" fill="#F3F3F3" stroke="#9A9A9A" stroke-width="1"/>
+<text x="1208.0" y="1033.0" font-size="13" font-weight="bold" fill="#333">Technologiecomponenten</text>
+<path d="M1210.0 1054.0l10 -10h150.0v46.0l-10 10h-150.0z" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/><path d="M1210.0 1054.0h150.0v46.0h-150.0z M1360.0 1054.0l10 -10" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+
+<text x="1290.0" y="1071.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Linux-VM (Docker</text><text x="1290.0" y="1085.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Compose)</text>
+<rect x="1382.0" y="1044.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="1530.0" cy="1054.0" r="5.5" stroke="#4A4A4A" stroke-width="1" fill="none"/><circle cx="1527.5" cy="1056.0" r="5.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1462.0" y="1078.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Docker Engine + Compose</text>
+<rect x="1210.0" y="1112.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="1358.0" cy="1122.0" r="5.5" stroke="#4A4A4A" stroke-width="1" fill="none"/><circle cx="1355.5" cy="1124.0" r="5.5" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1290.0" y="1146.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">PostgreSQL 18</text>
+<rect x="1382.0" y="1112.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<rect x="1522.0" y="1117.0" width="14" height="8" rx="1.5" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1526.0 1125.0l-2 3h10l-2 -3" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1462.0" y="1146.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Gen5-pc Epoch 2 (#1)</text>
+<rect x="1210.0" y="1180.0" width="160.0" height="56.0" rx="0" fill="#AFC6A1" stroke="#4A4A4A" stroke-width="1.1"/>
+<rect x="1350.0" y="1185.0" width="14" height="8" rx="1.5" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1354.0 1193.0l-2 3h10l-2 -3" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1290.0" y="1214.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Gen5-pc Epoch 2 (#2)</text>
+<rect x="1382.0" y="1180.0" width="160.0" height="56.0" rx="0" fill="#8FB283" stroke="#4A4A4A" stroke-width="1.1"/>
+<path d="M1522.0 1197.0v-11h3v6l4 -3v3l4 -3v8z" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1462.0" y="1207.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Practicumlab</text><text x="1462.0" y="1221.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">LifeScience</text>
+<rect x="1210.0" y="1248.0" width="160.0" height="56.0" rx="0" fill="#8FB283" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="1357.0" cy="1259.0" r="3.4" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1360.4 1259.0L1363.0 1259.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1359.4 1261.4L1361.2 1263.2" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1357.0 1262.4L1357.0 1265.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1354.6 1261.4L1352.8 1263.2" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1353.6 1259.0L1351.0 1259.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1354.6 1256.6L1352.8 1254.8" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1357.0 1255.6L1357.0 1253.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1359.4 1256.6L1361.2 1254.8" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1290.0" y="1282.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">BioTek Epoch 2 (#1)</text>
+<rect x="1382.0" y="1248.0" width="160.0" height="56.0" rx="0" fill="#8FB283" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="1529.0" cy="1259.0" r="3.4" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1532.4 1259.0L1535.0 1259.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1531.4 1261.4L1533.2 1263.2" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1529.0 1262.4L1529.0 1265.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1526.6 1261.4L1524.8 1263.2" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1525.6 1259.0L1523.0 1259.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1526.6 1256.6L1524.8 1254.8" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1529.0 1255.6L1529.0 1253.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1531.4 1256.6L1533.2 1254.8" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1462.0" y="1282.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">BioTek Epoch 2 (#2)</text>
+<rect x="1210.0" y="1316.0" width="160.0" height="56.0" rx="0" fill="#8FB283" stroke="#4A4A4A" stroke-width="1.1"/>
+<circle cx="1357.0" cy="1327.0" r="3.4" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1360.4 1327.0L1363.0 1327.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1359.4 1329.4L1361.2 1331.2" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1357.0 1330.4L1357.0 1333.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1354.6 1329.4L1352.8 1331.2" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1353.6 1327.0L1351.0 1327.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1354.6 1324.6L1352.8 1322.8" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1357.0 1323.6L1357.0 1321.0" stroke="#4A4A4A" stroke-width="1" fill="none"/><path d="M1359.4 1324.6L1361.2 1322.8" stroke="#4A4A4A" stroke-width="1" fill="none"/>
+<text x="1290.0" y="1343.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">Abbott Afinion 2</text><text x="1290.0" y="1357.0" font-size="11.5" font-weight="normal" text-anchor="middle" fill="#1A1A1A">(AF20041391)</text>
+</g></svg>

@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# Git stores text with LF and checks it out with LF on every platform.
+* text=auto eol=lf
+
+# The lockfile is machine-written: no textual diff, collapsed in pull requests.
+pnpm-lock.yaml -diff linguist-generated=true
+
+# TanStack Router writes the route tree; collapse it in diffs and statistics.
+src/routeTree.gen.ts linguist-generated=true
+
+# shadcn/ui components are generated from the registry.
+src/components/ui/** linguist-generated=true
+
+# The ArchiMate model and diagram sources are tool exports.
+docs/architecture/*.xml linguist-generated=true
+*.drawio linguist-generated=true
+
+# Binary assets, never diffed as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.xlsx binary
