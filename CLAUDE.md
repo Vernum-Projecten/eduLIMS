@@ -83,16 +83,20 @@ the npm registry at the moment you add it, never from memory.
 
 ```bash
 pnpm install              # exact lockfile; CI uses --frozen-lockfile
+pnpm dev:db               # PostgreSQL 18 + Keycloak (podman compose, else docker compose) -f compose.dev.yaml up -d --wait
+pnpm dev:db:stop          # stop the dev stack, keep its data (dev:db:logs follows the logs)
 pnpm dev                  # dev server on :3000, regenerates the route tree
 pnpm build && pnpm start  # production SSR build and server
 pnpm typecheck            # tsc --noEmit
 pnpm lint                 # biome check (no write)
 pnpm fix                  # biome check --write
 pnpm format               # biome format --write
-pnpm test                 # vitest run
+pnpm test                 # vitest run (needs the dev stack: database edulims_test)
 pnpm test:coverage        # with the 70% core thresholds
-pnpm test:e2e             # Playwright + axe against the Compose test stack
+pnpm test:e2e             # Playwright + axe (needs the dev stack: database edulims_e2e)
 pnpm db:migrate           # apply Kysely migrations
+pnpm db:seed              # the dev-login users (idempotent)
+pnpm db:reset             # empty the LOCAL dev database, then migrate and seed
 pnpm db:generate-types    # regenerate the Kysely Database types
 pnpm check                # the local gate: typecheck, lint, test
 ```

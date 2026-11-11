@@ -87,6 +87,14 @@ variable without a value stops `docker compose` before any container starts.
 | `EDULIMS_DEV_KEYCLOAK_PORT` | `8180`  | Host port of the development Keycloak.      |
 | `EDULIMS_DEV_FERROEHR_PORT` | `8080`  | Host port of FerroEHR (profile `ferroehr`). |
 
+The test commands read these from the shell, not from `.env`:
+
+| Variable                   | Default                                                  | Meaning                                                            |
+| -------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------ |
+| `TEST_DATABASE_URL`        | `postgres://edulims:edulims@127.0.0.1:5432/edulims_test` | Database of `pnpm test`; its name must end in `_test`.             |
+| `E2E_DATABASE_URL`         | `postgres://edulims:edulims@127.0.0.1:5432/edulims_e2e`  | Database of `pnpm test:e2e`, emptied and seeded before every run.  |
+| `EDULIMS_CONTAINER_ENGINE` | `podman` when installed, else `docker`                   | Container engine of `pnpm dev:db`, `dev:db:stop` and `dev:db:logs`. |
+
 ## Secrets
 
 Generate every secret and database password with `openssl rand -hex 32`. Hex

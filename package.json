@@ -24,7 +24,10 @@
   },
   "scripts": {
     "dev": "vite dev",
-    "dev:db": "mkdir -p .data && pglite-server --db=.data/pglite --port=5432 --max-connections=10",
+    "dev:db": "bash scripts/dev/compose.sh up -d --wait",
+    "dev:db:stop": "bash scripts/dev/compose.sh down",
+    "dev:db:logs": "bash scripts/dev/compose.sh logs -f",
+    "dev:setup": "pnpm dev:db && pnpm db:migrate && pnpm db:seed",
     "build": "vite build",
     "start": "node --env-file-if-exists=.env .output/server/index.mjs",
     "typecheck": "pnpm i18n && tsc --noEmit",
@@ -38,6 +41,7 @@
     "test:e2e:install": "playwright install --with-deps chromium",
     "db:migrate": "node --env-file-if-exists=.env src/server/db/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env src/server/db/seed.ts",
+    "db:reset": "node --env-file-if-exists=.env src/server/db/reset.ts && pnpm db:migrate && pnpm db:seed",
     "db:generate-types": "kysely-codegen --dialect postgres --out-file src/server/db/schema.gen.ts",
     "check": "pnpm typecheck && pnpm lint && pnpm test",
     "i18n": "paraglide-js compile --project ./project.inlang --silent",
@@ -67,8 +71,6 @@
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
     "@biomejs/biome": "2.6.6",
-    "@electric-sql/pglite": "0.5.16",
-    "@electric-sql/pglite-socket": "0.2.19",
     "@inlang/paraglide-js": "3.2.1",
     "@inlang/plugin-message-format": "4.6.0",
     "@playwright/test": "1.65.0",

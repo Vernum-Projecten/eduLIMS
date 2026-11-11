@@ -262,5 +262,9 @@ docker compose up -d --wait
 the same databases, a read-only `edulims_readonly` role for the Postgres MCP
 server, and Keycloak in development mode with the `edulims` realm imported
 from `docker/keycloak/edulims-realm.json` (users `student`, `teacher` and
-`admin`, each with its name as password). FerroEHR is the opt-in
-`ferroehr` profile. The header of `compose.dev.yaml` has the commands.
+`admin`, each with its name as password). It also creates the throwaway
+`edulims_test` and `edulims_e2e` databases that `pnpm test` and
+`pnpm test:e2e` use (`docker/postgres/init/30-edulims-test-databases.sh`).
+FerroEHR is the opt-in `ferroehr` profile. `pnpm dev:db` starts the stack
+with `podman compose`, or `docker compose` without Podman; the header of
+`compose.dev.yaml` has the commands.

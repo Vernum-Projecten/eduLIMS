@@ -166,5 +166,3 @@ test-results/
 /config/
 /backups/
 
-# The local PGlite database of `pnpm dev:db`
-/.data/

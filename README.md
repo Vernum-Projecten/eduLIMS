@@ -89,38 +89,32 @@ is not meant for patient data.
 ## Quick start
 
 You need Node.js 26 LTS (26.13.0) and pnpm 12 (12.18.0), enforced through
-`devEngines` in `package.json` (on macOS: `brew install node pnpm`).
+`devEngines` in `package.json` (on macOS: `brew install node pnpm`), and
+Podman or Docker with Compose for PostgreSQL 18 and Keycloak.
 
 ```sh
 pnpm install
-cp .env.example .env        # then set BETTER_AUTH_SECRET (openssl rand -hex 32) and EDULIMS_DEV_LOGIN=true
-```
-
-Start a database in one of two ways:
-
-```sh
-# With containers: PostgreSQL 18 and Keycloak with the edulims realm
-# (Podman: podman compose -f compose.dev.yaml up -d)
-docker compose -f compose.dev.yaml up -d
-
-# Without containers: an embedded PostgreSQL (PGlite) on port 5432, data in .data/
-# (keep it running in its own terminal; comment out the KEYCLOAK_* lines in
-# .env, since there is no Keycloak)
-pnpm dev:db
-```
-
-Then:
-
-```sh
+cp .env.example .env        # then set BETTER_AUTH_SECRET (openssl rand -hex 32)
+pnpm dev:db                 # PostgreSQL 18 and Keycloak from compose.dev.yaml, waits until healthy
 pnpm db:migrate
 pnpm db:seed                # student@, teacher@ and admin@example.test, password eduLIMS-dev-only
 pnpm dev                    # http://localhost:3000
 ```
 
-Before you open a pull request, run the same gates as CI:
+`pnpm dev:db` runs `podman compose -f compose.dev.yaml up -d --wait`, or the
+same `docker compose` command when Podman is not installed. `pnpm dev:db:stop`
+stops the stack and keeps its data, `pnpm dev:db:logs` follows its logs,
+`pnpm dev:setup` runs `dev:db`, `db:migrate` and `db:seed` in one go, and
+`pnpm db:reset` empties the local development database, then migrates and
+seeds it again.
+
+Before you open a pull request, run the same gates as CI. The tests need the
+dev stack running: `pnpm test` uses its `edulims_test` database and
+`pnpm test:e2e` its `edulims_e2e` database, never your development data.
 
 ```sh
-pnpm check   # typecheck, Biome lint, Vitest
+pnpm check      # typecheck, Biome lint, Vitest
+pnpm test:e2e   # production build, then Playwright with the axe scan
 ```
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the full workflow.

@@ -101,9 +101,12 @@ people. Fixtures are synthetic, so they can be committed.
   `toThrow(ErrorClass)`), never a bare `toBeTruthy` for a value check.
 - Pure core logic (grading, KPIs, the Gen5 parser) is written as plain
   functions without I/O, so it tests without a database.
-- Database tests run against a real PostgreSQL 18 (the Compose service or a
-  disposable container), each in a transaction rolled back after the case.
-  Do not mock Kysely.
+- Database tests run against a real PostgreSQL 18, each in a transaction
+  rolled back after the case: `createTestDb()` (`src/server/db/test-db.ts`)
+  in the test, `destroy()` in `afterEach`. The database is `edulims_test` on
+  the dev stack (`TEST_DATABASE_URL`; a service container in CI), emptied and
+  migrated once per run by the Vitest global setup, never the `edulims`
+  development database. Do not mock Kysely.
 - External HTTP (FerroEHR, FerroBRIDGE health) is stubbed at the HTTP layer
   in unit tests, and exercised for real in the integration level.
 - Component tests use Testing Library queries by role and label.

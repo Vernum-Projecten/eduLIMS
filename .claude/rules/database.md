@@ -76,9 +76,10 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
   migration. Never edit, rename or reorder one that has reached `main`.
 - `down` really reverts `up`; a destructive `down` (dropping a column with
   data) says so in a `// NOTE:`.
-- Run with `pnpm db:migrate` against the Compose database; CI runs the
-  migrations from empty on every PR, so a migration that only works on your
-  local data fails there.
+- Run with `pnpm db:migrate` against the Compose database (`pnpm dev:db`);
+  `pnpm db:reset` empties the local development database and migrates and
+  seeds it again. The test run and CI run the migrations from empty every
+  time, so a migration that only works on your local data fails there.
 - Data migrations that rewrite rows are separate from schema migrations and
   are idempotent.
 
