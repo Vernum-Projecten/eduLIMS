@@ -17,11 +17,15 @@ type Ctx = Parameters<Sync>[1];
 const roleMap = parseRoleMap("edulims-student:student,edulims-teacher:teacher,edulims-admin:admin");
 const claimPaths = { microsoft: "roles", keycloak: "realm_access.roles" };
 
-function setup(defaultRole?: "student") {
+/** The stored role set per user id, as better-auth's adapter returns it. */
+type Stored = Readonly<Record<string, { role: string; roleSource: string }>>;
+
+function setup(defaultRole?: "student", stored: Stored = {}) {
   const updateUser = vi.fn(async () => null);
   const deleteUserSessions = vi.fn(async () => undefined);
+  const findUserById = vi.fn(async (id: string) => stored[id] ?? null);
   const ctx = {
-    context: { internalAdapter: { updateUser, deleteUserSessions } },
+    context: { internalAdapter: { updateUser, deleteUserSessions, findUserById } },
   } as unknown as Ctx;
   const sync = createIdpRoleSync({ claimPaths, roleMap, defaultRole });
   return { sync, ctx, updateUser, deleteUserSessions };
@@ -42,6 +46,7 @@ describe("createIdpRoleSync", () => {
     const data = oauth("create-user", "microsoft", { roles: ["edulims-teacher"] });
     expect(await sync(data, ctx)).toBeUndefined();
     expect(data.user["role"]).toBe("teacher");
+    expect(data.user["roleSource"]).toBe("microsoft");
   });
 
   it("syncs the role of an existing user on every sign-in", async () => {
@@ -56,7 +61,7 @@ describe("createIdpRoleSync", () => {
       },
     );
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(updateUser).toHaveBeenCalledWith("u1", { role: "student" });
+    expect(updateUser).toHaveBeenCalledWith("u1", { role: "student", roleSource: "keycloak" });
   });
 
   it("rejects a sign-in without a mapped role", async () => {
@@ -110,6 +115,7 @@ describe("createIdpRoleSync", () => {
     const data = oauth("create-user", "microsoft", {});
     expect(await sync(data, ctx)).toBeUndefined();
     expect(data.user["role"]).toBe("student");
+    expect(data.user["roleSource"]).toBe("local");
   });
 
   it("writes the whole mapped role set, sorted, onto a new user (ADR 0012)", async () => {
@@ -122,7 +128,9 @@ describe("createIdpRoleSync", () => {
   });
 
   it("syncs a changed role set onto an existing user", async () => {
-    const { sync, ctx, updateUser } = setup();
+    const { sync, ctx, updateUser } = setup(undefined, {
+      u1: { role: "teacher", roleSource: "microsoft" },
+    });
     const data = oauth(
       "sign-in",
       "microsoft",
@@ -130,11 +138,16 @@ describe("createIdpRoleSync", () => {
       { id: "u1", role: "teacher" },
     );
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(updateUser).toHaveBeenCalledWith("u1", { role: "teacher,admin" });
+    expect(updateUser).toHaveBeenCalledWith("u1", {
+      role: "teacher,admin",
+      roleSource: "microsoft",
+    });
   });
 
   it("does not write an unchanged role set", async () => {
-    const { sync, ctx, updateUser } = setup();
+    const { sync, ctx, updateUser } = setup(undefined, {
+      u1: { role: "teacher,admin", roleSource: "microsoft" },
+    });
     const claims = { roles: ["edulims-admin", "edulims-teacher"] };
     const data = oauth("sign-in", "microsoft", claims, { id: "u1", role: "teacher,admin" });
     expect(await sync(data, ctx)).toBeUndefined();
@@ -180,6 +193,63 @@ describe("createIdpRoleSync", () => {
   });
 });
 
+describe("hybrid role ownership (owner decision on #32, B1)", () => {
+  it("keeps the local roles of an existing user when the IdP sends none", async () => {
+    const { sync, ctx, updateUser, deleteUserSessions } = setup(undefined, {
+      u1: { role: "teacher", roleSource: "local" },
+    });
+    const data = oauth("sign-in", "keycloak", { realm_access: { roles: [] } }, { id: "u1" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(updateUser).not.toHaveBeenCalled();
+    expect(deleteUserSessions).not.toHaveBeenCalled();
+  });
+
+  it("refuses a user whose IdP-sourced roles the IdP took away (A07)", async () => {
+    const { sync, ctx, deleteUserSessions } = setup(undefined, {
+      u1: { role: "teacher", roleSource: "keycloak" },
+    });
+    const data = oauth("sign-in", "keycloak", { realm_access: { roles: [] } }, { id: "u1" });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(deleteUserSessions).toHaveBeenCalledWith("u1");
+  });
+
+  it("lets a mapped IdP role overwrite a local role set and take over its source", async () => {
+    const { sync, ctx, updateUser } = setup(undefined, {
+      u1: { role: "teacher", roleSource: "local" },
+    });
+    const data = oauth("sign-in", "microsoft", { roles: ["edulims-admin"] }, { id: "u1" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(updateUser).toHaveBeenCalledWith("u1", { role: "admin", roleSource: "microsoft" });
+  });
+
+  it("moves an unchanged set to the IdP as its source", async () => {
+    const { sync, ctx, updateUser } = setup(undefined, {
+      u1: { role: "teacher", roleSource: "local" },
+    });
+    const data = oauth("sign-in", "microsoft", { roles: ["edulims-teacher"] }, { id: "u1" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(updateUser).toHaveBeenCalledWith("u1", { role: "teacher", roleSource: "microsoft" });
+  });
+
+  it("gives an existing user without a local role the default role as a local set", async () => {
+    const { sync, ctx, updateUser } = setup("student", {
+      u1: { role: "teacher", roleSource: "keycloak" },
+    });
+    const data = oauth("sign-in", "keycloak", { realm_access: { roles: [] } }, { id: "u1" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(updateUser).toHaveBeenCalledWith("u1", { role: "student", roleSource: "local" });
+  });
+
+  it("still refuses a conflicting IdP set when the user holds local roles", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { sync, ctx } = setup(undefined, { u1: { role: "teacher", roleSource: "local" } });
+    const claims = { roles: ["edulims-student", "edulims-teacher"] };
+    const data = oauth("sign-in", "microsoft", claims, { id: "u1" });
+    expect(await sync(data, ctx)).toMatchObject({ error: ROLE_CONFLICT_ERROR });
+    vi.restoreAllMocks();
+  });
+});
+
 describe("the activity log of the IdP role sync (B4)", () => {
   let db: Kysely<DB> | undefined;
 
@@ -189,7 +259,7 @@ describe("the activity log of the IdP role sync (B4)", () => {
     db = undefined;
   });
 
-  async function audited() {
+  async function audited(stored: Stored = {}) {
     const database = await createTestDb();
     db = database;
     const ctx = {
@@ -197,6 +267,7 @@ describe("the activity log of the IdP role sync (B4)", () => {
         internalAdapter: {
           updateUser: vi.fn(async () => null),
           deleteUserSessions: vi.fn(async () => undefined),
+          findUserById: vi.fn(async (id: string) => stored[id] ?? null),
         },
         edulimsAudit: new AuditRecorder(database),
       },
@@ -245,7 +316,7 @@ describe("the activity log of the IdP role sync (B4)", () => {
   });
 
   it("records a role change the IdP made, with the old and the new set", async () => {
-    const { sync, ctx, rows } = await audited();
+    const { sync, ctx, rows } = await audited({ u3: { role: "student", roleSource: "microsoft" } });
     const user = { id: "u3", role: "student" };
     await sync(oauth("sign-in", "microsoft", { roles: ["edulims-teacher"] }, user), ctx);
     expect(await rows()).toEqual([
@@ -260,7 +331,7 @@ describe("the activity log of the IdP role sync (B4)", () => {
   });
 
   it("records nothing when the role is unchanged", async () => {
-    const { sync, ctx, rows } = await audited();
+    const { sync, ctx, rows } = await audited({ u4: { role: "teacher", roleSource: "microsoft" } });
     const user = { id: "u4", role: "teacher" };
     await sync(oauth("sign-in", "microsoft", { roles: ["edulims-teacher"] }, user), ctx);
     expect(await rows()).toEqual([]);

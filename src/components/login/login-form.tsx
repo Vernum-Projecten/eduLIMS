@@ -3,7 +3,7 @@
 
 import { useForm } from "@tanstack/react-form";
 import { useRouter } from "@tanstack/react-router";
-import { KeyRoundIcon, LogInIcon } from "lucide-react";
+import { HistoryIcon, KeyRoundIcon, LogInIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { z } from "zod";
 import { DemoAccountsPanel } from "@/components/login/demo-accounts";
@@ -14,6 +14,7 @@ import { m } from "@/i18n/messages";
 import { authClient } from "@/lib/auth-client";
 import { providerLabel, rolesLabel } from "@/lib/i18n/labels";
 import { cookieLocaleDiffersFromDocument } from "@/lib/i18n/locale";
+import { signInMethodLabel } from "@/lib/i18n/user-labels";
 import {
   ACCOUNT_NOT_LINKED_ERROR,
   type IdentityProviderId,
@@ -21,6 +22,7 @@ import {
   NO_ROLE_ERROR,
   ROLE_CONFLICT_ERROR,
 } from "@/lib/identity-providers";
+import type { SignInMethod } from "@/lib/sign-in-method";
 import type { DemoAccount, DemoAccounts } from "@/server/demo-accounts";
 
 /**
@@ -34,12 +36,15 @@ export function LoginForm({
   demoAccounts,
   redirectTo,
   error,
+  lastSignInMethod,
 }: Readonly<{
   providers: readonly IdentityProviderOption[];
   devLogin: boolean;
   demoAccounts: DemoAccounts | null;
   redirectTo: string | undefined;
   error: string | undefined;
+  /** The method this browser signed in with last time, when the page still offers it (#34). */
+  lastSignInMethod: SignInMethod | null;
 }>) {
   return (
     <div className="flex flex-col gap-6">
@@ -51,6 +56,12 @@ export function LoginForm({
         {error && (
           <p role="alert" className="text-sm text-destructive">
             {loginErrorMessage(error)}
+          </p>
+        )}
+        {lastSignInMethod && (
+          <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+            <HistoryIcon aria-hidden="true" className="size-4 shrink-0" />
+            {m.login_last_method({ method: lastMethodName(lastSignInMethod, providers) })}
           </p>
         )}
         {providers.map((provider) => (
@@ -75,12 +86,25 @@ export function LoginForm({
   );
 }
 
+/** better-auth's error code for a sign-in of a blocked user (admin plugin, 1.7.18). */
+const BLOCKED_ERROR = "BANNED_USER";
+
 /** Returns the translated message for an identity provider's error code on `/login`. */
 function loginErrorMessage(error: string): string {
   if (error === NO_ROLE_ERROR) return m.login_error_no_role();
   if (error === ROLE_CONFLICT_ERROR) return m.login_error_role_conflict();
   if (error === ACCOUNT_NOT_LINKED_ERROR) return m.login_error_account_not_linked();
+  if (error === BLOCKED_ERROR) return m.login_error_blocked();
   return m.login_error_failed();
+}
+
+/** Returns the name the hint gives a sign-in method: the operator's Keycloak label if set. */
+function lastMethodName(
+  method: SignInMethod,
+  providers: readonly IdentityProviderOption[],
+): string {
+  const label = providers.find((provider) => provider.id === method)?.label;
+  return label ?? signInMethodLabel(method);
 }
 
 function ProviderLoginButton({
@@ -128,7 +152,7 @@ function DevLoginForm({ demoAccounts }: Readonly<{ demoAccounts: DemoAccounts | 
       setFormError(null);
       const { error } = await authClient.signIn.email(value);
       if (error) {
-        setFormError(m.dev_login_failed());
+        setFormError(error.code === BLOCKED_ERROR ? m.login_error_blocked() : m.dev_login_failed());
         return;
       }
       // The sign-in set the cookie from the user's saved language: render the next page in it.

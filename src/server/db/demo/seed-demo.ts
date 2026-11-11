@@ -31,11 +31,28 @@ export function planDemoData(now: Date) {
   return { people, activity: planDemoActivity(random, now, people) };
 }
 
+/** Returns each user's latest planned session: the last sign-in the Users screen shows. */
+function lastSignIns(people: DemoPeople) {
+  const latest = new Map<string, { at: Date; provider: string }>();
+  for (const session of people.sessions) {
+    const known = latest.get(session.userId);
+    if (!known || known.at < session.createdAt) {
+      latest.set(session.userId, { at: session.createdAt, provider: session.provider });
+    }
+  }
+  return latest;
+}
+
 async function insertPeople(trx: Kysely<DB>, people: DemoPeople): Promise<void> {
+  const signIns = lastSignIns(people);
   await trx
     .insertInto("user")
     .values(
       people.users.map((user) => ({
+        // The demo people sign in through an IdP that sends their roles (hybrid ownership, #32).
+        role_source: user.provider,
+        last_sign_in_at: signIns.get(user.id)?.at ?? null,
+        last_login_method: signIns.get(user.id)?.provider ?? null,
         id: user.id,
         name: user.name,
         email: user.email,

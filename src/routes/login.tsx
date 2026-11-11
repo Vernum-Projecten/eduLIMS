@@ -31,7 +31,7 @@ export const Route = createFileRoute("/login")({
 
 /** The login page, from the login-02 block: the form on one side, the brand panel on the other. */
 function LoginPage() {
-  const { providers, devLogin, demoAccounts } = Route.useLoaderData();
+  const { providers, devLogin, demoAccounts, lastSignInMethod } = Route.useLoaderData();
   const search = Route.useSearch();
 
   return (
@@ -52,6 +52,7 @@ function LoginPage() {
               providers={providers}
               devLogin={devLogin}
               demoAccounts={demoAccounts}
+              lastSignInMethod={lastSignInMethod}
               redirectTo={search.redirect}
               error={search.error}
             />

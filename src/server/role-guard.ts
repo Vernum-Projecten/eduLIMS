@@ -63,8 +63,8 @@ function field(value: unknown, key: string): unknown {
  * Returns whether a request to `path` with `body` writes the roles of the signed-in user
  * `sessionUserId`: `set-role`, or `update-user` with `data.role`, on their own user id.
  *
- * NOTE: A01; until the owner decides who owns role assignment (ADR 0010), nobody changes their
- * own roles, so an administrator cannot give their own account teacher access.
+ * NOTE: A01 and the owner decision on #32; nobody changes their own roles, so an administrator
+ * cannot give their own account teacher access.
  */
 export function isOwnRoleWrite(
   path: string,

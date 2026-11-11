@@ -35,6 +35,7 @@ import { Route as AuthedTeacherKpiDashboardRouteImport } from './routes/_authed/
 import { Route as AuthedTeacherPracticalsRouteImport } from './routes/_authed/teacher/practicals'
 import { Route as AuthedTeacherResultsRouteImport } from './routes/_authed/teacher/results'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AuthedAdminUsersUserIdRouteImport } from './routes/_authed/admin/users/$userId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -167,6 +168,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedAdminUsersUserIdRoute = AuthedAdminUsersUserIdRouteImport.update({
+  id: '/$userId',
+  path: '/$userId',
+  getParentRoute: () => AuthedAdminUsersRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -179,7 +185,7 @@ export interface FileRoutesByFullPath {
   '/admin/activity': typeof AuthedAdminActivityRoute
   '/admin/classes': typeof AuthedAdminClassesRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
-  '/admin/users': typeof AuthedAdminUsersRoute
+  '/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/student/grades': typeof AuthedStudentGradesRoute
   '/student/practicals': typeof AuthedStudentPracticalsRoute
   '/student/results': typeof AuthedStudentResultsRoute
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthedAdminIndexRoute
   '/student/': typeof AuthedStudentIndexRoute
   '/teacher/': typeof AuthedTeacherIndexRoute
+  '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -203,7 +210,7 @@ export interface FileRoutesByTo {
   '/admin/activity': typeof AuthedAdminActivityRoute
   '/admin/classes': typeof AuthedAdminClassesRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
-  '/admin/users': typeof AuthedAdminUsersRoute
+  '/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/student/grades': typeof AuthedStudentGradesRoute
   '/student/practicals': typeof AuthedStudentPracticalsRoute
   '/student/results': typeof AuthedStudentResultsRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthedAdminIndexRoute
   '/student': typeof AuthedStudentIndexRoute
   '/teacher': typeof AuthedTeacherIndexRoute
+  '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -232,7 +240,7 @@ export interface FileRoutesById {
   '/_authed/admin/activity': typeof AuthedAdminActivityRoute
   '/_authed/admin/classes': typeof AuthedAdminClassesRoute
   '/_authed/admin/integrations': typeof AuthedAdminIntegrationsRoute
-  '/_authed/admin/users': typeof AuthedAdminUsersRoute
+  '/_authed/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/_authed/student/grades': typeof AuthedStudentGradesRoute
   '/_authed/student/practicals': typeof AuthedStudentPracticalsRoute
   '/_authed/student/results': typeof AuthedStudentResultsRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/student/': typeof AuthedStudentIndexRoute
   '/_authed/teacher/': typeof AuthedTeacherIndexRoute
+  '/_authed/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -276,6 +285,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/student/'
     | '/teacher/'
+    | '/admin/users/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -300,6 +310,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/student'
     | '/teacher'
+    | '/admin/users/$userId'
   id:
     | '__root__'
     | '/'
@@ -328,6 +339,7 @@ export interface FileRouteTypes {
     | '/_authed/admin/'
     | '/_authed/student/'
     | '/_authed/teacher/'
+    | '/_authed/admin/users/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -523,14 +535,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/admin/users/$userId': {
+      id: '/_authed/admin/users/$userId'
+      path: '/$userId'
+      fullPath: '/admin/users/$userId'
+      preLoaderRoute: typeof AuthedAdminUsersUserIdRouteImport
+      parentRoute: typeof AuthedAdminUsersRoute
+    }
   }
 }
+
+interface AuthedAdminUsersRouteChildren {
+  AuthedAdminUsersUserIdRoute: typeof AuthedAdminUsersUserIdRoute
+}
+
+const AuthedAdminUsersRouteChildren: AuthedAdminUsersRouteChildren = {
+  AuthedAdminUsersUserIdRoute: AuthedAdminUsersUserIdRoute,
+}
+
+const AuthedAdminUsersRouteWithChildren =
+  AuthedAdminUsersRoute._addFileChildren(AuthedAdminUsersRouteChildren)
 
 interface AuthedAdminRouteChildren {
   AuthedAdminActivityRoute: typeof AuthedAdminActivityRoute
   AuthedAdminClassesRoute: typeof AuthedAdminClassesRoute
   AuthedAdminIntegrationsRoute: typeof AuthedAdminIntegrationsRoute
-  AuthedAdminUsersRoute: typeof AuthedAdminUsersRoute
+  AuthedAdminUsersRoute: typeof AuthedAdminUsersRouteWithChildren
   AuthedAdminIndexRoute: typeof AuthedAdminIndexRoute
 }
 
@@ -538,7 +568,7 @@ const AuthedAdminRouteChildren: AuthedAdminRouteChildren = {
   AuthedAdminActivityRoute: AuthedAdminActivityRoute,
   AuthedAdminClassesRoute: AuthedAdminClassesRoute,
   AuthedAdminIntegrationsRoute: AuthedAdminIntegrationsRoute,
-  AuthedAdminUsersRoute: AuthedAdminUsersRoute,
+  AuthedAdminUsersRoute: AuthedAdminUsersRouteWithChildren,
   AuthedAdminIndexRoute: AuthedAdminIndexRoute,
 }
 

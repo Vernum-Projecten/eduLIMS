@@ -75,10 +75,13 @@ export interface User {
   emailVerified: boolean;
   id: string;
   image: string | null;
+  last_login_method: string | null;
   last_portal: string | null;
+  last_sign_in_at: Timestamp | null;
   locale: string | null;
   name: string;
   role: string | null;
+  role_source: Generated<string>;
   updatedAt: Generated<Timestamp>;
 }
 

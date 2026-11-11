@@ -1,0 +1,344 @@
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+
+// The Users and roles screen and the user detail sheet (#34, B1).
+import { readFileSync } from "node:fs";
+import { type Browser, expect, type Page, test } from "@playwright/test";
+import { devLogin, expectNoA11yViolations } from "./fixtures";
+
+const nl: Readonly<Record<string, string>> = JSON.parse(
+  readFileSync(new URL("../../messages/nl.json", import.meta.url), "utf8"),
+);
+
+function dutch(key: string): string {
+  const message = nl[key];
+  if (message === undefined) throw new Error(`messages/nl.json has no "${key}"`);
+  return message;
+}
+
+const ADMIN = "admin@example.test";
+
+/** Runs the axe scan once every animation (a sheet, a dialog, a toast) has finished. */
+async function axe(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  );
+  await expectNoA11yViolations(page);
+}
+
+async function signInAsAdmin(page: Page): Promise<void> {
+  await devLogin(page, ADMIN);
+  await expect(page).toHaveURL(/\/admin$/);
+}
+
+function usersTable(page: Page) {
+  return page.getByRole("table");
+}
+
+/** Opens the detail sheet of the seeded user `name` through a search. */
+async function openUser(page: Page, name: string) {
+  await page.goto(`/admin/users?q=${encodeURIComponent(name)}`);
+  await usersTable(page).getByRole("link", { name }).click();
+  const sheet = page.getByRole("dialog", { name });
+  await expect(sheet).toBeVisible();
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+  return sheet;
+}
+
+/** Signs `email` in, in a browser context of its own, and returns that page. */
+async function signedInElsewhere(browser: Browser, email: string): Promise<Page> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await devLogin(page, email);
+  await expect(page).not.toHaveURL(/\/login/);
+  return page;
+}
+
+test("the users table lists, searches, filters, sorts and pages on the server (B1)", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  const started = Date.now();
+  await page.goto("/admin/users");
+  await expect(page.getByRole("heading", { level: 1, name: "Users and roles" })).toBeVisible();
+  await expect(usersTable(page).getByRole("row").nth(1)).toBeVisible();
+  // NOTE: Q-PERF-1, a page loads within 2 seconds; the seeded set has 80 users.
+  expect(Date.now() - started).toBeLessThan(2000);
+  await expect(page).toHaveTitle("Users and roles | Admin portal | eduLIMS");
+  for (const name of ["Name", "Roles", "Sign-in methods", "Status", "Last sign-in"]) {
+    await expect(page.getByRole("columnheader", { name: new RegExp(`^${name}`) })).toBeVisible();
+  }
+  await expect(page.getByRole("columnheader", { name: /^Name/ })).toHaveAttribute(
+    "aria-sort",
+    "ascending",
+  );
+  await expect(page.getByText(/^Showing 1 to 25 of \d+ users$/)).toBeVisible();
+  await axe(page);
+
+  await page.getByLabel("Search by name or email address").fill("teacher-admin@example");
+  await page.getByRole("button", { name: "Search" }).click();
+  await expect(page).toHaveURL(/q=teacher-admin%40example/);
+  await expect(
+    usersTable(page).getByRole("link", { name: "Test Coordinator", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Users found" })).toHaveText(
+    "Users found: 1.",
+  );
+
+  await page.getByRole("button", { name: "Clear search and filters" }).click();
+  await page.getByLabel("Status", { exact: true }).selectOption("blocked");
+  await expect(page).toHaveURL(/status=blocked/);
+  const rows = usersTable(page).locator("tbody tr");
+  await expect(rows.first()).toBeVisible();
+  for (const row of await rows.all()) await expect(row).toContainText("Blocked");
+
+  await page.getByLabel("Role", { exact: true }).selectOption("teacher");
+  await expect(page).toHaveURL(/role=teacher/);
+  await expect(page.getByRole("heading", { level: 2, name: "No users match" })).toBeVisible();
+  await axe(page);
+
+  await page.goto("/admin/users?provider=keycloak");
+  await page.getByRole("link", { name: "Name: sort in descending order" }).click();
+  await expect(page).toHaveURL(/dir=desc/);
+  await expect(page.getByRole("columnheader", { name: /^Name/ })).toHaveAttribute(
+    "aria-sort",
+    "descending",
+  );
+  for (const row of await rows.all()) await expect(row).toContainText("Keycloak");
+
+  await page.goto("/admin/users?size=10");
+  await page.getByRole("link", { name: "Next page" }).click();
+  await expect(page).toHaveURL(/page=2/);
+  await expect(page.getByText(/^Showing 11 to 20 of \d+ users$/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/^Showing 11 to 20 of \d+ users$/)).toBeVisible();
+});
+
+test("an administrator ends one session and all sessions of a user", async ({ page, browser }) => {
+  const first = await signedInElsewhere(browser, "sessions@example.test");
+  const second = await signedInElsewhere(browser, "sessions@example.test");
+  await signInAsAdmin(page);
+  const sheet = await openUser(page, "Sessions Test Teacher");
+  await expect(page).toHaveURL(/\/admin\/users\/[^/?]+\?q=/);
+  const sessions = sheet.getByRole("region", { name: "Active sessions" });
+  await expect(sessions.getByRole("listitem")).toHaveCount(2);
+  await axe(page);
+
+  await sessions
+    .getByRole("button", { name: /^End session/ })
+    .first()
+    .click();
+  const confirm = page.getByRole("alertdialog", { name: "End this session?" });
+  await expect(confirm).toBeVisible();
+  await axe(page);
+  await confirm.getByRole("button", { name: "End session" }).click();
+  await expect(page.getByText("The session has ended.")).toBeVisible();
+  await expect(sessions.getByRole("listitem")).toHaveCount(1);
+
+  await sessions.getByRole("button", { name: "End all sessions" }).click();
+  await page
+    .getByRole("alertdialog", { name: "End all sessions" })
+    .getByRole("button", { name: "End all sessions" })
+    .click();
+  await expect(page.getByText("All sessions of Sessions Test Teacher have ended.")).toBeVisible();
+  await expect(sheet.getByText("No active sessions.")).toBeVisible();
+
+  for (const other of [first, second]) {
+    await other.reload();
+    await expect(other).toHaveURL(/\/login/);
+    await other.context().close();
+  }
+});
+
+test("an administrator blocks a user with a reason and an end date, and unblocks them", async ({
+  page,
+  browser,
+}) => {
+  await signInAsAdmin(page);
+  const sheet = await openUser(page, "Blocked Test Student");
+  await sheet.getByRole("button", { name: "Block user" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Block Blocked Test Student?" });
+  await expect(dialog).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Block", exact: true }).click();
+  await expect(dialog.getByText("Enter the reason for the block.")).toBeVisible();
+  await expect(dialog.getByLabel("Reason")).toHaveAttribute("aria-invalid", "true");
+
+  await dialog.getByLabel("Reason").fill("Account shared with another person");
+  await dialog.getByLabel("Last day of the block").click();
+  const calendar = page.getByRole("grid");
+  await expect(calendar).toBeVisible();
+  await axe(page);
+  await page.getByRole("button", { name: "Go to the Next Month" }).click();
+  await calendar.getByRole("button", { name: /15/ }).first().click();
+  await expect(dialog.getByLabel("Last day of the block")).not.toHaveText("No end date");
+  await axe(page);
+  await dialog.getByRole("button", { name: "Block", exact: true }).click();
+  await expect(page.getByText("Blocked Test Student is blocked.")).toBeVisible();
+  await expect(sheet.getByText(/^Blocked until /).first()).toBeVisible();
+  await expect(sheet.getByText("Account shared with another person")).toBeVisible();
+
+  const other = await (await browser.newContext()).newPage();
+  await devLogin(other, "blocked@example.test");
+  await expect(other.getByRole("alert")).toHaveText(
+    "Your account is blocked. Contact an administrator.",
+  );
+  await expect(other).toHaveURL(/\/login/);
+
+  await sheet.getByRole("button", { name: "Unblock" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Unblock Blocked Test Student?" })
+    .getByRole("button", { name: "Unblock" })
+    .click();
+  await expect(page.getByText("Blocked Test Student is unblocked.")).toBeVisible();
+  await devLogin(other, "blocked@example.test");
+  await expect(other).toHaveURL(/\/student$/);
+  await other.context().close();
+});
+
+test("an administrator changes a local role set after confirming it (owner decision on #32)", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  const sheet = await openUser(page, "Roles Test Teacher");
+  const roles = sheet.getByRole("region", { name: "Roles" });
+  await expect(roles.getByText("From eduLIMS")).toBeVisible();
+  const editor = roles.getByRole("group", { name: "Change roles" });
+  await expect(editor.getByLabel("Teacher")).toBeChecked();
+
+  await editor.getByLabel("Student").check();
+  await expect(editor.getByLabel("Teacher")).not.toBeChecked();
+  await editor.getByLabel("Teacher").check();
+  await expect(editor.getByLabel("Student")).not.toBeChecked();
+  await editor.getByLabel("Administrator").check();
+  await roles.getByRole("button", { name: "Save roles" }).click();
+  const confirm = page.getByRole("alertdialog", {
+    name: "Change the roles of Roles Test Teacher?",
+  });
+  await expect(confirm).toContainText("Teacher · Administrator");
+  await confirm.getByRole("button", { name: "Save roles" }).click();
+  await expect(page.getByText("The roles of Roles Test Teacher are saved.")).toBeVisible();
+  await expect(
+    sheet.getByRole("region", { name: "Recent activity" }).getByText("Roles changed").first(),
+  ).toBeVisible();
+  await expect(roles.getByRole("list").getByText("Administrator")).toBeVisible();
+});
+
+test("roles from an identity provider and the administrator's own roles cannot be edited", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/users?provider=keycloak");
+  await usersTable(page).locator("tbody tr").first().getByRole("link").click();
+  const sheet = page.getByRole("dialog");
+  await expect(
+    sheet.getByText(/manages these roles and sets them again at every sign-in/),
+  ).toBeVisible();
+  await expect(sheet.getByRole("group", { name: "Change roles" })).toHaveCount(0);
+  await expect(sheet.getByText(/^From (Keycloak|Microsoft Entra ID)$/)).toBeVisible();
+
+  const own = await openUser(page, "Test Administrator");
+  await expect(
+    own.getByText("You cannot change your own roles. Ask another administrator."),
+  ).toBeVisible();
+  await expect(own.getByRole("group", { name: "Change roles" })).toHaveCount(0);
+  await expect(own.getByText("You cannot block your own account.")).toBeVisible();
+  await expect(own.getByRole("button", { name: "Block user" })).toHaveCount(0);
+  await expect(own.getByText("This session")).toBeVisible();
+  await axe(page);
+});
+
+test("the user sheet is deep-linkable and works with the keyboard alone", async ({ page }) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/users");
+  const search = page.getByLabel("Search by name or email address");
+  await search.focus();
+  await page.keyboard.type("Test Teacher");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/q=Test/);
+  const link = usersTable(page).getByRole("link", { name: "Test Teacher", exact: true });
+  await link.focus();
+  await page.keyboard.press("Enter");
+  const sheet = page.getByRole("dialog", { name: "Test Teacher" });
+  await expect(sheet).toBeVisible();
+  await expect(page).toHaveTitle("Test Teacher | Users and roles | Admin portal | eduLIMS");
+  const url = page.url();
+
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+  await expect(page).toHaveURL(/\/admin\/users\?q=/);
+  await expect(link).toBeFocused();
+
+  await page.goto(url);
+  await expect(page.getByRole("dialog", { name: "Test Teacher" })).toBeVisible();
+  await page.goto("/admin/users/does-not-exist");
+  await expect(page.getByRole("dialog", { name: "User not found" })).toBeVisible();
+});
+
+for (const email of ["student@example.test", "teacher@example.test"]) {
+  test(`${email.split("@")[0]} cannot reach the users screen (A01)`, async ({ page }) => {
+    await devLogin(page, email);
+    await expect(page).not.toHaveURL(/\/login/);
+    await page.goto("/admin/users");
+    await expect(page).not.toHaveURL(/\/admin/);
+    await expect(page.getByRole("heading", { level: 1, name: "Users and roles" })).toHaveCount(0);
+  });
+}
+
+test("the login page says how this browser signed in last time", async ({ page }) => {
+  await devLogin(page, "teacher@example.test");
+  await expect(page).toHaveURL(/\/teacher$/);
+  await page.context().clearCookies({ name: /better-auth/ });
+  await page.goto("/login");
+  await expect(page.getByText("Last time you signed in with Test account.")).toBeVisible();
+  await axe(page);
+});
+
+test.describe("in the dark theme and in Dutch", () => {
+  test("the list, the sheet and the block dialog are translated and axe-clean", async ({
+    page,
+    context,
+  }) => {
+    await signInAsAdmin(page);
+    await context.addCookies([
+      { name: "EDULIMS_THEME", value: "dark", url: "http://localhost:3100" },
+      { name: "EDULIMS_LOCALE", value: "nl", url: "http://localhost:3100" },
+    ]);
+    await page.goto("/admin/users?q=Test%20Student");
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "nl");
+    await expect(page.getByRole("columnheader", { name: /^Naam/ })).toBeVisible();
+    await axe(page);
+
+    await usersTable(page).getByRole("link", { name: "Test Student", exact: true }).click();
+    const sheet = page.getByRole("dialog", { name: "Test Student" });
+    await expect(
+      sheet.getByRole("heading", { name: dutch("admin_users_section_profile") }),
+    ).toBeVisible();
+    await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    await axe(page);
+
+    await sheet.getByRole("button", { name: dutch("admin_users_block") }).click();
+    await expect(page.getByRole("alertdialog")).toBeVisible();
+    await axe(page);
+  });
+});
+
+test.describe("at 320 CSS px wide (WCAG 1.4.10)", () => {
+  test.use({ viewport: { width: 320, height: 640 } });
+
+  test("the users page and the sheet reflow without horizontal page scrolling", async ({
+    page,
+  }) => {
+    await signInAsAdmin(page);
+    await page.goto("/admin/users");
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(320);
+    await usersTable(page).locator("tbody tr").first().getByRole("link").click();
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+    const sheetWidth = await sheet.evaluate((el) => el.scrollWidth);
+    expect(sheetWidth).toBeLessThanOrEqual(320);
+  });
+});

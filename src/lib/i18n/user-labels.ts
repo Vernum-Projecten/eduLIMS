@@ -1,0 +1,138 @@
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+
+// Display names for the values the Users screen (#34) shows: role sources, sign-in methods,
+// statuses, activity-log codes and the refusals of the admin actions.
+import { m } from "@/i18n/messages";
+import { getLocale } from "@/i18n/runtime";
+import type { RoleSource } from "@/lib/role-source";
+import type { SignInMethod } from "@/lib/sign-in-method";
+
+/** Returns where a role set comes from: Microsoft Entra ID, Keycloak, or eduLIMS itself. */
+export function roleSourceLabel(source: RoleSource | null): string {
+  switch (source) {
+    case "microsoft":
+      return m.sign_in_method_microsoft();
+    case "keycloak":
+      return m.sign_in_method_keycloak();
+    case "local":
+      return m.role_source_local();
+    case null:
+      return m.role_source_unknown();
+    default: {
+      const unknown: never = source;
+      return unknown;
+    }
+  }
+}
+
+/** Returns the name of a sign-in method. */
+export function signInMethodLabel(method: SignInMethod): string {
+  switch (method) {
+    case "microsoft":
+      return m.sign_in_method_microsoft();
+    case "keycloak":
+      return m.sign_in_method_keycloak();
+    case "credential":
+      return m.sign_in_method_credential();
+    default: {
+      const unknown: never = method;
+      return unknown;
+    }
+  }
+}
+
+/** The user statuses the table shows. */
+export type UserStatusValue = "active" | "blocked" | "never";
+
+/** Returns the name of a user status. */
+export function userStatusLabel(status: UserStatusValue): string {
+  switch (status) {
+    case "active":
+      return m.admin_users_status_active();
+    case "blocked":
+      return m.admin_users_status_blocked();
+    case "never":
+      return m.admin_users_status_never();
+    default: {
+      const unknown: never = status;
+      return unknown;
+    }
+  }
+}
+
+const ACTION_LABELS: Readonly<Record<string, () => string>> = {
+  authn_login_success: m.audit_action_login_success,
+  authn_login_fail: m.audit_action_login_fail,
+  authn_logout: m.audit_action_logout,
+  authz_role_change: m.audit_action_role_change,
+  session_revoked: m.audit_action_session_revoked,
+  session_expired: m.audit_action_session_expired,
+  user_created: m.audit_action_user_created,
+  user_deleted: m.audit_action_user_deleted,
+  user_banned: m.audit_action_user_banned,
+  user_unbanned: m.audit_action_user_unbanned,
+};
+
+/** Returns the name of an activity-log action; an action the screen does not know is "Other". */
+export function auditActionLabel(action: string): string {
+  return Object.hasOwn(ACTION_LABELS, action)
+    ? (ACTION_LABELS[action]?.() ?? m.audit_action_other())
+    : m.audit_action_other();
+}
+
+/** Returns the name of an activity-log outcome. */
+export function auditOutcomeLabel(outcome: string): string {
+  if (outcome === "success") return m.audit_outcome_success();
+  if (outcome === "refused") return m.audit_outcome_refused();
+  return m.audit_outcome_failure();
+}
+
+/** Returns who acted on an activity-log event, as the user detail sheet says it. */
+export function auditActorLabel(actor: "self" | "user" | "system" | "anonymous"): string {
+  switch (actor) {
+    case "self":
+      return m.audit_actor_self();
+    case "user":
+      return m.audit_actor_user();
+    case "system":
+      return m.audit_actor_system();
+    case "anonymous":
+      return m.audit_actor_anonymous();
+    default: {
+      const unknown: never = actor;
+      return unknown;
+    }
+  }
+}
+
+/** Returns the refusal message of an admin action from its error code. */
+export function adminActionErrorMessage(code: string): string {
+  switch (code) {
+    case "not_found":
+      return m.admin_users_error_not_found();
+    case "session_not_found":
+      return m.admin_users_error_session_not_found();
+    case "cannot_block_self":
+      return m.admin_users_error_block_self();
+    case "cannot_end_current_session":
+      return m.admin_users_error_current_session();
+    case "cannot_change_own_roles":
+      return m.role_error_own_roles();
+    case "roles_not_local":
+      return m.admin_users_error_roles_not_local();
+    case "role_set_not_allowed":
+      return m.role_error_not_allowed();
+    default:
+      return m.admin_users_error_failed();
+  }
+}
+
+/** Returns the name of a language in the active locale ("Dutch", "Nederlands"). */
+export function languageLabel(locale: string): string {
+  try {
+    return new Intl.DisplayNames([getLocale()], { type: "language" }).of(locale) ?? locale;
+  } catch {
+    return locale;
+  }
+}
