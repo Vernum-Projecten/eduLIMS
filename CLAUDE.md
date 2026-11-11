@@ -92,9 +92,9 @@ pnpm typecheck            # tsc --noEmit
 pnpm lint                 # biome check (no write)
 pnpm fix                  # biome check --write
 pnpm format               # biome format --write
-pnpm test                 # vitest run (needs the dev stack: database edulims_test)
+pnpm test                 # vitest run (needs the dev stack: a run database beside edulims_test)
 pnpm test:coverage        # with the 70% core thresholds
-pnpm test:e2e             # Playwright + axe (needs the dev stack: database edulims_e2e)
+pnpm test:e2e             # Playwright + axe (needs the dev stack: a run database beside edulims_e2e)
 pnpm db:migrate           # apply Kysely migrations
 pnpm db:seed              # the dev-login users (idempotent)
 pnpm db:reset             # empty the LOCAL dev database, then migrate and seed

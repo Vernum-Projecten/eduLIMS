@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # What `pnpm dev` needs on a developer machine: PostgreSQL 18 with the eduLIMS
-# database (plus `edulims_test` and `edulims_e2e` for `pnpm test` and
-# `pnpm test:e2e`), and Keycloak with a ready `edulims` realm, so sign-in
+# database (plus `edulims_test` and `edulims_e2e`, beside which every
+# `pnpm test` and `pnpm test:e2e` run creates its own database), and Keycloak with a ready `edulims` realm, so sign-in
 # works without a Microsoft Entra ID app registration. eduLIMS itself runs on
 # the host with `pnpm dev`, so it reloads on every save.
 #
@@ -53,7 +53,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
       - ./docker/postgres/init/20-edulims.sh:/docker-entrypoint-initdb.d/20-edulims.sh:ro
-      # The throwaway databases `pnpm test` and `pnpm test:e2e` use.
+      # The test base databases and CREATEDB, so each test run makes its own.
       - ./docker/postgres/init/30-edulims-test-databases.sh:/docker-entrypoint-initdb.d/30-edulims-test-databases.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]

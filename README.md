@@ -136,8 +136,9 @@ sign in to eduLIMS. [Demo accounts](https://edulims.eu/get-started/demo-accounts
 on the docs site has the details.
 
 Before you open a pull request, run the same gates as CI. The tests need the
-dev stack running: `pnpm test` uses its `edulims_test` database and
-`pnpm test:e2e` its `edulims_e2e` database, never your development data.
+dev stack running: `pnpm test` and `pnpm test:e2e` each create a database of
+their own next to `edulims_test` or `edulims_e2e` and drop it at the end,
+never touching your development data.
 
 ```sh
 pnpm check      # typecheck, Biome lint, Vitest

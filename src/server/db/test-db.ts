@@ -1,29 +1,48 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// Database tests on a real PostgreSQL 18: the `edulims_test` database, cleared and
-// migrated once per run by test-global-setup.ts, with every test in a transaction that
-// is rolled back when the test destroys its Kysely instance.
+// Database tests on a real PostgreSQL 18: a database of this run, created next to
+// `edulims_test` and migrated once by test-global-setup.ts, with every test in a transaction
+// that is rolled back when the test destroys its Kysely instance.
 import {
   CompiledQuery,
   type DatabaseConnection,
   type Driver,
   Kysely,
+  type PostgresCursor,
   PostgresDialect,
   PostgresDriver,
   type PostgresPool,
+  type PostgresPoolClient,
+  type PostgresQueryResult,
   type TransactionSettings,
 } from "kysely";
 import { Client } from "pg";
+import { inject } from "vitest";
 import type { DB } from "./schema.gen.ts";
 
-/** The Vitest database on the dev stack of compose.dev.yaml; CI sets its service container. */
+declare module "vitest" {
+  export interface ProvidedContext {
+    /** The URL of this run's database, provided by test-global-setup.ts. */
+    testDatabaseUrl: string;
+  }
+}
+
+/** The database the run databases sit next to: the dev stack of compose.dev.yaml. */
 export const DEFAULT_TEST_DATABASE_URL = "postgres://edulims:edulims@127.0.0.1:5432/edulims_test";
 
-/** The URL of the Vitest database: `TEST_DATABASE_URL`, else {@link DEFAULT_TEST_DATABASE_URL}. */
-export function testDatabaseUrl(): string {
+/**
+ * The URL whose server, user and password every run uses, and next to whose database it creates
+ * its own: `TEST_DATABASE_URL`, else {@link DEFAULT_TEST_DATABASE_URL}.
+ */
+export function baseTestDatabaseUrl(): string {
   const url = process.env["TEST_DATABASE_URL"]?.trim();
   return url ? url : DEFAULT_TEST_DATABASE_URL;
+}
+
+/** The URL of this run's database; available in a test, not in the global setup. */
+export function testDatabaseUrl(): string {
+  return inject("testDatabaseUrl");
 }
 
 // NOTE: no requirement governs this: our own design. One key for every database test,
@@ -76,6 +95,59 @@ class RollbackDialect extends PostgresDialect {
   }
 }
 
+/** The one pooled client of a test, plus a wait for the queries it still runs. */
+export interface PinnedClient extends PostgresPoolClient {
+  /** Resolves once no query is queued or running. */
+  idle(): Promise<void>;
+}
+
+/**
+ * Returns `client` as the one pooled client of a test, running its queries one after the other.
+ *
+ * Code under test may start a query before the previous one ends (`Promise.all` on one Kysely
+ * instance, or a write the test does not await); a real pool runs those on separate
+ * connections. Here they share one, and pg deprecates calling `query()` on a busy client, so
+ * each query waits for the one before it.
+ */
+export function pinnedClient(client: Client): PinnedClient {
+  let tail: Promise<unknown> = Promise.resolve();
+  let pending = 0;
+  function run<R>(sql: string, parameters: ReadonlyArray<unknown>): Promise<PostgresQueryResult<R>>;
+  function run<R>(cursor: PostgresCursor<R>): PostgresCursor<R>;
+  function run<R>(
+    sql: string | PostgresCursor<R>,
+    parameters: ReadonlyArray<unknown> = [],
+  ): Promise<PostgresQueryResult<R>> | PostgresCursor<R> {
+    // Kysely passes a cursor only for `.stream()`, which no test uses.
+    if (typeof sql !== "string") throw new Error("A test database does not stream.");
+    pending += 1;
+    const result = tail.then(async () => {
+      const { command, rowCount, rows } = await client.query(sql, [...parameters]);
+      // pg types `command` as any string and `rowCount` as nullable; Kysely reads both only to
+      // count the rows an INSERT, UPDATE, DELETE or MERGE affected, which always have a count.
+      return {
+        command: command as PostgresQueryResult<R>["command"],
+        rowCount: rowCount ?? 0,
+        rows,
+      };
+    });
+    // NOTE: no requirement governs this: our own design. The chain only orders the queries;
+    // every caller still gets its own result or error from `result`.
+    const settle = () => {
+      pending -= 1;
+    };
+    tail = result.then(settle, settle);
+    return result;
+  }
+  return {
+    query: run,
+    release: () => undefined,
+    idle: async () => {
+      while (pending > 0) await tail;
+    },
+  };
+}
+
 /**
  * Returns a Kysely instance on the migrated test database, inside a transaction that
  * `destroy()` rolls back. Call `destroy()` after every test (`afterEach`).
@@ -90,12 +162,14 @@ export async function createTestDb(): Promise<Kysely<DB>> {
     await client.end();
     throw error;
   }
-  const pinned = Object.assign(client, { release: () => undefined });
+  const pinned = pinnedClient(client);
   const pool: PostgresPool = {
     options: {},
     connect: async () => pinned,
     end: async () => {
       try {
+        // A query the test did not await finishes first, so the rollback never queues behind it.
+        await pinned.idle();
         await client.query("rollback");
       } finally {
         await client.end();

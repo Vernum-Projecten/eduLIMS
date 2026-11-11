@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { expect, test } from "@playwright/test";
-import { devLogin, expectNoA11yViolations } from "./fixtures";
+import { devLogin, expectHydrated, expectNoA11yViolations } from "./fixtures";
 
 test("home page renders with landmarks and a skip link", async ({ page }) => {
   await page.goto("/");
@@ -26,7 +26,9 @@ test("login page offers each configured identity provider without WCAG A/AA viol
 
 test("login form announces validation errors", async ({ page }) => {
   await page.goto("/login");
-  await page.getByRole("button", { name: "Sign in with a test account" }).click();
+  const submit = page.getByRole("button", { name: "Sign in with a test account" });
+  await expectHydrated(submit);
+  await submit.click();
   await expect(page.getByRole("alert").filter({ hasText: "valid email address" })).toBeVisible();
   await expect(page.getByLabel("Email address")).toHaveAttribute("aria-invalid", "true");
   await expectNoA11yViolations(page);

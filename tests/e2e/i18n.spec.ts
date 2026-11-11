@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
-import { devLogin, expectNoA11yViolations } from "./fixtures";
+import { devLogin, expectHydrated, expectNoA11yViolations } from "./fixtures";
 
 // The Dutch copy comes from the catalogue, so the assertions follow the translation.
 const nl: Readonly<Record<string, string>> = JSON.parse(
@@ -31,6 +31,7 @@ function watchHydration(page: Page): string[] {
 /** Opens the language menu with the keyboard from its trigger, named `trigger`. */
 async function openLanguageMenuWithKeyboard(page: Page, trigger: string): Promise<void> {
   const button = page.getByRole("button", { name: trigger });
+  await expectHydrated(button);
   await button.focus();
   await page.keyboard.press("Enter");
   const menu = page.getByRole("menu");

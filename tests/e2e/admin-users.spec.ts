@@ -13,6 +13,7 @@ import {
   usersTable,
 } from "./admin-users-helpers";
 import { devLogin } from "./fixtures";
+import { appUrl } from "./run-env";
 
 const SEARCH = "Search by name or email address";
 
@@ -69,6 +70,8 @@ test("the users table searches while typing, filters, sorts and pages on the ser
   await expect(page.getByRole("button", { name: /^Status 1 selected: Blocked$/ })).toBeVisible();
   const rows = usersTable(page).locator("tbody tr");
   await expect(rows.first()).toBeVisible();
+  // The previous page stays on screen while the next loads (keepPreviousData); wait for it.
+  await expect(usersTable(page)).not.toHaveAttribute("aria-busy", "true");
   for (const row of await rows.all()) await expect(row).toContainText("Blocked");
 
   // Two values of one facet are OR; facets combine with AND.
@@ -92,6 +95,8 @@ test("the users table searches while typing, filters, sorts and pages on the ser
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/role=%5B%22admin%22%5D/);
   await expect(rows.first()).toBeVisible();
+  // The previous page stays on screen while the next loads (keepPreviousData); wait for it.
+  await expect(usersTable(page)).not.toHaveAttribute("aria-busy", "true");
   for (const row of await rows.all()) {
     await expect(row).toContainText(/Blocked|Never signed in/);
     await expect(row).toContainText("Administrator");
@@ -109,6 +114,8 @@ test("the users table searches while typing, filters, sorts and pages on the ser
     "aria-sort",
     "descending",
   );
+  // The previous page stays on screen while the next loads (keepPreviousData); wait for it.
+  await expect(usersTable(page)).not.toHaveAttribute("aria-busy", "true");
   for (const row of await rows.all()) await expect(row).toContainText("Keycloak");
   await page.getByRole("button", { name: "Last sign-in", exact: true }).click();
   await page.getByRole("menuitem", { name: "Ascending" }).click();
@@ -327,8 +334,8 @@ test.describe("in the dark theme and in Dutch", () => {
   }) => {
     await signInAsAdmin(page);
     await context.addCookies([
-      { name: "EDULIMS_THEME", value: "dark", url: "http://localhost:3100" },
-      { name: "EDULIMS_LOCALE", value: "nl", url: "http://localhost:3100" },
+      { name: "EDULIMS_THEME", value: "dark", url: appUrl() },
+      { name: "EDULIMS_LOCALE", value: "nl", url: appUrl() },
     ]);
     await page.goto("/admin/users?q=Test%20Student");
     await expect(page.locator("html")).toHaveClass(/\bdark\b/);
