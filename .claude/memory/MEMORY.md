@@ -40,6 +40,9 @@ adding one, and update it instead of duplicating.
 
 ## Working with the owner
 
+- [No vague later](no-vague-later.md): plan needed work into the current
+  milestone, ordered by real dependencies; never file it as "later"
+
 - [Owner uses Podman](owner-uses-podman.md): `podman compose`, fully
   qualified image names, never touch their running containers unasked
 - [Env file workflow](env-file-workflow.md): never read or edit the local env
