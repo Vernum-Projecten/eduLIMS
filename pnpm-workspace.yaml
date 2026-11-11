@@ -1,3 +1,14 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# Supply-chain control: pnpm resolves no version younger than 24 hours, so a
+# compromised or yanked release has time to be caught before it is installed
+# (https://pnpm.io/settings/dependency-resolution#minimumreleaseage). Setting
+# it explicitly makes it strict: resolution fails instead of silently falling
+# back. An advisory-driven fix that cannot wait is exempted per exact version
+# in minimumReleaseAgeExclude, with the advisory in the pull request.
+minimumReleaseAge: 1440
+
 permissions:
   "@tanstack/react-router":
     skills: true
