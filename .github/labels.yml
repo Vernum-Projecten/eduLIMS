@@ -1,0 +1,140 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# The issue and pull-request label taxonomy of eduLIMS: the single source.
+# scripts/gh/labels.sh syncs the repository to this file.
+#
+# The type of an issue (Bug, Feature, Task) is the organisation's native issue
+# type, and its priority (Urgent, High, Medium, Low) and effort (High, Medium,
+# Low) are the organisation's Priority and Effort issue fields, set with
+# scripts/gh/fields.sh. None of the three is a label.
+#
+# The format is deliberately flat so the sync reads it with awk: each label is
+# a `- name:` line followed by `color:` (six hex digits, quoted) and
+# `description:` (at most 100 characters, the GitHub limit). `retired:` lists
+# names the sync deletes when the repository still carries them.
+
+labels:
+  # Work kind: a Task carries exactly one, and it picks the branch prefix and
+  # the conventional-commit type. A Bug and a Feature carry none, because the
+  # issue type already says fix or feat.
+  - name: documentation
+    color: "0075ca"
+    description: "Docs-only work. Maps to a docs/ branch and a docs: commit."
+  - name: chore
+    color: "fef2c0"
+    description: "Maintenance with no product change. chore/ and chore:."
+  - name: refactor
+    color: "cfd3d7"
+    description: "Behaviour-preserving code change. refactor/ and refactor:."
+  - name: perf
+    color: "fbca04"
+    description: "Performance work. perf/ and perf:."
+  - name: test
+    color: "c2e0c6"
+    description: "Test-only work. test/ and test:."
+  - name: ci
+    color: "ededed"
+    description: "CI, build, and tooling. ci/ and ci:."
+
+  # Area: the part of eduLIMS the change touches. An issue may carry several.
+  - name: portal:student
+    color: "1d76db"
+    description: "Studentportaal: samples, measurements, lab reports, grades (S1 to S7)."
+  - name: portal:docent
+    color: "0e8a16"
+    description: "Docentportaal: practicals, results, rubric grading (D1 to D5)."
+  - name: portal:beheer
+    color: "5319e7"
+    description: "Beheerportaal: users, roles, analysers, integrations (B1 to B4)."
+  - name: auth
+    color: "b60205"
+    description: "Sign-in through Entra ID (better-auth), sessions, and role checks."
+  - name: database
+    color: "006b75"
+    description: "PostgreSQL schema, migrations, and queries."
+  - name: integration:ferroehr
+    color: "c5def5"
+    description: "The FerroEHR openEHR CDR: compositions, AQL, the eduLIMS-lab template."
+  - name: integration:ferrobridge
+    color: "bfd4f2"
+    description: "FerroBRIDGE: HL7 v2 messages from the analysers (Afinion)."
+  - name: upload
+    color: "d4c5f9"
+    description: "The Gen5 Excel upload and its validation (S4)."
+  - name: kpi-dashboard
+    color: "f9d0c4"
+    description: "The KPI dashboard of the Docentportaal (D5)."
+  - name: ui
+    color: "e6c3a5"
+    description: "Shared interface components, layout, and styling."
+  - name: accessibility
+    color: "f143ab"
+    description: "A barrier for people with disabilities (WCAG 2.1 AA)."
+  - name: security
+    color: "ee0701"
+    description: "Security fix or hardening."
+  - name: privacy
+    color: "d93f0b"
+    description: "Personal data, pseudonymisation, and GDPR (AVG) duties."
+  - name: infra
+    color: "bfdadc"
+    description: "CI/CD, supply chain, Docker Compose, and deployment."
+  - name: dependencies
+    color: "0366d6"
+    description: "Dependency updates (used by Dependabot)."
+
+  # Requirement priority from the requirements analysis (MoSCoW). The
+  # Priority issue field orders the backlog; this label records the
+  # requirement's agreed class.
+  - name: moscow:must
+    color: "b60205"
+    description: "MoSCoW Must: the prototype is not accepted without it."
+  - name: moscow:should
+    color: "d93f0b"
+    description: "MoSCoW Should: important, planned after the Musts."
+  - name: moscow:could
+    color: "fbca04"
+    description: "MoSCoW Could: done when time allows."
+  - name: moscow:wont
+    color: "cfd3d7"
+    description: "MoSCoW Won't: agreed out of this project."
+
+  # Pull-request escape hatches. Each one switches off one CI guard.
+  - name: no-changelog
+    color: "bfdadc"
+    description: "PR escape hatch: the change has no user-visible effect."
+  - name: no-issue
+    color: "bfdadc"
+    description: "PR escape hatch: no issue tracks the change."
+
+  # Workflow and triage.
+  - name: on-hold
+    color: "e4e669"
+    description: "Parked: waits on an input nobody in the repository can provide."
+  - name: blocked-upstream
+    color: "6f42c1"
+    description: "Waiting on an upstream release (FerroEHR, FerroBRIDGE, a tool)."
+  - name: duplicate
+    color: "cfd3d7"
+    description: "This issue or pull request already exists."
+  - name: invalid
+    color: "e4e669"
+    description: "This does not seem right."
+  - name: question
+    color: "d876e3"
+    description: "Further information is requested."
+  - name: wontfix
+    color: "ffffff"
+    description: "This will not be worked on."
+  - name: good first issue
+    color: "7057ff"
+    description: "Good for newcomers."
+  - name: help wanted
+    color: "008672"
+    description: "Extra attention is needed."
+
+# GitHub's default `bug` and `enhancement` labels repeat the native issue type.
+retired:
+  - bug
+  - enhancement
