@@ -25,6 +25,13 @@ export const STALE_TIME = {
    * screen counts it stale at once and refetches on the interval in {@link INTEGRATION_REFETCH_MS}.
    */
   integrationStatus: 0,
+  /** The overview's counts and latest events (#36): a snapshot, refreshed on the next visit. */
+  adminOverview: 30_000,
+  /**
+   * The system page (#36): read-only, but an identity-provider change on another screen must
+   * show on the next visit, so it is always revalidated.
+   */
+  systemConfiguration: 0,
 } as const;
 
 // NOTE: B3 ("unreachable … within 5 minutes"); our own interval: a check result reaches an open

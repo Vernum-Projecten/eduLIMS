@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineConfig, devices } from "@playwright/test";
-import { runDatabaseUrl, runPort } from "./tests/e2e/run-env.ts";
+import { E2E_SECRETS, runDatabaseUrl, runPort } from "./tests/e2e/run-env.ts";
 
 // E2E runs the production build (`pnpm build` first) against a database of its own on a port
 // of its own, so two runs on one machine never meet. The database is created next to
@@ -26,11 +26,11 @@ const appEnv = {
   PORT: String(PORT),
   DATABASE_URL: databaseUrl,
   E2E_BASE_DATABASE_URL: baseDatabaseUrl,
-  BETTER_AUTH_SECRET: "e2e-only-secret-not-for-production-use-0123456789",
+  BETTER_AUTH_SECRET: E2E_SECRETS.BETTER_AUTH_SECRET,
   BETTER_AUTH_URL: baseURL,
-  // A public e2e-only key: 32 bytes, base64. `pnpm db:seed` registers the dev Keycloak with it
-  // when Keycloak runs (pnpm dev:db); without it the providers are skipped (CI).
-  EDULIMS_DATA_KEY: "ZWR1bGltcy1lMmUtZGF0YS1rZXktMDEyMzQ1Njc4OTA=",
+  // `pnpm db:seed` registers the dev Keycloak with this key when Keycloak runs (pnpm dev:db);
+  // without it the providers are skipped (CI).
+  EDULIMS_DATA_KEY: E2E_SECRETS.EDULIMS_DATA_KEY,
   EDULIMS_IDP_PRIVATE_ORIGINS:
     process.env["EDULIMS_E2E_KEYCLOAK_ORIGIN"] ?? "http://localhost:8180",
   FERROEHR_BASE_URL: "http://localhost:4001",
