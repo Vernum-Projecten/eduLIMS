@@ -230,6 +230,9 @@ test("every field kind takes keyboard input and a refusal of the whole form take
   await page.keyboard.press("Enter");
   await page.getByRole("option", { name: "BioTek Epoch 2" }).press("Enter");
   await expect(form.getByLabel("Analyser")).toHaveText("BioTek Epoch 2");
+  // The trigger shows the choice while the modal listbox is still closing; go on once it is gone.
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await expect(form.getByLabel("Analyser")).toBeFocused();
 
   await form.getByRole("radio", { name: "Afternoon" }).focus();
   await page.keyboard.press("Space");
