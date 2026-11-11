@@ -6,6 +6,9 @@ paths:
   - "docs/release.md"
   - ".github/workflows/release*.yml"
   - "scripts/release/**"
+  - "CITATION.cff"
+  - ".zenodo.json"
+  - "scripts/checks/citation.sh"
 ---
 
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
@@ -38,6 +41,23 @@ and the release cut assembles the fragments into the new version's section
 - **A change with no user-visible effect** (a refactor, a test, CI, the
   `.claude/` setup) carries the `no-changelog` label on the PR instead of a
   fragment. The changelog guard in CI fails a PR with neither.
+
+## The release cut and the citation metadata
+
+- **The cut sets every version in one command:**
+  `bash scripts/release/version.sh X.Y.Z` writes `package.json` `version`,
+  `CITATION.cff` `version` and `date-released`, and `.zenodo.json` `version`,
+  `publication_date` and the `isSupplementTo` link to the tag's tree. Never
+  edit these by hand. `bash scripts/checks/citation.sh` (the `citation` CI
+  job) fails when the three files disagree, and `plan.sh` refuses a tag whose
+  files do not hold its version.
+- **`.zenodo.json` is right before the tag, never after.** Zenodo reads only
+  `.zenodo.json` when both files exist, and the archived files of a deposit
+  never change. A change to the title, abstract, authors, licence or keywords
+  edits `CITATION.cff` and `.zenodo.json` in the same pull request.
+- **The concept DOI** goes into `CITATION.cff` `identifiers` once the first
+  release is archived (`docs/release.md`, "Citation and Zenodo"). `.zenodo.json`
+  never carries a `doi`.
 
 ## Security entries
 

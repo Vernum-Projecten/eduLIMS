@@ -15,6 +15,7 @@
       "!project.inlang/cache",
       "!.claude/skills",
       "!pnpm-lock.yaml",
+      "!.github/cff-schema/schema.json",
       "!**/*.md",
       "!**/*.svg"
     ]

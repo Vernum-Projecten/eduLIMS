@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Sets the release version everywhere the repository records it:
-# package.json `version`, and CITATION.cff `version` and `date-released` when
-# that file exists.
+# package.json `version`; CITATION.cff `version` and `date-released` (added
+# on the first cut); and .zenodo.json `version`, `publication_date` and the
+# isSupplementTo link to the tag's tree, which Zenodo shows as the record's
+# GitHub link. scripts/checks/citation.sh holds the three files to each other.
 #
 #   scripts/release/version.sh <version> [<date>]   # write; date defaults to today (UTC)
 #   scripts/release/version.sh --check <version>    # exit 1 unless every place holds it
@@ -46,13 +48,36 @@ write() {
     local tmp
     tmp="$(mktemp)"
     awk -v v="$version" -v d="$date" '
-      /^version:/ { print "version: \"" v "\""; next }
-      /^date-released:/ { print "date-released: \"" d "\""; next }
+      /^version:/ { print "version: \"" v "\""; if (!dated) print "date-released: \"" d "\""; dated = 1; next }
+      /^date-released:/ { if (!dated) print "date-released: \"" d "\""; dated = 1; next }
       { print }
     ' CITATION.cff > "$tmp"
     cat "$tmp" > CITATION.cff
     rm -f -- "$tmp"
     echo "version: CITATION.cff is at ${version}, released ${date}."
+  fi
+  if [[ -f .zenodo.json ]]; then
+    local repo
+    repo="$(sed -nE 's/^repository-code:[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/p' CITATION.cff 2>/dev/null || true)"
+    [[ -n "$repo" ]] || die ".zenodo.json needs CITATION.cff repository-code for the tag link"
+    # publication_date goes after the description, the tag link after isDocumentedBy.
+    VERSION="$version" DATE="$date" TREE="${repo}/tree/v${version}" node -e '
+      const fs = require("node:fs");
+      const z = JSON.parse(fs.readFileSync(".zenodo.json", "utf8"));
+      const out = {};
+      for (const [key, value] of Object.entries(z)) {
+        if (key === "publication_date") continue;
+        out[key] = key === "version" ? process.env.VERSION : value;
+        if (key === "description") out.publication_date = process.env.DATE;
+      }
+      if (!("publication_date" in out)) out.publication_date = process.env.DATE;
+      const link = { identifier: process.env.TREE, relation: "isSupplementTo", resource_type: "software" };
+      const rel = (out.related_identifiers ?? []).filter((r) => r.relation !== "isSupplementTo");
+      rel.splice(rel.findIndex((r) => r.relation === "isDocumentedBy") + 1, 0, link);
+      out.related_identifiers = rel;
+      fs.writeFileSync(".zenodo.json", JSON.stringify(out, null, 2) + "\n");
+    '
+    echo "version: .zenodo.json is at ${version}, published ${date}, linked to ${repo}/tree/v${version}."
   fi
 }
 
@@ -64,6 +89,10 @@ check() {
   if [[ -f CITATION.cff ]]; then
     found="$(sed -nE 's/^version:[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/p' CITATION.cff)"
     [[ "$found" == "$version" ]] || { echo "version: CITATION.cff is at ${found:-nothing}, not ${version}." >&2; fail=1; }
+  fi
+  if [[ -f .zenodo.json ]]; then
+    found="$(node -p 'JSON.parse(require("node:fs").readFileSync(".zenodo.json", "utf8")).version')"
+    [[ "$found" == "$version" ]] || { echo "version: .zenodo.json is at ${found}, not ${version}." >&2; fail=1; }
   fi
   [[ "$fail" -eq 0 ]] || exit 1
   echo "version: every place holds ${version}."
@@ -92,6 +121,27 @@ self_test() {
   grep -qx 'version: "0.2.0-rc.1"' "$work/CITATION.cff" || { echo "version: self-test failed: CITATION.cff version" >&2; exit 1; }
   grep -qx 'date-released: "2026-12-01"' "$work/CITATION.cff" || { echo "version: self-test failed: CITATION.cff date" >&2; exit 1; }
   run --check 0.2.0-rc.1 || { echo "version: self-test failed: --check with CITATION.cff" >&2; exit 1; }
+
+  # Before the first release: no date-released, no publication_date, no tag link.
+  printf 'cff-version: 1.2.0\ntitle: x\nrepository-code: "https://example.org/x"\nversion: "0.2.0-rc.1"\nkeywords:\n  - y\n' > "$work/CITATION.cff"
+  printf '{\n  "title": "x",\n  "description": "<p>x</p>",\n  "version": "0.2.0-rc.1",\n  "related_identifiers": [\n    {\n      "identifier": "https://example.org/docs/",\n      "relation": "isDocumentedBy"\n    }\n  ]\n}\n' > "$work/.zenodo.json"
+  status=0; run --check 0.2.0 || status=$?
+  [[ "$status" -eq 1 ]] || { echo "version: self-test failed: --check passed a stale .zenodo.json" >&2; exit 1; }
+  run 0.2.0 2026-12-02 || { cat "$work/out" >&2; echo "version: self-test failed: the first dated cut was refused" >&2; exit 1; }
+  [[ "$(sed -n 4,5p "$work/CITATION.cff")" == $'version: "0.2.0"\ndate-released: "2026-12-02"' ]] \
+    || { echo "version: self-test failed: the first cut did not add date-released after version" >&2; exit 1; }
+  run 0.2.1 2026-12-03 || { cat "$work/out" >&2; echo "version: self-test failed: the second cut was refused" >&2; exit 1; }
+  [[ "$(grep -c '^date-released:' "$work/CITATION.cff")" -eq 1 ]] || { echo "version: self-test failed: date-released twice" >&2; exit 1; }
+  grep -qx 'date-released: "2026-12-03"' "$work/CITATION.cff" || { echo "version: self-test failed: CITATION.cff date on a later cut" >&2; exit 1; }
+  jq -e '
+    (keys_unsorted == ["title", "description", "publication_date", "version", "related_identifiers"])
+    and .version == "0.2.1" and .publication_date == "2026-12-03"
+    and .related_identifiers == [
+      {identifier: "https://example.org/docs/", relation: "isDocumentedBy"},
+      {identifier: "https://example.org/x/tree/v0.2.1", relation: "isSupplementTo", resource_type: "software"}
+    ]' "$work/.zenodo.json" > /dev/null \
+    || { cat "$work/.zenodo.json" >&2; echo "version: self-test failed: .zenodo.json after two cuts" >&2; exit 1; }
+  run --check 0.2.1 || { echo "version: self-test failed: --check with .zenodo.json" >&2; exit 1; }
   status=0; run 1.0 || status=$?
   [[ "$status" -eq 1 ]] || { echo "version: self-test failed: a version that is no version was written" >&2; exit 1; }
   echo "version: self-test passed."

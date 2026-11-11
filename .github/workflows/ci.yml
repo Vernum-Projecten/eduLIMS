@@ -16,7 +16,8 @@
 #      changelog fragment. Each reads the pull request from the API when it
 #      runs, so it skips in the merge queue, and pr-guards.yml re-runs it when
 #      the title, description or an escape label changes.
-#   5. The self-tests of every helper under scripts/gh/ and scripts/checks/.
+#   5. The self-tests of every helper under scripts/gh/ and scripts/checks/,
+#      and the citation metadata guard.
 name: CI
 
 on:
@@ -472,6 +473,28 @@ jobs:
           bash scripts/checks/linked-issue.sh --self-test
           bash scripts/checks/pin-freshness.sh --self-test
 
+  # CITATION.cff stays CFF-1.2.0-valid (a malformed file breaks the "Cite this
+  # repository" button), at the package.json version, and in agreement with
+  # .zenodo.json, the file Zenodo archives each release with. The validator is
+  # a hash-pinned fastjsonschema; the runner image provides python3, yq and
+  # Node.js (the self-test drives scripts/release/version.sh).
+  citation:
+    name: citation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The citation metadata holds
+        run: |
+          set -euo pipefail
+          export CITATION_VENV="${RUNNER_TEMP}/citation-venv"
+          bash scripts/checks/citation.sh --self-test
+          bash scripts/checks/citation.sh
+
   # ── The single required check ───────────────────────────────────────────────
 
   # The ruleset requires this job alone, so jobs can come and go without a
@@ -497,6 +520,7 @@ jobs:
       - changelog-guard
       - tracker-helpers
       - guard-self-tests
+      - citation
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

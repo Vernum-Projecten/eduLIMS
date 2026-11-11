@@ -45,7 +45,6 @@ path = [
   "biome.json",
   ".node-version",
   ".npmrc",
-  "CITATION.cff",
   ".idea/**",
 ]
 precedence = "closest"
@@ -72,3 +71,12 @@ path = ["tests/fixtures/**", "test/fixtures/**"]
 precedence = "closest"
 SPDX-FileCopyrightText = "Ruben Talstra"
 SPDX-License-Identifier = "Apache-2.0"
+
+# The Citation File Format 1.2.0 JSON Schema and its licence, vendored for the
+# citation check (scripts/checks/citation.sh). Upstream, commit and sha256 are
+# in .github/cff-schema/PROVENANCE.md, which is first-party.
+[[annotations]]
+path = [".github/cff-schema/schema.json", ".github/cff-schema/LICENSE"]
+precedence = "override"
+SPDX-FileCopyrightText = "The Citation File Format contributors"
+SPDX-License-Identifier = "CC-BY-4.0"
