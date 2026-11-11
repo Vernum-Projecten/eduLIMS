@@ -48,8 +48,15 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "admin_grant_revoked",
 ] as const;
 
+/** Actions eduLIMS records about itself, with no target: the scheduled retention prune (B4). */
+export const SYSTEM_AUDIT_ACTIONS = ["sys_retention_prune"] as const;
+
 /** Every action the activity log accepts. */
-export const AUDIT_ACTIONS = [...AUTH_AUDIT_ACTIONS, ...EDULIMS_AUDIT_ACTIONS] as const;
+export const AUDIT_ACTIONS = [
+  ...AUTH_AUDIT_ACTIONS,
+  ...EDULIMS_AUDIT_ACTIONS,
+  ...SYSTEM_AUDIT_ACTIONS,
+] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 /** The kinds of object an event can be about. */
@@ -64,23 +71,29 @@ export const AUDIT_TARGET_TYPES = [
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
-/** The target type each action is about. */
-export type AuditTargetOf<A extends AuditAction> = A extends `session_${string}`
-  ? "session"
-  : A extends `class_${string}`
-    ? "class"
-    : A extends `invitation_${string}`
-      ? "invitation"
-      : A extends `upload_${string}`
-        ? "upload"
-        : A extends `idp_${string}`
-          ? "identity_provider"
-          : A extends `admin_grant_${string}`
-            ? "admin_grant"
-            : "user";
+/** The target type each action is about; a `sys_` action has none. */
+export type AuditTargetOf<A extends AuditAction> = A extends `sys_${string}`
+  ? never
+  : A extends `session_${string}`
+    ? "session"
+    : A extends `class_${string}`
+      ? "class"
+      : A extends `invitation_${string}`
+        ? "invitation"
+        : A extends `upload_${string}`
+          ? "upload"
+          : A extends `idp_${string}`
+            ? "identity_provider"
+            : A extends `admin_grant_${string}`
+              ? "admin_grant"
+              : "user";
 
-/** Returns the target type an action is about (the runtime form of {@link AuditTargetOf}). */
-export function targetTypeOf(action: AuditAction): AuditTargetType {
+/**
+ * Returns the target type an action is about (the runtime form of {@link AuditTargetOf}), or
+ * `null` for a `sys_` action, which has no target.
+ */
+export function targetTypeOf(action: AuditAction): AuditTargetType | null {
+  if (action.startsWith("sys_")) return null;
   if (action.startsWith("session_")) return "session";
   if (action.startsWith("class_")) return "class";
   if (action.startsWith("invitation_")) return "invitation";
@@ -135,6 +148,10 @@ export const auditMetadataSchema = z.strictObject({
     .string()
     .regex(/^[a-z_]{1,40}$/)
     .optional(),
+  /** How many rows a `sys_retention_prune` removed, per kind: counts only. */
+  removed_audit_events: z.number().int().min(0).optional(),
+  removed_sessions: z.number().int().min(0).optional(),
+  removed_admin_grants: z.number().int().min(0).optional(),
 });
 export type AuditMetadata = z.infer<typeof auditMetadataSchema>;
 

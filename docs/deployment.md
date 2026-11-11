@@ -553,37 +553,33 @@ docker compose up -d --wait
 
 eduLIMS keeps the activity log (who signed in, who changed a role, who
 blocked whom; ids only, no names or addresses) for 12 months, and deletes a
-session 30 days after it expired. The prune command applies both periods. It
-is safe to run more than once: a second run removes nothing new. Run it
-every day from the tools image, which holds the command:
+session 30 days after it expired. It also drops administrator grants that
+expired before anyone used them.
+
+Pruning is automatic. The app container prunes once, a minute after it
+starts, and then every 24 hours, so you need no cron job, no systemd timer
+and no command. With more than one replica of the app container, a
+PostgreSQL advisory lock lets one of them prune at a time; the others skip
+that run. Each run writes a `sys_retention_prune` event to the activity log
+with the number of events, sessions and grants it removed (counts only), and
+the same line to the security log stream ("Shipping logs off the host"). A
+run that fails, for example while the database restarts, logs
+`retention_prune_failed` with the error class and code, writes a failure
+event when the database takes it, and tries again 24 hours later; the server
+keeps running.
+
+To prune at once, for example after a restore, run the same code by hand
+from the tools image:
 
 ```sh
-# /etc/cron.d/edulims-prune, as root, 03:30 every night
-30 3 * * * root cd /srv/edulims && docker compose run --rm edulims-migrate prune
+docker compose run --rm edulims-migrate prune
 ```
 
-Or, on a host with systemd, a timer instead of cron:
-
-```ini
-# /etc/systemd/system/edulims-prune.service
-[Service]
-Type=oneshot
-WorkingDirectory=/srv/edulims
-ExecStart=/usr/bin/docker compose run --rm edulims-migrate prune
-
-# /etc/systemd/system/edulims-prune.timer
-[Timer]
-OnCalendar=*-*-* 03:30:00
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-Enable it with `systemctl enable --now edulims-prune.timer`. The command prints
-the number of events, sessions and expired administrator grants it removed. On a development machine,
-`pnpm db:prune` does the same against `DATABASE_URL`. The backups above keep
-deleted rows for another 30 days, until the oldest dump is removed.
+It prints the number of events, sessions and expired administrator grants it
+removed, and is safe to run more than once: a second run removes nothing new.
+While the app container is pruning, it prints that another prune is running
+and removes nothing. The backups above keep deleted rows for another 30 days,
+until the oldest dump is removed.
 
 ## Shipping logs off the host
 

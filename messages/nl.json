@@ -129,6 +129,7 @@
   "audit_action_login_success": "Aangemeld",
   "audit_action_logout": "Afgemeld",
   "audit_action_other": "Andere activiteit",
+  "audit_action_retention_prune": "Oude gegevens verwijderd",
   "audit_action_role_change": "Rollen gewijzigd",
   "audit_action_session_expired": "Sessie verlopen",
   "audit_action_session_revoked": "Sessie beëindigd",

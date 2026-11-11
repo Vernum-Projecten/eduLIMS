@@ -18,7 +18,8 @@ export default defineConfig({
     // `src/server-entry.ts` wraps the Start handler in the locale middleware; the default
     // name `server` would collide with the `src/server/` directory.
     tanstackStart({ server: { entry: "./server-entry.ts" } }),
-    nitro(),
+    // The retention prune (B4, #65) runs inside the server process.
+    nitro({ plugins: ["./src/server/plugins/retention-prune.ts"] }),
     viteReact(),
   ],
 });

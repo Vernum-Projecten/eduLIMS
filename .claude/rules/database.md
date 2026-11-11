@@ -66,8 +66,10 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
   singular, and `audit_event` sits beside them with the same form.
 - **The activity log** (`audit_event`, B4) holds ids and codes only and is
   written through `recordAudit` (`src/server/audit/record.ts`), inside the
-  transaction of the action it records. `pnpm db:prune` applies the retention
-  periods (12 months for events, 30 days for expired sessions).
+  transaction of the action it records. The app server applies the retention
+  periods (12 months for events, 30 days for expired sessions) every 24 hours
+  through `runPrune` (`src/server/audit/prune-job.ts`); `pnpm db:prune` runs
+  the same code by hand.
 - **No personal data in FerroEHR, and the pseudonym map lives here:** the
   table that maps a student to their EHR pseudonym is the only place the two
   meet, and only server code with a reason reads it.
