@@ -254,7 +254,7 @@ Secrets come from your shell environment, never from a committed file.
 | `tanstack` | The official TanStack docs server (<https://tanstack.com/api/mcp>): current docs for Start, Router, Query, Form and Table | a one-time OAuth sign-in with a tanstack.com account (`/mcp` in Claude Code) |
 | `better-auth` | The official Better Auth docs server (<https://mcp.better-auth.com/mcp>) | nothing |
 | `context7` | Version-specific library docs (Kysely, Zod, Vite, Vitest, Playwright, Tailwind) from Context7 (<https://mcp.context7.com/mcp>) | nothing (rate-limited without a key) |
-| `postgres` | Inspect the local dev database (tables, columns, plans) with Google's MCP Toolbox prebuilt PostgreSQL tools (`@toolbox-sdk/server`) | `EDULIMS_MCP_PG*`; connect as the read-only role `edulims_readonly` |
+| `postgres` | Inspect the local dev database (tables, columns, plans) with Google's MCP Toolbox prebuilt PostgreSQL tools (`@toolbox-sdk/server`) | the container dev stack running (`compose.dev.yaml` creates the read-only role `edulims_readonly`; its public dev password is the default, override with `EDULIMS_MCP_PG*`); connect as the read-only role `edulims_readonly` |
 
 The `postgres` server can run any SQL the role allows, so it connects only to
 the local Compose database and only as a role with `SELECT` rights and

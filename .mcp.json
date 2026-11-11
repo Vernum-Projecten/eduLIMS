@@ -28,7 +28,7 @@
         "POSTGRES_PORT": "${EDULIMS_MCP_PGPORT:-5432}",
         "POSTGRES_DATABASE": "${EDULIMS_MCP_PGDATABASE:-edulims}",
         "POSTGRES_USER": "${EDULIMS_MCP_PGUSER:-edulims_readonly}",
-        "POSTGRES_PASSWORD": "${EDULIMS_MCP_PGPASSWORD:-}"
+        "POSTGRES_PASSWORD": "${EDULIMS_MCP_PGPASSWORD:-edulims_readonly}"
       }
     }
   }
