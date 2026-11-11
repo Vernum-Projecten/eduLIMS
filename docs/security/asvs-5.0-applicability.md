@@ -750,7 +750,7 @@ Text: [vendor/asvs/en/0x23-V14-Data-Protection.md](vendor/asvs/en/0x23-V14-Data-
 | V14.2.1 | 1 | yes | no personal data in URLs: ids only (UUIDv7, #28); sign-in uses POST and the IdP's code flow | review | met |
 | V14.2.2 | 2 | partly | no application cache holds personal data; every session-dependent response is `no-store` in production (V14.3.2) | unit `src/server/security-headers.test.ts` | met |
 | V14.2.3 | 2 | yes | no analytics or third-party scripts (CSP `default-src 'self'`); an OIDC client secret goes only to the issuer it was issued for: any issuer change needs a new secret (`src/server/idp/service.ts`, #92); the unused SP-initiated SAML logout endpoint, which would send a LogoutRequest to the IdP, is unreachable (`src/server/idp/sso-guards.ts`) | unit `src/server/security-headers.test.ts`, `src/server/idp/review-fixes.test.ts`, `src/server/auth.test.ts` | met |
-| V14.2.4 | 2 | partly | `.claude/rules/auth-security.md` Privacy: logs carry ids only, pseudonyms in FerroEHR; retention is not decided | review | partial |
+| V14.2.4 | 2 | partly | `.claude/rules/auth-security.md` Privacy: logs carry ids only, pseudonyms in FerroEHR; retention decided (#32: activity log 12 months, ended sessions 30 days) and applied automatically every 24 hours inside the app container (#65, `src/server/audit/prune-job.ts`) | unit `src/server/audit/prune-job.test.ts`, `src/server/audit/prune-schedule.test.ts` | partial |
 | V14.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V14.2.6 | 3 | no | Level 3, above the L2 target; `getSessionUser` already returns a minimal projection | none | n-a |
 | V14.2.7 | 3 | no | Level 3, above the L2 target | none | n-a |

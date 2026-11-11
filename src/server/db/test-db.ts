@@ -19,6 +19,7 @@ import {
 } from "kysely";
 import { Client } from "pg";
 import { inject } from "vitest";
+import { TEST_DATABASE_LOCK_KEY } from "./advisory-locks.ts";
 import type { DB } from "./schema.gen.ts";
 
 declare module "vitest" {
@@ -44,10 +45,6 @@ export function baseTestDatabaseUrl(): string {
 export function testDatabaseUrl(): string {
   return inject("testDatabaseUrl");
 }
-
-// NOTE: no requirement governs this: our own design. Held per test transaction, it runs the
-// tests of one run one at a time; PostgreSQL scopes it to the run's own database.
-const TEST_LOCK_KEY = 7_212_026_018;
 
 /**
  * A driver on one pinned connection inside an open transaction: Kysely's own
@@ -157,7 +154,7 @@ export async function createTestDb(): Promise<Kysely<DB>> {
   await client.connect();
   try {
     await client.query("begin");
-    await client.query("select pg_advisory_xact_lock($1)", [TEST_LOCK_KEY]);
+    await client.query("select pg_advisory_xact_lock($1)", [TEST_DATABASE_LOCK_KEY]);
   } catch (error) {
     await client.end();
     throw error;

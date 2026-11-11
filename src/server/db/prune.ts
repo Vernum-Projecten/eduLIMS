@@ -1,13 +1,12 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// `prune` of the host CLI (src/server/cli.ts): applies the retention periods
-// (src/server/audit/retention.ts) and drops expired pending admin grants (#48) in the database
-// DATABASE_URL names; run it daily (docs/deployment.md). Prints counts only.
+// `prune` of the host CLI (src/server/cli.ts): the same prune the app container runs every 24
+// hours (src/server/audit/prune-job.ts), by hand, in the database DATABASE_URL names. Prints
+// counts only.
 import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
-import { pruneExpiredGrants } from "../admin-grant/grants.ts";
-import { pruneRetention } from "../audit/retention.ts";
+import { recordPruneFailure, runPrune } from "../audit/prune-job.ts";
 import { envFields, parseWith } from "../env.ts";
 import type { Out } from "./migrate.ts";
 import type { DB } from "./schema.gen.ts";
@@ -23,16 +22,19 @@ export async function pruneCommand(args: readonly string[], out: Out): Promise<n
     dialect: new PostgresDialect({ pool: new Pool({ connectionString: DATABASE_URL, max: 1 }) }),
   });
   try {
-    const now = new Date();
-    const { auditEvents, sessions } = await pruneRetention(db, now);
-    const grants = await pruneExpiredGrants(db, now);
+    const outcome = await runPrune(db, new Date());
+    if (outcome.kind === "locked") {
+      out("Another prune is running; this one removed nothing.");
+      return 0;
+    }
+    const { auditEvents, sessions, adminGrants } = outcome.counts;
     out(
       `Pruned ${auditEvents} activity-log events, ${sessions} ended sessions and ` +
-        `${grants} expired admin grants.`,
+        `${adminGrants} expired admin grants.`,
     );
     return 0;
   } catch (error) {
-    console.error("Prune failed:", error);
+    await recordPruneFailure(db, error);
     return 1;
   } finally {
     await db.destroy();

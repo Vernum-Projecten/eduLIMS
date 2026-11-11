@@ -132,6 +132,51 @@ describe("logAuditEvent (B4, ASVS V16.2.5)", () => {
     expect(parse(lines[0])).toMatchObject({ actor_type: "system" });
   });
 
+  it("logs a retention prune with its counts only (B4, #65)", () => {
+    const lines = capture();
+    logAuditEvent({
+      action: "sys_retention_prune",
+      actor: { type: "system" },
+      outcome: "success",
+      metadata: { removed_audit_events: 3, removed_sessions: 2, removed_admin_grants: 0 },
+    });
+    const line = parse(lines[0]);
+    expect(Object.keys(line).sort()).toEqual(
+      [
+        ...ENVELOPE,
+        "outcome",
+        "actor_type",
+        "removed_audit_events",
+        "removed_sessions",
+        "removed_admin_grants",
+      ].sort(),
+    );
+    expect(line).toMatchObject({
+      level: "info",
+      event: "sys_retention_prune",
+      actor_type: "system",
+      removed_audit_events: 3,
+      removed_sessions: 2,
+      removed_admin_grants: 0,
+    });
+  });
+
+  it("logs a failed retention prune as an error with its reason code (#65)", () => {
+    const lines = capture();
+    logAuditEvent({
+      action: "sys_retention_prune",
+      actor: { type: "system" },
+      outcome: "failure",
+      reason: "prune_failed",
+    });
+    expect(parse(lines[0])).toMatchObject({
+      level: "error",
+      event: "sys_retention_prune",
+      outcome: "failure",
+      reason: "prune_failed",
+    });
+  });
+
   it("chooses the level from the outcome", () => {
     const base = { actor: { type: "anonymous" } } as const;
     expect(auditLogLevel({ ...base, action: "authn_login_fail", outcome: "failure" })).toBe("warn");

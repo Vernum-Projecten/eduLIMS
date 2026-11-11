@@ -185,8 +185,9 @@ services:
   # ── eduLIMS schema migrations, a one-shot ─────────────────────────────────
   # The tools image (the host CLI, src/server/cli.ts) with `migrate`: it
   # migrates and exits. `docker compose up` runs it before the server on every
-  # start, and a migration that is already applied is a no-op. The daily
-  # `prune` runs here too (docs/deployment.md).
+  # start, and a migration that is already applied is a no-op. The app
+  # container prunes every 24 hours on its own; `prune` by hand runs here
+  # (docs/deployment.md).
   edulims-migrate:
     image: ghcr.io/vernum-projecten/edulims-migrate:${EDULIMS_VERSION:?set EDULIMS_VERSION in .env}
     command: ["migrate"]

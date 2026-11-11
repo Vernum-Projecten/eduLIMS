@@ -129,6 +129,7 @@
   "audit_action_login_success": "Signed in",
   "audit_action_logout": "Signed out",
   "audit_action_other": "Other activity",
+  "audit_action_retention_prune": "Old records removed",
   "audit_action_role_change": "Roles changed",
   "audit_action_session_expired": "Session expired",
   "audit_action_session_revoked": "Session ended",

@@ -34,6 +34,9 @@ export const SECURITY_LOG_FIELDS = [
   "attest_pkce",
   "sessions_ended",
   "test_outcome",
+  "removed_audit_events",
+  "removed_sessions",
+  "removed_admin_grants",
   "kind",
   "status",
 ] as const;
@@ -127,6 +130,9 @@ export function auditLogFields(event: AuditEvent): SecurityLogFields {
     attest_pkce: event.metadata?.attest_pkce === true ? "true" : undefined,
     sessions_ended: event.metadata?.sessions_ended,
     test_outcome: event.metadata?.test_outcome,
+    removed_audit_events: event.metadata?.removed_audit_events,
+    removed_sessions: event.metadata?.removed_sessions,
+    removed_admin_grants: event.metadata?.removed_admin_grants,
   };
 }
 
