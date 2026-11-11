@@ -132,9 +132,9 @@ describe("identity providers", () => {
   });
 
   it.each([
-    ["OIDC_ROLE_MAP", "edulims-docent:admin"],
+    ["OIDC_ROLE_MAP", "edulims-teacher:superuser"],
     ["OIDC_ROLE_MAP", ""],
-    ["OIDC_DEFAULT_ROLE", "admin"],
+    ["OIDC_DEFAULT_ROLE", "superuser"],
   ])("rejects an invalid %s (%j)", (key, value) => {
     expect(() => parseEnv({ ...VALID_ENV, [key]: value })).toThrow(new RegExp(key));
   });

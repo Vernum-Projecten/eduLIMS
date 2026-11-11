@@ -46,29 +46,29 @@ test("an IdP sign-in without an eduLIMS role is explained", async ({ page }) => 
   await expectNoA11yViolations(page);
 });
 
-test("anonymous visitors are redirected from /docent to /login", async ({ page }) => {
-  await page.goto("/docent");
-  await expect(page).toHaveURL(/\/login\?redirect=%2Fdocent$/);
+test("anonymous visitors are redirected from /teacher to /login", async ({ page }) => {
+  await page.goto("/teacher");
+  await expect(page).toHaveURL(/\/login\?redirect=%2Fteacher$/);
   await expect(page.getByRole("heading", { name: "Inloggen" })).toBeVisible();
 });
 
-test("a student cannot open the docent portal", async ({ page }) => {
+test("a student cannot open the teacher portal", async ({ page }) => {
   await devLogin(page, "student@example.test");
   await expect(page).toHaveURL(/\/student$/);
   await expect(page.getByRole("heading", { level: 1, name: "Studentportaal" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Hoofdmenu" })).not.toContainText("Docent");
+  await expect(page.getByRole("navigation", { name: "Hoofdmenu" })).not.toContainText("Teacher");
   await expectNoA11yViolations(page);
 
-  await page.goto("/docent");
+  await page.goto("/teacher");
   await expect(page).toHaveURL(/\/student$/);
   await expect(page.getByRole("heading", { name: "Docentportaal" })).toHaveCount(0);
 });
 
-test("a docent lands on the docent portal and can log out", async ({ page }) => {
-  await devLogin(page, "docent@example.test");
+test("a teacher lands on the teacher portal and can log out", async ({ page }) => {
+  await devLogin(page, "teacher@example.test");
   await expect(page.getByRole("heading", { level: 1, name: "Docentportaal" })).toBeVisible();
   await page.getByRole("button", { name: "Uitloggen" }).click();
   await expect(page).toHaveURL(/\/login$/);
-  await page.goto("/docent");
-  await expect(page).toHaveURL(/\/login\?redirect=%2Fdocent$/);
+  await page.goto("/teacher");
+  await expect(page).toHaveURL(/\/login\?redirect=%2Fteacher$/);
 });

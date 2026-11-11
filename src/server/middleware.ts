@@ -13,7 +13,7 @@ import { getSessionUser } from "./session.ts";
 export class AuthError extends Error {
   readonly status: 401 | 403;
   constructor(status: 401 | 403) {
-    super(status === 401 ? "Niet ingelogd" : "Geen toegang");
+    super(status === 401 ? "Not signed in" : "Forbidden");
     this.status = status;
   }
 }

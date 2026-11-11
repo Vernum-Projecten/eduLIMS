@@ -13,7 +13,7 @@ const { AuthError, authMiddleware, requireRole } = await import("./middleware.ts
 
 const betterAuthSession = {
   session: { token: "secret-token" },
-  user: { id: "u1", name: "Sam", email: "sam@example.test", role: "student,unknown" },
+  user: { id: "u1", name: "Test Student", email: "student@example.test", role: "student,unknown" },
 };
 
 beforeEach(() => {
@@ -30,8 +30,8 @@ describe("getSessionUser", () => {
     getSession.mockResolvedValue(betterAuthSession);
     expect(await getSessionUser(new Headers())).toEqual({
       id: "u1",
-      name: "Sam",
-      email: "sam@example.test",
+      name: "Test Student",
+      email: "student@example.test",
       roles: ["student"],
     } satisfies SessionUser);
   });
@@ -60,15 +60,20 @@ describe("authMiddleware", () => {
 });
 
 describe("requireRole", () => {
-  const student = { id: "u1", name: "Sam", email: "sam@example.test", roles: ["student"] };
+  const student = {
+    id: "u1",
+    name: "Test Student",
+    email: "student@example.test",
+    roles: ["student"],
+  };
 
   it("rejects users without the role with 403", async () => {
-    const error = await run(requireRole("docent", "beheerder"), { user: student }).catch((e) => e);
+    const error = await run(requireRole("teacher", "admin"), { user: student }).catch((e) => e);
     expect(error).toBeInstanceOf(AuthError);
-    expect(error).toMatchObject({ status: 403, message: "Geen toegang" });
+    expect(error).toMatchObject({ status: 403, message: "Forbidden" });
   });
 
   it("allows users with one of the roles", async () => {
-    await expect(run(requireRole("docent", "student"), { user: student })).resolves.toBeDefined();
+    await expect(run(requireRole("teacher", "student"), { user: student })).resolves.toBeDefined();
   });
 });

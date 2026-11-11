@@ -4,14 +4,14 @@
 import { describe, expect, it } from "vitest";
 import { highestRole, parseRoleMap, readClaim, resolveIdpRole } from "./idp-roles.ts";
 
-const roleMap = parseRoleMap("edulims-student:student,edulims-docent:docent,beheer:beheerder");
+const roleMap = parseRoleMap("edulims-student:student,edulims-teacher:teacher,lab-admins:admin");
 
 describe("parseRoleMap", () => {
   it("parses entries, trimming whitespace and skipping empty ones", () => {
-    expect([...parseRoleMap(" a:student , urn:x:docent ,,b:beheerder")]).toEqual([
+    expect([...parseRoleMap(" a:student , urn:x:teacher ,,b:admin")]).toEqual([
       ["a", "student"],
-      ["urn:x", "docent"],
-      ["b", "beheerder"],
+      ["urn:x", "teacher"],
+      ["b", "admin"],
     ]);
   });
 
@@ -19,8 +19,8 @@ describe("parseRoleMap", () => {
     ["", /at least one/],
     ["student", /invalid entry/],
     [":student", /invalid entry/],
-    ["x:admin", /invalid entry/],
-    ["x:student,x:docent", /duplicate/],
+    ["x:superuser", /invalid entry/],
+    ["x:student,x:teacher", /duplicate/],
   ])("rejects %j", (text, error) => {
     expect(() => parseRoleMap(text)).toThrow(error);
   });
@@ -42,22 +42,22 @@ describe("readClaim", () => {
 });
 
 describe("highestRole", () => {
-  it("prefers beheerder over docent over student", () => {
-    expect(highestRole(["student", "beheerder", "docent"])).toBe("beheerder");
-    expect(highestRole(["student", "docent"])).toBe("docent");
+  it("prefers admin over teacher over student", () => {
+    expect(highestRole(["student", "admin", "teacher"])).toBe("admin");
+    expect(highestRole(["student", "teacher"])).toBe("teacher");
     expect(highestRole([])).toBeNull();
   });
 });
 
 describe("resolveIdpRole", () => {
   it("maps Entra app roles from the `roles` claim", () => {
-    const claims = { roles: ["edulims-docent"] };
-    expect(resolveIdpRole({ claims, claimPath: "roles", roleMap })).toBe("docent");
+    const claims = { roles: ["edulims-teacher"] };
+    expect(resolveIdpRole({ claims, claimPath: "roles", roleMap })).toBe("teacher");
   });
 
   it("maps Keycloak realm roles and keeps the highest", () => {
-    const claims = { realm_access: { roles: ["offline_access", "edulims-student", "beheer"] } };
-    expect(resolveIdpRole({ claims, claimPath: "realm_access.roles", roleMap })).toBe("beheerder");
+    const claims = { realm_access: { roles: ["offline_access", "edulims-student", "lab-admins"] } };
+    expect(resolveIdpRole({ claims, claimPath: "realm_access.roles", roleMap })).toBe("admin");
   });
 
   it("maps Keycloak client roles through a configured path", () => {
@@ -67,16 +67,16 @@ describe("resolveIdpRole", () => {
   });
 
   it("accepts a single string claim and ignores non-string entries", () => {
-    expect(resolveIdpRole({ claims: { role: "edulims-docent" }, claimPath: "role", roleMap })).toBe(
-      "docent",
-    );
+    expect(
+      resolveIdpRole({ claims: { role: "edulims-teacher" }, claimPath: "role", roleMap }),
+    ).toBe("teacher");
     const claims = { roles: [42, null, "edulims-student"] };
     expect(resolveIdpRole({ claims, claimPath: "roles", roleMap })).toBe("student");
   });
 
   it("denies (null) when no role is mapped, matching names case-sensitively", () => {
     expect(
-      resolveIdpRole({ claims: { roles: ["EDULIMS-DOCENT"] }, claimPath: "roles", roleMap }),
+      resolveIdpRole({ claims: { roles: ["EDULIMS-TEACHER"] }, claimPath: "roles", roleMap }),
     ).toBeNull();
     expect(resolveIdpRole({ claims: {}, claimPath: "roles", roleMap })).toBeNull();
     expect(resolveIdpRole({ claims: { roles: {} }, claimPath: "roles", roleMap })).toBeNull();
@@ -86,9 +86,9 @@ describe("resolveIdpRole", () => {
     expect(
       resolveIdpRole({ claims: {}, claimPath: "roles", roleMap, defaultRole: "student" }),
     ).toBe("student");
-    const claims = { roles: ["edulims-docent"] };
+    const claims = { roles: ["edulims-teacher"] };
     expect(resolveIdpRole({ claims, claimPath: "roles", roleMap, defaultRole: "student" })).toBe(
-      "docent",
+      "teacher",
     );
   });
 });

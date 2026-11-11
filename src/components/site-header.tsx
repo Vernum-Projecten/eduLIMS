@@ -12,8 +12,8 @@ import { hasRole, type SessionUser } from "@/server/authz";
 
 const NAV_ITEMS = [
   { role: "student", to: "/student", label: "Studentportaal" },
-  { role: "docent", to: "/docent", label: "Docentportaal" },
-  { role: "beheerder", to: "/beheer", label: "Beheerportaal" },
+  { role: "teacher", to: "/teacher", label: "Docentportaal" },
+  { role: "admin", to: "/admin", label: "Beheerportaal" },
 ] as const satisfies readonly { role: Role; to: string; label: string }[];
 
 export function SiteHeader({ user }: Readonly<{ user: SessionUser | null }>) {

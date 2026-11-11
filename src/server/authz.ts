@@ -15,8 +15,8 @@ export interface SessionUser {
 
 /** Portal path per role, in order of precedence when a user has several roles. */
 const PORTALS = [
-  { role: "beheerder", path: "/beheer" },
-  { role: "docent", path: "/docent" },
+  { role: "admin", path: "/admin" },
+  { role: "teacher", path: "/teacher" },
   { role: "student", path: "/student" },
 ] as const satisfies readonly { role: Role; path: string }[];
 
@@ -55,15 +55,15 @@ export function portalPathFor(user: Pick<SessionUser, "roles">): PortalPath | nu
   return PORTALS.find((portal) => hasRole(user, portal.role))?.path ?? null;
 }
 
-/** Who owns a set of measurement results and which docent supervises the practicum. */
+/** Who owns a set of measurement results and which teacher supervises the lab course. */
 export interface ResultScope {
   ownerId: string;
-  docentId: string;
+  teacherId: string;
 }
 
 /**
- * Students only see their own results; docenten only see results from their own practica.
- * Beheerders manage users, not grades, so they get no access to results.
+ * Students only see their own results; teachers only see results from their own lab courses.
+ * Admins manage users, not grades, so they get no access to results.
  */
 export function canViewResultsOf(
   viewer: SessionUser | null | undefined,
@@ -71,6 +71,6 @@ export function canViewResultsOf(
 ): boolean {
   if (!viewer) return false;
   if (hasRole(viewer, "student") && scope.ownerId === viewer.id) return true;
-  if (hasRole(viewer, "docent") && scope.docentId === viewer.id) return true;
+  if (hasRole(viewer, "teacher") && scope.teacherId === viewer.id) return true;
   return false;
 }

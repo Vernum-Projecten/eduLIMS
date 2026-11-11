@@ -3,8 +3,8 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authed/beheer/")({
-  head: () => ({ meta: [{ title: "Beheerportaal | eduLIMS" }] }),
+export const Route = createFileRoute("/_authed/teacher/")({
+  head: () => ({ meta: [{ title: "Docentportaal | eduLIMS" }] }),
   component: Page,
 });
 
@@ -13,11 +13,11 @@ function Page() {
   return (
     <section aria-labelledby="page-title">
       <h1 id="page-title" className="text-2xl font-semibold">
-        Beheerportaal
+        Docentportaal
       </h1>
       <p className="mt-2">Welkom, {user.name}.</p>
       <p className="mt-1 text-muted-foreground">
-        Hier beheer je straks gebruikers, rollen en de koppelingen met FerroEHR en FerroBRIDGE.
+        Hier beheer je straks je practica en bekijk je de resultaten van je studenten.
       </p>
     </section>
   );
