@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { providerIdOf } from "../../lib/identity-providers.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
+import { setSecurityLogWriter } from "../security-log.ts";
 import { type AuditEvent, toReasonCode, toRequestId } from "./events.ts";
 import {
   AuditEventInvalidError,
@@ -16,8 +17,18 @@ import {
 } from "./record.ts";
 
 let db: Kysely<DB> | undefined;
+let restoreLog: (() => void) | undefined;
+
+/** Captures the security log lines a test writes. */
+function captureSecurityLog(): string[] {
+  const lines: string[] = [];
+  restoreLog = setSecurityLogWriter((line) => lines.push(line));
+  return lines;
+}
 
 afterEach(async () => {
+  restoreLog?.();
+  restoreLog = undefined;
   vi.restoreAllMocks();
   await db?.destroy();
   db = undefined;
@@ -144,28 +155,86 @@ describe("recordAudit (B4)", () => {
   });
 });
 
+describe("recordAudit on the security log (ASVS V16.4.3)", () => {
+  it("writes the stored event to stdout as one JSON line of ids and codes", async () => {
+    const lines = captureSecurityLog();
+    const database = await testDb();
+    await recordAudit(database, { ...LOGIN, requestId: "req-9", metadata: { roles: "student" } });
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0] ?? "null")).toEqual({
+      time: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/),
+      level: "info",
+      app: "edulims",
+      log: "security",
+      event: "authn_login_success",
+      outcome: "success",
+      actor_type: "user",
+      actor_id: "u1",
+      target_type: "user",
+      target_id: "u1",
+      provider: "keycloak",
+      request_id: "req-9",
+      roles: "student",
+    });
+  });
+
+  it("writes nothing with stdout off (the demo seed)", async () => {
+    const lines = captureSecurityLog();
+    const database = await testDb();
+    await recordAudit(database, LOGIN, { stdout: false });
+    expect(lines).toEqual([]);
+    expect(await database.selectFrom("audit_event").select("id").execute()).toHaveLength(1);
+  });
+
+  it("writes nothing for an event the schema refuses", async () => {
+    const lines = captureSecurityLog();
+    const database = unreachableDb();
+    await expect(recordAudit(database, { ...LOGIN, reason: "Jan de Vries" })).rejects.toThrow(
+      AuditEventInvalidError,
+    );
+    expect(lines).toEqual([]);
+  });
+});
+
 describe("recordCommittedAudit", () => {
   it("logs a failed write with ids only and does not throw", async () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const lines = captureSecurityLog();
     const database = unreachableDb();
     try {
       await expect(recordCommittedAudit(database, LOGIN)).resolves.toBeUndefined();
     } finally {
       await database.destroy();
     }
-    expect(error).toHaveBeenCalledWith(
-      "audit_write_failed kind=write action=authn_login_success outcome=success actor=u1 target=user:u1",
-    );
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0] ?? "null")).toEqual({
+      time: expect.any(String),
+      level: "error",
+      app: "edulims",
+      log: "security",
+      event: "audit_write_failed",
+      kind: "write",
+      reason: "authn_login_success",
+      outcome: "success",
+      actor_type: "user",
+      actor_id: "u1",
+      target_type: "user",
+      target_id: "u1",
+    });
   });
 
   it("logs an invalid event as invalid", async () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const lines = captureSecurityLog();
     const database = unreachableDb();
     await recordCommittedAudit(database, { ...LOGIN, actor: { type: "system" }, reason: "No!" });
     await database.destroy();
-    expect(error).toHaveBeenCalledWith(
-      expect.stringMatching(/^audit_write_failed kind=invalid .* actor=system /),
-    );
+    expect(lines).toHaveLength(1);
+    const line: unknown = JSON.parse(lines[0] ?? "null");
+    expect(line).toMatchObject({
+      event: "audit_write_failed",
+      kind: "invalid",
+      actor_type: "system",
+    });
+    expect(line).not.toHaveProperty("actor_id");
   });
 });
 

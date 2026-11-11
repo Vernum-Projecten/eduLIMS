@@ -23,6 +23,7 @@ import type { Auth } from "../auth.ts";
 import { hasRole, type SessionUser } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { AuthError } from "../middleware.ts";
+import { logSecurityEvent } from "../security-log.ts";
 
 /** Why an action was refused or failed; the sheet maps each code to a translated message. */
 export const ADMIN_ACTION_ERRORS = [
@@ -72,7 +73,11 @@ function fromAuthError(error: unknown): AdminActionResult {
   const code: unknown = Reflect.get(error.body ?? {}, "code");
   if (code === "USER_NOT_FOUND") return refused("not_found");
   if (code === "YOU_CANNOT_BAN_YOURSELF") return refused("cannot_block_self");
-  console.error(`admin action failed: ${typeof code === "string" ? code : error.statusCode}`);
+  logSecurityEvent("error", "admin_action_failed", {
+    outcome: "failure",
+    reason: typeof code === "string" ? code.toLowerCase() : undefined,
+    status: error.statusCode,
+  });
   return refused("failed");
 }
 

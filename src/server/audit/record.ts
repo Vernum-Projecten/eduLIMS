@@ -4,6 +4,7 @@
 // Writing the activity log (B4). Relative imports: `pnpm db:seed` loads this in plain Node.
 import type { Kysely } from "kysely";
 import type { DB } from "../db/schema.gen.ts";
+import { logAuditEvent, logSecurityEvent } from "../security-log.ts";
 import { type AuditEvent, auditEventSchema } from "./events.ts";
 
 /** Thrown when an event fails {@link auditEventSchema}: a coding error, never user input. */
@@ -24,11 +25,18 @@ export class AuditWriteError extends Error {
  * Pass the transaction of the action the event describes, so the action and its log row commit
  * or roll back together: an action that cannot be logged does not happen.
  *
+ * After the insert it writes the same ids and codes to the security log on stdout
+ * ({@link logAuditEvent}), unless `options.stdout` is `false` (the demo seed's back-dated rows).
+ *
  * @throws AuditEventInvalidError when the event fails the schema (an unknown metadata key, a
  * target type that does not fit the action).
  * @throws AuditWriteError when the insert fails.
  */
-export async function recordAudit(db: Kysely<DB>, event: AuditEvent): Promise<void> {
+export async function recordAudit(
+  db: Kysely<DB>,
+  event: AuditEvent,
+  options: { stdout?: boolean } = {},
+): Promise<void> {
   const parsed = auditEventSchema.safeParse(event);
   if (!parsed.success) {
     throw new AuditEventInvalidError(`invalid audit event ${event.action}`, {
@@ -57,6 +65,9 @@ export async function recordAudit(db: Kysely<DB>, event: AuditEvent): Promise<vo
   } catch (error) {
     throw new AuditWriteError(`audit write failed for ${action}`, { cause: error });
   }
+  // NOTE: V16.4.3; written inside the caller's transaction, so a later rollback can leave a line
+  // for a row that never committed. The activity log stays the record; the stream is its copy.
+  if (options.stdout !== false) logAuditEvent(event);
 }
 
 /**
@@ -68,13 +79,15 @@ export async function recordCommittedAudit(db: Kysely<DB>, event: AuditEvent): P
   try {
     await recordAudit(db, event);
   } catch (error) {
-    const actor = event.actor.type === "user" ? event.actor.id : event.actor.type;
-    const target = event.target ? `${event.target.type}:${event.target.id}` : "-";
-    const kind = error instanceof AuditEventInvalidError ? "invalid" : "write";
     // Ids and codes only, never the names or the request (A09, privacy).
-    console.error(
-      `audit_write_failed kind=${kind} action=${event.action} outcome=${event.outcome} ` +
-        `actor=${actor} target=${target}`,
-    );
+    logSecurityEvent("error", "audit_write_failed", {
+      kind: error instanceof AuditEventInvalidError ? "invalid" : "write",
+      reason: event.action,
+      outcome: event.outcome,
+      actor_type: event.actor.type,
+      actor_id: event.actor.type === "user" ? event.actor.id : undefined,
+      target_type: event.target?.type,
+      target_id: event.target?.id,
+    });
   }
 }

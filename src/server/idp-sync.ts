@@ -18,6 +18,7 @@ import { hasPersistentNameId } from "./idp/saml-nameid.ts";
 import { TEST_COMPLETE_ERROR, type TestOutcome } from "./idp/test-flow.ts";
 import { type IdpRoles, resolveIdpRoles } from "./idp-roles.ts";
 import { decideSignInRoles, type SignInRoles, type StoredRoles } from "./role-ownership.ts";
+import { logSecurityEvent } from "./security-log.ts";
 
 type ValidateUserInfo = NonNullable<NonNullable<BetterAuthOptions["user"]>["validateUserInfo"]>;
 type GateContext = Parameters<ValidateUserInfo>[1];
@@ -100,16 +101,45 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       ...(provider ? { provider } : {}),
       ...(requestId ? { requestId } : {}),
     };
-    const refuseDisabled = () =>
-      recorder?.record({
-        action: "authn_login_fail",
-        actor: { type: "anonymous" },
+    // Every refusal reaches the security log once: through the activity log (recordAudit), or
+    // directly when no recorder is attached. Ids and codes only (A09, privacy).
+    const refuse = async (reason: string): Promise<void> => {
+      if (recorder) {
+        await recorder.record({
+          action: "authn_login_fail",
+          actor: { type: "anonymous" },
+          outcome: "refused",
+          reason,
+          ...known,
+        });
+        return;
+      }
+      logSecurityEvent("warn", "authn_login_fail", {
         outcome: "refused",
-        reason: PROVIDER_DISABLED_ERROR,
-        ...known,
+        actor_type: "anonymous",
+        target_type: known.target?.type,
+        target_id: known.target?.id,
+        reason,
+        provider: providerId,
+        request_id: requestId,
       });
+    };
+    // A test sign-in (Admin "Test") ends here and creates nothing; the claim names and roles
+    // stay in the test record, the stream gets the outcome code.
+    const endTest = async (test: string, outcome: TestOutcome) => {
+      await options.recordTest?.(test, outcome);
+      logSecurityEvent("info", "idp_test_sign_in", {
+        outcome: "refused",
+        actor_type: "anonymous",
+        reason: TEST_COMPLETE_ERROR,
+        test_outcome: outcome.outcome,
+        provider: providerId,
+        request_id: requestId,
+      });
+      return { error: TEST_COMPLETE_ERROR, errorDescription: "Test sign-in complete" };
+    };
     if (!settings) {
-      await refuseDisabled();
+      await refuse(PROVIDER_DISABLED_ERROR);
       return { error: PROVIDER_DISABLED_ERROR, errorDescription: "Identity provider disabled" };
     }
     const profile = source.sso?.profile ?? {};
@@ -117,16 +147,9 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
     if (source.method === "sso-saml" && !hasPersistentNameId(field(ctx.body, "SAMLResponse"))) {
       const test = options.testOf ? await options.testOf(ctx, providerId) : null;
       if (test !== null) {
-        await options.recordTest?.(test, { outcome: SAML_NAMEID_ERROR, roles: [], claimNames: [] });
-        return { error: TEST_COMPLETE_ERROR, errorDescription: "Test sign-in complete" };
+        return endTest(test, { outcome: SAML_NAMEID_ERROR, roles: [], claimNames: [] });
       }
-      await recorder?.record({
-        action: "authn_login_fail",
-        actor: { type: "anonymous" },
-        outcome: "refused",
-        reason: SAML_NAMEID_ERROR,
-        ...known,
-      });
+      await refuse(SAML_NAMEID_ERROR);
       return { error: SAML_NAMEID_ERROR, errorDescription: "SAML NameID is not persistent" };
     }
     const fromIdp: IdpRoles = resolveIdpRoles({
@@ -138,12 +161,9 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
     const stored = existingId ? await storedRolesOf(ctx, existingId) : null;
     let decision = decideSignInRoles(fromIdp, stored, settings.defaultRole);
     const test = options.testOf ? await options.testOf(ctx, providerId) : null;
-    if (test !== null) {
-      await options.recordTest?.(test, testOutcome(decision, profile));
-      return { error: TEST_COMPLETE_ERROR, errorDescription: "Test sign-in complete" };
-    }
+    if (test !== null) return endTest(test, testOutcome(decision, profile));
     if (!settings.enabled) {
-      await refuseDisabled();
+      await refuse(PROVIDER_DISABLED_ERROR);
       return { error: PROVIDER_DISABLED_ERROR, errorDescription: "Identity provider disabled" };
     }
     const email = typeof user.email === "string" ? user.email : "";
@@ -159,19 +179,18 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       decision = { kind: "default", roles: ["admin"] };
     }
     if (decision.kind === "refused") {
-      await recorder?.record({
-        action: "authn_login_fail",
-        actor: { type: "anonymous" },
-        outcome: "refused",
-        reason: decision.reason,
-        ...known,
-      });
+      await refuse(decision.reason);
       // NOTE: A07; a role the IdP took away ends the live access too, not only the next sign-in.
       if (typeof user.id === "string")
         await ctx.context.internalAdapter.deleteUserSessions(user.id);
       if (decision.reason === ROLE_CONFLICT_ERROR) {
-        // Logs the provider only: never the user, the e-mail or the claims (A09, privacy).
-        console.warn(`sign-in refused: ${ROLE_CONFLICT_ERROR} (provider ${providerId})`);
+        // The provider only: never the user, the e-mail or the claims (A09, privacy). A conflict
+        // means the provider's role map is wrong, so it is an operator alert of its own.
+        logSecurityEvent("warn", "idp_role_conflict", {
+          outcome: "refused",
+          reason: ROLE_CONFLICT_ERROR,
+          provider: providerId,
+        });
         return { error: ROLE_CONFLICT_ERROR, errorDescription: "Conflicting eduLIMS roles" };
       }
       return { error: NO_ROLE_ERROR, errorDescription: "No eduLIMS role assigned" };

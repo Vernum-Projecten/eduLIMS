@@ -10,6 +10,7 @@ import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { ROLE_CONFLICT_ERROR } from "../lib/identity-providers.ts";
 import { formatRoles, OWN_ROLES_ERROR, validateRoleValue } from "../lib/roles.ts";
 import { auditRecorderOf, requestIdOf } from "./audit/better-auth-hooks.ts";
+import { logSecurityEvent } from "./security-log.ts";
 
 type UserHooks = NonNullable<NonNullable<BetterAuthOptions["databaseHooks"]>["user"]>;
 
@@ -27,7 +28,10 @@ export function guardRoleValue(value: unknown): string {
   const result = validateRoleValue(value);
   if (!result.ok) {
     // Logs the reason only: never the user or the requested value (A09, privacy).
-    console.warn(`role write refused: ${result.reason}`);
+    logSecurityEvent("warn", "authz_role_write_refused", {
+      outcome: "refused",
+      reason: result.reason,
+    });
     throw APIError.from("BAD_REQUEST", ROLE_SET_REFUSED);
   }
   return formatRoles(result.roles);
@@ -88,8 +92,7 @@ export const refuseOwnRoleWrites = createAuthMiddleware(async (ctx) => {
   const session = await getSessionFromCtx(ctx);
   const userId = session?.user.id;
   if (userId && isOwnRoleWrite(ctx.path, ctx.body, userId)) {
-    // Logs the reason only, never the user (A09, privacy).
-    console.warn(`role write refused: ${OWN_ROLES_ERROR}`);
+    // The activity-log row also goes to the security log on stdout (recordAudit).
     const requestId = requestIdOf(ctx);
     await auditRecorderOf(ctx.context)?.record({
       action: "authz_role_change",

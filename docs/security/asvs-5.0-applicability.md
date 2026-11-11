@@ -67,10 +67,10 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 175 |
-| Status met | 88 |
-| Status partial | 48 |
-| Status planned | 30 |
-| Status open | 9 |
+| Status met | 90 |
+| Status partial | 49 |
+| Status planned | 28 |
+| Status open | 8 |
 | Status n-a | 170 |
 
 ### V1 Encoding and Sanitization
@@ -823,18 +823,18 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V16.2.1 | 2 | partly | the B4 activity log (`audit_event`) records who did what to which object, with outcome, time and request id (`src/server/audit/`); application logs are plain `console` lines today | unit `src/server/audit/record.test.ts` | partial |
+| V16.2.1 | 2 | partly | the B4 activity log (`audit_event`) records who did what to which object, with outcome, time and request id (`src/server/audit/`); the security events on stdout carry the same fields as JSON (`src/server/security-log.ts`); the CLI commands (migrate, seed, prune) still print plain lines | unit `src/server/audit/record.test.ts`, `src/server/security-log.test.ts` | partial |
 | V16.2.2 | 2 | yes | timestamps in UTC (`timestamptz`, `.claude/rules/database.md`); container clocks follow the host | review | partial |
-| V16.2.3 | 2 | yes | logs go to the container's stdout only; documented with the log inventory (V16.1.1) | review | planned |
-| V16.2.4 | 2 | yes | no common log format yet (JSON lines planned with B4) | review | planned |
-| V16.2.5 | 2 | yes | logs carry ids, never names, e-mail, grades or tokens (`src/server/idp-sync.ts`, `src/server/role-guard.ts`) | unit `src/server/idp-sync.test.ts` | met |
+| V16.2.3 | 2 | yes | logs go to the container's stdout, and with `compose.logship.yaml` the security events also go to the institution's log platform (`docs/deployment.md`, "Shipping logs off the host"); the log inventory (V16.1.1) is still to write | review | partial |
+| V16.2.4 | 2 | yes | security events are one JSON object per line with a fixed field set and a UTC `time` (`src/server/security-log.ts`), shipped as RFC 5424 syslog or JSON (`docker/logship/`); the CLI commands print plain lines | unit `src/server/security-log.test.ts` | partial |
+| V16.2.5 | 2 | yes | logs carry ids, never names, e-mail, grades or tokens: the security log takes an allowlist of fields and redacts a value with a space or an `@` (`src/server/security-log.ts`, `src/server/idp-sync.ts`, `src/server/role-guard.ts`) | unit `src/server/security-log.test.ts`, `src/server/idp-sync.test.ts` | met |
 
 #### V16.3 Security Events
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts` | met |
-| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); 401 and 403 from server functions are not | unit `src/server/audit/better-auth-hooks.test.ts` | partial |
+| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts` | met |
 | V16.3.3 | 2 | yes | rejected uploads (S4) and refused access belong in the B4 audit log | unit tests with S4 and B4 | planned |
 | V16.3.4 | 2 | yes | unexpected errors and an unreachable FerroEHR or FerroBRIDGE (B3, within 5 minutes) | unit tests with B3 | planned |
 
@@ -842,9 +842,9 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V16.4.1 | 2 | yes | log lines are fixed text plus ids; structured logging with B4 | review | partial |
-| V16.4.2 | 2 | partly | logs live in the container runtime's log store; protection is the operator's | manual, operator | partial |
-| V16.4.3 | 2 | yes | no shipping of logs to a separate system yet; needs an owner decision | review | open |
+| V16.4.1 | 2 | yes | the security log writes each event with `JSON.stringify`, so a line break or quote in a value stays inside it, and redacts values outside the id and code shape (`src/server/security-log.ts`); the CLI commands print fixed text plus ids | unit `src/server/security-log.test.ts` | met |
+| V16.4.2 | 2 | partly | logs live in the container runtime's log store; protection is the operator's; with `compose.logship.yaml` a copy of the security events leaves the host | manual, operator | partial |
+| V16.4.3 | 2 | yes | optional by the owner decision on #44: `compose.logship.yaml` ships the security events through a hardened Fluent Bit forwarder to the institution's log platform over TLS, as RFC 5424 syslog or HTTPS (`docker/logship/`, `docs/deployment.md`, "Shipping logs off the host") | check `scripts/checks/logship-compose.sh` (CI `logship-compose`); manual end-to-end run to a TLS sink; met only on a deployment that turns shipping on | partial |
 
 #### V16.5 Error Handling
 

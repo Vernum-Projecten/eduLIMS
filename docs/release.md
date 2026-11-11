@@ -19,8 +19,8 @@ Pushing the tag `vX.Y.Z` starts `.github/workflows/release.yml`:
    and a milestone `vX.Y.Z` with no open item. It writes the release notes.
 2. **github release (draft)** waits for approval in the `release`
    environment, then creates the draft with the deploy bundle
-   (`edulims-deploy-vX.Y.Z.tar.gz`: `compose.yaml`, `.env.example`, the
-   PostgreSQL init script).
+   (`edulims-deploy-vX.Y.Z.tar.gz`: `compose.yaml`, `compose.logship.yaml`
+   with `docker/logship/`, `.env.example`, the PostgreSQL init script).
 3. **build** (`release-build.yml`, SLSA Build L3) builds `.output/` from the
    frozen lockfile with no cache, packs `edulims-vX.Y.Z.tar.gz`, writes the
    CycloneDX SBOM `edulims-vX.Y.Z.cdx.json` with `pnpm sbom`, and attests

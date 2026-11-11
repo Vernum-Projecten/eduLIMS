@@ -1,0 +1,84 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# Optional: ships eduLIMS's security events off the host (OWASP ASVS 5.0
+# V16.4.3). docs/deployment.md, "Shipping logs off the host", is the procedure.
+# Turn it on in .env, beside compose.yaml:
+#
+#   COMPOSE_FILE=compose.yaml:compose.logship.yaml
+#   LOGSHIP_OUTPUT=syslog     # or http
+#   LOGSHIP_HOST=…            # and the other LOGSHIP_ values .env.example lists
+#
+# Without this file in COMPOSE_FILE nothing changes: eduLIMS logs to the
+# container runtime's default driver and no forwarder runs.
+#
+# WHAT YOU PROVIDE beside this file:
+#   docker/logship/      the two Fluent Bit configurations, from the release's
+#                        deploy bundle
+#   config/logship/      optional: the CA certificate of the log platform, when
+#                        a private CA signed its server certificate
+#
+# HOW. Docker's fluentd log driver sends every line eduLIMS writes to stdout to
+# the Fluent Bit forwarder below, so no container mounts the Docker socket.
+# The Docker daemon, not a container, opens that connection, so the forwarder
+# publishes its port on the loopback interface only. Fluent Bit keeps the
+# security events (JSON lines with ids and codes, never a name, an e-mail
+# address, a token or a grade) and sends them over TLS, as RFC 5424 syslog or
+# as JSON lines over HTTPS. Podman has neither the fluentd nor the syslog log
+# driver; docs/deployment.md gives the route for a Podman host.
+
+services:
+  edulims:
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: tcp://127.0.0.1:${LOGSHIP_FORWARD_PORT:-24224}
+        # eduLIMS starts and runs while the forwarder is down; the driver
+        # buffers and reconnects. `docker compose logs edulims` keeps working
+        # from Docker's local cache.
+        fluentd-async: "true"
+        tag: edulims
+    depends_on:
+      logship:
+        condition: service_started
+
+  # ── Fluent Bit, the log forwarder ─────────────────────────────────────────
+  # Fluent Bit, not Vector: its forward input speaks Docker's fluentd driver
+  # and its syslog output writes RFC 5424 over TLS. The image is distroless
+  # and starts as root; it runs as nobody here, since it reads only the
+  # mounted files and listens on an unprivileged port.
+  logship:
+    image: docker.io/fluent/fluent-bit:5.2.0@sha256:a48190bf67679495a332fd61025421a46e7e4d168380185a8e16da2e9acc3126
+    restart: unless-stopped
+    user: "65534:65534"
+    command:
+      - /fluent-bit/bin/fluent-bit
+      - --config=/etc/logship/conf/fluent-bit-${LOGSHIP_OUTPUT:-syslog}.yaml
+    environment:
+      LOGSHIP_HOST: ${LOGSHIP_HOST:?set LOGSHIP_HOST in .env (docs/deployment.md, "Shipping logs off the host")}
+      LOGSHIP_PORT: ${LOGSHIP_PORT:?set LOGSHIP_PORT in .env}
+      LOGSHIP_TLS_VERIFY: ${LOGSHIP_TLS_VERIFY:-on}
+      LOGSHIP_TLS_CA_FILE: ${LOGSHIP_TLS_CA_FILE:-/etc/ssl/certs/ca-certificates.crt}
+      LOGSHIP_SYSLOG_HOSTNAME: ${LOGSHIP_SYSLOG_HOSTNAME:-edulims}
+      LOGSHIP_HTTP_URI: ${LOGSHIP_HTTP_URI:-/}
+      LOGSHIP_HTTP_HEADER: ${LOGSHIP_HTTP_HEADER:-X-Log-Source edulims}
+    volumes:
+      - ./docker/logship:/etc/logship/conf:ro
+      # LOGSHIP_TLS_CA_FILE=/etc/logship/tls/<file> picks a CA from here.
+      - ./config/logship:/etc/logship/tls:ro
+    ports:
+      - "127.0.0.1:${LOGSHIP_FORWARD_PORT:-24224}:24224"
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    # Its own network, which reaches the log platform: no other container can
+    # reach the input and write events into the stream.
+    networks: [logship]
+    # The distroless image has no shell or HTTP client to probe with, so there
+    # is no healthcheck; `docker compose logs logship` shows a failed delivery.
+
+networks:
+  logship: {}

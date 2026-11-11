@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# Fluent Bit for compose.logship.yaml with LOGSHIP_OUTPUT=syslog: eduLIMS's
+# security events as RFC 5424 syslog over TLS (RFC 5425), one event per
+# message, the JSON line unchanged as MSG. ${…} comes from the container's
+# environment, which compose.logship.yaml fills from .env.
+service:
+  flush: 1
+  log_level: info
+
+pipeline:
+  inputs:
+    # Docker's fluentd log driver connects here (Forward protocol).
+    - name: forward
+      listen: 0.0.0.0
+      port: 24224
+
+  filters:
+    # The security events only: the JSON lines src/server/security-log.ts
+    # writes. Start-up messages and anything else on stdout stay on the host.
+    - name: grep
+      match: "*"
+      regex: 'log ^\{.*"log":"security"'
+
+  outputs:
+    - name: syslog
+      match: "*"
+      host: ${LOGSHIP_HOST}
+      port: ${LOGSHIP_PORT}
+      mode: tls
+      tls: on
+      tls.verify: ${LOGSHIP_TLS_VERIFY}
+      tls.ca_file: ${LOGSHIP_TLS_CA_FILE}
+      syslog_format: rfc5424
+      syslog_maxsize: 4096
+      # Facility 10 (security/authorization) and severity 6 (informational),
+      # RFC 5424 section 6.2.1; the event's own level is in the JSON.
+      syslog_facility_preset: 10
+      syslog_severity_preset: 6
+      syslog_hostname_preset: ${LOGSHIP_SYSLOG_HOSTNAME}
+      syslog_appname_preset: edulims
+      syslog_msgid_preset: security
+      syslog_message_key: log
+      retry_limit: no_limits

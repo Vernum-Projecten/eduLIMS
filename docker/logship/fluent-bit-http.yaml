@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# Fluent Bit for compose.logship.yaml with LOGSHIP_OUTPUT=http: eduLIMS's
+# security events over HTTPS as a JSON array per batch (Content-Type
+# application/json), each event the object eduLIMS wrote (time, level, app,
+# log, event and the id and code fields). ${…} comes from the container's
+# environment, which compose.logship.yaml fills from .env.
+service:
+  flush: 1
+  log_level: info
+
+parsers:
+  - name: edulims_security
+    format: json
+    time_key: time
+    time_format: "%Y-%m-%dT%H:%M:%S.%LZ"
+    time_keep: on
+
+pipeline:
+  inputs:
+    # Docker's fluentd log driver connects here (Forward protocol).
+    - name: forward
+      listen: 0.0.0.0
+      port: 24224
+
+  filters:
+    # The security events only: the JSON lines src/server/security-log.ts
+    # writes. Start-up messages and anything else on stdout stay on the host.
+    - name: grep
+      match: "*"
+      regex: 'log ^\{.*"log":"security"'
+    # Replaces the driver's record (container id and name, source, log) with
+    # the event itself.
+    - name: parser
+      match: "*"
+      key_name: log
+      parser: edulims_security
+
+  outputs:
+    - name: http
+      match: "*"
+      host: ${LOGSHIP_HOST}
+      port: ${LOGSHIP_PORT}
+      uri: ${LOGSHIP_HTTP_URI}
+      # One header, "Name value"; the log platform's token goes here.
+      header: ${LOGSHIP_HTTP_HEADER}
+      format: json
+      json_date_key: false
+      tls: on
+      tls.verify: ${LOGSHIP_TLS_VERIFY}
+      tls.ca_file: ${LOGSHIP_TLS_CA_FILE}
+      retry_limit: no_limits

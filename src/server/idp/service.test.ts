@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { parseEnv } from "../env.ts";
+import { setSecurityLogWriter } from "../security-log.ts";
 import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
 import { dataKey, isEnvelope } from "./crypto.ts";
@@ -23,6 +24,12 @@ import {
   providerSettings,
 } from "./registry.ts";
 import type { CreateProviderInput } from "./schemas.ts";
+
+/** Reads one key of a parsed log line. */
+function field(value: unknown, key: string): unknown {
+  return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
+}
+
 import {
   createProvider,
   deleteProvider,
@@ -437,11 +444,29 @@ describe("the encrypting adapter (ADR 0015)", () => {
   it("fails closed with crypt_decrypt_fail when the key does not open a row", async () => {
     const { ctx, database } = await setup();
     await createProvider(ctx, OIDC);
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const lines: string[] = [];
+    const restore = setSecurityLogWriter((line) => lines.push(line));
     const adapter = await adapterOf(database, Buffer.alloc(32, 9).toString("base64"));
-    await expect(
-      adapter.findMany({ model: "ssoProvider", where: [{ field: "providerId", value: "entra" }] }),
-    ).rejects.toThrow(/unknown_key/);
-    expect(error).toHaveBeenCalledWith("crypt_decrypt_fail: unknown_key (provider entra)");
+    try {
+      await expect(
+        adapter.findMany({
+          model: "ssoProvider",
+          where: [{ field: "providerId", value: "entra" }],
+        }),
+      ).rejects.toThrow(/unknown_key/);
+    } finally {
+      restore();
+    }
+    const decryptFailures = lines
+      .map((line): unknown => JSON.parse(line))
+      .filter((line) => field(line, "event") === "crypt_decrypt_fail");
+    expect(decryptFailures).toEqual([
+      expect.objectContaining({
+        level: "error",
+        kind: "unknown_key",
+        target_type: "identity_provider",
+        target_id: "entra",
+      }),
+    ]);
   });
 });

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionUser } from "./authz.ts";
 
 const getSession = vi.fn();
@@ -16,6 +16,19 @@ vi.mock("@tanstack/react-start/server", () => ({ getRequestHeaders: () => new He
 
 const { getSessionUser } = await import("./session.ts");
 const { AuthError, authMiddleware, requireRole } = await import("./middleware.ts");
+const { setSecurityLogWriter } = await import("./security-log.ts");
+
+let logLines: string[] = [];
+let restoreLog: (() => void) | undefined;
+
+afterEach(() => {
+  restoreLog?.();
+});
+
+/** Returns the parsed security log lines a test wrote. */
+function logged(): unknown[] {
+  return logLines.map((line): unknown => JSON.parse(line));
+}
 
 const betterAuthSession = {
   session: { token: "secret-token", createdAt: new Date() },
@@ -25,6 +38,8 @@ const betterAuthSession = {
 beforeEach(() => {
   getSession.mockReset();
   deleteSession.mockReset();
+  logLines = [];
+  restoreLog = setSecurityLogWriter((line) => logLines.push(line));
 });
 
 describe("getSessionUser", () => {
@@ -110,6 +125,19 @@ describe("authMiddleware", () => {
     await expect(run(authMiddleware)).rejects.toMatchObject({ status: 401 });
   });
 
+  it("logs the 401 as authz_fail without a user (ASVS V16.3.2)", async () => {
+    getSession.mockResolvedValue(null);
+    await run(authMiddleware).catch(() => undefined);
+    expect(logged()).toEqual([
+      expect.objectContaining({
+        event: "authz_fail",
+        actor_type: "anonymous",
+        reason: "not_signed_in",
+        status: 401,
+      }),
+    ]);
+  });
+
   it("passes the session user on as context", async () => {
     getSession.mockResolvedValue(betterAuthSession);
     await expect(run(authMiddleware)).resolves.toMatchObject({ context: { user: { id: "u1" } } });
@@ -129,6 +157,25 @@ describe("requireRole", () => {
     const error = await run(requireRole("teacher", "admin"), { user: student }).catch((e) => e);
     expect(error).toBeInstanceOf(AuthError);
     expect(error).toMatchObject({ status: 403, message: "Forbidden" });
+  });
+
+  it("logs the 403 with the user id and the needed roles, never the name or e-mail (ASVS V16.3.2)", async () => {
+    await run(requireRole("teacher", "admin"), { user: student }).catch(() => undefined);
+    expect(logged()).toEqual([
+      expect.objectContaining({
+        event: "authz_fail",
+        actor_id: "u1",
+        reason: "missing_role",
+        status: 403,
+        required_roles: "teacher,admin",
+      }),
+    ]);
+    expect(logLines.join("")).not.toMatch(/Test Student|example\.test/);
+  });
+
+  it("logs nothing when the role is held", async () => {
+    await run(requireRole("student"), { user: student });
+    expect(logLines).toEqual([]);
   });
 
   it("allows users with one of the roles", async () => {
