@@ -28,6 +28,22 @@ describe("parseEnv", () => {
     expect(env.EDULIMS_DEV_LOGIN).toBe(false);
   });
 
+  it("treats an empty or blank variable as unset, as `VAR=` in an env file means", () => {
+    const env = parseEnv({
+      ...VALID_ENV,
+      MICROSOFT_CLIENT_ID: "",
+      MICROSOFT_CLIENT_SECRET: "  ",
+      MICROSOFT_TENANT_ID: "",
+      KEYCLOAK_LABEL: "",
+    });
+    expect(isMicrosoftConfigured(env)).toBe(false);
+    expect(env.KEYCLOAK_LABEL).toBeUndefined();
+  });
+
+  it("still refuses an empty required variable", () => {
+    expect(() => parseEnv({ ...VALID_ENV, BETTER_AUTH_SECRET: "" })).toThrow(/BETTER_AUTH_SECRET/);
+  });
+
   it("refuses http BETTER_AUTH_URL when NODE_ENV=production", () => {
     expect(() =>
       parseEnv({ ...VALID_ENV, NODE_ENV: "production", EDULIMS_DEV_LOGIN: "false" }),
@@ -133,10 +149,15 @@ describe("identity providers", () => {
 
   it.each([
     ["OIDC_ROLE_MAP", "edulims-teacher:superuser"],
-    ["OIDC_ROLE_MAP", ""],
+    ["OIDC_ROLE_MAP", "edulims-teacher"],
     ["OIDC_DEFAULT_ROLE", "superuser"],
   ])("rejects an invalid %s (%j)", (key, value) => {
     expect(() => parseEnv({ ...VALID_ENV, [key]: value })).toThrow(new RegExp(key));
+  });
+
+  it("falls back to the default role map when OIDC_ROLE_MAP is empty (#15)", () => {
+    const env = parseEnv({ ...VALID_ENV, OIDC_ROLE_MAP: "" });
+    expect(env.OIDC_ROLE_MAP).toEqual(parseRoleMap(DEFAULT_ROLE_MAP));
   });
 });
 

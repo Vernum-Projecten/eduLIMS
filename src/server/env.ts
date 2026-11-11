@@ -127,12 +127,20 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
   return parseWith(envSchema, source);
 }
 
-/** Parses with any schema (e.g. `envFields.pick(...)`) using the same error formatting. */
+/**
+ * Parses with any schema (e.g. `envFields.pick(...)`) using the same error formatting.
+ *
+ * An empty or whitespace-only value counts as unset, so `VAR=` in an env file
+ * switches an optional setting off instead of failing as "too short".
+ */
 export function parseWith<T extends z.ZodType>(
   schema: T,
   source: Record<string, string | undefined>,
 ): z.output<T> {
-  const result = schema.safeParse(source);
+  const present = Object.fromEntries(
+    Object.entries(source).filter(([, value]) => value !== undefined && value.trim() !== ""),
+  );
+  const result = schema.safeParse(present);
   if (!result.success) {
     throw new Error(`Invalid environment configuration:\n${z.prettifyError(result.error)}`);
   }
