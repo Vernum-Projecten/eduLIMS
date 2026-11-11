@@ -35,7 +35,7 @@
   ],
   "related_identifiers": [
     {
-      "identifier": "https://edulims.eu/docs/",
+      "identifier": "https://edulims.eu/",
       "relation": "isDocumentedBy",
       "resource_type": "publication-softwaredocumentation"
     },

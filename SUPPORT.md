@@ -5,7 +5,7 @@
 
 ## I have a question
 
-Start at the documentation on <https://edulims.eu/docs/>, the
+Start at the documentation on <https://edulims.eu/>, the
 [README](README.md) and the documents under [`docs/`](docs/). If they do not
 answer it, open an issue through the
 [issue chooser](https://github.com/Vernum-Projecten/eduLIMS/issues/new/choose).

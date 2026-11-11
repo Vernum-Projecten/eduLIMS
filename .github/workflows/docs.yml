@@ -1,0 +1,79 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# Docs: build the documentation site (website/, Astro Starlight) and deploy it
+# to GitHub Pages at https://edulims.eu.
+#
+# GitHub's Pages-with-Actions pattern: `build` renders the site, checks it and
+# uploads it as the Pages artifact; `deploy` publishes that artifact to the
+# github-pages environment. A pull request builds and checks the site (links,
+# and the axe WCAG 2.1 A and AA scan) but never deploys it. This workflow is
+# not part of the merge gate in ci.yml; it reports on its own.
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+# A newer push to the same pull request cancels its older build; main and
+# manual runs queue, and the deploy job serializes on `pages` below.
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      ASTRO_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The pnpm store cache is restored on pull requests only: a push to main
+      # builds the artifact that deploys, so it installs from the registry.
+      - uses: ./.github/actions/setup-node-pnpm # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the $/ form
+        with:
+          cache: ${{ github.event_name == 'pull_request' }}
+      - name: Build the site
+        run: pnpm --filter @edulims/website build
+      - name: Install the pinned lychee
+        run: bash website/scripts/install-lychee.sh "$RUNNER_TEMP/lychee"
+      - name: Every link and anchor inside the site resolves
+        run: bash website/scripts/check-links.sh
+      - name: Install Chromium for the accessibility scan
+        run: pnpm --filter @edulims/website exec playwright install --with-deps chromium
+      - name: Key pages have no WCAG 2.1 A or AA violations (axe)
+        run: pnpm --filter @edulims/website check:a11y
+      - if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: website/dist
+
+  deploy:
+    name: deploy
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Deploys run one at a time, and an in-flight deploy is never cut off.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

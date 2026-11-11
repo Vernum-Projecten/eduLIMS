@@ -74,4 +74,4 @@ gh attestation verify oci://ghcr.io/vernum-projecten/edulims:<tag> \
 ```
 
 [docs/release.md](docs/release.md) describes the release lane; the published
-documentation is at <https://edulims.eu/docs/>.
+documentation is at <https://edulims.eu/>.

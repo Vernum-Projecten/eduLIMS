@@ -9,7 +9,7 @@ practical laboratory education. The design is recorded in
 stable IDs, in [`docs/requirements.md`](docs/requirements.md). The working
 rules for people and AI sessions are in [`CLAUDE.md`](CLAUDE.md). Read them
 before you make a change. The published documentation is at
-<https://edulims.eu/docs/>.
+<https://edulims.eu/>.
 
 ## Setup
 

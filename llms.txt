@@ -4,7 +4,7 @@
 
 ## Start here
 
-- [Documentation site](https://edulims.eu/docs/): the published documentation; the landing page is <https://edulims.eu>.
+- [Documentation site](https://edulims.eu/): the published documentation, with guides per role, operations and development pages; Dutch user guides under /nl/.
 - [README](README.md): what eduLIMS is, the status, the quick start and the stack.
 - [Architecture](docs/architecture.md): the design authority: principles, integrations, data split, portals and roles, deployment, quality requirements.
 - [Requirements](docs/requirements.md) (working draft, not final): S1 to S9, D1 to D8, B1 to B4, the Q-* quality requirements, risks R-01 to R-10 and the KPIs, with stable IDs.

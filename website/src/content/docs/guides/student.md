@@ -1,0 +1,49 @@
+---
+title: Student guide
+description: Sign in to the student portal, and what the portal will let you do.
+sidebar:
+  label: Student
+---
+
+<!-- SPDX-FileCopyrightText: Ruben Talstra -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
+The student portal (Studentportaal) is where you follow a practical: register
+your samples, check your measurements, and hand in your lab report.
+
+:::caution[Pre-release]
+eduLIMS is in development. This guide describes what works today and lists
+the planned tasks. A planned task links to its draft requirement, which can
+still change.
+:::
+
+## Sign in
+
+1. Open eduLIMS in your browser and choose **Sign in**.
+2. Choose the sign-in button of your institution, for example the Microsoft
+   or Keycloak button.
+3. Sign in with your institution account.
+
+eduLIMS opens the student portal. If your account has no role in eduLIMS
+yet, the sign-in page tells you so.
+Ask an administrator to give your account the student role.
+
+You see only your own data. Results, submissions and grades of other students
+are never shown to you.
+
+## Sign out
+
+Choose **Sign out** in the header. eduLIMS ends your session on the server.
+
+## Planned tasks
+
+| Task                                                                                             | Requirement                      |
+| ------------------------------------------------------------------------------------------------ | -------------------------------- |
+| Read the assignment, the measurement protocol and the deadline of a practical                    | [S2](/development/requirements/) |
+| Register samples; eduLIMS gives each sample a unique sample ID (monster-ID)                      | [S3](/development/requirements/) |
+| Upload a Gen5 Excel export of the plate reader; eduLIMS checks every sample ID and well position | [S4](/development/requirements/) |
+| Check the measurement results per sample, from the Afinion 2 and the Epoch 2                     | [S5](/development/requirements/) |
+| Submit the lab report (labverslag) before the deadline; after you submit, it is locked           | [S6](/development/requirements/) |
+| Read your feedback and grade, next to the average of the practical                               | [S7](/development/requirements/) |
+| See the status of a submission: draft, submitted, graded                                         | [S8](/development/requirements/) |
+| Submit a resit or a new version                                                                  | [S9](/development/requirements/) |
