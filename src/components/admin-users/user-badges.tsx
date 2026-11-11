@@ -85,14 +85,9 @@ export function StatusBadge({
       : userStatusLabel(status);
   return (
     <Badge
-      variant={status === "never" ? "secondary" : "outline"}
-      className={status === "blocked" ? "border-destructive/60" : undefined}
+      variant={status === "blocked" ? "destructive" : status === "never" ? "secondary" : "outline"}
     >
-      <Icon
-        aria-hidden="true"
-        data-icon="inline-start"
-        className={status === "blocked" ? "text-destructive" : undefined}
-      />
+      <Icon aria-hidden="true" data-icon="inline-start" />
       {label}
     </Badge>
   );

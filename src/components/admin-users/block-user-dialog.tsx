@@ -6,7 +6,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { BanIcon, CalendarIcon, XIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { nl } from "react-day-picker/locale";
 import { useUsersMutation } from "@/components/admin-users/admin-action";
 import {
   AlertDialog,
@@ -171,7 +170,6 @@ export function BlockDialog({
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            {...(getLocale() === "nl" ? { locale: nl } : {})}
                             labels={{ labelDayButton }}
                             selected={value ? dayToDate(value) : undefined}
                             defaultMonth={value ? dayToDate(value) : tomorrow}
@@ -209,7 +207,7 @@ export function BlockDialog({
             <AlertDialogCancel type="button">{m.admin_users_cancel()}</AlertDialogCancel>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" variant="destructive" disabled={isSubmitting}>
                   <BanIcon aria-hidden="true" data-icon="inline-start" />
                   {m.admin_users_block_confirm()}
                 </Button>
@@ -225,8 +223,8 @@ export function BlockDialog({
 /** Returns the trigger of the block dialog in the user detail sheet (an element Radix can slot). */
 function blockUserTrigger() {
   return (
-    <Button variant="outline" size="sm">
-      <BanIcon aria-hidden="true" data-icon="inline-start" className="text-destructive" />
+    <Button variant="destructive" size="sm">
+      <BanIcon aria-hidden="true" data-icon="inline-start" />
       {m.admin_users_block()}
     </Button>
   );

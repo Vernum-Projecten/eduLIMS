@@ -7,14 +7,17 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { useTheme } from "@/components/theme/theme-provider";
+import { m } from "@/i18n/messages";
 
-// Adapted from the shadcn/ui registry: next-themes removed (the app has no theme switcher yet).
+// Adapted from the shadcn/ui registry: the theme comes from the app's ThemeProvider, not next-themes.
 const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme } = useTheme();
   return (
     <Sonner
-      theme="light"
+      theme={theme}
       className="toaster group"
-      containerAriaLabel="Meldingen"
+      containerAriaLabel={m.ui_notifications()}
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,

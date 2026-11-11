@@ -81,7 +81,9 @@
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  /* Tailwind red-800: 5.23:1 or more as a label on its own 10% and 20% tints, on every
+     surface (scripts/checks/brand-contrast.sh). */
+  --destructive: #9f0712;
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -127,7 +129,9 @@
     --muted-foreground: oklch(0.708 0 0);
     --accent: oklch(0.269 0 0);
     --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
+    /* Tailwind red-200: 4.69:1 or more as a label on its own 20% and 30% tints, on every
+       surface (scripts/checks/brand-contrast.sh). */
+    --destructive: #ffc9c9;
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);

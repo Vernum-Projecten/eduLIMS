@@ -119,12 +119,8 @@ export function ConfirmButton({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="outline" size={size} disabled={pending}>
-          <Icon
-            aria-hidden="true"
-            data-icon="inline-start"
-            className={destructive ? "text-destructive" : undefined}
-          />
+        <Button variant={destructive ? "destructive" : "outline"} size={size} disabled={pending}>
+          <Icon aria-hidden="true" data-icon="inline-start" />
           {label}
         </Button>
       </AlertDialogTrigger>
@@ -136,7 +132,7 @@ export function ConfirmButton({
         <AlertDialogFooter>
           <AlertDialogCancel>{m.admin_users_cancel()}</AlertDialogCancel>
           <AlertDialogAction
-            variant="default"
+            variant={destructive ? "destructive" : "default"}
             onClick={() => {
               setOpen(false);
               onConfirm();

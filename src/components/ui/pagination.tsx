@@ -2,12 +2,13 @@ import { cn } from "cn";
 import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react";
 import type * as React from "react";
 import { Button } from "@/components/ui/button";
+import { m } from "@/i18n/messages";
 
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
   return (
     <nav
       role="navigation"
-      aria-label="pagination"
+      aria-label={m.ui_pagination()}
       data-slot="pagination"
       className={cn("mx-auto flex w-full justify-center", className)}
       {...props}
@@ -49,12 +50,12 @@ function PaginationLink({ className, isActive, size = "icon", ...props }: Pagina
 
 function PaginationPrevious({
   className,
-  text = "Previous",
+  text = m.ui_page_previous(),
   ...props
 }: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
   return (
     <PaginationLink
-      aria-label="Go to previous page"
+      aria-label={m.ui_page_previous_label()}
       size="default"
       className={cn("pl-1.5!", className)}
       {...props}
@@ -67,12 +68,12 @@ function PaginationPrevious({
 
 function PaginationNext({
   className,
-  text = "Next",
+  text = m.ui_page_next(),
   ...props
 }: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
   return (
     <PaginationLink
-      aria-label="Go to next page"
+      aria-label={m.ui_page_next_label()}
       size="default"
       className={cn("pr-1.5!", className)}
       {...props}
@@ -95,7 +96,7 @@ function PaginationEllipsis({ className, ...props }: React.ComponentProps<"span"
       {...props}
     >
       <MoreHorizontalIcon />
-      <span className="sr-only">More pages</span>
+      <span className="sr-only">{m.ui_more_pages()}</span>
     </span>
   );
 }

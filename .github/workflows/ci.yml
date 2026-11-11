@@ -496,7 +496,8 @@ jobs:
 
   # The brand palette's contrast, measured from assets/brand/tokens.css: a
   # token's `safe:` claim or a row of the brand README that stops matching its
-  # ratio fails (WCAG 2.1 SC 1.4.3 and 1.4.11). The icons the app and the
+  # ratio fails (WCAG 2.1 SC 1.4.3 and 1.4.11), and so does a theme
+  # --destructive under 4.5:1 on its tints. The icons the app and the
   # documentation site serve must be the files in assets/brand/.
   brand:
     name: brand

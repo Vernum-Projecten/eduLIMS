@@ -8,7 +8,6 @@ import { AppSidebar } from "@/components/shell/app-sidebar";
 import { MAIN_CONTENT_ID, SkipLink } from "@/components/shell/skip-link";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { m } from "@/i18n/messages";
 import { readSidebarOpen } from "@/lib/preferences";
 import { sidebarCookie } from "@/lib/theme";
 import type { SessionUser } from "@/server/authz";
@@ -27,12 +26,7 @@ function ShellSidebarTrigger() {
   }, [openMobile]);
 
   return (
-    <SidebarTrigger
-      ref={ref}
-      className="-ml-1"
-      aria-label={m.sidebar_toggle()}
-      aria-expanded={isMobile ? openMobile : open}
-    />
+    <SidebarTrigger ref={ref} className="-ml-1" aria-expanded={isMobile ? openMobile : open} />
   );
 }
 

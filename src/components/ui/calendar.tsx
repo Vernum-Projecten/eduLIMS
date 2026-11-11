@@ -2,7 +2,11 @@ import { cn } from "cn";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import * as React from "react";
 import { type DayButton, DayPicker, getDefaultClassNames, type Locale } from "react-day-picker";
+import { enUS, nl } from "react-day-picker/locale";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { getLocale } from "@/i18n/runtime";
+
+const DAY_PICKER_LOCALES = { en: enUS, nl } as const;
 
 function Calendar({
   className,
@@ -10,7 +14,7 @@ function Calendar({
   showOutsideDays = true,
   captionLayout = "label",
   buttonVariant = "ghost",
-  locale,
+  locale: localeProp,
   formatters,
   components,
   ...props
@@ -18,6 +22,7 @@ function Calendar({
   buttonVariant?: React.ComponentProps<typeof Button>["variant"];
 }) {
   const defaultClassNames = getDefaultClassNames();
+  const locale = localeProp ?? DAY_PICKER_LOCALES[getLocale()];
 
   return (
     <DayPicker
