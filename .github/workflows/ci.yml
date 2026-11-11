@@ -1,0 +1,517 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# CI: every lane a change to main passes, and the one required check
+# (`conclusion`) that sums them up. The design is in docs/ci-cd.md.
+#
+# The lanes in order:
+#   1. Workflow and shell analysis: zizmor, actionlint, shellcheck. They need
+#      no Node.js, so they run first and in parallel.
+#   2. The application: `install` resolves the lockfile once; typecheck, lint,
+#      unit tests with coverage, build, and the browser journeys (e2e) each
+#      install from the warm pnpm store.
+#   3. Supply chain: dependency review (pull requests), pnpm audit plus
+#      OSV-Scanner, and the dependency license guard.
+#   4. Pull-request guards: a Conventional Commits title, a linked issue, and a
+#      changelog fragment. Each reads the pull request from the API when it
+#      runs, so it skips in the merge queue, and pr-guards.yml re-runs it when
+#      the title, description or an escape label changes.
+#   5. The self-tests of every helper under scripts/gh/ and scripts/checks/.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    # Only the activity types that change the code under test, so a commit
+    # gets one run. A label or description event would start a second run on
+    # the same commit, the concurrency group would cancel the first, and its
+    # `conclusion` would report a failure. pr-guards.yml handles those events.
+    types: [opened, synchronize, reopened]
+  merge_group:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+  # ── 1. Workflow and shell analysis ──────────────────────────────────────────
+
+  # zizmor (docs.zizmor.sh): static security analysis of the workflows. It is
+  # the machine check behind the pinning rule (unpinned-uses), the credential
+  # rule (artipacked), and the no-interpolation rule (template-injection).
+  workflow-audit:
+    name: zizmor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: zizmor@1.32.0
+      - name: Audit .github
+        # GH_TOKEN turns on the online audits: impostor-commit checks that a
+        # pinned commit belongs to the repository named in front of it. Exit
+        # code 1 is a tool failure (a transient API error), so only that code
+        # is retried; a finding (11 to 14) returns on the first attempt.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in 1 2 3; do
+            status=0
+            zizmor --config .github/zizmor.yml --min-severity=low .github/ || status=$?
+            if [ "$status" -ne 1 ]; then
+              exit "$status"
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::zizmor failed with a tool error (attempt ${attempt}/3); retrying"
+              sleep $((attempt * 15))
+            fi
+          done
+          exit 1
+
+  # actionlint: expressions that cannot evaluate, a `needs:` that names no
+  # job, unknown runner labels, and shellcheck over every `run:` block.
+  workflow-lint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Lint .github/workflows
+        # The official image, pinned by digest; it bundles shellcheck. SC2016
+        # is excluded because every single-quoted `$` here is a jq filter or
+        # a printf format.
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo" --workdir /repo \
+            -e SHELLCHECK_OPTS='-e SC2016' \
+            rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            -color
+
+  # shellcheck over every tracked shell script at the lowest floor. A finding
+  # is fixed, or carries a per-line directive with its reason.
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: shellcheck@0.11.0
+      - name: Every tracked shell script is clean at severity=style
+        run: |
+          set -euo pipefail
+          git ls-files -z '*.sh' | xargs -0 -r shellcheck --severity=style
+
+  # ── 2. The application ──────────────────────────────────────────────────────
+
+  # Resolves the lockfile once and fails fast on drift, so the lanes below do
+  # not each report the same broken install. It also says whether the e2e
+  # scripts exist yet, so the browser lane turns on by itself when they land.
+  install:
+    name: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      e2e: ${{ steps.scripts.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - id: scripts
+        run: |
+          set -euo pipefail
+          if jq -e '.scripts["test:e2e"] and .scripts["db:migrate"]' package.json >/dev/null; then
+            echo "e2e=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "e2e=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::package.json has no test:e2e or db:migrate script yet; the e2e lane is skipped"
+          fi
+
+  typecheck:
+    name: typecheck
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm typecheck
+
+  # `biome ci` is `biome check` without writes, with annotations on the diff.
+  lint:
+    name: lint
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm exec biome ci .
+
+  # Unit tests with coverage. vitest.config.ts holds the 70% thresholds the
+  # maintainability requirement sets for the core, so a drop fails here.
+  test:
+    name: test
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm test:coverage
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 14
+
+  build:
+    name: build
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: pnpm build
+
+  # The browser journeys: Playwright with the axe accessibility scan, against
+  # the app on a PostgreSQL 18 service container with the schema migrated.
+  # Sign-in uses the development login, so no Entra ID tenant is reached.
+  e2e:
+    name: e2e
+    needs: install
+    if: needs.install.outputs.e2e == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+        env:
+          POSTGRES_USER: edulims
+          POSTGRES_PASSWORD: edulims
+          POSTGRES_DB: edulims
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U edulims -d edulims"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://edulims:edulims@localhost:5432/edulims
+      BETTER_AUTH_URL: http://localhost:3000
+      EDULIMS_DEV_LOGIN: "1"
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      # A fresh secret per run: nothing outside this job ever holds it.
+      - name: Generate the session secret
+        run: |
+          set -euo pipefail
+          secret="$(openssl rand -hex 32)"
+          echo "::add-mask::${secret}"
+          echo "BETTER_AUTH_SECRET=${secret}" >> "$GITHUB_ENV"
+      - id: playwright
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - id: browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      # The browser binaries come from the cache; the system libraries they
+      # link are installed on every run, because the runner image does not
+      # keep them.
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+      - run: pnpm db:migrate
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ── 3. Supply chain ─────────────────────────────────────────────────────────
+
+  # Pull requests only: the action compares the dependency graph of base and
+  # head, which a push or a merge group has no diff for. The license policy
+  # lives in one place, scripts/checks/licenses.allow, so the action checks
+  # vulnerabilities only.
+  dependency-review:
+    name: dependency-review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          license-check: false
+
+  # Known vulnerabilities in what the lockfile resolves, from two databases:
+  # the npm registry's advisories (pnpm audit, production dependencies) and
+  # OSV (every dependency, development tools included).
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          install: "false"
+      - run: pnpm audit --prod --audit-level=high
+      - uses: google/osv-scanner-action/osv-scanner-action@32d3cd482bdadfb38b186c0ad1b031902d55d932 # v2.7.1
+        with:
+          scan-args: |-
+            --lockfile=pnpm-lock.yaml
+
+  licenses:
+    name: licenses
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm
+      - run: bash scripts/checks/licenses.sh --self-test
+      - run: bash scripts/checks/licenses.sh
+
+  # ── 4. Pull-request guards ──────────────────────────────────────────────────
+
+  # The merge queue squashes a pull request into one commit titled after it,
+  # so the title is the commit subject on main.
+  pr-title:
+    name: pr-title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # the title when the step runs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The title is a Conventional Commits header
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Read when the step runs: a re-run replays the event payload.
+          title="$(gh api "repos/${GH_REPO}/pulls/${PR}" --jq .title)"
+          bash scripts/checks/pr-title.sh "$title"
+
+  # Every change on main traces to an issue. Bots are skipped: a dependency
+  # bump has no issue of its own.
+  linked-issue:
+    name: linked-issue
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # the description and labels when the step runs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The description links the issue it closes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          pr="$(gh api "repos/${GH_REPO}/pulls/${PR}")"
+          if [ "$(jq 'any(.labels[].name; . == "no-issue")' <<<"$pr")" = true ]; then
+            echo "the no-issue label is set: the guard does not apply"
+            exit 0
+          fi
+          jq -r '.body // ""' <<<"$pr" | bash scripts/checks/linked-issue.sh
+
+  # A pull request records its user-visible effect as a fragment under
+  # changelog.d/. `no-changelog` is the escape for a change with none. The
+  # script diffs from the merge base, so the full history is fetched.
+  changelog-guard:
+    name: changelog-guard
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # the labels when the step runs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: The pull request carries a changelog entry
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$(gh api "repos/${GH_REPO}/pulls/${PR}" --jq 'any(.labels[].name; . == "no-changelog")')" = true ]; then
+            echo "the no-changelog label is set: the guard does not apply"
+            exit 0
+          fi
+          bash scripts/checks/changelog-guard.sh "$BASE" "$HEAD"
+
+  # ── 5. Self-tests ───────────────────────────────────────────────────────────
+
+  # The tracker helpers each drive themselves against a stub gh, so they need
+  # no token and run on every event.
+  tracker-helpers:
+    name: tracker-helpers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: |
+          set -euo pipefail
+          bash scripts/gh/labels.sh --self-test
+          bash scripts/gh/fields.sh --self-test
+          bash scripts/gh/rel.sh --self-test
+          bash scripts/gh/project.sh --self-test
+          bash scripts/gh/repo-settings.sh --self-test
+
+  # The guards above prove they still refuse what they claim to refuse.
+  guard-self-tests:
+    name: guard-self-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: |
+          set -euo pipefail
+          bash scripts/checks/changelog-guard.sh --self-test
+          bash scripts/checks/pr-title.sh --self-test
+          bash scripts/checks/linked-issue.sh --self-test
+          bash scripts/checks/pin-freshness.sh --self-test
+
+  # ── The single required check ───────────────────────────────────────────────
+
+  # The ruleset requires this job alone, so jobs can come and go without a
+  # settings change. A skipped job (a guard in the merge queue, e2e before its
+  # scripts exist) counts as a pass; a failure or a cancel fails it.
+  conclusion:
+    name: conclusion
+    needs:
+      - workflow-audit
+      - workflow-lint
+      - shellcheck
+      - install
+      - typecheck
+      - lint
+      - test
+      - build
+      - e2e
+      - dependency-review
+      - audit
+      - licenses
+      - pr-title
+      - linked-issue
+      - changelog-guard
+      - tracker-helpers
+      - guard-self-tests
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Every required job passed or was skipped
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          set -euo pipefail
+          echo "needed job results: ${RESULTS}"
+          case " ${RESULTS} " in
+            *" failure "* | *" cancelled "*)
+              echo "a required job failed or was cancelled"
+              exit 1
+              ;;
+          esac
+          echo "all required jobs passed or were skipped"

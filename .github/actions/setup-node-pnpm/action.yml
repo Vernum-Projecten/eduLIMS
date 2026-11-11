@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+name: Set up Node.js and pnpm
+description: >-
+  Install the pnpm release package.json pins in `packageManager` and the
+  Node.js release .node-version pins, then install the dependencies from the
+  lockfile. The calling job checks out the repository first: a local action
+  resolves only after checkout, so this action does not check out.
+inputs:
+  cache:
+    description: >-
+      "true" restores and saves the pnpm store cache. A publishing lane passes
+      "false": a cache an untrusted run could have written must not feed a
+      release.
+    required: false
+    default: "true"
+  install:
+    description: >-
+      "true" runs `pnpm install --frozen-lockfile`. "false" installs only the
+      toolchain.
+    required: false
+    default: "true"
+outputs:
+  node-version:
+    description: The Node.js version setup-node installed.
+    value: ${{ steps.node.outputs.node-version }}
+runs:
+  using: composite
+  steps:
+    # No `version:` input: the action reads `packageManager` from package.json,
+    # so the pin lives in one place and Dependabot moves it there.
+    - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+    # pnpm is on PATH before setup-node runs, which its pnpm cache needs.
+    - id: node
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version-file: .node-version
+        cache: ${{ inputs.cache == 'true' && 'pnpm' || '' }}
+        package-manager-cache: ${{ inputs.cache == 'true' }}
+
+    # --frozen-lockfile fails on lockfile drift, so CI never resolves a version
+    # the lockfile does not name.
+    - if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile
