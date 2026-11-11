@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
-import { devLogin, expectHydrated, expectNoA11yViolations } from "./fixtures";
+import { devLogin, expectHydrated, expectNoA11yViolations, pressUntilFocused } from "./fixtures";
 
 // The Dutch copy comes from the catalogue, so the assertions follow the translation.
 const nl: Readonly<Record<string, string>> = JSON.parse(
@@ -44,10 +44,7 @@ async function openLanguageMenuWithKeyboard(page: Page, trigger: string): Promis
 async function pickLanguage(page: Page, trigger: string, language: string): Promise<void> {
   await openLanguageMenuWithKeyboard(page, trigger);
   const item = page.getByRole("menuitemradio", { name: language });
-  for (let step = 0; step < 4; step += 1) {
-    if (await item.evaluate((el) => el === document.activeElement)) break;
-    await page.keyboard.press("ArrowDown");
-  }
+  await pressUntilFocused(page, "ArrowDown", item);
   await expect(item).toBeFocused();
   await page.keyboard.press("Enter");
 }

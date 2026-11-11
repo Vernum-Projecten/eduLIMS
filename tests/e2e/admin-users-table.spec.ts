@@ -18,9 +18,11 @@ import { appUrl } from "./run-env";
 
 const SEARCH = "Search by name or email address";
 
+/** Opens the users list filtered by `text`, ready for clicks: the server HTML takes none. */
 async function search(page: Page, text: string): Promise<void> {
   await page.goto(`/admin/users?q=${encodeURIComponent(text)}`);
   await expect(usersTable(page).locator("tbody tr").first()).toBeVisible();
+  await expectHydrated(usersTable(page));
 }
 
 test("View hides and shows columns, and the choice survives a reload (#58)", async ({ page }) => {
@@ -48,7 +50,8 @@ test("View hides and shows columns, and the choice survives a reload (#58)", asy
   await page.reload();
   await expect(page.getByRole("columnheader", { name: /^Roles/ })).toBeVisible();
   await expect(sessions).toHaveCount(0);
-  await page.getByRole("button", { name: "View", exact: true }).click();
+  await expectHydrated(view);
+  await view.click();
   await page.getByRole("menuitemcheckbox", { name: "Active sessions" }).click();
   await page.getByRole("menuitemcheckbox", { name: "Sign-in methods" }).click();
   await page.keyboard.press("Escape");
@@ -204,6 +207,12 @@ test("the data table works with the keyboard alone (#58)", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/sort=lastSignIn/);
   await expect(page).toHaveURL(/dir=desc/);
+  // The URL changes before the router commits the new search; until then the table still
+  // shows the old sort, and a selection made there is dropped when the sorted list arrives.
+  await expect(page.getByRole("columnheader", { name: "Last sign-in" })).toHaveAttribute(
+    "aria-sort",
+    "descending",
+  );
 
   // Select a row with Space, clear the selection, then Reset.
   const checkbox = page.getByRole("checkbox", { name: "Select Test Teacher", exact: true });
@@ -231,10 +240,11 @@ test.describe("in the dark theme and in Dutch", () => {
     await page.goto("/admin/users?q=Test%20Teacher");
     await expect(page.locator("html")).toHaveAttribute("lang", "nl");
     await expect(page.getByRole("button", { name: dutch("data_table_view") })).toBeVisible();
-    await page
+    const statusFacet = page
       .getByRole("search")
-      .getByRole("button", { name: dutch("admin_users_filter_status"), exact: true })
-      .click();
+      .getByRole("button", { name: dutch("admin_users_filter_status"), exact: true });
+    await expectHydrated(statusFacet);
+    await statusFacet.click();
     await expect(page.getByRole("listbox")).toBeVisible();
     await axe(page);
     await page.keyboard.press("Escape");

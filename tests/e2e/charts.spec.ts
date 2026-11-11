@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { DEMO_PRACTICALS, type DemoPractical } from "../../src/routes/dev/-practicals-demo";
-import { expectNoA11yViolations } from "./fixtures";
+import { expectHydrated, expectNoA11yViolations } from "./fixtures";
 
 // The chart foundation (#59), shown with fictional data on the development page /dev/charts.
 const nl: Readonly<Record<string, string>> = JSON.parse(
@@ -47,8 +47,25 @@ async function open(page: Page): Promise<void> {
   await page.goto("/dev/charts");
   await expect(page.getByRole("heading", { level: 1, name: "Chart examples" })).toBeVisible();
   await expect(chart(page)).toBeVisible();
-  // The host adopts the server SVG after hydration; wait for its interactive layer.
-  await page.waitForFunction(() => document.querySelector(".ts-chart-host svg circle") !== null);
+  await expectChartAdopted(page);
+}
+
+/**
+ * Waits until the browser has adopted the server SVG: the host has measured its container,
+ * re-rendered the points where they will stay, and listens for the pointer and the keyboard.
+ * The server SVG is drawn at `initialWidth` with its points elsewhere and no listeners, so a
+ * hover or a key press before this misses. EduChart links the visible description in
+ * `onRender`, which only the browser runs, and the text is measured with the loaded fonts.
+ */
+async function expectChartAdopted(page: Page): Promise<void> {
+  await expect(page.locator(".ts-chart-host svg")).toHaveAttribute(
+    "aria-describedby",
+    /-description$/,
+  );
+  // A font that finishes after the mount re-renders the chart in the next animation frame.
+  await page.evaluate(() =>
+    document.fonts.ready.then(() => new Promise((resolve) => requestAnimationFrame(resolve))),
+  );
 }
 
 test("the example scatter plot renders server-side and hydrates without warnings (#59)", async ({
@@ -183,6 +200,7 @@ test("the chart page reads in Dutch with Dutch number formats and stays axe-clea
 }) => {
   await open(page);
   const trigger = page.getByRole("button", { name: "Language: English" });
+  await expectHydrated(trigger);
   await trigger.click();
   await page.getByRole("menuitemradio", { name: "Nederlands" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "nl");
@@ -190,7 +208,10 @@ test("the chart page reads in Dutch with Dutch number formats and stays axe-clea
     page.getByRole("heading", { level: 1, name: dutch("dev_charts_title") }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: dutch("chart_view_as_table") }).click();
+  // Choosing a language reloads the page, so the Dutch page hydrates anew.
+  const toggle = page.getByRole("button", { name: dutch("chart_view_as_table") });
+  await expectHydrated(toggle);
+  await toggle.click();
   const row = page.getByRole("row").filter({ hasText: practical("p04").title });
   await expect(row.getByRole("cell").nth(1)).toHaveText("7,1");
   await expectNoA11yViolations(page);

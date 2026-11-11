@@ -4,7 +4,7 @@
 // The keyboard shortcuts dialog (`?`) and the shortcut rules (#63).
 import { readFileSync } from "node:fs";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { devLogin, expectNoA11yViolations } from "./fixtures";
+import { devLogin, expectHydrated, expectNoA11yViolations } from "./fixtures";
 import { appUrl } from "./run-env";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
@@ -32,6 +32,16 @@ async function signIn(page: Page) {
   await devLogin(page, COORDINATOR);
   await expect(page).toHaveURL(/\/teacher$/);
   await expect(page.getByRole("heading", { level: 1, name: "Teacher portal" })).toBeVisible();
+  await expectShortcutsReady(page);
+}
+
+/**
+ * Waits until the page has hydrated: the shortcuts are bound in the browser only, so a key
+ * pressed on the server HTML does nothing, and a test that expects nothing would pass for the
+ * wrong reason.
+ */
+async function expectShortcutsReady(page: Page) {
+  await expectHydrated(page.getByRole("heading", { level: 1 }));
 }
 
 async function settled(page: Page) {
@@ -126,6 +136,7 @@ test.describe("the keyboard shortcuts dialog", () => {
     await expect(dialog).toBeHidden();
     await page.reload();
     await expect(page.getByRole("heading", { level: 1, name: "Teacher portal" })).toBeVisible();
+    await expectShortcutsReady(page);
     await pressQuestionMark(page);
     await expect(dialog).toBeHidden();
 
@@ -182,6 +193,7 @@ test.describe("axe with the shortcuts dialog open", () => {
     await context.addCookies([{ name: "EDULIMS_LOCALE", value: "nl", url: appUrl() }]);
     await page.goto("/teacher");
     await expect(page.locator("html")).toHaveAttribute("lang", "nl");
+    await expectShortcutsReady(page);
     await pressQuestionMark(page);
     const dialog = page.getByRole("dialog", { name: dutch("shortcuts_dialog_title") });
     await expect(dialog).toBeVisible();

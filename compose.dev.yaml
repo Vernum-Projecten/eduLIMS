@@ -35,6 +35,10 @@ services:
     # The FerroEHR PostgreSQL image, as in compose.yaml, so a dev database has
     # the same server version and the same databases as production.
     image: ghcr.io/ferrohealth/ferroehr-postgres:5.7.0@sha256:3b7dbfce603b4ff3c8a29366655f195baf2bfeaf903a1bf1be851ba69293743a
+    # Room for several test and e2e runs at once, each with its own database
+    # and pool (the default of 100 runs out near five). It takes effect when
+    # the container is recreated.
+    command: ["postgres", "-c", "max_connections=300"]
     environment:
       POSTGRES_PASSWORD: postgres
       PG_INIT_USER: ferroehr

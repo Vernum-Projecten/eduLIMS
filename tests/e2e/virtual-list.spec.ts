@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { expectNoA11yViolations } from "./fixtures";
+import { appUrl } from "./run-env";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
   readFileSync(new URL("../../messages/nl.json", import.meta.url), "utf8"),
@@ -23,13 +24,8 @@ function watchHydration(page: Page): string[] {
   return errors;
 }
 
-async function setThemeCookie(
-  context: BrowserContext,
-  baseURL: string | undefined,
-  theme: "light" | "dark",
-): Promise<void> {
-  if (baseURL === undefined) throw new Error("playwright.config.ts sets a baseURL");
-  await context.addCookies([{ name: "EDULIMS_THEME", value: theme, url: baseURL }]);
+async function setThemeCookie(context: BrowserContext, theme: "light" | "dark"): Promise<void> {
+  await context.addCookies([{ name: "EDULIMS_THEME", value: theme, url: appUrl() }]);
 }
 
 async function openDemo(page: Page) {
@@ -113,9 +109,8 @@ test("the keyboard reaches the last row and back, keeping focus on a rendered ro
 test("has no WCAG A/AA violations in the light theme, scrolled to the end", async ({
   page,
   context,
-  baseURL,
 }) => {
-  await setThemeCookie(context, baseURL, "light");
+  await setThemeCookie(context, "light");
   const list = await openDemo(page);
   await expectNoA11yViolations(page);
   await list.getByRole("listitem").first().focus();
@@ -124,8 +119,8 @@ test("has no WCAG A/AA violations in the light theme, scrolled to the end", asyn
   await expectNoA11yViolations(page);
 });
 
-test("has no WCAG A/AA violations in the dark theme", async ({ page, context, baseURL }) => {
-  await setThemeCookie(context, baseURL, "dark");
+test("has no WCAG A/AA violations in the dark theme", async ({ page, context }) => {
+  await setThemeCookie(context, "dark");
   await openDemo(page);
   await expect(page.locator("html")).toHaveClass(/\bdark\b/);
   await expectNoA11yViolations(page);

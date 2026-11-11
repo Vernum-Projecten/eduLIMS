@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { devLogin, expectHydrated, expectNoA11yViolations } from "./fixtures";
+import { devLogin, expectHydrated, expectNoA11yViolations, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
@@ -127,6 +127,7 @@ test("the sidebar collapses and expands with the keyboard and stays collapsed af
   const toggle = sidebarToggle(page);
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
 
+  await expectHydrated(toggle);
   await toggle.focus();
   await page.keyboard.press("Enter");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -140,6 +141,9 @@ test("the sidebar collapses and expands with the keyboard and stays collapsed af
   await page.reload();
   await expect(sidebarToggle(page)).toHaveAttribute("aria-expanded", "false");
 
+  // The server HTML shows the collapsed state at once, but Ctrl+B only works once the reloaded
+  // page has hydrated; on a slow runner the key press came first and was lost.
+  await expectHydrated(sidebarToggle(page));
   await page.keyboard.press("ControlOrMeta+b");
   await expect(sidebarToggle(page)).toHaveAttribute("aria-expanded", "true");
 });
@@ -254,16 +258,17 @@ test("the theme menu switches <html class> and the choice renders on the server"
 
 test("the theme submenu in the user menu works with the keyboard", async ({ page }) => {
   await signInAs(page, "student");
-  await page.getByRole("button", { name: /student@example\.test/ }).click();
+  const userMenu = page.getByRole("button", { name: /student@example\.test/ });
+  await expectHydrated(userMenu);
+  await userMenu.click();
   const theme = page.getByRole("menuitem", { name: "Theme" });
   await theme.focus();
   await page.keyboard.press("ArrowRight");
   const dark = page.getByRole("menuitemradio", { name: "Dark" });
   await expect(dark).toBeVisible();
-  for (let step = 0; step < 4; step += 1) {
-    if (await dark.evaluate((el) => el === document.activeElement)) break;
-    await page.keyboard.press("ArrowDown");
-  }
+  // ArrowRight opens the submenu on its first item (WAI-ARIA APG menu pattern).
+  await expect(page.getByRole("menuitemradio", { name: "Light" })).toBeFocused();
+  await pressUntilFocused(page, "ArrowDown", dark);
   await page.keyboard.press("Enter");
   await expect(page.locator("html")).toHaveClass(/\bdark\b/);
   await page.reload();

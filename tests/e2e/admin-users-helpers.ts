@@ -4,7 +4,7 @@
 // Shared steps of the Users screen's journeys (#34, #58).
 import { readFileSync } from "node:fs";
 import { type Browser, expect, type Page } from "@playwright/test";
-import { devLogin, expectNoA11yViolations } from "./fixtures";
+import { devLogin, expectHydrated, expectNoA11yViolations } from "./fixtures";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
   readFileSync(new URL("../../messages/nl.json", import.meta.url), "utf8"),
@@ -49,6 +49,8 @@ export async function openUser(page: Page, name: string) {
   await usersTable(page).getByRole("link", { name }).click();
   const sheet = page.getByRole("dialog", { name });
   await expect(sheet).toBeVisible();
+  // A click on the link before hydration loads the sheet as a new document.
+  await expectHydrated(sheet);
   await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
   return sheet;
 }
