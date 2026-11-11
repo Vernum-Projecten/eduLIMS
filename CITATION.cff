@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "eduLIMS"
+abstract: >-
+  A Laboratory Information Management System for the LifeScience practical
+  courses at Hanze University of Applied Sciences. Students register samples,
+  upload and check measurements and submit lab reports; teachers grade with a
+  rubric and follow a KPI dashboard. Measurement data is stored as openEHR
+  compositions in FerroEHR.
+type: software
+authors:
+  - given-names: Ruben
+    family-names: Talstra
+license: Apache-2.0
+repository-code: "https://github.com/Vernum-Projecten/eduLIMS"
+keywords:
+  - LIMS
+  - laboratory education
+  - openEHR
+  - HL7 v2
+  - TanStack Start
+version: 0.0.0

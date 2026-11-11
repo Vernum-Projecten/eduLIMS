@@ -1,0 +1,662 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# Initial backlog of eduLIMS, for creating milestones, labels and issues on
+# GitHub (Vernum-Projecten/eduLIMS).
+#
+# Format:
+#   labels:     name, color (hex without #), description.
+#   milestones: title, due_on (ISO date), state (open|closed), description.
+#   issues:     key (stable local ID, used by `parent`), title, type
+#               (Epic|Feature|Task, the GitHub issue type), labels, milestone
+#               (a milestone title), parent (key of the epic; create it as a
+#               sub-issue of that epic), requirement (IDs from
+#               docs/requirements.md), body (Markdown).
+#
+# Sprint dates follow the planning in the Plan van Aanpak (seven two-week
+# sprints, 2026-10-05 to 2027-01-29, with the autumn break 19 to 23 October
+# and the Christmas break 21 December to 1 January). Sprints 1 and 2 are past
+# and are created closed. Implementation starts on 2026-11-11 with the
+# milestone "v0.1.0 – Foundation".
+#
+# User stories are translated from the Dutch requirements (PvA 3.2). Acceptance
+# criteria come from the Requirementsanalyse; those marked (proposed) still
+# need the product owner's confirmation.
+
+labels:
+  - { name: "portal:student", color: "1f6feb", description: "Student portal (Studentportaal)" }
+  - { name: "portal:docent", color: "8957e5", description: "Teacher portal (Docentportaal)" }
+  - { name: "portal:beheer", color: "6e7781", description: "Administration portal (Beheerportaal)" }
+  - { name: "auth", color: "d29922", description: "Sign-in, sessions and roles (Entra ID, better-auth)" }
+  - { name: "database", color: "0e8a16", description: "eduLIMS database, schema and migrations" }
+  - { name: "integration:ferroehr", color: "006b75", description: "openEHR REST and AQL with FerroEHR" }
+  - { name: "integration:ferrobridge", color: "0b7285", description: "HL7 v2 over MLLP through FerroBRIDGE" }
+  - { name: "upload", color: "5319e7", description: "Gen5 Excel upload and validation" }
+  - { name: "kpi-dashboard", color: "c5def5", description: "KPI dashboard (D5)" }
+  - { name: "accessibility", color: "fbca04", description: "WCAG 2.1 AA (Q-ACC-*)" }
+  - { name: "security", color: "b60205", description: "Security requirements (Q-SEC-*)" }
+  - { name: "privacy", color: "e99695", description: "Privacy and GDPR (Q-PRIV-*)" }
+  - { name: "infra", color: "333333", description: "VM, network, Compose, CI/CD" }
+  - { name: "documentation", color: "0075ca", description: "Documentation and the ArchiMate model" }
+  - { name: "test", color: "bfd4f2", description: "Tests and test data" }
+  - { name: "chore", color: "ededed", description: "Maintenance" }
+  - { name: "moscow:must", color: "b60205", description: "MoSCoW: Must" }
+  - { name: "moscow:should", color: "d93f0b", description: "MoSCoW: Should" }
+  - { name: "moscow:could", color: "fbca04", description: "MoSCoW: Could" }
+
+milestones:
+  - title: "Sprint 1 (2026-10-05 – 10-16)"
+    due_on: 2026-10-16
+    state: closed
+    description: "Requirements and interviews. Plan van Aanpak approved on 2026-10-09."
+  - title: "Sprint 2 (2026-10-26 – 11-06)"
+    due_on: 2026-11-06
+    state: closed
+    description: "Data preparation and architecture advice."
+  - title: "Sprint 3 (2026-11-09 – 11-20)"
+    due_on: 2026-11-20
+    state: open
+    description: "Design v1 and the development lane. Milestone: design iteration 1 done on 2026-11-20."
+  - title: "v0.1.0 – Foundation"
+    due_on: 2026-11-20
+    state: open
+    description: "Application shell, sign-in, eduLIMS database and migrations, CI/CD lane, Compose stack. Runs alongside sprint 3."
+  - title: "Sprint 4 (2026-11-23 – 12-04)"
+    due_on: 2026-12-04
+    state: open
+    description: "Afinion, core, SSO, design v2."
+  - title: "Sprint 5 (2026-12-07 – 12-18)"
+    due_on: 2026-12-18
+    state: open
+    description: "Upload, grading, KPI dashboard. Milestone: prototype demo at LifeScience on 2026-12-18."
+  - title: "Sprint 6 (2027-01-04 – 01-15)"
+    due_on: 2027-01-15
+    state: open
+    description: "User tests and administration."
+  - title: "Sprint 7 (2027-01-18 – 01-29)"
+    due_on: 2027-01-29
+    state: open
+    description: "Handover to the CollabSpace. Final delivery on 2027-01-29."
+
+issues:
+  # ── Epics ─────────────────────────────────────────────────────────────────
+  - key: epic-foundation
+    title: "Foundation: shell, sign-in, database and delivery lane"
+    type: Epic
+    labels: [infra, auth, database]
+    milestone: "v0.1.0 – Foundation"
+    body: |
+      The base every portal builds on: TanStack Start shell, Entra ID sign-in
+      through better-auth, the eduLIMS database with Kysely migrations, the
+      Compose stack and the GitHub Actions lane.
+
+      See docs/architecture.md and ADRs 0002 to 0008.
+
+  - key: epic-student
+    title: "Student portal (Studentportaal)"
+    type: Epic
+    labels: ["portal:student"]
+    milestone: "Sprint 5 (2026-12-07 – 12-18)"
+    body: |
+      Requirements S1 to S9: sign in, view the practical, register samples,
+      upload Gen5 exports, check results, submit the lab report and view
+      feedback and grade.
+
+  - key: epic-teacher
+    title: "Teacher portal (Docentportaal)"
+    type: Epic
+    labels: ["portal:docent"]
+    milestone: "Sprint 5 (2026-12-07 – 12-18)"
+    body: |
+      Requirements D1 to D8: set up practicals, link classes, view results,
+      grade with a rubric, the KPI dashboard and the CSV export.
+
+  - key: epic-admin
+    title: "Administration portal (Beheerportaal)"
+    type: Epic
+    labels: ["portal:beheer"]
+    milestone: "Sprint 6 (2027-01-04 – 01-15)"
+    body: |
+      Requirements B1 to B4: users and roles, classes, analysers and
+      integration status, and the log.
+
+  - key: epic-quality
+    title: "Quality, privacy and handover"
+    type: Epic
+    labels: [security, privacy, accessibility, documentation]
+    milestone: "Sprint 7 (2027-01-18 – 01-29)"
+    body: |
+      The cross-cutting work: GDPR check, WCAG audit, test data, the ArchiMate
+      model update and the handover to the CollabSpace.
+
+  # ── Student portal ────────────────────────────────────────────────────────
+  - key: S1
+    title: "S1: Sign in with the Hanze account through Entra ID"
+    type: Feature
+    labels: ["portal:student", auth, security, "moscow:must"]
+    milestone: "v0.1.0 – Foundation"
+    parent: epic-foundation
+    requirement: [S1, Q-SEC-1]
+    body: |
+      Requirement: S1 (Must). Related: Q-SEC-1, R-01, ADR 0005.
+
+      **User story.** As a student, I want to sign in with my Hanze account, so
+      that I do not need a separate password and only I reach my work.
+
+      **Acceptance criteria**
+      - [ ] A student signs in through Entra ID (OIDC, authorization code flow with PKCE) and lands in the student portal.
+      - [ ] Without a valid account there is no access to any page or API route.
+      - [ ] Sessions are stored in the eduLIMS database through better-auth's PostgreSQL adapter.
+      - [ ] Until the Hanze app registration exists, a development-only sign-in works locally and is disabled in production.
+
+  - key: S2
+    title: "S2: View the practical assignment and measurement protocol"
+    type: Feature
+    labels: ["portal:student", "moscow:must"]
+    milestone: "Sprint 4 (2026-11-23 – 12-04)"
+    parent: epic-student
+    requirement: [S2]
+    body: |
+      Requirement: S2 (Must).
+
+      **User story.** As a student, I want to read the assignment
+      (practicumopdracht) and the measurement protocol (meetprotocol), so
+      that I can prepare the practical.
+
+      **Acceptance criteria**
+      - [ ] (proposed) A student linked to a practical sees its assignment, protocol and deadline.
+      - [ ] (proposed) A student who is not linked to the practical gets no access to it.
+
+  - key: S3
+    title: "S3: Register samples with a unique sample ID"
+    type: Feature
+    labels: ["portal:student", database, "moscow:must"]
+    milestone: "Sprint 4 (2026-11-23 – 12-04)"
+    parent: epic-student
+    requirement: [S3, Q-TRACE-1]
+    body: |
+      Requirement: S3 (Must). Related: Q-TRACE-1.
+
+      **User story.** As a student, I want to register my samples and get a
+      sample ID (monster-ID) for each, so that I can enter it on the Afinion 2
+      and in the Gen5 export and every measurement is traced back to me.
+
+      **Acceptance criteria**
+      - [ ] With 50 registered samples, all 50 sample IDs are unique.
+      - [ ] Each sample ID is linked to the student and the practical in the eduLIMS database.
+
+  - key: S4
+    title: "S4: Upload a Gen5 export and validate sample IDs and well positions"
+    type: Feature
+    labels: ["portal:student", upload, "integration:ferroehr", "moscow:must"]
+    milestone: "Sprint 5 (2026-12-07 – 12-18)"
+    parent: epic-student
+    requirement: [S4, Q-PERF-2, R-06]
+    body: |
+      Requirement: S4 (Must). Related: Q-PERF-2, R-06, Q-COMP-1.
+
+      **User story.** As a student, I want to upload the Excel export from
+      Gen5, so that my Epoch 2 results reach eduLIMS without retyping.
+
+      **Acceptance criteria**
+      - [ ] An Excel file with an unknown sample ID is rejected with a clear error message.
+      - [ ] An Excel file with an invalid well position (outside A1 to H12) is rejected with a clear error message.
+      - [ ] Empty or duplicate values are reported and the file is not stored.
+      - [ ] A correct Excel file reaches FerroEHR as compositions of the template eduLIMS-lab within 10 seconds.
+      - [ ] Each upload is logged (B4).
+
+  - key: S5
+    title: "S5: Check measurement results per sample (Afinion and Epoch)"
+    type: Feature
+    labels: ["portal:student", "integration:ferroehr", "integration:ferrobridge", "moscow:must"]
+    milestone: "Sprint 4 (2026-11-23 – 12-04)"
+    parent: epic-student
+    requirement: [S5]
+    body: |
+      Requirement: S5 (Must).
+
+      **User story.** As a student, I want to see my results per sample, so
+      that I can check them before I submit my report.
+
+      **Acceptance criteria**
+      - [ ] An Afinion measurement appears with the right sample in the student portal within 1 minute of measuring.
+      - [ ] Epoch results from an upload appear per sample and well.
+      - [ ] Results are read from FerroEHR with AQL; the student sees only their own samples.
+
+  - key: S6
+    title: "S6: Submit the lab report before the deadline"
+    type: Feature
+    labels: ["portal:student", database, "moscow:must"]
+    milestone: "Sprint 5 (2026-12-07 – 12-18)"
+    parent: epic-student
+    requirement: [S6]
+    body: |
+      Requirement: S6 (Must).
+
+      **User story.** As a student, I want to submit my lab report (labverslag)
+      before the deadline, so that my teacher can grade it.
+
+      **Acceptance criteria**
+      - [ ] After sending, the submission is locked and the student can no longer change it.
+      - [ ] After the deadline the student can no longer submit.
+      - [ ] Every submission gets a timestamp.
+
+  - key: S7
+    title: "S7: View feedback and grade next to the practical average"
+    type: Feature
+    labels: ["portal:student", privacy, "moscow:must"]
+    milestone: "Sprint 5 (2026-12-07 – 12-18)"
+    parent: epic-student
+    requirement: [S7, K-03, Q-PRIV-2, R-01]
+    body: |
+      Requirement: S7 (Must). Related: K-03, Q-PRIV-2, R-01, R-03.
+
+      **User story.** As a student, I want to see my feedback and grade next
+      to the average, so that I know how I did.
+
+      **Acceptance criteria**
+      - [ ] The student sees their grade and feedback as soon as the teacher records the assessment.
+      - [ ] The student sees only their own grade.
+      - [ ] The class and practical average appear only from 5 assessments on.
+
+  - key: S8
+    title: "S8: See the submission status (draft, submitted, graded)"
+    type: Feature
+    labels: ["portal:student", "moscow:should"]
+    milestone: "Sprint 5 (2026-12-07 – 12-18)"
+    parent: epic-student
+    requirement: [S8]
+    body: |
+      Requirement: S8 (Should).
+
+      **User story.** As a student, I want to see the status of my submission
+      (concept, ingediend, beoordeeld), so that I know whether I still need
+      to act.
+
+      **Acceptance criteria**
+      - [ ] (proposed) Every submission shows one of the three statuses.
+      - [ ] (proposed) The status becomes submitted when the student sends it and graded when the teacher records the assessment.
+      - [ ] The status is shown with text and icon, not colour alone (Q-ACC-2).
+
+  - key: S9
+    title: "S9: Submit a resit or new version"
+    type: Feature
+    labels: ["portal:student", "moscow:could"]
+    milestone: "Sprint 6 (2027-01-04 – 01-15)"
+    parent: epic-student
+    requirement: [S9]
+    body: |
+      Requirement: S9 (Could).
+
+      **User story.** As a student, I want to submit a resit (herkansing) or a
+      new version, so that I can improve my work when the teacher allows it.
+
+      **Acceptance criteria**
+      - [ ] (proposed) When the teacher opens a resit, the student submits a new version.
+      - [ ] (proposed) The earlier version stays readable and locked.
+
+  # ── Teacher portal ────────────────────────────────────────────────────────
+  - key: D1
+    title: "D1: Create a practical with assignment, protocol, deadline and rubric"
+    type: Feature
+    labels: ["portal:docent", database, "moscow:must"]
+    milestone: "Sprint 4 (2026-11-23 – 12-04)"
+    parent: epic-teacher
+    requirement: [D1]
+    body: |
+      Requirement: D1 (Must).
+
+      **User story.** As a teacher, I want to create a practical with
+      assignment, protocol, deadline and rubric, so that students can start.
+
+      **Acceptance criteria**
+      - [ ] A teacher creates a practical with assignment, protocol, deadline and rubric in less than 10 minutes.
+      - [ ] Every form field has a label and works with the keyboard (Q-ACC-3).
+
+  - key: D2
+    title: "D2: Link classes or individual students to a practical"
+    type: Feature
+    labels: ["portal:docent", database, "moscow:must"]
+    milestone: "Sprint 4 (2026-11-23 – 12-04)"
+    parent: epic-teacher
+    requirement: [D2]
+    body: |
+      Requirement: D2 (Must).
+
+      **User story.** As a teacher, I want to link classes or single students
+      to a practical, so that exactly the right students see it.
+
+      **Acceptance criteria**
+      - [ ] (proposed) A teacher links a class and one individual student to a practical.
+      - [ ] (proposed) Exactly those students see the practical in the student portal.
+
+  - key: D3
+    title: "D3: View the measurement results of all students of a practical"
+    type: Feature
+    labels: ["portal:docent", "integration:ferroehr", security, "moscow:must"]
+    milestone: "Sprint 4 (2026-11-23 – 12-04)"
+    parent: epic-teacher
+    requirement: [D3, Q-SEC-2, R-01]
+    body: |
+      Requirement: D3 (Must). Related: Q-SEC-2, R-01.
+
+      **User story.** As a teacher, I want to see the results of all students
+      of my practical, so that I can check them without opening files.
+
+      **Acceptance criteria**
+      - [ ] A teacher sees the results of all their students.
+      - [ ] A teacher does not see results of practicals of other teachers.
+
+  - key: D4
+    title: "D4: Grade a submission per rubric criterion with feedback and final grade"
+    type: Feature
+    labels: ["portal:docent", database, "moscow:must"]
+    milestone: "Sprint 5 (2026-12-07 – 12-18)"
+    parent: epic-teacher
+    requirement: [D4]
+    body: |
+      Requirement: D4 (Must).
+
+      **User story.** As a teacher, I want to grade per rubric criterion and
+      add feedback, so that grading is quick and consistent.
+
+      **Acceptance criteria**
+      - [ ] A score is recorded per rubric criterion.
+      - [ ] The final grade is calculated from the scores and cannot stay empty.
+      - [ ] Feedback is stored with the assessment and shown to the student (S7).
+
+  - key: D5
+    title: "D5: KPI dashboard per class and per practical"
+    type: Feature
+    labels: ["portal:docent", kpi-dashboard, privacy, accessibility, "moscow:must"]
+    milestone: "Sprint 5 (2026-12-07 – 12-18)"
+    parent: epic-teacher
+    requirement: [D5, K-01, K-02, K-04, K-05, K-06, K-07, K-08, Q-PERF-1, Q-PRIV-2, Q-ACC-2]
+    body: |
+      Requirement: D5 (Must). Design: docs/kpi-dashboard.md, iteration 2.
+
+      **User story.** As a teacher, I want one page that shows how my classes
+      are doing and what needs action, so that I steer on figures.
+
+      **Acceptance criteria**
+      - [ ] The dashboard shows the five KPIs (K-01, K-04, K-05, K-06, K-08) with their norm on one page.
+      - [ ] The page loads within 2 seconds.
+      - [ ] Charts for progress per class (K-02) and score per rubric criterion (K-07), and a "Needs action" list.
+      - [ ] Filters on class, practical, period and cohort.
+      - [ ] A teacher sees only their own classes and practicals.
+      - [ ] An average appears only from 5 assessments on.
+      - [ ] Every status has an icon and text next to its colour.
+      - [ ] Opening the dashboard is logged.
+
+  - key: D6
+    title: "D6: Export grades as CSV for Portflow"
+    type: Feature
+    labels: ["portal:docent", "moscow:should"]
+    milestone: "Sprint 5 (2026-12-07 – 12-18)"
+    parent: epic-teacher
+    requirement: [D6]
+    body: |
+      Requirement: D6 (Should).
+
+      **User story.** As a teacher, I want to export the grades as CSV, so
+      that I can copy them into Portflow.
+
+      **Acceptance criteria**
+      - [ ] (proposed) One row per student with student number, name, practical and final grade.
+      - [ ] (proposed) The file opens correctly in Excel and covers only the teacher's own practicals.
+      - [ ] The export is logged.
+
+  - key: D7
+    title: "D7: Flag deviating measured values (plausibility check)"
+    type: Feature
+    labels: ["portal:docent", "integration:ferroehr", "moscow:could"]
+    milestone: "Sprint 6 (2027-01-04 – 01-15)"
+    parent: epic-teacher
+    requirement: [D7, K-08]
+    body: |
+      Requirement: D7 (Could). Related: K-08.
+
+      **User story.** As a teacher, I want deviating values flagged, so that I
+      spot measurement errors quickly.
+
+      **Acceptance criteria**
+      - [ ] (proposed) A value outside the expected range for its analyte is flagged.
+      - [ ] (proposed) The flag uses an icon and text, not colour alone.
+      - [ ] The check is rule-based; no AI model processes the data (AI_STATEMENT.md).
+
+  - key: D8
+    title: "D8: Reuse a rubric between practicals"
+    type: Feature
+    labels: ["portal:docent", "moscow:could"]
+    milestone: "Sprint 6 (2027-01-04 – 01-15)"
+    parent: epic-teacher
+    requirement: [D8]
+    body: |
+      Requirement: D8 (Could).
+
+      **User story.** As a teacher, I want to reuse a rubric, so that I do not
+      build it again for every practical.
+
+      **Acceptance criteria**
+      - [ ] (proposed) A teacher copies a rubric from an earlier practical.
+      - [ ] (proposed) Changing the copy does not change the original.
+
+  # ── Administration portal ─────────────────────────────────────────────────
+  - key: B1
+    title: "B1: Create users and assign a role"
+    type: Feature
+    labels: ["portal:beheer", auth, security, "moscow:must"]
+    milestone: "Sprint 4 (2026-11-23 – 12-04)"
+    parent: epic-admin
+    requirement: [B1, Q-SEC-2]
+    body: |
+      Requirement: B1 (Must). Related: Q-SEC-2, ADR 0005.
+
+      **User story.** As an administrator, I want to create users and give
+      them a role (student, teacher, administrator), so that each person sees
+      the right screens.
+
+      **Acceptance criteria**
+      - [ ] An administrator assigns a role; the user immediately sees only the screens of that role.
+      - [ ] Roles from Entra ID app roles or groups map to eduLIMS roles, with tests per role.
+
+  - key: B2
+    title: "B2: Create classes and link students (by hand or CSV import)"
+    type: Feature
+    labels: ["portal:beheer", database, "moscow:must"]
+    milestone: "Sprint 6 (2027-01-04 – 01-15)"
+    parent: epic-admin
+    requirement: [B2]
+    body: |
+      Requirement: B2 (Must).
+
+      **User story.** As an administrator, I want to create classes and link
+      students, so that teachers can link a whole class to a practical.
+
+      **Acceptance criteria**
+      - [ ] (proposed) An administrator creates a class and links students by hand.
+      - [ ] (proposed) A CSV import links students; a row with an unknown or duplicate student is reported and not imported.
+
+  - key: B3
+    title: "B3: Register analysers and see the integration status"
+    type: Feature
+    labels: ["portal:beheer", "integration:ferroehr", "integration:ferrobridge", "moscow:must"]
+    milestone: "Sprint 4 (2026-11-23 – 12-04)"
+    parent: epic-admin
+    requirement: [B3]
+    body: |
+      Requirement: B3 (Must).
+
+      **User story.** As an administrator, I want to register the analysers
+      and see whether FerroBRIDGE and FerroEHR are reachable, so that I can
+      act before a practical fails.
+
+      **Acceptance criteria**
+      - [ ] Analysers (Afinion 2, Epoch 2 readers, Gen5 PCs) can be registered.
+      - [ ] When FerroBRIDGE or FerroEHR is unreachable, the administrator sees it in the administration portal within 5 minutes.
+
+  - key: B4
+    title: "B4: View the log of uploads, HL7 messages and errors"
+    type: Feature
+    labels: ["portal:beheer", "moscow:should"]
+    milestone: "Sprint 6 (2027-01-04 – 01-15)"
+    parent: epic-admin
+    requirement: [B4]
+    body: |
+      Requirement: B4 (Should).
+
+      **User story.** As an administrator, I want a log of uploads, HL7
+      messages and errors, so that I can trace what went wrong.
+
+      **Acceptance criteria**
+      - [ ] (proposed) Every upload, received HL7 message and integration error appears with time, source and outcome.
+      - [ ] (proposed) The log can be filtered by type.
+
+  # ── Foundation tasks ──────────────────────────────────────────────────────
+  - key: task-db-foundation
+    title: "Set up the eduLIMS database, Kysely and migrations"
+    type: Task
+    labels: [database, infra]
+    milestone: "v0.1.0 – Foundation"
+    parent: epic-foundation
+    requirement: [Q-MAINT-2]
+    body: |
+      ADR 0006. The eduLIMS database on PostgreSQL 18 with its own database
+      user, Kysely with `pg`, and `pnpm db:migrate`.
+
+      - [ ] `compose.dev.yaml` starts PostgreSQL 18 with the eduLIMS database.
+      - [ ] `pnpm db:migrate` applies all migrations to a fresh database.
+      - [ ] better-auth's tables are created by the same migration run.
+      - [ ] CI applies the migrations to a fresh database.
+
+  - key: task-ci-lane
+    title: "Set up the CI lane: typecheck, Biome, Vitest, Playwright with axe"
+    type: Task
+    labels: [infra, test]
+    milestone: "v0.1.0 – Foundation"
+    parent: epic-foundation
+    requirement: [Q-MAINT-1, Q-SEC-4, Q-ACC-1]
+    body: |
+      ADRs 0002 and 0008. See docs/ci-cd.md.
+
+      - [ ] Every pull request runs typecheck, lint, unit tests with coverage, and Playwright with axe.
+      - [ ] Dependency and image scans run in CI.
+      - [ ] The merge queue requires green CI.
+      - [ ] CI checks docs/VERSIONS.md against package.json and .node-version.
+
+  - key: task-entra-app-registration
+    title: "Request the Entra ID app registration from Hanze ICT"
+    type: Task
+    labels: [auth, infra]
+    milestone: "v0.1.0 – Foundation"
+    parent: epic-foundation
+    requirement: [S1, P-01]
+    body: |
+      Project risk P-01: the registration may take time, so request it now.
+
+      - [ ] Request sent to Hanze ICT: OIDC web app, authorization code flow with PKCE, redirect URIs for the VM and for local development.
+      - [ ] App roles (or groups) for student, teacher and administrator defined.
+      - [ ] Client ID and tenant ID received; the secret is stored only as a GitHub Actions secret and in the VM environment.
+      - [ ] The request also covers the VM and VNET, if not yet requested.
+
+  # ── Integration tasks ─────────────────────────────────────────────────────
+  - key: task-ferroehr-template
+    title: "Upload the eduLIMS-lab operational template to FerroEHR"
+    type: Task
+    labels: ["integration:ferroehr"]
+    milestone: "Sprint 4 (2026-11-23 – 12-04)"
+    parent: epic-student
+    requirement: [Q-COMP-1]
+    body: |
+      The template uses only existing CKM archetypes (docs/architecture.md#template-edulims-lab):
+      COMPOSITION.report-result.v1, OBSERVATION.laboratory_test_result.v1,
+      CLUSTER.laboratory_test_analyte.v1, CLUSTER.specimen.v1, CLUSTER.device.v1.
+
+      - [ ] `eduLIMS-lab.opt` is built and committed with its source.
+      - [ ] The template is uploaded to FerroEHR in the dev and VM environments.
+      - [ ] A sample Afinion composition and a sample Epoch composition pass validation.
+      - [ ] FerroBRIDGE maps the Afinion HL7 v2 message to the template.
+
+  - key: task-gen5-template
+    title: "Fix the Gen5 export template with a LifeScience teacher"
+    type: Task
+    labels: [upload]
+    milestone: "Sprint 4 (2026-11-23 – 12-04)"
+    parent: epic-student
+    requirement: [S4, P-03]
+    body: |
+      Project risk P-03. The export must be a table with the sample ID per well.
+
+      - [ ] Export template agreed with a teacher and saved in Gen5 3.11 on both Epoch 2 PCs.
+      - [ ] An example export (with made-up sample IDs) is committed as a test fixture.
+      - [ ] The parser specification (columns, wavelengths, well positions A1 to H12) is written down.
+
+  # ── Quality tasks ─────────────────────────────────────────────────────────
+  - key: task-test-data
+    title: "Create the pseudonymised test data set"
+    type: Task
+    labels: [test, privacy]
+    milestone: "v0.1.0 – Foundation"
+    parent: epic-quality
+    requirement: [Q-PRIV-3]
+    body: |
+      docs/test-strategy.md#test-data.
+
+      - [ ] Made-up students under pseudonyms in made-up classes.
+      - [ ] One practical with deadline and rubric.
+      - [ ] Measured values for HbA1c, CRP and absorbance.
+      - [ ] Bad files: unknown sample ID, non-existent well position, empty column.
+      - [ ] A seed command loads the set into the development database.
+
+  - key: task-gdpr-check
+    title: "GDPR (AVG) check with the Hanze privacy officer"
+    type: Task
+    labels: [privacy]
+    milestone: "Sprint 5 (2026-12-07 – 12-18)"
+    parent: epic-quality
+    requirement: [Q-PRIV-1, R-02, P-05]
+    body: |
+      - [ ] Data inventory: which personal data is in the eduLIMS database, none in FerroEHR.
+      - [ ] Retention and deletion of grades and logs agreed.
+      - [ ] Check with the privacy officer completed and recorded in docs/.
+      - [ ] Verified that the CDR holds no name or student number.
+
+  - key: task-wcag-audit
+    title: "WCAG 2.1 AA audit of the portals and the dashboard"
+    type: Task
+    labels: [accessibility, test]
+    milestone: "Sprint 6 (2027-01-04 – 01-15)"
+    parent: epic-quality
+    requirement: [Q-ACC-1, Q-ACC-2, Q-ACC-3]
+    body: |
+      - [ ] axe scan of every page shows no level A or AA errors.
+      - [ ] Keyboard-only walkthrough of the core process in all three portals.
+      - [ ] Screen reader check of the forms.
+      - [ ] Findings filed as issues and fixed or accepted by the product owner.
+
+  - key: task-archimate-update
+    title: "Update the ArchiMate model for the GitHub and Entra ID decisions"
+    type: Task
+    labels: [documentation]
+    milestone: "Sprint 7 (2027-01-18 – 01-29)"
+    parent: epic-quality
+    requirement: [Q-MAINT-1]
+    body: |
+      ADR 0002 and docs/architecture.md#model-status.
+
+      - [ ] Views 0 to 7 updated to the PvA decisions (Entra ID, administrator role, separate eduLIMS database, CSV export).
+      - [ ] View 8 and the interface table updated to GitHub Issues, Actions and GHCR.
+      - [ ] View 8 added to eduLIMS_novius.xml.
+      - [ ] SVGs re-exported into docs/architecture/.
+
+  - key: task-handover
+    title: "Handover document for the CollabSpace"
+    type: Task
+    labels: [documentation]
+    milestone: "Sprint 7 (2027-01-18 – 01-29)"
+    parent: epic-quality
+    requirement: [Q-MAINT-1]
+    body: |
+      - [ ] Operations manual: processes, roles and procedures.
+      - [ ] Handover document naming the GitHub lane (ADR 0002) and the new maintainer.
+      - [ ] CLAUDE.md, docs/ and the model checked for currency.
