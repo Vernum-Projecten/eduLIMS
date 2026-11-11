@@ -27,3 +27,10 @@ open questions into code and tests.
 - The external specifications stay authoritative in their own domain: openEHR
   and HL7 for the integrations, WCAG 2.1 AA for accessibility, OWASP for
   security.
+- The owner wants the requirements, the architecture, the KPI dashboard and
+  the test strategy **fully re-evaluated** (2026-11-11: "I feel this was not
+  properly done … we should rethink all those things"). A critical review with
+  63 findings exists; do not build a feature on an unsettled point.
+- **Planning lives only in GitHub milestones and issues.** No backlog files,
+  no sprint plans in the repository (the owner removed both, 2026-11-11).
+  Issues are created from re-evaluated requirements, with the owner.

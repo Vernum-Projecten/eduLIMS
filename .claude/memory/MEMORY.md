@@ -24,6 +24,21 @@ adding one, and update it instead of duplicating.
 - [Licence, SPDX and languages](spdx-and-languages.md): Apache-2.0, SPDX
   header `Ruben Talstra` on every hand-written file; everything English, UI
   text through the i18n layer with Dutch as the `nl` translation (ADR 0011)
+- [Neutral project context](neutral-project-context.md): no people's names
+  and no institution or course specifics; "an open-source LIMS for practical
+  laboratory education"; owner 2026-11-11
+- [Brand and UI](brand-and-ui.md): the Microplate mark; build from shadcn/ui
+  components and blocks, user-friendly end to end; the language menu pattern
+- [Supply-chain release age](supply-chain-release-age.md): pnpm
+  `minimumReleaseAge: 1440`, strict; Dependabot cooldown 7 days
+
+## Working with the owner
+
+- [Owner uses Podman](owner-uses-podman.md): `podman compose`, fully
+  qualified image names, never touch their running containers unasked
+- [Env file workflow](env-file-workflow.md): never read or edit the local env
+  file; update the example and end with "run `! pnpm env:sync`"; use a
+  separate worktree while the owner runs `pnpm dev`
 
 ## Stack
 
