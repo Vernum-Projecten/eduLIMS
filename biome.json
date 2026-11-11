@@ -3,7 +3,13 @@
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!src/routeTree.gen.ts", "!.claude/skills", "!pnpm-lock.yaml"]
+    "includes": [
+      "**",
+      "!src/routeTree.gen.ts",
+      "!src/server/db/schema.gen.ts",
+      "!.claude/skills",
+      "!pnpm-lock.yaml"
+    ]
   },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
   "linter": {
