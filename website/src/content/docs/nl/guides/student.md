@@ -30,6 +30,14 @@ dan staat dat op de inlogpagina. Vraag een beheerder om je account de rol studen
 Je ziet alleen je eigen gegevens. Resultaten, inzendingen en cijfers van
 andere studenten krijg je nooit te zien.
 
+## De taal wijzigen
+
+eduLIMS is er in het Nederlands en het Engels. Kies bovenaan de pagina de
+taalknop (daarop staat de huidige taal, bijvoorbeeld **Nederlands**) en kies
+**Nederlands** of **English**. De pagina laadt opnieuw in die taal. Ben je
+ingelogd, dan bewaart eduLIMS je keuze bij je account. Die geldt dan ook de
+volgende keer dat je inlogt, op elk apparaat.
+
 ## Uitloggen
 
 Kies **Uitloggen** bovenaan de pagina. eduLIMS beëindigt je sessie op de

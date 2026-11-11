@@ -30,6 +30,14 @@ sign-in page says your account has no role, contact an administrator.
 You see only the practicals you own or are linked to. Practicals of other
 teachers, and the results in them, stay hidden.
 
+## Change the language
+
+eduLIMS is in English and Dutch. Choose the language button in the header
+(it shows the current language, such as **English**) and pick
+**Nederlands** or **English**. The page reloads in that language. When you
+are signed in, eduLIMS saves the choice to your account, so it also applies
+the next time you sign in, on any device.
+
 ## Sign out
 
 Choose **Sign out** in the header. eduLIMS ends your session on the server.

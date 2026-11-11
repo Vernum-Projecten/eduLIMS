@@ -85,13 +85,46 @@ so no provider or context has to thread through the tree.
 - In the browser a custom strategy reads `<html lang>`, the locale the server
   rendered, before `navigator.languages`, which can disagree with
   `Accept-Language`. Hydration therefore never switches language.
-- The switcher in the header sets the cookie and reloads the document. A
-  locale switch is rare, and a reload re-renders the server-side `head()`
-  titles and the loader data in the new language.
+- The language menu in the header sets the cookie and reloads the document.
+  A locale switch is rare, and a reload re-renders the server-side `head()`
+  titles and the loader data in the new language (amended below: the menu
+  pattern and the account preference).
 - No URL prefix. The Paraglide and TanStack docs show `/en/…` routes with a
   router `rewrite` for public, indexed sites; eduLIMS sits behind a sign-in,
   so one URL per page is simpler and the cookie is enough. A prefix can be
   added later through `urlPatterns` and the router `rewrite`.
+
+### Amended 2026-11-11: the language menu and the account preference
+
+The owner replaced the inline row of language buttons with the pattern most
+web applications use.
+
+- **One compact menu** at the top right of the header, on every page
+  including `/login`: a button with the `Languages` icon and the current
+  language's own name, named "Language: English" ("Taal: Nederlands") for
+  assistive technology. It opens a shadcn `DropdownMenu` with one
+  `DropdownMenuRadioItem` per locale, labelled with its endonym from
+  `Intl.DisplayNames` and carrying its own `lang` (WCAG 3.1.2); the active
+  one is checked. No flags: a flag names a country, not a language. The menu
+  is non-modal, because a modal menu hides the page with `aria-hidden` while
+  its links stay focusable.
+- **The choice is an account preference.** `user.locale` (nullable, `CHECK`
+  against the locales) is a better-auth `user.additionalFields` entry with
+  `input: false`, so no better-auth endpoint accepts it. A signed-in user's
+  pick goes through the `savePreferredLocale` POST server function (session
+  required, the locale validated with `z.enum(locales)`), then the cookie is
+  set and the page reloads.
+- **The saved locale wins at sign-in.** A better-auth `hooks.after`
+  middleware sets the `EDULIMS_LOCALE` cookie from `user.locale` on every
+  endpoint that creates a session (email sign-in and the Entra ID and
+  Keycloak callbacks), in the same response as the session cookie. The OAuth
+  callbacks redirect, so the first page after sign-in already renders in the
+  saved language; the dev login form reloads when the cookie now names
+  another language than the page. Applying it in the root route's session
+  load instead would come too late: the Paraglide middleware has already
+  resolved the request's locale from the old cookie. Anonymous visitors keep
+  the order cookie, `Accept-Language`, English. The cookie is not `HttpOnly`,
+  so the menu can overwrite it.
 
 ### Formatting
 
