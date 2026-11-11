@@ -102,6 +102,13 @@ A change that alters the architecture also updates
 Report vulnerabilities privately; see [`SECURITY.md`](SECURITY.md). Do not
 open a public issue for a security problem.
 
+## Citing eduLIMS
+
+To cite eduLIMS, use the "Cite this repository" button on the GitHub page,
+which reads [`CITATION.cff`](CITATION.cff). Each release is archived on
+Zenodo with a DOI. A change to the citation metadata edits `CITATION.cff` and
+`.zenodo.json` together; `scripts/checks/citation.sh` checks that they agree.
+
 ## Licensing of contributions
 
 eduLIMS is licensed under the Apache License, Version 2.0. By opening a pull

@@ -126,6 +126,24 @@ page is <https://edulims.eu>. The sources in this repository:
   [Support](SUPPORT.md), [Security](SECURITY.md),
   [Code of conduct](CODE_OF_CONDUCT.md).
 
+## Citation
+
+If you use eduLIMS in research or teaching material, please cite it. The
+metadata is in [`CITATION.cff`](CITATION.cff): GitHub's "Cite this
+repository" button in the sidebar gives APA and BibTeX for the current
+release, and every release is archived on Zenodo with its own DOI. In BibTeX,
+with `X.Y.Z` replaced by the version you used:
+
+```bibtex
+@software{Talstra_eduLIMS,
+  author = {Talstra, Ruben},
+  license = {Apache-2.0},
+  title = {{eduLIMS}},
+  url = {https://github.com/Vernum-Projecten/eduLIMS},
+  version = {X.Y.Z}
+}
+```
+
 ## Licence
 
 Copyright Ruben Talstra. Licensed under the Apache License, Version 2.0; see

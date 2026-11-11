@@ -1,23 +1,102 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# Citation metadata (CFF 1.2.0): renders GitHub's "Cite this repository"
+# button (APA and BibTeX). Kept release-accurate: every release cut sets
+# `version` and `date-released` with scripts/release/version.sh, which also
+# updates .zenodo.json. The `citation` CI job (scripts/checks/citation.sh)
+# validates this file against the vendored schema in .github/cff-schema/,
+# holds `version` to package.json, and holds .zenodo.json to this file.
+# `date-released` is absent until the first release; the cut adds it.
+# `identifiers` (the Zenodo concept DOI) is added once the first release is
+# archived (docs/release.md, "Citation and Zenodo").
 cff-version: 1.2.0
-message: "If you use this software, please cite it using these metadata."
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
 title: "eduLIMS"
 abstract: >-
   An open-source laboratory information management system (LIMS) for
-  practical laboratory education. Students register samples,
-  upload and check measurements and submit lab reports; teachers grade with a
-  rubric and follow a KPI dashboard. Measurement data is stored as openEHR
-  compositions in FerroEHR.
-type: software
+  practical laboratory education. Students register samples, upload and check
+  measurements and submit lab reports; teachers grade with a rubric and follow
+  a KPI dashboard. Measurement data is stored as openEHR compositions in
+  FerroEHR.
 authors:
-  - given-names: Ruben
-    family-names: Talstra
-license: Apache-2.0
+  - family-names: Talstra
+    given-names: Ruben
+    orcid: "https://orcid.org/0009-0009-2758-0141"
 repository-code: "https://github.com/Vernum-Projecten/eduLIMS"
 url: "https://edulims.eu"
+license: Apache-2.0
 keywords:
   - LIMS
+  - laboratory information management system
   - laboratory education
+  - practical education
+  - sample management
   - openEHR
   - HL7 v2
+  - TypeScript
   - TanStack Start
-version: 0.0.0
+  - PostgreSQL
+version: "0.0.0"
+references:
+  - type: standard
+    title: "openEHR REST API (ITS-REST)"
+    version: "1.1.0"
+    authors:
+      - name: "openEHR International"
+    publisher:
+      name: "openEHR International"
+    url: "https://specifications.openehr.org/releases/ITS-REST/Release-1.1.0"
+  - type: standard
+    title: "Archetype Query Language (AQL)"
+    version: "1.1.0"
+    authors:
+      - name: "openEHR International"
+    publisher:
+      name: "openEHR International"
+    url: "https://specifications.openehr.org/releases/QUERY/Release-1.1.0/AQL.html"
+  - type: standard
+    title: "openEHR Reference Model (RM)"
+    version: "1.1.0"
+    authors:
+      - name: "openEHR International"
+    publisher:
+      name: "openEHR International"
+    url: "https://specifications.openehr.org/releases/RM/Release-1.1.0"
+  - type: standard
+    title: "HL7 Version 2 Product Suite"
+    version: "2.x"
+    authors:
+      - name: "Health Level Seven International"
+    publisher:
+      name: "Health Level Seven International"
+    url: "https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185"
+  - type: standard
+    title: "Web Content Accessibility Guidelines (WCAG) 2.1"
+    version: "2.1"
+    authors:
+      - name: "World Wide Web Consortium (W3C)"
+    publisher:
+      name: "World Wide Web Consortium (W3C)"
+    url: "https://www.w3.org/TR/WCAG21/"
+  - type: software
+    title: "FerroEHR"
+    abstract: "The openEHR clinical data repository that stores eduLIMS measurement data."
+    authors:
+      - family-names: Talstra
+        given-names: Ruben
+        orcid: "https://orcid.org/0009-0009-2758-0141"
+    license: BUSL-1.1
+    doi: 10.5281/zenodo.21940279
+    repository-code: "https://github.com/FerroHEALTH/FerroEHR"
+    url: "https://ferroehr.eu/"
+  - type: software
+    title: "FerroBRIDGE"
+    abstract: "The integration layer that receives the Afinion 2 analyser's HL7 v2 results for eduLIMS."
+    authors:
+      - family-names: Talstra
+        given-names: Ruben
+    license: BUSL-1.1
+    repository-code: "https://github.com/FerroHEALTH/FerroBRIDGE"
+    url: "https://ferrobridge.eu"
