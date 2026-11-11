@@ -6,8 +6,10 @@ import { LanguageMenu } from "@/components/language-menu";
 import { AppBreadcrumb } from "@/components/shell/app-breadcrumb";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { MAIN_CONTENT_ID, SkipLink } from "@/components/shell/skip-link";
+import { ShortcutsProvider } from "@/components/shortcuts/shortcuts-provider";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { navigationFor } from "@/lib/navigation";
 import { readSidebarOpen } from "@/lib/preferences";
 import { sidebarCookie } from "@/lib/theme";
 import type { SessionUser } from "@/server/authz";
@@ -32,7 +34,8 @@ function ShellSidebarTrigger() {
 
 /**
  * The signed-in layout (the sidebar-07 block's page): the sidebar, a top bar with the sidebar
- * toggle, the breadcrumb and the language menu, and the page in `main`. The sidebar's
+ * toggle, the breadcrumb and the language menu, and the page in `main`, inside the keyboard
+ * shortcuts (`ShortcutsProvider`). The sidebar's
  * open state comes from its cookie on both sides, so the server renders it without a flash, and
  * eduLIMS stores it in its own `__Host-` cookie over https.
  */
@@ -44,29 +47,31 @@ export function AppShell({ user, children }: Readonly<{ user: SessionUser; child
     setOpen(next);
   };
   return (
-    <SidebarProvider open={open} onOpenChange={changeOpen}>
-      <SkipLink />
-      <AppSidebar user={user} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80">
-          <ShellSidebarTrigger />
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-vertical:h-4 data-vertical:self-auto"
-          />
-          <AppBreadcrumb />
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            <LanguageMenu signedIn />
-          </div>
-        </header>
-        <SidebarInset
-          id={MAIN_CONTENT_ID}
-          tabIndex={-1}
-          className="mx-auto w-full max-w-6xl px-4 py-6 outline-none md:px-8 md:py-8"
-        >
-          {children}
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+    <ShortcutsProvider portals={navigationFor(user)}>
+      <SidebarProvider open={open} onOpenChange={changeOpen}>
+        <SkipLink />
+        <AppSidebar user={user} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80">
+            <ShellSidebarTrigger />
+            <Separator
+              orientation="vertical"
+              className="mr-2 data-vertical:h-4 data-vertical:self-auto"
+            />
+            <AppBreadcrumb />
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              <LanguageMenu signedIn />
+            </div>
+          </header>
+          <SidebarInset
+            id={MAIN_CONTENT_ID}
+            tabIndex={-1}
+            className="mx-auto w-full max-w-6xl px-4 py-6 outline-none md:px-8 md:py-8"
+          >
+            {children}
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
+    </ShortcutsProvider>
   );
 }

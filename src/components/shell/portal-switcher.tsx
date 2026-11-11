@@ -4,7 +4,8 @@
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { BrandMark } from "@/components/brand-mark";
-import { useApplePlatform, useSwitchPortal } from "@/components/shell/use-switch-portal";
+import { useSwitchPortal } from "@/components/shell/use-switch-portal";
+import { useShortcutPlatform } from "@/components/shortcuts/use-shortcut-platform";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +23,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { m } from "@/i18n/messages";
 import type { PortalNavigation } from "@/lib/navigation";
-import { portalAriaShortcut, portalShortcutLabel } from "@/lib/portal-shortcuts";
+import { ariaKeyShortcuts, portalShortcut, shortcutLabel } from "@/lib/shortcuts";
 
 /**
  * The logo tile and the current portal's name, as in the sidebar-07 team switcher: the tile is
@@ -65,7 +66,7 @@ export function PortalSwitcher({
 }: Readonly<{ portals: readonly PortalNavigation[]; current: PortalNavigation }>) {
   const { isMobile } = useSidebar();
   const switchPortal = useSwitchPortal();
-  const apple = useApplePlatform();
+  const platform = useShortcutPlatform();
   const label = current.label();
 
   if (portals.length < 2) {
@@ -113,6 +114,7 @@ export function PortalSwitcher({
             {portals.map((portal, index) => {
               const Icon = portal.icon;
               const isCurrent = portal.role === current.role;
+              const hotkeys = portalShortcut(index, portal.label)?.hotkeys ?? [];
               return (
                 <DropdownMenuItem
                   key={portal.role}
@@ -120,7 +122,9 @@ export function PortalSwitcher({
                     if (!isCurrent) switchPortal(portal);
                   }}
                   aria-current={isCurrent ? "true" : undefined}
-                  aria-keyshortcuts={portalAriaShortcut(index)}
+                  aria-keyshortcuts={
+                    hotkeys.length ? ariaKeyShortcuts(hotkeys, platform) : undefined
+                  }
                   className="gap-2 p-2"
                 >
                   <div className="flex size-6 items-center justify-center rounded-md border">
@@ -133,9 +137,11 @@ export function PortalSwitcher({
                       <span className="sr-only">{m.portal_switcher_current()}</span>
                     </>
                   )}
-                  <DropdownMenuShortcut aria-hidden="true">
-                    {portalShortcutLabel(index, apple)}
-                  </DropdownMenuShortcut>
+                  {hotkeys.map((hotkey) => (
+                    <DropdownMenuShortcut key={hotkey} aria-hidden="true">
+                      {shortcutLabel(hotkey, platform)}
+                    </DropdownMenuShortcut>
+                  ))}
                 </DropdownMenuItem>
               );
             })}

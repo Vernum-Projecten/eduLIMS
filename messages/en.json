@@ -298,5 +298,14 @@
   "dev_charts_academic_year": "Academic year",
   "dev_charts_year": "Year {year}",
   "dev_charts_focused": "Focused: {practical}, {submissions} submissions, average grade {grade}, class size {size}, year {year}.",
-  "dev_charts_focused_none": "No point is focused. Move the pointer over a point, or tab to the chart and use the arrow keys."
+  "dev_charts_focused_none": "No point is focused. Move the pointer over a point, or tab to the chart and use the arrow keys.",
+  "shortcuts_dialog_title": "Keyboard shortcuts",
+  "shortcuts_dialog_description": "These shortcuts work anywhere in eduLIMS, except while you type in a field.",
+  "shortcuts_or": "or",
+  "shortcuts_close": "Close",
+  "shortcuts_character_keys_label": "Single-key shortcuts",
+  "shortcuts_character_keys_description": "Turn off ? and / if they get in the way, for example with speech input.",
+  "shortcut_open_portal": "Go to the {portal}",
+  "shortcut_show_shortcuts": "Show the keyboard shortcuts",
+  "shortcut_focus_search": "Go to the search field, on pages that have one"
 }
