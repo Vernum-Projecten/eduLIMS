@@ -104,7 +104,7 @@ pnpm check   # typecheck, Biome lint, Vitest
 | Language | TypeScript 7 (native compiler) |
 | Lint and format | Biome |
 | Tests | Vitest, Playwright with axe for accessibility |
-| Sign-in | better-auth with Microsoft Entra ID (OpenID Connect, PKCE) |
+| Sign-in | better-auth with Microsoft Entra ID and/or Keycloak (OpenID Connect, PKCE) |
 | Database | PostgreSQL 18 through Kysely and `pg` |
 | Measurement data | FerroEHR (openEHR REST and AQL), FerroBRIDGE (HL7 v2 over MLLP) |
 | Delivery | Docker Compose on one Linux VM, images on GHCR, SLSA Build Level 3 releases |

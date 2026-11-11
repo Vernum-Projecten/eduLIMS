@@ -18,6 +18,7 @@ Each significant architecture or technology decision is recorded here in the
 | [0007](0007-node-26-lts-and-pnpm-12.md) | Node.js 26 LTS and pnpm 12 | Accepted |
 | [0008](0008-docker-compose-ghcr-slsa.md) | Docker Compose on one VM, images on GHCR, SLSA Build Level 3 | Accepted |
 | [0009](0009-no-ai-attribution-human-review.md) | No AI attribution; human review of every change | Accepted |
+| [0010](0010-vendor-neutral-oidc-entra-and-keycloak.md) | Vendor-neutral sign-in: Microsoft Entra ID and Keycloak | Accepted |
 
 ## Adding a record
 

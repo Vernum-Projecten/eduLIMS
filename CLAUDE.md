@@ -18,7 +18,7 @@ reports, assessments, logs) and **FerroEHR**, an openEHR CDR, for the
 measurements as compositions on the `eduLIMS-lab` template. Afinion results
 arrive as HL7 v2 through **FerroBRIDGE**; Epoch results arrive through the
 Excel upload, which eduLIMS writes to FerroEHR over openEHR REST. eduLIMS
-reads them back with AQL. Sign-in is Microsoft Entra ID over OpenID Connect.
+reads them back with AQL. Sign-in is OpenID Connect through Microsoft Entra ID or Keycloak (ADR 0010).
 Everything runs as containers with Docker Compose.
 
 This file is the working discipline. The design is `docs/architecture.md`;
@@ -65,8 +65,9 @@ the npm registry at the moment you add it, never from memory.
 - **Language and tooling:** TypeScript 7 (native `tsc`) with the strict
   options in `tsconfig.json`; Biome 2.6 for formatting and lint.
 - **Data:** Kysely on PostgreSQL 18; kysely-codegen for the `Database` types.
-- **Auth:** better-auth with Microsoft Entra ID (OIDC, authorization code with
-  PKCE).
+- **Auth:** better-auth with Microsoft Entra ID and/or Keycloak (OIDC,
+  authorization code with PKCE); roles mapped from an ID-token claim
+  (`OIDC_ROLE_CLAIM`, `OIDC_ROLE_MAP`), see ADR 0010.
 - **Integrations:** openEHR REST API (ITS-REST 1.1.0) and AQL 1.1 to FerroEHR;
   HL7 v2 over MLLP into FerroBRIDGE.
 - **Tests:** Vitest 5 with v8 coverage, Testing Library, Playwright with
@@ -199,7 +200,7 @@ always. Read the relevant one before working in an area.
 - `rules/tanstack.md`: routes, loaders with `ensureQueryData`, server
   functions, SSR hygiene.
 - `rules/react-ui.md`: shadcn/ui, the TanStack Form pattern, WCAG 2.1 AA.
-- `rules/auth-security.md`: better-auth with Entra ID, roles and ownership,
+- `rules/auth-security.md`: better-auth with Entra ID and Keycloak, roles and ownership,
   privacy, the OWASP checklist, uploads.
 - `rules/database.md`: Kysely, PostgreSQL 18, migrations, schema rules.
 - `rules/integration.md`: FerroEHR (openEHR REST and AQL), FerroBRIDGE (HL7

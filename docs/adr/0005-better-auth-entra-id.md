@@ -6,6 +6,7 @@
 - Status: Accepted
 - Date: 2026-11-11
 - Deciders: Ruben Talstra (maintainer)
+- Amended by: [0010](0010-vendor-neutral-oidc-entra-and-keycloak.md) (Keycloak as a second provider, roles from the provider)
 
 ## Context and problem statement
 

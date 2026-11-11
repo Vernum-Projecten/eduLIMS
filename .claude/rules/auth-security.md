@@ -20,11 +20,14 @@ filter op eigen gegevens in de API (S7, D3)". The quality requirement is
 check finds no open endpoint without login. This file is how the code meets
 both.
 
-## Sign-in: Microsoft Entra ID through better-auth (S1)
+## Sign-in: Entra ID or Keycloak through better-auth (S1, ADR 0010)
 
 - **better-auth** is the auth library (<https://better-auth.com/docs>), with
-  Microsoft Entra ID as the OpenID Connect provider: authorization code flow
-  with PKCE, the Hanze tenant only. Answer better-auth questions from its docs
+  OpenID Connect providers only: Microsoft Entra ID (the Hanze tenant only,
+  `socialProviders.microsoft`) and Keycloak (`genericOAuth` with the
+  `keycloak()` helper), each on when its variables are set, at least one in
+  production. Authorization code flow with PKCE. Never add provider-specific
+  logic outside `src/server/auth.ts` and the role-mapping module. Answer better-auth questions from its docs
   (the `better-auth` MCP server) at the installed version, never from memory.
 - The better-auth handler is mounted as a server route under `/api/auth/*`;
   the session lives in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie. No
@@ -41,8 +44,12 @@ both.
 
 - A user has exactly the roles the database says (B1: "een beheerder kent een
   rol toe; de gebruiker ziet direct alleen de schermen van die rol"). Roles may
-  be seeded from Entra app roles or groups, but the eduLIMS database is the
-  source the checks read, so a role change applies on the next request.
+  be seeded from the provider's role claim on every OIDC sign-in
+  (`OIDC_ROLE_CLAIM`, `OIDC_ROLE_MAP`; no mapped role means no access unless
+  `OIDC_DEFAULT_ROLE` is set), and the eduLIMS database is the source the
+  checks read. Who owns role assignment (provider vs Beheerportaal, B1) is an
+  open owner question in ADR 0010; do not build role editing before it is
+  answered.
 - **Authorisation is enforced on the server, in every server function and
   server route, before any data is read.** Use the shared middleware
   (`requireSession`, `requireRole("docent")`) from `src/server/auth/`. A

@@ -10,7 +10,7 @@ anything; they apply to every agent, whatever tool runs it.
 The short version:
 
 - eduLIMS is a TanStack Start (SSR) app in strict TypeScript 7 with
-  shadcn/ui, Kysely on PostgreSQL 18, better-auth with Entra ID, and
+  shadcn/ui, Kysely on PostgreSQL 18, better-auth with Entra ID or Keycloak, and
   FerroEHR (openEHR) for measurements.
 - Gate: `pnpm check` (typecheck, Biome lint, Vitest); `pnpm test:e2e` for UI
   (Playwright with axe, WCAG 2.1 AA).

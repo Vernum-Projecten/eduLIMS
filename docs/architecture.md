@@ -94,8 +94,8 @@ links it to the student and the practical.
 
 ## Portals and roles
 
-eduLIMS has three roles. A user's role comes from Entra ID (app roles or
-groups) and is enforced on the server for every request (Q-SEC-1, Q-SEC-2).
+eduLIMS has three roles. A user's role comes from the identity provider, Entra ID app roles or
+Keycloak realm roles mapped through configuration ([ADR 0010](adr/0010-vendor-neutral-oidc-entra-and-keycloak.md)), and is enforced on the server for every request (Q-SEC-1, Q-SEC-2).
 
 | Role | Portal | May | Sees |
 |---|---|---|---|
@@ -172,7 +172,7 @@ are in [kpi-dashboard.md](kpi-dashboard.md).
 |---|---|---|
 | Web framework | TanStack Start with full server-side rendering on Vite, served by a Nitro Node server | [ADR 0003](adr/0003-tanstack-start-full-ssr-on-vite.md) |
 | Language | TypeScript 7 native compiler; Biome for lint and format | [ADR 0004](adr/0004-typescript-7-native-compiler.md) |
-| Sign-in and sessions | better-auth with Microsoft Entra ID, PostgreSQL adapter through Kysely | [ADR 0005](adr/0005-better-auth-entra-id.md) |
+| Sign-in and sessions | better-auth with Microsoft Entra ID and/or Keycloak, PostgreSQL adapter through Kysely | [ADR 0005](adr/0005-better-auth-entra-id.md) |
 | Application data access | Kysely with `pg` | [ADR 0006](adr/0006-kysely-for-app-data.md) |
 | Runtime and package manager | Node.js 26 LTS, pnpm 12 | [ADR 0007](adr/0007-node-26-lts-and-pnpm-12.md) |
 
@@ -231,7 +231,7 @@ the architecture:
 
 | ID | Requirement | Where the architecture answers it |
 |---|---|---|
-| Q-SEC-1, Q-SEC-2 | SSO only; access per role, filtered on own data | Entra ID through better-auth; role and ownership checks in server functions; no client-side access to FerroEHR |
+| Q-SEC-1, Q-SEC-2 | SSO only; access per role, filtered on own data | Entra ID or Keycloak through better-auth; role and ownership checks in server functions; no client-side access to FerroEHR |
 | Q-SEC-3 | HTTPS; measurement data stays in the Hanze VNET | everything on one VM in the VNET; TLS terminated in front of the app ([deployment.md](deployment.md)) |
 | Q-PRIV-1, Q-PRIV-2 | pseudonyms only in the CDR; averages from 5 assessments | data split between CDR and eduLIMS database; threshold in the KPI queries |
 | Q-TRACE-1 | measurement traceable to device, sample and student | sample ID across all interfaces |
