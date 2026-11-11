@@ -9,8 +9,9 @@ import { m } from "@/i18n/messages";
 import { authClient } from "@/lib/auth-client";
 
 /**
- * Signs the user out; a failure shows a toast. The Query cache is emptied first, so nothing
- * the user loaded stays in memory for the next person at a shared lab computer. After an OIDC
+ * Signs the user out; a failure shows a toast. The Query cache is emptied on every path (before
+ * the browser leaves for an IdP), so nothing the user loaded stays in memory for the next
+ * person at a shared lab computer. After an OIDC
  * sign-in whose provider offers RP-initiated logout, the browser then goes on to the
  * provider's end-session URL, which returns to the login page (ADR 0015); otherwise straight
  * to the login page.
