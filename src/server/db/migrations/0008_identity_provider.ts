@@ -49,6 +49,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn("role_map", "jsonb", (col) => col.notNull().defaultTo(sql`'{}'::jsonb`))
     .addColumn("default_role", "text")
     .addColumn("email_authoritative", "boolean", (col) => col.notNull().defaultTo(false))
+    // The administrator's statement that an OIDC IdP enforces PKCE S256 although its discovery
+    // document does not list `code_challenge_methods_supported`.
+    .addColumn("attest_pkce", "boolean", (col) => col.notNull().defaultTo(false))
     .addColumn("end_session_endpoint", "text")
     .addColumn("metadata_url", "text")
     .addColumn("created_by", "text")
@@ -60,6 +63,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       sql`provider_id not in ('local', 'credential')`,
     )
     .addCheckConstraint("identity_provider_protocol", sql`protocol in ('oidc', 'saml')`)
+    .addCheckConstraint("identity_provider_attest_pkce", sql`not attest_pkce or protocol = 'oidc'`)
     .addCheckConstraint(
       "identity_provider_labels",
       sql`length(label_en) between 1 and 60 and length(label_nl) between 1 and 60`,
@@ -117,6 +121,17 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addCheckConstraint("pending_admin_grant_expiry", sql`expires_at > created_at`)
     .execute();
 
+  // How the session was signed in to: a provider id or `credential` (the development login).
+  // Sign-out ends the IdP session of exactly that provider.
+  await db.schema
+    .alterTable("session")
+    .addColumn("sign_in_method", "text", (col) =>
+      col.check(
+        sql`sign_in_method is null or (sign_in_method ~ ${sql.lit(SLUG)} and sign_in_method <> 'local')`,
+      ),
+    )
+    .execute();
+
   await db.schema.alterTable("user").dropConstraint("user_role_source_check").execute();
   await db.schema.alterTable("user").dropConstraint("user_last_login_method_check").execute();
   await db.schema
@@ -147,6 +162,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 // its domains and the pending admin grants, and fails while rows name a provider outside the
 // old fixed list.
 export async function down(db: Kysely<unknown>): Promise<void> {
+  await db.schema.alterTable("session").dropColumn("sign_in_method").execute();
   await db.schema.alterTable("audit_event").dropConstraint("audit_event_provider").execute();
   await db.schema
     .alterTable("audit_event")

@@ -17,6 +17,8 @@ const MESSAGES: Readonly<Record<string, string>> = {
   revoked: "revoked",
   not_admin: "unchanged: the user does not hold the admin role",
   role_conflict: "refused: a student cannot also be an administrator (ADR 0012)",
+  email_unverified:
+    "refused: this user's email address is not verified by their provider, so it may not be theirs",
   provider_required:
     "refused: nobody signed in with this email yet; name the provider (--provider <id>)",
   provider_unknown: "refused: no such provider",

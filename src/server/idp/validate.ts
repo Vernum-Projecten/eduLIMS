@@ -3,12 +3,14 @@
 
 // Server-side checks of an identity provider before it is stored (#46, ADR 0015): the issuer's
 // origin (https, and no private or loopback address unless the operator allowed that origin,
-// ASVS V1.3.6 SSRF), OIDC discovery with the sso plugin's own validators, and SAML metadata
-// (well-formed, one entity, a signing certificate, an SSO service, a persistent NameID).
-// Relative imports: the host CLI loads this in plain Node.
+// ASVS V1.3.6 SSRF), OIDC discovery with the sso plugin's own validators and PKCE S256, and
+// SAML metadata (well-formed, one entity, a signing certificate, an SSO service, a persistent
+// NameID). Relative imports: the host CLI loads this in plain Node.
 import "@tanstack/react-start/server-only";
 import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { request as httpRequest, type IncomingMessage } from "node:http";
+import { request as httpsRequest } from "node:https";
+import { isIP, type LookupFunction } from "node:net";
 import {
   computeDiscoveryUrl,
   DiscoveryError,
@@ -19,6 +21,7 @@ import {
   validateDiscoveryDocument,
 } from "@better-auth/sso";
 import { IdPMetadata } from "samlify";
+import { isPrivateAddress } from "./addresses.ts";
 import { MAX_METADATA_BYTES } from "./input.ts";
 
 /** Why a provider configuration was refused; the screen translates the code. */
@@ -57,58 +60,23 @@ export interface OriginPolicy {
   resolve?: (host: string) => Promise<string[]>;
 }
 
-function ipv4Private(address: string): boolean {
-  const [a = -1, b = -1] = address.split(".").map(Number);
-  return (
-    a === 0 ||
-    a === 10 ||
-    a === 127 ||
-    (a === 100 && b >= 64 && b <= 127) ||
-    (a === 169 && b === 254) ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    (a === 198 && (b === 18 || b === 19)) ||
-    a >= 224
-  );
-}
-
-/** Returns whether an IP address is not publicly routable (loopback, RFC 1918, link-local, ULA). */
-export function isPrivateAddress(address: string): boolean {
-  const version = isIP(address);
-  if (version === 4) return ipv4Private(address);
-  if (version !== 6) return true;
-  const lower = address.toLowerCase();
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
-  if (mapped?.[1]) return ipv4Private(mapped[1]);
-  return (
-    lower === "::" ||
-    lower === "::1" ||
-    /^f[cd]/.test(lower) ||
-    /^fe[89ab]/.test(lower) ||
-    lower.startsWith("ff")
-  );
-}
-
 async function defaultResolve(host: string): Promise<string[]> {
   const records = await lookup(host, { all: true });
   return records.map((record) => record.address);
 }
 
-/**
- * Checks an issuer or metadata URL before eduLIMS fetches it, and returns its origin.
- *
- * @throws IdpValidationError `issuer_insecure` for http in production or off loopback,
- *   `issuer_private` for a private address outside `privateOrigins`, `issuer_unresolvable`.
- */
-export async function checkFetchOrigin(url: string, policy: OriginPolicy): Promise<string> {
+/** The parts of a fetch URL the checks need, after the scheme check. */
+function originOf(url: string, policy: OriginPolicy) {
   const parsed = new URL(url);
-  const origin = parsed.origin;
-  const allowed = policy.privateOrigins.includes(origin);
+  const allowed = policy.privateOrigins.includes(parsed.origin);
   if (parsed.protocol !== "https:" && (policy.production || !allowed)) {
     throw new IdpValidationError("issuer_insecure");
   }
-  if (allowed) return origin;
-  const host = parsed.hostname.replace(/^\[|\]$/g, "");
+  return { parsed, allowed, host: parsed.hostname.replace(/^\[|\]$/g, "") };
+}
+
+/** Resolves `host` once and refuses it when any address is private. */
+async function publicAddresses(host: string, policy: OriginPolicy): Promise<string[]> {
   let addresses: string[];
   try {
     addresses = isIP(host) ? [host] : await (policy.resolve ?? defaultResolve)(host);
@@ -117,7 +85,19 @@ export async function checkFetchOrigin(url: string, policy: OriginPolicy): Promi
   }
   if (addresses.length === 0) throw new IdpValidationError("issuer_unresolvable");
   if (addresses.some(isPrivateAddress)) throw new IdpValidationError("issuer_private");
-  return origin;
+  return addresses;
+}
+
+/**
+ * Checks an issuer URL before eduLIMS fetches it, and returns its origin.
+ *
+ * @throws IdpValidationError `issuer_insecure` for http in production or off loopback,
+ *   `issuer_private` for a private address outside `privateOrigins`, `issuer_unresolvable`.
+ */
+export async function checkFetchOrigin(url: string, policy: OriginPolicy): Promise<string> {
+  const { parsed, allowed, host } = originOf(url, policy);
+  if (!allowed) await publicAddresses(host, policy);
+  return parsed.origin;
 }
 
 /** The discovered endpoints eduLIMS stores; no `userInfoEndpoint`, so claims come from the ID token. */
@@ -133,8 +113,15 @@ export interface DiscoveredOidc {
 /**
  * Runs OIDC discovery for `issuer` with the sso plugin's validators (exact issuer match, the
  * required fields), and requires every endpoint on the issuer's own origin and PKCE S256.
+ *
+ * A document that does not list `code_challenge_methods_supported` is refused with `no_pkce`
+ * unless `attestPkce` is set: the administrator's statement that the IdP enforces S256.
  */
-export async function discoverOidc(issuer: string, policy: OriginPolicy): Promise<DiscoveredOidc> {
+export async function discoverOidc(
+  issuer: string,
+  policy: OriginPolicy,
+  options: { attestPkce: boolean } = { attestPkce: false },
+): Promise<DiscoveredOidc> {
   const origin = await checkFetchOrigin(issuer, policy);
   const sameOrigin = (url: string) => {
     try {
@@ -178,8 +165,12 @@ export async function discoverOidc(issuer: string, policy: OriginPolicy): Promis
   }
   const endpoints = [document.authorization_endpoint, document.token_endpoint, document.jwks_uri];
   if (!endpoints.every(sameOrigin)) throw new IdpValidationError("endpoint_foreign_origin");
+  // NOTE: ASVS V10.2.1; eduLIMS always sends S256, but only an IdP that enforces it stops an
+  // injected code. Without the advertised list, the administrator's attestation is the evidence.
   const pkce = document.code_challenge_methods_supported;
-  if (pkce !== undefined && !pkce.includes("S256")) throw new IdpValidationError("no_pkce");
+  if (pkce === undefined ? !options.attestPkce : !pkce.includes("S256")) {
+    throw new IdpValidationError("no_pkce");
+  }
   const method = selectTokenEndpointAuthMethod(document);
   if (method === "private_key_jwt") throw new IdpValidationError("unsupported_client_auth");
   const endSession = document.end_session_endpoint;
@@ -209,8 +200,8 @@ export interface ParsedSamlMetadata {
 
 /**
  * Checks IdP metadata XML: size, one well-formed `EntityDescriptor` with an IdP role, at least
- * one signing certificate, an HTTP-Redirect SSO service, and the persistent NameID format when
- * the metadata lists formats at all.
+ * one signing certificate, an HTTP-Redirect SSO service, and the persistent NameID format among
+ * the listed `NameIDFormat`s (metadata that lists none is refused).
  */
 export function parseSamlMetadata(xml: string): ParsedSamlMetadata {
   if (Buffer.byteLength(xml, "utf8") > MAX_METADATA_BYTES) {
@@ -239,7 +230,7 @@ export function parseSamlMetadata(xml: string): ParsedSamlMetadata {
   }
   const listed: unknown = metadata.getNameIDFormat();
   const formats = typeof listed === "string" ? [listed] : Array.isArray(listed) ? listed : [];
-  if (formats.length > 0 && !formats.includes(PERSISTENT_NAME_ID)) {
+  if (!formats.includes(PERSISTENT_NAME_ID)) {
     throw new IdpValidationError("metadata_no_persistent_nameid");
   }
   const slo = serviceLocation(metadata.getSingleLogoutService(REDIRECT_BINDING), REDIRECT_BINDING);
@@ -267,19 +258,76 @@ export function serviceLocation(value: unknown, binding: string): string | null 
   return null;
 }
 
-/** Fetches IdP metadata once from `url` after the origin check, without following redirects. */
+/**
+ * Returns the DNS lookup of a metadata fetch: it resolves the host once, refuses a private
+ * address, and connects to exactly the addresses it checked (no second resolution).
+ */
+function checkedLookup(policy: OriginPolicy): LookupFunction {
+  return (hostname, options, callback) => {
+    publicAddresses(hostname, policy).then(
+      (addresses) => {
+        const entries = addresses.map((address) => ({ address, family: isIP(address) }));
+        const first = entries[0];
+        if (options.all) callback(null, entries);
+        else if (first) callback(null, first.address, first.family);
+        else callback(new IdpValidationError("issuer_unresolvable"), "", 0);
+      },
+      (error: unknown) =>
+        callback(error instanceof Error ? error : new Error(String(error)), "", 0),
+    );
+  };
+}
+
+/** Reads a response body, aborting at {@link MAX_METADATA_BYTES}. */
+function readCapped(response: IncomingMessage, abort: () => void): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    response.on("data", (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > MAX_METADATA_BYTES) {
+        abort();
+        reject(new IdpValidationError("metadata_too_large"));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    response.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    response.on("error", reject);
+  });
+}
+
+/**
+ * Fetches IdP metadata once from `url`: one DNS resolution checked at connect time, no
+ * redirects, 10 seconds at most, and the body streamed up to {@link MAX_METADATA_BYTES}.
+ */
 export async function fetchSamlMetadata(url: string, policy: OriginPolicy): Promise<string> {
-  await checkFetchOrigin(url, policy);
-  let response: Response;
+  const { parsed, allowed, host } = originOf(url, policy);
+  if (!allowed && isIP(host)) await publicAddresses(host, policy);
+  const send = parsed.protocol === "https:" ? httpsRequest : httpRequest;
   try {
-    response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    return await new Promise<string>((resolve, reject) => {
+      const req = send(
+        parsed,
+        {
+          method: "GET",
+          ...(allowed ? {} : { lookup: checkedLookup(policy) }),
+          signal: AbortSignal.timeout(10_000),
+        },
+        (response) => {
+          if (response.statusCode !== 200) {
+            response.resume();
+            reject(new IdpValidationError("metadata_fetch_failed"));
+            return;
+          }
+          readCapped(response, () => req.destroy()).then(resolve, reject);
+        },
+      );
+      req.on("error", reject);
+      req.end();
+    });
   } catch (error) {
+    if (error instanceof IdpValidationError) throw error;
     throw new IdpValidationError("metadata_fetch_failed", { cause: error });
   }
-  if (!response.ok) throw new IdpValidationError("metadata_fetch_failed");
-  const text = await response.text();
-  if (Buffer.byteLength(text, "utf8") > MAX_METADATA_BYTES) {
-    throw new IdpValidationError("metadata_too_large");
-  }
-  return text;
 }

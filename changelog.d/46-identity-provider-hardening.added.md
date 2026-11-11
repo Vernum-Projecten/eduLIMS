@@ -1,0 +1,1 @@
+An OpenID Connect provider is saved only when it offers PKCE with S256 or an administrator attests that it enforces it, disabling a provider ends its users' sessions, SAML single logout must be signed and SAML sign-ins need a persistent NameID, and sign-out ends the identity-provider session of the provider the session signed in with.

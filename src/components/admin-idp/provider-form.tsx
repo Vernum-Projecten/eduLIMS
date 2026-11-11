@@ -2,53 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useForm } from "@tanstack/react-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { PlusIcon, SaveIcon, Trash2Icon } from "lucide-react";
 import { useId, useRef, useState } from "react";
-import { toast } from "sonner";
-import { iconLabel, idpErrorField, idpErrorMessage } from "@/components/admin-idp/idp-labels";
+import {
+  NumberControl,
+  roleOptions,
+  SelectControl,
+  SwitchControl,
+} from "@/components/admin-idp/choice-controls";
+import { iconLabel } from "@/components/admin-idp/idp-labels";
 import {
   domainsFromText,
   type ProviderFormValues,
   providerFormSchema,
-  toCreateInput,
-  toUpdateInput,
+  type StoredSecrets,
 } from "@/components/admin-idp/provider-form-schema";
 import { TextControl } from "@/components/admin-idp/text-control";
+import { type SaveRefusal, useSaveProvider } from "@/components/admin-idp/use-save-provider";
 import { Button } from "@/components/ui/button";
 import {
-  Field,
-  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
-  FieldLabel,
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import { Switch } from "@/components/ui/switch";
 import { m } from "@/i18n/messages";
-import { roleLabel } from "@/lib/i18n/labels";
 import { PROVIDER_ICONS, type ProviderProtocol } from "@/lib/identity-providers";
-import { isRole, ROLES } from "@/lib/roles";
-import { createIdentityProvider, updateIdentityProvider } from "@/server/idp/functions";
-import {
-  createProviderMutationOptions,
-  idpErrorCode,
-  updateProviderMutationOptions,
-} from "@/server/idp/query-options";
+import { isRole } from "@/lib/roles";
 import { providerSettingsSchema } from "@/server/idp/schemas";
-
-/** What the edit form knows about stored secrets: only whether one is set. */
-export interface StoredSecrets {
-  clientSecret: boolean;
-  spPrivateKey: boolean;
-  metadata: boolean;
-}
 
 /**
  * The add and edit form of an identity provider (#46): the sign-in button, the connection for
@@ -66,17 +48,10 @@ export function ProviderForm({
   initial: ProviderFormValues;
   stored?: StoredSecrets;
 }>) {
-  const queryClient = useQueryClient();
-  const create = useMutation(
-    createProviderMutationOptions(queryClient, useServerFn(createIdentityProvider)),
-  );
-  const update = useMutation(
-    updateProviderMutationOptions(queryClient, useServerFn(updateIdentityProvider)),
-  );
-  const navigate = useNavigate();
+  const save = useSaveProvider(mode);
   const id = useId();
   const alertRef = useRef<HTMLParagraphElement>(null);
-  const [refusal, setRefusal] = useState<{ field: string | null; message: string } | null>(null);
+  const [refusal, setRefusal] = useState<SaveRefusal | null>(null);
   const [domainsText, setDomainsText] = useState(initial.settings.domains.join("\n"));
 
   const form = useForm({
@@ -84,29 +59,13 @@ export function ProviderForm({
     validators: { onSubmit: providerFormSchema(mode, protocol) },
     onSubmit: async ({ value }) => {
       setRefusal(null);
-      let providerId: string;
-      try {
-        providerId =
-          mode === "create"
-            ? await create.mutateAsync(toCreateInput(value))
-            : await update.mutateAsync(toUpdateInput(value));
-      } catch (error) {
-        const code = idpErrorCode(error);
-        const field = code === "failed" ? null : idpErrorField(code);
-        setRefusal({ field, message: idpErrorMessage(code) });
-        if (!field) requestAnimationFrame(() => alertRef.current?.focus());
+      const refused = await save(value);
+      if (refused) {
+        setRefusal(refused);
+        if (!refused.field) requestAnimationFrame(() => alertRef.current?.focus());
         return;
       }
-      const name = value.settings.labelEn;
-      if (mode === "create") {
-        toast.success(m.idp_created_done({ name }));
-        await navigate({
-          to: "/admin/system/identity-providers/$providerId",
-          params: { providerId },
-        });
-        return;
-      }
-      toast.success(m.idp_saved_done({ name }));
+      if (mode === "create") return;
       form.setFieldValue("oidc.clientSecret", "");
       form.setFieldValue("saml.spPrivateKey", "");
       form.setFieldValue("saml.metadataXml", "");
@@ -161,43 +120,30 @@ export function ProviderForm({
           </form.Field>
           <form.Field name="settings.icon">
             {(field) => (
-              <Field>
-                <FieldLabel htmlFor={`${id}-icon`}>{m.idp_field_icon()}</FieldLabel>
-                <NativeSelect
-                  id={`${id}-icon`}
-                  name={field.name}
-                  value={field.state.value}
-                  onChange={(e) => {
-                    const icon = PROVIDER_ICONS.find((option) => option === e.target.value);
-                    if (icon) field.handleChange(icon);
-                  }}
-                >
-                  {PROVIDER_ICONS.map((icon) => (
-                    <NativeSelectOption key={icon} value={icon}>
-                      {iconLabel(icon)}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-              </Field>
+              <SelectControl
+                id={`${id}-icon`}
+                name={field.name}
+                label={m.idp_field_icon()}
+                value={field.state.value}
+                options={PROVIDER_ICONS.map((icon) => ({ value: icon, label: iconLabel(icon) }))}
+                onValueChange={(value) => {
+                  const icon = PROVIDER_ICONS.find((option) => option === value);
+                  if (icon) field.handleChange(icon);
+                }}
+              />
             )}
           </form.Field>
           <form.Field name="settings.sortOrder">
             {(field) => (
-              <Field>
-                <FieldLabel htmlFor={`${id}-order`}>{m.idp_field_order()}</FieldLabel>
-                <Input
-                  id={`${id}-order`}
-                  name={field.name}
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={999}
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(Number(e.target.value))}
-                />
-                <FieldDescription>{m.idp_field_order_help()}</FieldDescription>
-              </Field>
+              <NumberControl
+                id={`${id}-order`}
+                name={field.name}
+                label={m.idp_field_order()}
+                help={m.idp_field_order_help()}
+                value={field.state.value}
+                onBlur={field.handleBlur}
+                onValueChange={(value) => field.handleChange(value)}
+              />
             )}
           </form.Field>
         </FieldGroup>
@@ -232,6 +178,20 @@ export function ProviderForm({
                   type="password"
                   label={m.idp_field_client_secret()}
                   help={stored?.clientSecret ? m.idp_secret_set() : m.idp_secret_help_new()}
+                  serverError={serverErrorAt("oidc.clientSecret")}
+                />
+              )}
+            </form.Field>
+            <form.Field name="oidc.attestPkce">
+              {(field) => (
+                <SwitchControl
+                  id={`${id}-attest-pkce`}
+                  name={field.name}
+                  checked={field.state.value}
+                  onCheckedChange={(checked) => field.handleChange(checked)}
+                  label={m.idp_field_attest_pkce()}
+                  help={m.idp_attest_pkce_help()}
+                  warning={m.idp_attest_pkce_warning()}
                 />
               )}
             </form.Field>
@@ -324,25 +284,17 @@ export function ProviderForm({
                         </form.Field>
                         <form.Field name={`settings.roleMap[${index}].role`}>
                           {(field) => (
-                            <Field className="w-40">
-                              <FieldLabel htmlFor={`${id}-role-${index}`}>
-                                {m.idp_role_map_role({ row })}
-                              </FieldLabel>
-                              <NativeSelect
-                                id={`${id}-role-${index}`}
-                                name={field.name}
-                                value={field.state.value}
-                                onChange={(e) => {
-                                  if (isRole(e.target.value)) field.handleChange(e.target.value);
-                                }}
-                              >
-                                {ROLES.map((role) => (
-                                  <NativeSelectOption key={role} value={role}>
-                                    {roleLabel(role)}
-                                  </NativeSelectOption>
-                                ))}
-                              </NativeSelect>
-                            </Field>
+                            <SelectControl
+                              id={`${id}-role-${index}`}
+                              name={field.name}
+                              label={m.idp_role_map_role({ row })}
+                              value={field.state.value}
+                              options={roleOptions()}
+                              onValueChange={(value) => {
+                                if (isRole(value)) field.handleChange(value);
+                              }}
+                              className="w-40"
+                            />
                           )}
                         </form.Field>
                         <Button
@@ -376,25 +328,15 @@ export function ProviderForm({
           </form.Field>
           <form.Field name="settings.defaultRole">
             {(field) => (
-              <Field>
-                <FieldLabel htmlFor={`${id}-default-role`}>{m.idp_field_default_role()}</FieldLabel>
-                <NativeSelect
-                  id={`${id}-default-role`}
-                  name={field.name}
-                  value={field.state.value ?? ""}
-                  onChange={(e) =>
-                    field.handleChange(isRole(e.target.value) ? e.target.value : null)
-                  }
-                >
-                  <NativeSelectOption value="">{m.idp_default_role_none()}</NativeSelectOption>
-                  {ROLES.map((role) => (
-                    <NativeSelectOption key={role} value={role}>
-                      {roleLabel(role)}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                <FieldDescription>{m.idp_default_role_help()}</FieldDescription>
-              </Field>
+              <SelectControl
+                id={`${id}-default-role`}
+                name={field.name}
+                label={m.idp_field_default_role()}
+                help={m.idp_default_role_help()}
+                value={field.state.value ?? ""}
+                options={[{ value: "", label: m.idp_default_role_none() }, ...roleOptions()]}
+                onValueChange={(value) => field.handleChange(isRole(value) ? value : null)}
+              />
             )}
           </form.Field>
         </FieldGroup>
@@ -405,20 +347,14 @@ export function ProviderForm({
         <FieldGroup>
           <form.Field name="settings.emailAuthoritative">
             {(field) => (
-              <Field orientation="horizontal">
-                <Switch
-                  id={`${id}-email-authoritative`}
-                  name={field.name}
-                  checked={field.state.value}
-                  onCheckedChange={(checked) => field.handleChange(checked)}
-                />
-                <FieldContent>
-                  <FieldLabel htmlFor={`${id}-email-authoritative`}>
-                    {m.idp_field_email_authoritative()}
-                  </FieldLabel>
-                  <FieldDescription>{m.idp_email_authoritative_help()}</FieldDescription>
-                </FieldContent>
-              </Field>
+              <SwitchControl
+                id={`${id}-email-authoritative`}
+                name={field.name}
+                checked={field.state.value}
+                onCheckedChange={(checked) => field.handleChange(checked)}
+                label={m.idp_field_email_authoritative()}
+                help={m.idp_email_authoritative_help()}
+              />
             )}
           </form.Field>
           <form.Field

@@ -100,6 +100,15 @@ export const envSchema = envFields.superRefine((env, ctx) => {
       message: "dev login must not be enabled when NODE_ENV=production",
     });
   }
+  // NOTE: ASVS V12.2.1; a trusted IdP origin over plain http would carry tokens unencrypted.
+  const plain = env.EDULIMS_IDP_PRIVATE_ORIGINS.filter((origin) => origin.startsWith("http:"));
+  if (production && plain.length > 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["EDULIMS_IDP_PRIVATE_ORIGINS"],
+      message: `must list https origins only when NODE_ENV=production (${plain.join(", ")})`,
+    });
+  }
   if (env.NODE_ENV === "production" && !env.BETTER_AUTH_URL.startsWith("https://")) {
     ctx.addIssue({
       code: "custom",

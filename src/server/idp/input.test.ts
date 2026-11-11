@@ -22,7 +22,12 @@ const oidc = {
   providerId: "entra",
   protocol: "oidc",
   settings,
-  oidc: { issuer: "https://login.example.test/t/v2.0", clientId: "c", clientSecret: "s" },
+  oidc: {
+    issuer: "https://login.example.test/t/v2.0",
+    clientId: "c",
+    clientSecret: "s",
+    attestPkce: false,
+  },
 };
 
 /** Returns the message codes of the issues of a parse, or `[]` when it passes. */

@@ -1,19 +1,22 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The better-auth database adapter with the `ssoProvider` secrets sealed at rest (ADR 0015).
-// better-auth has no read hook and the sso plugin reads providers through the adapter, so this
-// wraps the Kysely adapter: it seals `oidcConfig`/`samlConfig` secrets on create and update and
-// opens them in every row it returns, for model `ssoProvider` only, inside transactions too.
-// Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
+// The better-auth database adapter with secrets sealed at rest (ADR 0015). better-auth has no
+// read hook and the sso plugin reads providers through the adapter, so this wraps the Kysely
+// adapter: it seals `oidcConfig`/`samlConfig` secrets of `ssoProvider` on create and update and
+// opens them in every row it returns, and it seals an `account`'s ID token bound to the row's
+// id, inside transactions too. Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
+import { randomBytes } from "node:crypto";
 import { kyselyAdapter } from "@better-auth/kysely-adapter";
 import type { DBAdapter, DBAdapterInstance, DBTransactionAdapter } from "better-auth";
 import type { Kysely } from "kysely";
 import type { DB } from "../db/schema.gen.ts";
+import { sealAccountWrite } from "./account-tokens.ts";
 import { type ConfigColumn, DataKeyError, type Keyring, openConfig, sealConfig } from "./crypto.ts";
 
 const MODEL = "ssoProvider";
+const ACCOUNT = "account";
 const COLUMNS: readonly ConfigColumn[] = ["oidcConfig", "samlConfig"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -73,6 +76,13 @@ function providerIdIn(where: readonly { field: string; value: unknown }[]): unkn
   return where.find((clause) => clause.field === "providerId")?.value;
 }
 
+function idIn(
+  where: readonly { field: string; value?: unknown; operator?: string | undefined }[],
+): unknown {
+  const clause = where.find((entry) => entry.field === "id");
+  return clause && (clause.operator ?? "eq") === "eq" ? clause.value : undefined;
+}
+
 /** Returns the sealing and opening methods, bound to the adapter's own methods as they are now. */
 function wrap(adapter: DBTransactionAdapter, keyring: Keyring): DBTransactionAdapter {
   const open = <T>(row: T): T => openRow(keyring, row);
@@ -87,16 +97,33 @@ function wrap(adapter: DBTransactionAdapter, keyring: Keyring): DBTransactionAda
   return {
     ...adapter,
     create: async (input) => {
+      if (input.model === ACCOUNT) {
+        // The row id is chosen here, so the sealed ID token is bound to it.
+        const given = input.data["id"];
+        const id = typeof given === "string" ? given : randomBytes(24).toString("base64url");
+        const data = { ...sealAccountWrite(keyring, id, input.data), id };
+        return own.create({ ...input, data: data as typeof input.data, forceAllowId: true });
+      }
       if (input.model !== MODEL) return own.create(input);
       const data = sealData(keyring, input.data, input.data["providerId"]);
       return open(await own.create({ ...input, data: data as typeof input.data }));
     },
     update: async (input) => {
+      if (input.model === ACCOUNT) {
+        return own.update({
+          ...input,
+          update: sealAccountWrite(keyring, idIn(input.where), input.update),
+        });
+      }
       if (input.model !== MODEL) return own.update(input);
       const update = sealData(keyring, input.update, providerIdIn(input.where));
       return open(await own.update({ ...input, update }));
     },
     updateMany: async (input) => {
+      if (input.model === ACCOUNT) {
+        const update = sealAccountWrite(keyring, idIn(input.where), input.update);
+        return own.updateMany({ ...input, update });
+      }
       if (input.model !== MODEL) return own.updateMany(input);
       const update = sealData(keyring, input.update, providerIdIn(input.where));
       return own.updateMany({ ...input, update });

@@ -82,7 +82,7 @@ export interface ProviderDetail {
   enabled: boolean;
   label: string;
   settings: ProviderSettings;
-  oidc: { issuer: string; clientId: string; secretSet: boolean } | null;
+  oidc: { issuer: string; clientId: string; secretSet: boolean; attestPkce: boolean } | null;
   saml: { metadataUrl: string; entityId: string; signingKeySet: boolean } | null;
   urls: ProviderUrls;
   /** Whether sign-out also ends the IdP session (OIDC `end_session_endpoint`). */
@@ -127,6 +127,7 @@ export async function providerDetail(
       "p.role_map",
       "p.default_role",
       "p.email_authoritative",
+      "p.attest_pkce",
       "p.end_session_endpoint",
       "p.metadata_url",
       "s.oidcConfig",
@@ -172,6 +173,7 @@ export async function providerDetail(
           issuer: text(oidc["issuer"]),
           clientId: text(oidc["clientId"]),
           secretSet: text(oidc["clientSecret"]) !== "",
+          attestPkce: row.attest_pkce,
         }
       : null,
     saml: saml

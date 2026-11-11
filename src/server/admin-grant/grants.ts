@@ -25,6 +25,7 @@ export type GrantResult =
       ok: false;
       error:
         | "role_conflict"
+        | "email_unverified"
         | "provider_required"
         | "provider_unknown"
         | "provider_not_authoritative"
@@ -39,7 +40,8 @@ function rolesOf(value: unknown): Role[] {
 
 /**
  * Grants the admin role to the user with `email` as a local role set, or records a pending
- * grant through `providerId` when no such user exists yet.
+ * grant through `providerId` when no such user exists yet. A user whose email no provider
+ * verified is refused with `email_unverified`.
  */
 export async function grantAdmin(
   db: Kysely<DB>,
@@ -49,11 +51,13 @@ export async function grantAdmin(
   return db.transaction().execute(async (trx): Promise<GrantResult> => {
     const user = await trx
       .selectFrom("user")
-      .select(["id", "role"])
+      .select(["id", "role", "emailVerified"])
       .where("email", "=", email)
       .forUpdate()
       .executeTakeFirst();
     if (user) {
+      // NOTE: ASVS V6.8.1; an address no provider vouched for may belong to someone else.
+      if (!user.emailVerified) return { ok: false, error: "email_unverified" };
       const current = rolesOf(user.role);
       if (current.includes("admin")) return { ok: true, kind: "already_admin" };
       const next = validateRoleSet([...current, "admin"]);

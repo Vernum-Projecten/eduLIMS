@@ -38,10 +38,10 @@ async function setup() {
   return db;
 }
 
-async function user(database: Kysely<DB>, id: string, role: string | null) {
+async function user(database: Kysely<DB>, id: string, role: string | null, emailVerified = true) {
   await database
     .insertInto("user")
-    .values({ id, name: id, email: `${id}@example.test`, emailVerified: true, role })
+    .values({ id, name: id, email: `${id}@example.test`, emailVerified, role })
     .execute();
 }
 
@@ -82,6 +82,17 @@ describe("grantAdmin (#48)", () => {
       ok: true,
       kind: "already_admin",
     });
+  });
+
+  it("refuses a user whose email no provider verified, and writes no log row (V6.8.1)", async () => {
+    const database = await setup();
+    await user(database, "t2", "teacher", false);
+    expect(await grantAdmin(database, { email: "t2@example.test", now: NOW })).toEqual({
+      ok: false,
+      error: "email_unverified",
+    });
+    expect((await stored(database, "t2"))?.role).toBe("teacher");
+    expect(await actions(database)).toEqual([]);
   });
 
   it("records a pending grant for an unknown email through an authoritative provider", async () => {

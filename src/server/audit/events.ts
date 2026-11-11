@@ -123,6 +123,10 @@ export const auditMetadataSchema = z.strictObject({
     .array(z.string().regex(/^[a-z][a-z_]{0,39}$/))
     .max(40)
     .optional(),
+  /** Set on `idp_created` when the administrator attested that the IdP enforces PKCE S256. */
+  attest_pkce: z.literal(true).optional(),
+  /** How many sessions an `idp_disabled` ended. */
+  sessions_ended: z.number().int().min(0).optional(),
   /** The outcome code of an `idp_tested` sign-in. */
   test_outcome: z
     .string()

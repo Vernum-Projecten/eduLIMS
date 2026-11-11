@@ -13,6 +13,7 @@ import type { Auth } from "./auth.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
 import { parseEnv } from "./env.ts";
+import { openIdToken } from "./idp/account-tokens.ts";
 import { keyringOf } from "./idp/crypto.ts";
 import { type StubIdp, stubIdp } from "./idp/test-oidc.ts";
 import { insertTestProvider } from "./idp/test-providers.ts";
@@ -152,7 +153,7 @@ describe("cross-provider account linking (#39, ASVS V6.8.1)", () => {
     expect(user).toEqual({ role: "teacher", role_source: "entra" });
     const account = await database
       .selectFrom("account")
-      .select(["accountId", "accessToken", "refreshToken", "idToken"])
+      .select(["id", "accountId", "accessToken", "refreshToken", "idToken"])
       .where("providerId", "=", "entra")
       .executeTakeFirstOrThrow();
     // Accounts are keyed by the verified ID token's subject (V10.5.2), never the email.
@@ -162,6 +163,10 @@ describe("cross-provider account linking (#39, ASVS V6.8.1)", () => {
     expect(account.refreshToken).toBeNull();
     expect(account.idToken).toMatch(/^enc:v1:/);
     expect(JSON.stringify(account)).not.toContain("stub-access-token");
+    // Bound to its own row (L4): it opens with this account's id and with no other.
+    const keyring = keyringOf(parseEnv(VALID_ENV));
+    expect(openIdToken(keyring, account.id, account.idToken)).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
+    expect(openIdToken(keyring, "another-account", account.idToken)).toBeNull();
   });
 });
 

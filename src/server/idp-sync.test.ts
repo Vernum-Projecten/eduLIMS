@@ -14,6 +14,8 @@ import { AuditRecorder } from "./audit/better-auth-hooks.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
 import type { ProviderSettingsView } from "./idp/registry.ts";
+import { samlResponse } from "./idp/test-saml.ts";
+import { PERSISTENT_NAME_ID } from "./idp/validate.ts";
 import { parseRoleMap } from "./idp-roles.ts";
 import { createIdpRoleSync, type IdpRoleSyncOptions } from "./idp-sync.ts";
 
@@ -62,6 +64,8 @@ function setup(defaultRole?: "student", stored: Stored = {}) {
   const findUserById = vi.fn(async (id: string) => stored[id] ?? null);
   const ctx = {
     context: { internalAdapter: { updateUser, deleteUserSessions, findUserById } },
+    // The verified SAMLResponse of a SAML sign-in, with a persistent NameID (L8).
+    body: { SAMLResponse: samlResponse(PERSISTENT_NAME_ID) },
   } as unknown as Ctx;
   const sync = createIdpRoleSync({ settingsOf: providersWith(defaultRole) });
   return { sync, ctx, updateUser, deleteUserSessions };

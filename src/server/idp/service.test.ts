@@ -21,7 +21,6 @@ import {
   providerForEmail,
   providerLabels,
   providerSettings,
-  trustedProviderOrigins,
 } from "./registry.ts";
 import type { CreateProviderInput } from "./schemas.ts";
 import {
@@ -98,7 +97,7 @@ const OIDC: CreateProviderInput = {
   providerId: "entra",
   protocol: "oidc",
   settings: SETTINGS,
-  oidc: { issuer: ISSUER, clientId: "client-1", clientSecret: SECRET },
+  oidc: { issuer: ISSUER, clientId: "client-1", clientSecret: SECRET, attestPkce: false },
 };
 
 const SAML: CreateProviderInput = {
@@ -225,7 +224,12 @@ describe("updateProvider", () => {
       providerId: "entra",
       locale: "en",
     });
-    expect(detail?.oidc).toEqual({ issuer: ISSUER, clientId: "client-1", secretSet: true });
+    expect(detail?.oidc).toEqual({
+      issuer: ISSUER,
+      clientId: "client-1",
+      secretSet: true,
+      attestPkce: false,
+    });
     expect(JSON.stringify(detail)).not.toContain(SECRET);
     const rows = await auditRows(database);
     expect(rows.at(-1)).toMatchObject({
@@ -378,16 +382,6 @@ describe("runtime reads", () => {
     expect(await providerForEmail(database, "someone@EXAMPLE.edu")).toBe("entra");
     expect(await providerForEmail(database, "someone@other.edu")).toBeNull();
     expect(await providerForEmail(database, "no-at-sign")).toBeNull();
-  });
-
-  it("trusts the https issuer origins and the operator's private origins only", async () => {
-    const { ctx, database } = await setup();
-    await createProvider(ctx, OIDC);
-    await createProvider(ctx, SAML);
-    expect(await trustedProviderOrigins(database, ["http://localhost:8180"])).toEqual([
-      "http://localhost:8180",
-      "https://login.example.test",
-    ]);
   });
 
   it("labels every provider per locale for the screens that name them", async () => {

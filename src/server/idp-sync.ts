@@ -7,12 +7,14 @@ import {
   NO_ROLE_ERROR,
   PROVIDER_DISABLED_ERROR,
   ROLE_CONFLICT_ERROR,
+  SAML_NAMEID_ERROR,
 } from "../lib/identity-providers.ts";
 import { LOCAL_ROLE_SOURCE, parseRoleSource } from "../lib/role-source.ts";
 import { formatRoles, validateRoleValue } from "../lib/roles.ts";
 import { auditRecorderOf, requestIdOf } from "./audit/better-auth-hooks.ts";
 import { auditProvider } from "./audit/events.ts";
 import type { ProviderSettingsView } from "./idp/registry.ts";
+import { hasPersistentNameId } from "./idp/saml-nameid.ts";
 import { TEST_COMPLETE_ERROR, type TestOutcome } from "./idp/test-flow.ts";
 import { type IdpRoles, resolveIdpRoles } from "./idp-roles.ts";
 import { decideSignInRoles, type SignInRoles, type StoredRoles } from "./role-ownership.ts";
@@ -111,6 +113,22 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       return { error: PROVIDER_DISABLED_ERROR, errorDescription: "Identity provider disabled" };
     }
     const profile = source.sso?.profile ?? {};
+    // NOTE: #46 (L8); the NameID is the account key, so only a persistent one may sign in.
+    if (source.method === "sso-saml" && !hasPersistentNameId(field(ctx.body, "SAMLResponse"))) {
+      const test = options.testOf ? await options.testOf(ctx, providerId) : null;
+      if (test !== null) {
+        await options.recordTest?.(test, { outcome: SAML_NAMEID_ERROR, roles: [], claimNames: [] });
+        return { error: TEST_COMPLETE_ERROR, errorDescription: "Test sign-in complete" };
+      }
+      await recorder?.record({
+        action: "authn_login_fail",
+        actor: { type: "anonymous" },
+        outcome: "refused",
+        reason: SAML_NAMEID_ERROR,
+        ...known,
+      });
+      return { error: SAML_NAMEID_ERROR, errorDescription: "SAML NameID is not persistent" };
+    }
     const fromIdp: IdpRoles = resolveIdpRoles({
       ...roleClaims(settings, profile),
       roleMap: settings.roleMap,

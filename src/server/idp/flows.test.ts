@@ -12,7 +12,12 @@ import { AuthError } from "../middleware.ts";
 // test sign-in, RP-initiated logout, and the refusal of a disabled provider's callback.
 import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
-import { openIdToken, withoutPlainTokens } from "./account-tokens.ts";
+import {
+  openIdToken,
+  resealIdToken,
+  sealAccountWrite,
+  withoutAccessTokens,
+} from "./account-tokens.ts";
 import { adminServiceContext } from "./context.ts";
 import { isEnvelope, keyringOf } from "./crypto.ts";
 import { endSessionUrl, logoutUrlFor } from "./logout.ts";
@@ -150,7 +155,7 @@ describe("RP-initiated logout (OpenID Connect RP-Initiated Logout 1.0 §2)", () 
     });
   });
 
-  it("finds the user's latest OIDC sign-in with an end-session endpoint", async () => {
+  it("ends the IdP session of the provider this session signed in with (L7)", async () => {
     db = await createTestDb();
     await insertTestProvider(db, keyringOf(ENV), {
       providerId: "entra",
@@ -163,9 +168,8 @@ describe("RP-initiated logout (OpenID Connect RP-Initiated Logout 1.0 §2)", () 
       .values({ id: "u1", name: "U", email: "u@example.test", emailVerified: true })
       .execute();
     const keyring = keyringOf(ENV);
-    expect(
-      await logoutUrlFor(db, { userId: "u1", baseURL: "https://edulims.example", keyring }),
-    ).toBeNull();
+    const base = { userId: "u1", baseURL: "https://edulims.example", keyring };
+    expect(await logoutUrlFor(db, { ...base, signInMethod: "entra" })).toBeNull();
     await db
       .insertInto("account")
       .values({
@@ -173,19 +177,19 @@ describe("RP-initiated logout (OpenID Connect RP-Initiated Logout 1.0 §2)", () 
         accountId: "sub",
         providerId: "entra",
         userId: "u1",
-        idToken: withoutPlainTokens(keyring, { idToken: "id-token" }).idToken,
+        idToken: sealAccountWrite(keyring, "a1", { idToken: "id-token" }).idToken,
         createdAt: now,
         updatedAt: now,
       })
       .execute();
-    const url = await logoutUrlFor(db, {
-      userId: "u1",
-      baseURL: "https://edulims.example",
-      keyring,
-    });
+    const url = await logoutUrlFor(db, { ...base, signInMethod: "entra" });
     expect(url).toBe(
       "https://idp.example.test/logout?id_token_hint=id-token&client_id=entra-client&post_logout_redirect_uri=https%3A%2F%2Fedulims.example%2Flogin",
     );
+    // A session signed in another way never ends the entra session, however recent its account.
+    expect(await logoutUrlFor(db, { ...base, signInMethod: "credential" })).toBeNull();
+    expect(await logoutUrlFor(db, { ...base, signInMethod: "plain" })).toBeNull();
+    expect(await logoutUrlFor(db, { ...base, signInMethod: null })).toBeNull();
   });
 
   it("returns the end-session URL from /sign-out, after ending the eduLIMS session", async () => {
@@ -218,6 +222,10 @@ describe("RP-initiated logout (OpenID Connect RP-Initiated Logout 1.0 §2)", () 
       .getSetCookie()
       .map((c) => c.split(";")[0])
       .join("; ");
+    // The development sign-in records its own method; this session stands for an entra sign-in.
+    const sessions = await db.selectFrom("session").select("sign_in_method").execute();
+    expect(sessions).toEqual([{ sign_in_method: "credential" }]);
+    await db.updateTable("session").set({ sign_in_method: "entra" }).execute();
     const response = await auth.handler(
       new Request(`${VALID_ENV.BETTER_AUTH_URL}/api/auth/sign-out`, {
         method: "POST",
@@ -248,9 +256,9 @@ describe("RP-initiated logout (OpenID Connect RP-Initiated Logout 1.0 §2)", () 
 });
 
 describe("tokens at rest (#46, ADR 0015)", () => {
-  it("drops the access and refresh tokens and seals the ID token", () => {
+  it("drops the access and refresh tokens and seals the ID token to its account row", () => {
     const keyring = keyringOf(ENV);
-    const stored = withoutPlainTokens(keyring, {
+    const stored = sealAccountWrite(keyring, "account-1", {
       accessToken: "access",
       refreshToken: "refresh",
       idToken: "header.payload.signature",
@@ -260,17 +268,39 @@ describe("tokens at rest (#46, ADR 0015)", () => {
     expect(stored.refreshToken).toBeNull();
     expect(isEnvelope(stored.idToken)).toBe(true);
     expect(stored.providerId).toBe("entra");
-    expect(openIdToken(keyring, stored.idToken)).toBe("header.payload.signature");
+    expect(openIdToken(keyring, "account-1", stored.idToken)).toBe("header.payload.signature");
   });
 
-  it("keeps no ID token without a data key, and opens no plaintext one", () => {
-    const stored = withoutPlainTokens({ current: null, previous: null }, { idToken: "x" });
-    expect(stored.idToken).toBeNull();
-    expect(openIdToken(keyringOf(ENV), "plain.id.token")).toBeNull();
-    expect(openIdToken(keyringOf(ENV), null)).toBeNull();
+  it("does not open an ID token copied to another account row (L4)", () => {
+    const keyring = keyringOf(ENV);
+    const stored = sealAccountWrite(keyring, "account-1", { idToken: "t" }).idToken;
+    expect(openIdToken(keyring, "account-2", stored)).toBeNull();
+  });
+
+  it("re-seals an ID token under the new key, still bound to its row (L4)", () => {
+    const old = keyringOf(ENV);
+    const stored = sealAccountWrite(old, "account-1", { idToken: "t" }).idToken;
+    const rotated = keyringOf({
+      EDULIMS_DATA_KEY: Buffer.alloc(32, 3).toString("base64"),
+      EDULIMS_DATA_KEY_PREVIOUS: ENV.EDULIMS_DATA_KEY,
+    });
+    const resealed = resealIdToken(rotated, "account-1", String(stored));
+    expect(openIdToken(rotated, "account-1", resealed)).toBe("t");
+    expect(openIdToken(old, "account-1", resealed)).toBeNull();
+  });
+
+  it("keeps no ID token without a data key or a row id, and opens no plaintext one", () => {
+    const none = { current: null, previous: null };
+    expect(sealAccountWrite(none, "account-1", { idToken: "x" }).idToken).toBeNull();
+    expect(sealAccountWrite(keyringOf(ENV), undefined, { idToken: "x" }).idToken).toBeNull();
+    expect(openIdToken(keyringOf(ENV), "account-1", "plain.id.token")).toBeNull();
+    expect(openIdToken(keyringOf(ENV), "account-1", null)).toBeNull();
   });
 
   it("leaves a write without tokens (a dev-login password) as it is", () => {
-    expect(withoutPlainTokens(keyringOf(ENV), { password: "hash" })).toEqual({ password: "hash" });
+    expect(withoutAccessTokens({ password: "hash" })).toEqual({ password: "hash" });
+    expect(sealAccountWrite(keyringOf(ENV), "a", { password: "hash" })).toEqual({
+      password: "hash",
+    });
   });
 });

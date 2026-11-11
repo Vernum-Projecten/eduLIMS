@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Runtime reads of the identity providers (#46, ADR 0015): the role settings the sign-in gate
-// needs, the login buttons, the domain routing and the trusted origins. Settings are cached for
+// needs, the login buttons and the domain routing. Settings are cached for
 // a short time per process and dropped on every change the service makes.
 // Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
@@ -174,28 +174,4 @@ export async function providerForEmail(db: Kysely<DB>, email: string): Promise<P
     .where("p.enabled", "=", true)
     .executeTakeFirst();
   return row ? parseProviderId(row.provider_id) : null;
-}
-
-/**
- * Returns the origins better-auth may fetch and redirect to for the stored OIDC providers: each
- * issuer's origin when it is https, and the operator's private origins. A trusted origin skips
- * the sso plugin's public-address check at fetch time, so the service checked it at save time.
- */
-export async function trustedProviderOrigins(
-  db: Kysely<DB>,
-  privateOrigins: readonly string[],
-): Promise<string[]> {
-  const issuers = await cached("origins", () =>
-    db.selectFrom("ssoProvider").select("issuer").where("oidcConfig", "is not", null).execute(),
-  );
-  const origins = new Set(privateOrigins);
-  for (const { issuer } of issuers) {
-    try {
-      const url = new URL(issuer);
-      if (url.protocol === "https:" || privateOrigins.includes(url.origin)) origins.add(url.origin);
-    } catch {
-      // An unparsable issuer is never trusted.
-    }
-  }
-  return [...origins];
 }

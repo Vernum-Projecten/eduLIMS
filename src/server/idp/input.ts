@@ -142,6 +142,11 @@ export function idpSchemas(msg: IdpMessages) {
       .max(200),
     /** Write-only: empty on an edit keeps the stored secret. */
     clientSecret: z.string().max(1000),
+    /**
+     * The administrator's statement that the IdP enforces PKCE S256 although its discovery
+     * document does not say so (ASVS V10.2.1). Off unless set.
+     */
+    attestPkce: z.boolean(),
   });
 
   /** The protocol part of a SAML provider: IdP metadata as XML or as a URL fetched once. */

@@ -46,7 +46,12 @@ export function devProviderInputs(realm: string, spPrivateKey: string) {
       providerId: "keycloak",
       protocol: "oidc",
       settings: settings("Keycloak", "Keycloak", "realm_access.roles", 10),
-      oidc: { issuer: realm, clientId: "edulims", clientSecret: "edulims-dev-secret" },
+      oidc: {
+        issuer: realm,
+        clientId: "edulims",
+        clientSecret: "edulims-dev-secret",
+        attestPkce: false,
+      },
     }),
     schemas.createProviderInput.parse({
       providerId: "keycloak-saml",

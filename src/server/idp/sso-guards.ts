@@ -3,8 +3,8 @@
 
 // The guards around the sso plugin's open endpoints (#46, ADR 0015). `/sign-in/sso` takes a
 // provider id only (no email or domain lookup by the plugin, no caller scopes or extra
-// authorization parameters), and a disabled provider is refused there and at its callback and
-// ACS, except for an administrator's test sign-in. The sign-in gate checks again
+// authorization parameters), and a disabled provider is refused there and at its callback, ACS
+// and single-logout endpoint, except for an administrator's test sign-in. The sign-in gate checks again
 // (src/server/idp-sync.ts). Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
 import type { BetterAuthPlugin } from "better-auth";
@@ -15,11 +15,15 @@ import type { DB } from "../db/schema.gen.ts";
 import { providerSettings } from "./registry.ts";
 import { bindTestState, stateOfRedirect, testIdOfCallback, testOfState } from "./test-flow.ts";
 
-/** The sso plugin's sign-in start, OIDC callback and SAML ACS paths (better-auth 1.7.20). */
+/**
+ * The sso plugin's sign-in start, and the paths an identity provider sends the browser back to
+ * (OIDC callback, SAML ACS, SAML single logout), in better-auth 1.7.20.
+ */
 export const SSO_SIGN_IN_PATH = "/sign-in/sso";
 export const SSO_CALLBACK_PATHS: ReadonlySet<string> = new Set([
   "/sso/callback/:providerId",
   "/sso/saml2/sp/acs/:providerId",
+  "/sso/saml2/sp/slo/:providerId",
 ]);
 
 /**

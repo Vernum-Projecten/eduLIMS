@@ -44,6 +44,7 @@ function formValues(provider: ProviderDetail): ProviderFormValues {
       issuer: provider.oidc?.issuer ?? "",
       clientId: provider.oidc?.clientId ?? "",
       clientSecret: "",
+      attestPkce: provider.oidc?.attestPkce ?? false,
     },
     saml: { metadataXml: "", metadataUrl: provider.saml?.metadataUrl ?? "", spPrivateKey: "" },
   };

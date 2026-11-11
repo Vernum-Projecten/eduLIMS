@@ -37,6 +37,7 @@ const REFUSALS: Readonly<Record<string, () => string>> = {
   has_accounts: m.idp_refused_has_accounts,
   last_enabled: m.idp_refused_last_enabled,
   domain_taken: m.idp_refused_domain_taken,
+  client_secret_required: m.idp_refused_client_secret_required,
   issuer_insecure: m.idp_refused_issuer_insecure,
   issuer_private: m.idp_refused_issuer_private,
   issuer_unresolvable: m.idp_refused_issuer_unresolvable,
@@ -69,6 +70,7 @@ export function idpErrorMessage(code: IdpServiceError | "failed"): string {
 export function idpErrorField(code: IdpServiceError): string | null {
   if (code === "exists") return "providerId";
   if (code === "domain_taken") return "settings.domains";
+  if (code === "client_secret_required") return "oidc.clientSecret";
   if (code.startsWith("issuer_") || code === "discovery_failed") return "oidc.issuer";
   if (code.startsWith("metadata_")) return "saml.metadataXml";
   return null;

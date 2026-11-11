@@ -9,72 +9,28 @@
 import "@tanstack/react-start/server-only";
 import { randomUUID } from "node:crypto";
 import type { Kysely, Transaction } from "kysely";
-import type { ProviderProtocol } from "../../lib/identity-providers.ts";
-import type { AuditActor, AuditEvent } from "../audit/events.ts";
-import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
-import {
-  DataKeyError,
-  type DataKeyProblem,
-  type Keyring,
-  openConfig,
-  sealConfig,
-} from "./crypto.ts";
+import { openConfig, sealConfig } from "./crypto.ts";
 import { buildOidcConfig, buildSamlConfig, pluginDomain, providerUrls } from "./provider-config.ts";
 import { invalidateProviderCache } from "./registry.ts";
 import type { CreateProviderInput, ProviderSettings, UpdateProviderInput } from "./schemas.ts";
 import {
+  actorId,
+  audit,
+  guarded,
+  type IdpResult,
+  type IdpServiceContext,
+  refused,
+} from "./service-core.ts";
+import {
   discoverOidc,
   fetchSamlMetadata,
-  IdpValidationError,
-  type IdpValidationProblem,
   type OriginPolicy,
   parseSamlMetadata,
 } from "./validate.ts";
 
-/** Why a provider change was refused; the screen and the CLI map each code to a message. */
-export type IdpServiceError =
-  | "not_found"
-  | "exists"
-  | "has_accounts"
-  | "last_enabled"
-  | "domain_taken"
-  | IdpValidationProblem
-  | DataKeyProblem;
-
-/** The outcome of a provider change: done, or refused with a code (never a thrown string). */
-export type IdpResult = { ok: true; providerId: string } | { ok: false; error: IdpServiceError };
-
-/** What every change runs with. */
-export interface IdpServiceContext {
-  db: Kysely<DB>;
-  keyring: Keyring;
-  policy: OriginPolicy;
-  /** `BETTER_AUTH_URL`, for the SP entity ID of a SAML provider. */
-  baseURL: string;
-  /** A user from the Admin screen, `system` from the host CLI. */
-  actor: Extract<AuditActor, { type: "user" } | { type: "system" }>;
-}
-
-function refused(error: IdpServiceError): IdpResult {
-  return { ok: false, error };
-}
-
-/** Runs a change and maps the typed validation and key errors to refusals. */
-async function guarded(run: () => Promise<IdpResult>): Promise<IdpResult> {
-  try {
-    return await run();
-  } catch (error) {
-    if (error instanceof IdpValidationError || error instanceof DataKeyError) {
-      return refused(error.kind);
-    }
-    throw error;
-  }
-}
-
-function actorId(ctx: IdpServiceContext): string | null {
-  return ctx.actor.type === "user" ? ctx.actor.id : null;
-}
+export { deleteProvider, setProviderEnabled } from "./lifecycle.ts";
+export type { IdpResult, IdpServiceContext, IdpServiceError } from "./service-core.ts";
 
 function settingsRow(settings: ProviderSettings) {
   return {
@@ -89,27 +45,6 @@ function settingsRow(settings: ProviderSettings) {
     default_role: settings.defaultRole,
     email_authoritative: settings.emailAuthoritative,
   };
-}
-
-async function audit(
-  trx: Transaction<DB>,
-  ctx: IdpServiceContext,
-  action: Extract<AuditEvent["action"], `idp_${string}`>,
-  providerId: string,
-  protocol: ProviderProtocol,
-  fields?: readonly string[],
-): Promise<void> {
-  await recordAudit(trx, {
-    action,
-    actor: ctx.actor,
-    outcome: "success",
-    target: { type: "identity_provider", id: providerId },
-    metadata: {
-      provider_id: providerId,
-      protocol,
-      ...(fields && fields.length > 0 ? { fields: [...fields] } : {}),
-    },
-  });
 }
 
 async function domainsTaken(
@@ -169,8 +104,10 @@ export async function createProvider(
     let samlConfig: string | null = null;
     let endSession: string | null = null;
     let metadataUrl: string | null = null;
+    let attestPkce = false;
     if (input.protocol === "oidc") {
-      const discovered = await discoverOidc(input.oidc.issuer, ctx.policy);
+      attestPkce = input.oidc.attestPkce;
+      const discovered = await discoverOidc(input.oidc.issuer, ctx.policy, { attestPkce });
       issuer = input.oidc.issuer;
       endSession = discovered.endSessionEndpoint;
       const config = buildOidcConfig({ ...input.oidc, discovered });
@@ -205,6 +142,7 @@ export async function createProvider(
           provider_id: providerId,
           protocol: input.protocol,
           enabled: false,
+          attest_pkce: attestPkce,
           end_session_endpoint: endSession,
           metadata_url: metadataUrl,
           created_by: actorId(ctx),
@@ -213,7 +151,14 @@ export async function createProvider(
         })
         .execute();
       await replaceDomains(trx, providerId, settings.domains);
-      await audit(trx, ctx, "idp_created", providerId, input.protocol);
+      await audit(
+        trx,
+        ctx,
+        "idp_created",
+        providerId,
+        input.protocol,
+        attestPkce ? { attest_pkce: true } : {},
+      );
     });
     invalidateProviderCache();
     return { ok: true, providerId };
@@ -235,6 +180,7 @@ async function storedProvider(db: Kysely<DB>, providerId: string) {
       "p.role_map",
       "p.default_role",
       "p.email_authoritative",
+      "p.attest_pkce",
       "p.metadata_url",
       "s.oidcConfig",
       "s.samlConfig",
@@ -276,10 +222,21 @@ function parseObject(text: string): Record<string, unknown> {
     : {};
 }
 
+/** Returns the origin of a URL, or `null` when it does not parse. */
+function originOf(url: unknown): string | null {
+  try {
+    return typeof url === "string" ? new URL(url).origin : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Edits a provider (`idp_updated`, plus `idp_secret_rotated` or `idp_metadata_refreshed`). The
  * id and the protocol never change. OIDC discovery runs again on every save, so a changed
- * endpoint at the IdP is picked up; an empty secret keeps the stored one.
+ * endpoint at the IdP is picked up; an empty secret keeps the stored one, except when the
+ * issuer moves to another origin (`client_secret_required`): the stored secret belongs to the
+ * old IdP and must never be sent to a new one.
  */
 export async function updateProvider(
   ctx: IdpServiceContext,
@@ -304,15 +261,27 @@ export async function updateProvider(
     const row = settingsRow(settings);
     const fields = changedSettings(before, row, domainsChanged);
     const extra: ("idp_secret_rotated" | "idp_metadata_refreshed")[] = [];
-    const update: { issuer?: string; oidcConfig?: string; samlConfig?: string } = {};
+    const update: {
+      issuer?: string;
+      oidcConfig?: string;
+      samlConfig?: string;
+      attestPkce?: boolean;
+    } = {};
     let endSession: string | null | undefined;
     let metadataUrl: string | null | undefined;
     if (input.protocol === "oidc" && before.oidcConfig) {
       const current = parseObject(
         openConfig(ctx.keyring, providerId, "oidcConfig", before.oidcConfig),
       );
-      const discovered = await discoverOidc(input.oidc.issuer, ctx.policy);
       const rotated = input.oidc.clientSecret.trim() !== "";
+      // NOTE: security review of #46 (M1); a client secret goes only to the IdP that issued it.
+      if (!rotated && originOf(current["issuer"]) !== originOf(input.oidc.issuer)) {
+        return refused("client_secret_required");
+      }
+      const attestPkce = input.oidc.attestPkce;
+      const discovered = await discoverOidc(input.oidc.issuer, ctx.policy, { attestPkce });
+      if (attestPkce !== before.attest_pkce) fields.push("attest_pkce");
+      update.attestPkce = attestPkce;
       const secret = rotated ? input.oidc.clientSecret : String(current["clientSecret"] ?? "");
       if (current["issuer"] !== input.oidc.issuer) fields.push("issuer");
       if (current["clientId"] !== input.oidc.clientId) fields.push("client_id");
@@ -346,16 +315,18 @@ export async function updateProvider(
     } else {
       return refused("not_found");
     }
+    const { attestPkce, ...plugin } = update;
     await ctx.db.transaction().execute(async (trx) => {
       await trx
         .updateTable("ssoProvider")
-        .set(update)
+        .set(plugin)
         .where("providerId", "=", providerId)
         .execute();
       await trx
         .updateTable("identity_provider")
         .set({
           ...row,
+          ...(attestPkce !== undefined ? { attest_pkce: attestPkce } : {}),
           ...(endSession !== undefined ? { end_session_endpoint: endSession } : {}),
           ...(metadataUrl !== undefined ? { metadata_url: metadataUrl } : {}),
           updated_by: actorId(ctx),
@@ -364,94 +335,10 @@ export async function updateProvider(
         .where("provider_id", "=", providerId)
         .execute();
       await replaceDomains(trx, providerId, settings.domains);
-      await audit(trx, ctx, "idp_updated", providerId, input.protocol, fields);
+      await audit(trx, ctx, "idp_updated", providerId, input.protocol, { fields });
       for (const action of extra) await audit(trx, ctx, action, providerId, input.protocol);
     });
     invalidateProviderCache();
     return { ok: true, providerId };
   });
-}
-
-/** Returns whether `providerId` is the only enabled provider. */
-async function isLastEnabled(db: Kysely<DB>, providerId: string): Promise<boolean> {
-  const enabled = await db
-    .selectFrom("identity_provider")
-    .select("provider_id")
-    .where("enabled", "=", true)
-    .execute();
-  return enabled.length === 1 && enabled[0]?.provider_id === providerId;
-}
-
-/**
- * Enables or disables a provider (`idp_enabled`, `idp_disabled`). In production the last
- * enabled provider cannot be disabled from here; the way out is the host CLI.
- */
-export async function setProviderEnabled(
-  ctx: IdpServiceContext,
-  input: { providerId: string; enabled: boolean; allowLast?: boolean },
-): Promise<IdpResult> {
-  const row = await ctx.db
-    .selectFrom("identity_provider")
-    .select(["protocol", "enabled"])
-    .where("provider_id", "=", input.providerId)
-    .executeTakeFirst();
-  if (!row) return refused("not_found");
-  if (row.enabled === input.enabled) return { ok: true, providerId: input.providerId };
-  if (
-    !input.enabled &&
-    ctx.policy.production &&
-    !input.allowLast &&
-    (await isLastEnabled(ctx.db, input.providerId))
-  ) {
-    return refused("last_enabled");
-  }
-  const protocol = row.protocol === "saml" ? "saml" : "oidc";
-  await ctx.db.transaction().execute(async (trx) => {
-    await trx
-      .updateTable("identity_provider")
-      .set({ enabled: input.enabled, updated_by: actorId(ctx), updated_at: new Date() })
-      .where("provider_id", "=", input.providerId)
-      .execute();
-    await audit(
-      trx,
-      ctx,
-      input.enabled ? "idp_enabled" : "idp_disabled",
-      input.providerId,
-      protocol,
-    );
-  });
-  invalidateProviderCache();
-  return { ok: true, providerId: input.providerId };
-}
-
-/**
- * Deletes a provider that nobody ever signed in with (`idp_deleted`). With accounts it is
- * refused: disable it instead, so their sign-in history and role source keep their meaning.
- */
-export async function deleteProvider(
-  ctx: IdpServiceContext,
-  input: { providerId: string },
-): Promise<IdpResult> {
-  const row = await ctx.db
-    .selectFrom("identity_provider")
-    .select(["protocol", "enabled"])
-    .where("provider_id", "=", input.providerId)
-    .executeTakeFirst();
-  if (!row) return refused("not_found");
-  const account = await ctx.db
-    .selectFrom("account")
-    .select("id")
-    .where("providerId", "=", input.providerId)
-    .executeTakeFirst();
-  if (account) return refused("has_accounts");
-  if (row.enabled && ctx.policy.production && (await isLastEnabled(ctx.db, input.providerId))) {
-    return refused("last_enabled");
-  }
-  const protocol = row.protocol === "saml" ? "saml" : "oidc";
-  await ctx.db.transaction().execute(async (trx) => {
-    await audit(trx, ctx, "idp_deleted", input.providerId, protocol);
-    await trx.deleteFrom("ssoProvider").where("providerId", "=", input.providerId).execute();
-  });
-  invalidateProviderCache();
-  return { ok: true, providerId: input.providerId };
 }

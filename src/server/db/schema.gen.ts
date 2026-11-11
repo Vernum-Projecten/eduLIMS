@@ -55,6 +55,7 @@ export interface AuditEvent {
 }
 
 export interface IdentityProvider {
+  attest_pkce: Generated<boolean>;
   created_at: Generated<Timestamp>;
   created_by: string | null;
   default_role: string | null;
@@ -94,6 +95,7 @@ export interface Session {
   id: string;
   impersonatedBy: string | null;
   ipAddress: string | null;
+  sign_in_method: string | null;
   token: string;
   updatedAt: Timestamp;
   userAgent: string | null;

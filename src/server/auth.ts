@@ -20,7 +20,7 @@ import { accountTokenHooks } from "./idp/account-tokens.ts";
 import { keyringOf } from "./idp/crypto.ts";
 import { encryptedKyselyAdapter, type KyselyDatabase } from "./idp/encrypted-adapter.ts";
 import { ssoLogout } from "./idp/logout.ts";
-import { providerSettings, trustedProviderOrigins } from "./idp/registry.ts";
+import { providerSettings } from "./idp/registry.ts";
 import { SSO_DISABLED_PATHS, ssoGuards } from "./idp/sso-guards.ts";
 import { recordTestOutcome, testOfState } from "./idp/test-flow.ts";
 import { createIdpRoleSync } from "./idp-sync.ts";
@@ -87,9 +87,9 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
     database: encryptedKyselyAdapter(kysely, keyring),
     // NOTE: ADR 0015; the plugin's management endpoints let any signed-in user register an IdP.
     disabledPaths: [...SSO_DISABLED_PATHS],
-    // The app origin is always trusted; these are the stored OIDC issuers (checked at save
-    // time) and the operator's private IdP origins.
-    trustedOrigins: () => trustedProviderOrigins(db, env.EDULIMS_IDP_PRIVATE_ORIGINS),
+    // NOTE: ASVS V1.3.6; the app origin is always trusted, and besides it only the operator's
+    // private IdP origins: every other IdP endpoint gets the sso plugin's DNS check at fetch time.
+    trustedOrigins: [...env.EDULIMS_IDP_PRIVATE_ORIGINS],
     emailAndPassword: { enabled: env.EDULIMS_DEV_LOGIN, disableSignUp: true },
     // NOTE: owner decision on #42 (ASVS V7.3.1, V7.3.2): 8 hours sliding, refreshed at most hourly;
     // the 24-hour absolute cap is the session.ts read check and migration 0006.
@@ -123,8 +123,9 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
       }),
     },
     // Every role write (IdP sync, seed, admin create-user, set-role, update-user) is validated.
-    // No plaintext IdP token at rest: access and refresh tokens are dropped, the ID token sealed.
-    databaseHooks: { user: roleWriteHooks, account: accountTokenHooks(keyring) },
+    // No plaintext IdP token at rest: access and refresh tokens are dropped; the adapter seals the
+    // ID token, bound to its account row.
+    databaseHooks: { user: roleWriteHooks, account: accountTokenHooks },
     // Nobody changes their own roles through the admin endpoints (ADR 0012).
     hooks: { before: refuseOwnRoleWrites, after: applySavedLocaleOnSignIn(env.BETTER_AUTH_URL) },
     plugins: [
@@ -140,6 +141,10 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
           enableInResponseToValidation: true,
           allowIdpInitiated: false,
           enableSingleLogout: true,
+          // NOTE: SAML 2.0 Bindings §3.4.4.1; an unsigned LogoutRequest would let anyone end a
+          // user's session, and an unsigned LogoutResponse would fake a completed logout.
+          wantLogoutRequestSigned: true,
+          wantLogoutResponseSigned: true,
         },
       }),
       ssoGuards(db),

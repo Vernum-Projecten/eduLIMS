@@ -124,6 +124,8 @@ describe("the sso plugin (ADR 0015)", () => {
         algorithms: { onDeprecated: "reject" },
         enableInResponseToValidation: true,
         allowIdpInitiated: false,
+        wantLogoutRequestSigned: true,
+        wantLogoutResponseSigned: true,
       },
     });
     expect(plugin?.options).not.toHaveProperty("defaultSSO");
@@ -187,6 +189,14 @@ describe("the sso plugin (ADR 0015)", () => {
     );
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchObject({ code: "provider_disabled" });
+  });
+
+  it("trusts the app origin and the operator's private origins only, never an IdP issuer (M3b)", async () => {
+    expect(auth.options.trustedOrigins).toEqual(["http://localhost:8180"]);
+    const context = await auth.$context;
+    expect(context.isTrustedOrigin(`${BASE}/teacher`)).toBe(true);
+    expect(context.isTrustedOrigin("http://localhost:8180/realms/edulims")).toBe(true);
+    expect(context.isTrustedOrigin("https://login.example.test/tenant/v2.0")).toBe(false);
   });
 
   it("sends the identity provider's logout back to the sign-in page", () => {

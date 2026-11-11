@@ -16,7 +16,12 @@ describe("parseEnv", () => {
   });
 
   it("defaults to production with dev login disabled", () => {
-    const { NODE_ENV: _, EDULIMS_DEV_LOGIN: __, ...rest } = VALID_ENV;
+    const {
+      NODE_ENV: _,
+      EDULIMS_DEV_LOGIN: __,
+      EDULIMS_IDP_PRIVATE_ORIGINS: ___,
+      ...rest
+    } = VALID_ENV;
     const env = parseEnv({
       ...rest,
       BETTER_AUTH_URL: "https://edulims.example",
@@ -77,6 +82,7 @@ const PRODUCTION = {
   DATABASE_URL: VERIFIED_DATABASE_URL,
   BETTER_AUTH_URL: "https://edulims.example",
   EDULIMS_DEV_LOGIN: "false",
+  EDULIMS_IDP_PRIVATE_ORIGINS: "https://idp.campus.internal",
 };
 
 describe("identity-provider settings (#46, ADR 0015)", () => {
@@ -110,6 +116,18 @@ describe("identity-provider settings (#46, ADR 0015)", () => {
     });
     expect(env.EDULIMS_IDP_PRIVATE_ORIGINS).toEqual([
       "http://localhost:8180",
+      "https://idp.campus.internal",
+    ]);
+  });
+
+  it("refuses an http private IdP origin in production (L2)", () => {
+    const plain = {
+      ...VALID_ENV,
+      ...PRODUCTION,
+      EDULIMS_IDP_PRIVATE_ORIGINS: "http://localhost:8180",
+    };
+    expect(() => parseEnv(plain)).toThrow(/EDULIMS_IDP_PRIVATE_ORIGINS/);
+    expect(parseEnv({ ...VALID_ENV, ...PRODUCTION }).EDULIMS_IDP_PRIVATE_ORIGINS).toEqual([
       "https://idp.campus.internal",
     ]);
   });

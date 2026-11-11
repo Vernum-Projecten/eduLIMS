@@ -3,9 +3,10 @@
 
 // RP-initiated logout for OIDC providers (#46, ADR 0015; OpenID Connect RP-Initiated Logout 1.0
 // §2-3). better-auth builds an end-session URL only for its social providers, so this plugin
-// does it for SSO: before `/sign-out` deletes the session it finds the user's latest SSO account
-// whose provider advertised `end_session_endpoint`, and after it the response carries that URL
-// with `id_token_hint`, `client_id` and `post_logout_redirect_uri` = `<BETTER_AUTH_URL>/login`.
+// does it for SSO: before `/sign-out` deletes the session it reads the provider that session was
+// signed in with (`session.sign_in_method`) and, when that provider advertised
+// `end_session_endpoint`, the response carries that URL with `id_token_hint`, `client_id` and
+// `post_logout_redirect_uri` = `<BETTER_AUTH_URL>/login`.
 // Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
 import type { BetterAuthPlugin } from "better-auth";
@@ -42,26 +43,30 @@ function clientIdOf(oidcConfig: string | null): string | null {
   }
 }
 
-/** Returns the end-session URL for the user's latest SSO sign-in, or `null` when there is none. */
+/**
+ * Returns the end-session URL of the provider a session was signed in with (`signInMethod`), or
+ * `null` for the development login, a SAML provider, or a provider without end-session endpoint.
+ */
 export async function logoutUrlFor(
   db: Kysely<DB>,
-  input: { userId: string; baseURL: string; keyring: Keyring },
+  input: { userId: string; signInMethod: unknown; baseURL: string; keyring: Keyring },
 ): Promise<string | null> {
+  if (typeof input.signInMethod !== "string") return null;
   const row = await db
     .selectFrom("account as a")
     .innerJoin("identity_provider as p", "p.provider_id", "a.providerId")
     .innerJoin("ssoProvider as s", "s.providerId", "p.provider_id")
-    .select(["a.idToken", "a.providerId", "p.end_session_endpoint", "s.oidcConfig"])
+    .select(["a.id", "a.idToken", "a.providerId", "p.end_session_endpoint", "s.oidcConfig"])
     .where("a.userId", "=", input.userId)
+    .where("a.providerId", "=", input.signInMethod)
     .where("p.protocol", "=", "oidc")
-    .orderBy("a.updatedAt", "desc")
     .executeTakeFirst();
   if (!row?.end_session_endpoint) return null;
   const clientId = clientIdOf(row.oidcConfig);
   if (!clientId) return null;
   return endSessionUrl({
     endSessionEndpoint: row.end_session_endpoint,
-    idToken: openIdToken(input.keyring, row.idToken),
+    idToken: openIdToken(input.keyring, row.id, row.idToken),
     clientId,
     postLogoutRedirectUri: providerUrls(input.baseURL, row.providerId).postLogoutRedirectUri,
   });
@@ -83,7 +88,12 @@ export function ssoLogout(db: Kysely<DB>, baseURL: string, keyring: Keyring) {
           handler: createAuthMiddleware(async (ctx) => {
             const session = await getSessionFromCtx(ctx);
             if (!session) return;
-            const url = await logoutUrlFor(db, { userId: session.user.id, baseURL, keyring });
+            const url = await logoutUrlFor(db, {
+              userId: session.user.id,
+              signInMethod: field(session.session, "signInMethod"),
+              baseURL,
+              keyring,
+            });
             if (url) pending.set(ctx.context, url);
           }),
         },

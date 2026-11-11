@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { readFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { embeddedIpv4, isPrivateAddress } from "./addresses.ts";
 import {
   checkFetchOrigin,
   discoverOidc,
+  fetchSamlMetadata,
   IdpValidationError,
-  isPrivateAddress,
   type OriginPolicy,
   parseSamlMetadata,
   serviceLocation,
@@ -59,17 +62,45 @@ describe("issuer origins (SSRF, ASVS V1.3.6)", () => {
     "fd00::1",
     "fe80::1",
     "::ffff:10.0.0.1",
+    "::",
+    "224.0.0.1",
+    "198.18.0.1",
     "not-an-ip",
   ])("treats %s as private", (address) => {
     expect(isPrivateAddress(address)).toBe(true);
   });
 
-  it.each(["93.184.215.14", "2606:2800:21f:cb07:6820:80da:af6b:8b2c"])(
-    "treats %s as public",
-    (address) => {
-      expect(isPrivateAddress(address)).toBe(false);
-    },
-  );
+  it.each([
+    ["the hex IPv4-mapped form of 127.0.0.1", "::ffff:7f00:1"],
+    ["the hex IPv4-mapped form of 10.0.0.1", "0:0:0:0:0:ffff:a00:1"],
+    ["NAT64 of 127.0.0.1", "64:ff9b::7f00:1"],
+    ["NAT64 of 169.254.169.254 in dotted form", "64:ff9b::169.254.169.254"],
+    ["the local-use NAT64 prefix", "64:ff9b:1::5db8:d70e"],
+    ["6to4 of 192.168.1.1", "2002:c0a8:101::1"],
+    ["6to4 of 127.0.0.1", "2002:7f00:1::"],
+    ["the IPv4-compatible form", "::7f00:1"],
+    ["Teredo", "2001:0:4136:e378:8000:63bf:3fff:fdd2"],
+    ["site-local", "fec0::1"],
+  ])("treats %s as private (M3a)", (_name, address) => {
+    expect(isPrivateAddress(address)).toBe(true);
+  });
+
+  it("reads the IPv4 address inside mapped, NAT64 and 6to4 addresses", () => {
+    expect(embeddedIpv4("::ffff:7f00:1")).toBe("127.0.0.1");
+    expect(embeddedIpv4("64:ff9b::5db8:d70e")).toBe("93.184.215.14");
+    expect(embeddedIpv4("2002:5db8:d70e::1")).toBe("93.184.215.14");
+    expect(embeddedIpv4("2606:2800:21f:cb07:6820:80da:af6b:8b2c")).toBeNull();
+  });
+
+  it.each([
+    "93.184.215.14",
+    "2606:2800:21f:cb07:6820:80da:af6b:8b2c",
+    "::ffff:5db8:d70e",
+    "64:ff9b::5db8:d70e",
+    "2002:5db8:d70e::1",
+  ])("treats %s as public", (address) => {
+    expect(isPrivateAddress(address)).toBe(false);
+  });
 
   it("accepts a public https issuer and returns its origin", async () => {
     expect(await checkFetchOrigin(ISSUER, PUBLIC)).toBe("https://login.example.test");
@@ -161,6 +192,19 @@ describe("OIDC discovery", () => {
   it("refuses a provider without PKCE S256 (V10.2.1)", async () => {
     stubDiscovery({ code_challenge_methods_supported: ["plain"] });
     expect(await problem(() => discoverOidc(ISSUER, PUBLIC))).toBe("no_pkce");
+    const attested = { attestPkce: true };
+    expect(await problem(() => discoverOidc(ISSUER, PUBLIC, attested))).toBe("no_pkce");
+  });
+
+  it("refuses a document that does not list code_challenge_methods_supported (H1)", async () => {
+    stubDiscovery({ code_challenge_methods_supported: undefined });
+    expect(await problem(() => discoverOidc(ISSUER, PUBLIC))).toBe("no_pkce");
+  });
+
+  it("accepts that document when the administrator attests PKCE S256 (H1)", async () => {
+    stubDiscovery({ code_challenge_methods_supported: undefined });
+    const discovered = await discoverOidc(ISSUER, PUBLIC, { attestPkce: true });
+    expect(discovered.tokenEndpoint).toBe("https://login.example.test/tenant/oauth2/v2.0/token");
   });
 
   it("refuses a provider that only accepts private_key_jwt", async () => {
@@ -191,6 +235,11 @@ describe("SAML metadata", () => {
   it("refuses metadata without a signing certificate", () => {
     const unsigned = METADATA.replace(/<md:KeyDescriptor[\s\S]*<\/md:KeyDescriptor>/, "");
     expect(syncProblem(() => parseSamlMetadata(unsigned))).toBe("metadata_no_signing_cert");
+  });
+
+  it("refuses metadata that lists no NameIDFormat at all (L8)", () => {
+    const none = METADATA.replace(/<md:NameIDFormat>[^<]*<\/md:NameIDFormat>/g, "");
+    expect(syncProblem(() => parseSamlMetadata(none))).toBe("metadata_no_persistent_nameid");
   });
 
   it("refuses an IdP that offers no persistent NameID", () => {
@@ -227,5 +276,62 @@ describe("SAML metadata", () => {
     expect(serviceLocation([], binding)).toBeNull();
     expect(serviceLocation("", binding)).toBeNull();
     expect(serviceLocation(undefined, binding)).toBeNull();
+  });
+});
+
+describe("SAML metadata fetch (M3b, L5)", () => {
+  let server: Server | undefined;
+
+  afterEach(async () => {
+    await new Promise((resolve) => (server ? server.close(resolve) : resolve(undefined)));
+    server = undefined;
+  });
+
+  async function serve(body: string, status = 200): Promise<string> {
+    server = createServer((_req, res) => {
+      res.writeHead(status, { "content-type": "application/samlmetadata+xml" });
+      res.end(body);
+    });
+    await new Promise<void>((resolve) => server?.listen(0, "127.0.0.1", resolve));
+    const address: AddressInfo | string | null | undefined = server?.address();
+    if (typeof address !== "object" || address === null) throw new Error("no port");
+    return `http://127.0.0.1:${address.port}`;
+  }
+
+  it("reads metadata from an operator-allowed private origin", async () => {
+    const origin = await serve(METADATA);
+    const dev = { production: false, privateOrigins: [origin] };
+    expect(await fetchSamlMetadata(`${origin}/metadata`, dev)).toBe(METADATA);
+  });
+
+  it("stops reading at the size limit (L5)", async () => {
+    const origin = await serve("x".repeat(200 * 1024));
+    const dev = { production: false, privateOrigins: [origin] };
+    expect(await problem(() => fetchSamlMetadata(`${origin}/metadata`, dev))).toBe(
+      "metadata_too_large",
+    );
+  });
+
+  it("refuses a redirect instead of following it", async () => {
+    const origin = await serve("", 302);
+    const dev = { production: false, privateOrigins: [origin] };
+    expect(await problem(() => fetchSamlMetadata(`${origin}/metadata`, dev))).toBe(
+      "metadata_fetch_failed",
+    );
+  });
+
+  it("resolves the host once, at connect time, and refuses a private answer", async () => {
+    const resolve = vi.fn(async () => ["127.0.0.1"]);
+    const policy = { production: true, privateOrigins: [], resolve };
+    expect(
+      await problem(() => fetchSamlMetadata("https://idp.example.test/metadata", policy)),
+    ).toBe("issuer_private");
+    expect(resolve).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a literal private address without connecting", async () => {
+    expect(await problem(() => fetchSamlMetadata("https://[::ffff:7f00:1]/m", PUBLIC))).toBe(
+      "issuer_private",
+    );
   });
 });

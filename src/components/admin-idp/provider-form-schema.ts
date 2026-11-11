@@ -22,8 +22,15 @@ export interface ProviderFormValues {
   providerId: string;
   protocol: ProviderProtocol;
   settings: ProviderSettings;
-  oidc: { issuer: string; clientId: string; clientSecret: string };
+  oidc: { issuer: string; clientId: string; clientSecret: string; attestPkce: boolean };
   saml: { metadataXml: string; metadataUrl: string; spPrivateKey: string };
+}
+
+/** What the edit form knows about stored secrets: only whether one is set. */
+export interface StoredSecrets {
+  clientSecret: boolean;
+  spPrivateKey: boolean;
+  metadata: boolean;
 }
 
 /** Returns the form schema for adding (`create`) or editing a provider of `protocol`. */
@@ -38,7 +45,12 @@ export function providerFormSchema(mode: "create" | "edit", protocol: ProviderPr
         ? create
           ? createOidcProviderInput.shape.oidc
           : oidcConfigSchema
-        : z.object({ issuer: z.string(), clientId: z.string(), clientSecret: z.string() }),
+        : z.object({
+            issuer: z.string(),
+            clientId: z.string(),
+            clientSecret: z.string(),
+            attestPkce: z.boolean(),
+          }),
     saml:
       protocol === "saml"
         ? create
@@ -64,7 +76,7 @@ export function emptyProviderForm(protocol: ProviderProtocol): ProviderFormValue
       emailAuthoritative: false,
       domains: [],
     },
-    oidc: { issuer: "", clientId: "", clientSecret: "" },
+    oidc: { issuer: "", clientId: "", clientSecret: "", attestPkce: false },
     saml: { metadataXml: "", metadataUrl: "", spPrivateKey: "" },
   };
 }

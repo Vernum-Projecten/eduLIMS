@@ -71,6 +71,9 @@ export const ACCOUNT_NOT_LINKED_ERROR = "account_not_linked";
 /** Rejection code for a sign-in through a provider an administrator disabled. */
 export const PROVIDER_DISABLED_ERROR = "provider_disabled";
 
+/** Rejection code for a SAML sign-in whose NameID is not in the persistent format. */
+export const SAML_NAMEID_ERROR = "saml_nameid_not_persistent";
+
 /**
  * Returns a sign-in error code from the `error` search parameter in a stable form: better-auth
  * reports a refused link as `account not linked` on the OIDC callback.
