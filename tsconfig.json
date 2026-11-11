@@ -16,6 +16,8 @@
     "noPropertyAccessFromIndexSignature": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
     "skipLibCheck": true,
     "noEmit": true,
     "paths": { "@/*": ["./src/*"] }
