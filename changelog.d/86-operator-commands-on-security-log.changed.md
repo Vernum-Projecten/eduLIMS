@@ -1,0 +1,2 @@
+- The host commands now write to the security log stream: `idp rekey` records a `sys_data_key_rotated` event, and a failing `migrate`, `prune` or other command writes a `migration_failed`, `retention_prune_failed` or `cli_command_failed` JSON line with error classes and codes in place of plain error text (B4, #86).
+  The `fields` of an `idp_updated` event are now a JSON list of field names, so a long list no longer arrives as `redacted` (#95).

@@ -211,6 +211,7 @@
   "audit_action_analyser_created": "Analyser added",
   "audit_action_analyser_retired": "Analyser retired",
   "audit_action_analyser_updated": "Analyser changed",
+  "audit_action_data_key_rotated": "Stored secrets re-encrypted",
   "audit_action_idp_created": "Identity provider added",
   "audit_action_idp_deleted": "Identity provider deleted",
   "audit_action_idp_disabled": "Identity provider disabled",

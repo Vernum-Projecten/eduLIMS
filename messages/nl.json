@@ -211,6 +211,7 @@
   "audit_action_analyser_created": "Analyzer toegevoegd",
   "audit_action_analyser_retired": "Analyzer buiten gebruik gesteld",
   "audit_action_analyser_updated": "Analyzer gewijzigd",
+  "audit_action_data_key_rotated": "Opgeslagen geheimen opnieuw versleuteld",
   "audit_action_idp_created": "Identiteitsprovider toegevoegd",
   "audit_action_idp_deleted": "Identiteitsprovider verwijderd",
   "audit_action_idp_disabled": "Identiteitsprovider uitgezet",

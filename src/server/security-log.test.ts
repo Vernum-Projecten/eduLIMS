@@ -5,12 +5,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AuditEvent } from "./audit/events.ts";
 import {
   auditLogLevel,
+  failureCause,
   formatSecurityLine,
   logAuditEvent,
   logAuthzFailure,
+  logFailure,
   logSecurityEvent,
   REDACTED,
   SECURITY_LOG_FIELDS,
+  SECURITY_LOG_LIST_MAX,
   setSecurityLogWriter,
 } from "./security-log.ts";
 
@@ -250,9 +253,111 @@ describe("logAuthzFailure (ASVS V16.3.2)", () => {
 });
 
 describe("the default writer", () => {
-  it("writes to stdout", () => {
+  it("writes to stdout", async () => {
+    // A fresh copy of the module: the test setup points the shared one at a quiet writer.
+    vi.resetModules();
+    const fresh = await import("./security-log.ts");
     const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    logSecurityEvent("info", "authn_logout", {});
+    fresh.logSecurityEvent("info", "authn_logout", {});
     expect(write).toHaveBeenCalledWith(expect.stringMatching(/"event":"authn_logout"}\n$/));
+  });
+
+  it("restores the writer that was in place before a capture", () => {
+    const outer: string[] = [];
+    const inner: string[] = [];
+    const restoreOuter = setSecurityLogWriter((line) => outer.push(line));
+    const restoreInner = setSecurityLogWriter((line) => inner.push(line));
+    logSecurityEvent("info", "authn_logout", {});
+    restoreInner();
+    logSecurityEvent("info", "authn_login_success", {});
+    restoreOuter();
+    expect(inner).toEqual([expect.stringContaining('"event":"authn_logout"')]);
+    expect(outer).toEqual([expect.stringContaining('"event":"authn_login_success"')]);
+  });
+});
+
+describe("lists of codes (#95)", () => {
+  const LONG_FIELDS = [
+    "label_en",
+    "label_nl",
+    "icon",
+    "sort_order",
+    "role_claim",
+    "role_map",
+    "default_role",
+    "email_authoritative",
+    "domains",
+    "issuer",
+    "client_id",
+    "client_secret",
+    "metadata_url",
+    "attest_pkce",
+  ];
+
+  it("keeps every field name of a long idp_updated list, past the 128-character value limit", () => {
+    expect(LONG_FIELDS.join(",").length).toBeGreaterThan(128);
+    const lines = capture();
+    logAuditEvent({
+      action: "idp_updated",
+      actor: { type: "user", id: "a1" },
+      outcome: "success",
+      target: { type: "identity_provider", id: "entra" },
+      metadata: { provider_id: "entra", protocol: "oidc", fields: LONG_FIELDS },
+    });
+    expect(parse(lines[0])["fields"]).toEqual(LONG_FIELDS);
+  });
+
+  it("redacts each list item that fails the code pattern, and keeps the rest", () => {
+    const line = formatSecurityLine(
+      "info",
+      "idp_updated",
+      { fields: ["issuer", "student@example.test", "Test Student"] },
+      NOW,
+    );
+    expect(parse(line)["fields"]).toEqual(["issuer", REDACTED, REDACTED]);
+    expect(line).not.toMatch(/example\.test|Test Student/);
+  });
+
+  it("redacts a list longer than the limit as a whole", () => {
+    const many = Array.from({ length: SECURITY_LOG_LIST_MAX + 1 }, (_, index) => `f${index}`);
+    expect(parse(formatSecurityLine("info", "idp_updated", { fields: many }, NOW))["fields"]).toBe(
+      REDACTED,
+    );
+  });
+});
+
+describe("failureCause and logFailure (#86, ASVS V16.2.1)", () => {
+  it("names the cause chain by class and code, never by message", () => {
+    const cause = Object.assign(new Error("row of Prune Person"), { code: "23505" });
+    expect(failureCause(new TypeError("outer", { cause }))).toEqual(["TypeError", "Error:23505"]);
+    expect(failureCause("text")).toEqual(["string"]);
+    expect(failureCause(Object.assign(new Error("x"), { code: "a b" }))).toEqual(["Error"]);
+    expect(failureCause({ code: "ECONNREFUSED" })).toEqual(["object:ECONNREFUSED"]);
+  });
+
+  it("follows at most five causes", () => {
+    let error = new Error("innermost");
+    for (let depth = 0; depth < 7; depth += 1)
+      error = new Error(`level ${depth}`, { cause: error });
+    expect(failureCause(error)).toHaveLength(5);
+  });
+
+  it("writes an error line with the cause and the given fields, never the message", () => {
+    const lines = capture();
+    const cause = Object.assign(new Error('duplicate key "student@example.test"'), {
+      code: "23505",
+    });
+    logFailure("migration_failed", new Error("Test Student", { cause }), {
+      actor_type: "system",
+      migration: "0005_audit_event",
+    });
+    expect(parse(lines[0])).toMatchObject({
+      level: "error",
+      event: "migration_failed",
+      actor_type: "system",
+      migration: "0005_audit_event",
+      cause: ["Error", "Error:23505"],
+    });
+    expect(lines[0]).not.toMatch(/example\.test|Test Student|duplicate/);
   });
 });
