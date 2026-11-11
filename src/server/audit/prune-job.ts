@@ -8,6 +8,7 @@ import { type Kysely, sql } from "kysely";
 import { pruneExpiredGrants } from "../admin-grant/grants.ts";
 import { RETENTION_PRUNE_LOCK_KEY } from "../db/advisory-locks.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { logFailure } from "../security-log.ts";
 import { recordAudit, recordCommittedAudit } from "./record.ts";
 import { deleteExpired } from "./retention.ts";
 
@@ -51,41 +52,17 @@ export async function runPrune(db: Kysely<DB>, now: Date): Promise<PruneOutcome>
   });
 }
 
-function errorCode(error: object): string | undefined {
-  return "code" in error &&
-    typeof error.code === "string" &&
-    /^[A-Za-z0-9_]{1,32}$/.test(error.code)
-    ? error.code
-    : undefined;
-}
+/** The security-log event of a prune that failed. */
+export const PRUNE_FAILED_EVENT = "retention_prune_failed";
 
 /**
- * Describes a failure by its cause chain, as error class names with their codes (a SQLSTATE,
- * `ECONNREFUSED`): never a message, which could quote a row.
- */
-export function describeFailure(error: unknown): string {
-  const parts: string[] = [];
-  let current: unknown = error;
-  for (let depth = 0; depth < 5 && current !== undefined && current !== null; depth += 1) {
-    if (typeof current !== "object") {
-      parts.push(typeof current);
-      break;
-    }
-    const name = current instanceof Error ? current.name : "object";
-    const code = errorCode(current);
-    parts.push(code === undefined ? name : `${name}(${code})`);
-    current = "cause" in current ? current.cause : undefined;
-  }
-  return parts.join(" <- ");
-}
-
-/**
- * Records a failed prune: an error log line with its cause chain, and a best-effort
- * `sys_retention_prune` row with outcome `failure` (a database that is down takes neither row,
- * and {@link recordCommittedAudit} logs that too). Never throws.
+ * Records a failed prune: a `retention_prune_failed` line on the security stream with its cause
+ * chain ({@link logFailure}), and a best-effort `sys_retention_prune` row with outcome `failure`
+ * (a database that is down takes no row, and {@link recordCommittedAudit} logs that too). Never
+ * throws.
  */
 export async function recordPruneFailure(db: Kysely<DB>, error: unknown): Promise<void> {
-  console.error(`retention_prune_failed cause=${describeFailure(error)}`);
+  logFailure(PRUNE_FAILED_EVENT, error, { actor_type: "system" });
   await recordCommittedAudit(db, {
     action: "sys_retention_prune",
     actor: { type: "system" },

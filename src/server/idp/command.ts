@@ -6,10 +6,13 @@
 // the same admin service as the screen (validation, discovery, encryption, an activity-log row
 // with actor `system`). `idp add -` reads the JSON from standard input. The OIDC client secret
 // comes from the JSON or from EDULIMS_IDP_CLIENT_SECRET, never a flag or an echoing prompt.
-// Prints ids only.
+// Prints ids only. A refused add, enable or disable writes an activity-log row too.
 import { readFile } from "node:fs/promises";
+import type { Kysely } from "kysely";
+import { recordAudit } from "../audit/record.ts";
 import { ask, hostEnvironment, openDatabase, parseCliArgs, systemContext } from "../cli/host.ts";
 import type { Out } from "../db/migrate.ts";
+import type { DB } from "../db/schema.gen.ts";
 import { parseRoleMap } from "../idp-roles.ts";
 import { DataKeyError, keyringOf } from "./crypto.ts";
 import { IDP_MESSAGE_CODES, idpSchemas } from "./input.ts";
@@ -116,6 +119,33 @@ async function readInput(file: string): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
+/** The provider actions of the host CLI whose refusals it records. */
+type IdpCliAction = "idp_created" | "idp_enabled" | "idp_disabled";
+
+/**
+ * Records a refused provider change from the host as a row with outcome `refused`, actor
+ * `system` and the reason code (ASVS V16.3.2); the row reaches the security stream.
+ */
+async function recordRefusal(
+  db: Kysely<DB>,
+  action: IdpCliAction,
+  reason: string,
+  providerId?: string,
+): Promise<void> {
+  await recordAudit(db, {
+    action,
+    actor: { type: "system" },
+    outcome: "refused",
+    reason,
+    ...(providerId
+      ? {
+          target: { type: "identity_provider", id: providerId },
+          metadata: { provider_id: providerId },
+        }
+      : {}),
+  });
+}
+
 async function add(argv: readonly string[], out: Out): Promise<number> {
   const parsedArgs = parseCliArgs(argv, OPTIONS);
   if (!parsedArgs || parsedArgs.positionals.length > 1) {
@@ -124,31 +154,42 @@ async function add(argv: readonly string[], out: Out): Promise<number> {
   }
   const { values: flags, positionals } = parsedArgs;
   const file = positionals[0];
-  let raw: unknown;
-  try {
-    raw = file ? JSON.parse(await readInput(file)) : await inputFromFlags(flags);
-  } catch {
-    out("refused: the provider JSON cannot be read");
-    return 1;
-  }
-  const parsed = schemas.createProviderInput.safeParse(withDefaults(raw));
-  if (!parsed.success) {
-    for (const issue of parsed.error.issues)
-      out(`refused: ${issue.path.join(".")}: ${issue.message}`);
-    return 1;
-  }
   const env = hostEnvironment();
   const db = openDatabase(env);
   try {
+    let raw: unknown;
+    try {
+      raw = file ? JSON.parse(await readInput(file)) : await inputFromFlags(flags);
+    } catch {
+      await recordRefusal(db, "idp_created", "input_unreadable");
+      out("refused: the provider JSON cannot be read");
+      return 1;
+    }
+    const parsed = schemas.createProviderInput.safeParse(withDefaults(raw));
+    if (!parsed.success) {
+      await recordRefusal(db, "idp_created", "input_invalid");
+      for (const issue of parsed.error.issues)
+        out(`refused: ${issue.path.join(".")}: ${issue.message}`);
+      return 1;
+    }
     const ctx = systemContext(db, env);
     const result = await createProvider(ctx, parsed.data);
     if (!result.ok) {
+      await recordRefusal(db, "idp_created", result.error, parsed.data.providerId);
       out(`refused: ${result.error}`);
       return 1;
     }
     out(`created ${result.providerId} (disabled)`);
     if (flags.enable) {
-      await setProviderEnabled(ctx, { providerId: result.providerId, enabled: true });
+      const enabled = await setProviderEnabled(ctx, {
+        providerId: result.providerId,
+        enabled: true,
+      });
+      if (!enabled.ok) {
+        await recordRefusal(db, "idp_enabled", enabled.error, result.providerId);
+        out(`refused: enable: ${enabled.error}; ${result.providerId} stays disabled`);
+        return 1;
+      }
       out(`enabled ${result.providerId}`);
     }
     return 0;
@@ -193,6 +234,7 @@ async function toggle(providerId: string | undefined, enabled: boolean, out: Out
       allowLast: true,
     });
     if (!result.ok) {
+      await recordRefusal(db, enabled ? "idp_enabled" : "idp_disabled", result.error, id.data);
       out(`refused: ${result.error}`);
       return 1;
     }

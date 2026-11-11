@@ -69,6 +69,7 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   analyser_created: m.audit_action_analyser_created,
   analyser_updated: m.audit_action_analyser_updated,
   analyser_retired: m.audit_action_analyser_retired,
+  sys_data_key_rotated: m.audit_action_data_key_rotated,
 };
 
 /** Returns the name of an activity-log action; an action the screen does not know is "Other". */

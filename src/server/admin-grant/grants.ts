@@ -5,7 +5,8 @@
 // existing user the local admin role, or records a pending grant for an email that has not
 // signed in yet, bound to one provider whose email is authoritative and applied at that email's
 // first sign-in through it. `pnpm admin:revoke` takes the role away, never from the last
-// administrator. Every change writes the activity log with actor `system`, in its transaction.
+// administrator. Every change and every refusal writes the activity log with actor `system`, in
+// its transaction.
 // Relative imports: the host CLI loads this in plain Node.
 import "@tanstack/react-start/server-only";
 import type { Kysely } from "kysely";
@@ -18,24 +19,59 @@ import type { DB } from "../db/schema.gen.ts";
 /** How long a pending grant waits for its first sign-in (owner decision on #46/#48). */
 export const PENDING_GRANT_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** Why a grant or a revocation was refused. */
+export type GrantError =
+  | "role_conflict"
+  | "email_unverified"
+  | "provider_required"
+  | "provider_unknown"
+  | "provider_not_authoritative"
+  | "last_admin"
+  | "not_found";
+
 /** The outcome of a grant or a revocation. */
 export type GrantResult =
   | { ok: true; kind: "granted" | "already_admin" | "pending" | "revoked" | "not_admin" }
-  | {
-      ok: false;
-      error:
-        | "role_conflict"
-        | "email_unverified"
-        | "provider_required"
-        | "provider_unknown"
-        | "provider_not_authoritative"
-        | "last_admin"
-        | "not_found";
-    };
+  | { ok: false; error: GrantError };
 
 function rolesOf(value: unknown): Role[] {
   const result = validateRoleValue(value);
   return result.ok ? result.roles : [];
+}
+
+/**
+ * Records a refused change of a user's roles as an `authz_role_change` row with outcome
+ * `refused`, actor `system` and the refusal as its reason (ASVS V16.3.2), and returns the refusal.
+ */
+async function refuseRoleChange(
+  trx: Kysely<DB>,
+  error: GrantError,
+  userId?: string,
+): Promise<GrantResult> {
+  await recordAudit(trx, {
+    action: "authz_role_change",
+    actor: { type: "system" },
+    outcome: "refused",
+    reason: error,
+    ...(userId ? { target: { type: "user", id: userId } } : {}),
+  });
+  return { ok: false, error };
+}
+
+/** Records a refused pending grant as an `admin_grant_created` row with outcome `refused`. */
+async function refusePendingGrant(
+  trx: Kysely<DB>,
+  error: GrantError,
+  providerId?: string,
+): Promise<GrantResult> {
+  await recordAudit(trx, {
+    action: "admin_grant_created",
+    actor: { type: "system" },
+    outcome: "refused",
+    reason: error,
+    ...(providerId ? { metadata: { provider_id: providerId } } : {}),
+  });
+  return { ok: false, error };
 }
 
 /**
@@ -57,11 +93,11 @@ export async function grantAdmin(
       .executeTakeFirst();
     if (user) {
       // NOTE: ASVS V6.8.1; an address no provider vouched for may belong to someone else.
-      if (!user.emailVerified) return { ok: false, error: "email_unverified" };
+      if (!user.emailVerified) return refuseRoleChange(trx, "email_unverified", user.id);
       const current = rolesOf(user.role);
       if (current.includes("admin")) return { ok: true, kind: "already_admin" };
       const next = validateRoleSet([...current, "admin"]);
-      if (!next.ok) return { ok: false, error: "role_conflict" };
+      if (!next.ok) return refuseRoleChange(trx, "role_conflict", user.id);
       const role = formatRoles(next.roles);
       await trx
         .updateTable("user")
@@ -81,14 +117,16 @@ export async function grantAdmin(
       });
       return { ok: true, kind: "granted" };
     }
-    if (!input.providerId) return { ok: false, error: "provider_required" };
+    if (!input.providerId) return refusePendingGrant(trx, "provider_required");
     const provider = await trx
       .selectFrom("identity_provider")
       .select(["email_authoritative"])
       .where("provider_id", "=", input.providerId)
       .executeTakeFirst();
-    if (!provider) return { ok: false, error: "provider_unknown" };
-    if (!provider.email_authoritative) return { ok: false, error: "provider_not_authoritative" };
+    if (!provider) return refusePendingGrant(trx, "provider_unknown", input.providerId);
+    if (!provider.email_authoritative) {
+      return refusePendingGrant(trx, "provider_not_authoritative", input.providerId);
+    }
     await trx.deleteFrom("pending_admin_grant").where("email", "=", email).execute();
     const grant = await trx
       .insertInto("pending_admin_grant")
@@ -129,11 +167,11 @@ export async function grantAdminToUser(
       .where("id", "=", input.userId)
       .forUpdate()
       .executeTakeFirst();
-    if (!user) return { ok: false, error: "not_found" };
+    if (!user) return refuseRoleChange(trx, "not_found", input.userId);
     const current = rolesOf(user.role);
     if (current.includes("admin")) return { ok: true, kind: "already_admin" };
     const next = validateRoleSet([...current, "admin"]);
-    if (!next.ok) return { ok: false, error: "role_conflict" };
+    if (!next.ok) return refuseRoleChange(trx, "role_conflict", user.id);
     const role = formatRoles(next.roles);
     await trx
       .updateTable("user")
@@ -198,7 +236,7 @@ export async function revokeAdmin(
       .where("email", "=", email)
       .forUpdate()
       .executeTakeFirst();
-    if (!user) return pending ? { ok: true, kind: "revoked" } : { ok: false, error: "not_found" };
+    if (!user) return pending ? { ok: true, kind: "revoked" } : refuseRoleChange(trx, "not_found");
     const current = rolesOf(user.role);
     if (!current.includes("admin")) return { ok: true, kind: pending ? "revoked" : "not_admin" };
     const admins = await trx
@@ -206,7 +244,7 @@ export async function revokeAdmin(
       .select("id")
       .where((eb) => eb.or([eb("role", "=", "admin"), eb("role", "=", "teacher,admin")]))
       .execute();
-    if (admins.length <= 1) return { ok: false, error: "last_admin" };
+    if (admins.length <= 1) return refuseRoleChange(trx, "last_admin", user.id);
     const rest = current.filter((role) => role !== "admin");
     const role = rest.length > 0 ? formatRoles(rest) : null;
     await trx

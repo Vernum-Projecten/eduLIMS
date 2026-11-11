@@ -67,8 +67,8 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 175 |
-| Status met | 90 |
-| Status partial | 50 |
+| Status met | 92 |
+| Status partial | 48 |
 | Status planned | 27 |
 | Status open | 8 |
 | Status n-a | 170 |
@@ -823,10 +823,10 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V16.2.1 | 2 | partly | the B4 activity log (`audit_event`) records who did what to which object, with outcome, time and request id (`src/server/audit/`); the security events on stdout carry the same fields as JSON (`src/server/security-log.ts`); the CLI commands (migrate, seed, prune) still print plain lines | unit `src/server/audit/record.test.ts`, `src/server/security-log.test.ts` | partial |
+| V16.2.1 | 2 | partly | the B4 activity log (`audit_event`) records who did what to which object, with outcome, time and request id (`src/server/audit/`); the security events on stdout carry the same fields as JSON (`src/server/security-log.ts`); the host CLI's access changes (`admin grant` and `revoke`, `idp add`, `enable`, `disable`, `rekey`) write their row with actor `system`, and its failures (`migration_failed`, `retention_prune_failed`, `cli_command_failed`) are JSON lines with the cause as error classes and codes (`src/server/cli.ts`); only the development seed and reset print plain lines | unit `src/server/audit/record.test.ts`, `src/server/security-log.test.ts`, `src/server/cli-stream.test.ts`, `src/server/cli.test.ts`, `src/server/audit/prune-job.test.ts` | met |
 | V16.2.2 | 2 | yes | timestamps in UTC (`timestamptz`, `.claude/rules/database.md`); container clocks follow the host | review | partial |
 | V16.2.3 | 2 | yes | logs go to the container's stdout, and with `compose.logship.yaml` the security events also go to the institution's log platform (`docs/deployment.md`, "Shipping logs off the host"); the log inventory (V16.1.1) is still to write | review | partial |
-| V16.2.4 | 2 | yes | security events are one JSON object per line with a fixed field set and a UTC `time` (`src/server/security-log.ts`), shipped as RFC 5424 syslog or JSON (`docker/logship/`); the CLI commands print plain lines | unit `src/server/security-log.test.ts` | partial |
+| V16.2.4 | 2 | yes | security events are one JSON object per line with a fixed field set and a UTC `time` (`src/server/security-log.ts`), shipped as RFC 5424 syslog or JSON (`docker/logship/`); the host CLI writes its access changes and failures in the same format, and a list such as `fields` stays a JSON array of codes | unit `src/server/security-log.test.ts`, `src/server/cli-stream.test.ts`, `src/server/audit/prune-schedule.test.ts` | met |
 | V16.2.5 | 2 | yes | logs carry ids, never names, e-mail, grades or tokens: the security log takes an allowlist of fields and redacts a value with a space or an `@` (`src/server/security-log.ts`, `src/server/idp-sync.ts`, `src/server/role-guard.ts`) | unit `src/server/security-log.test.ts`, `src/server/idp-sync.test.ts` | met |
 
 #### V16.3 Security Events
@@ -834,7 +834,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts` | met |
-| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts` | met |
+| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`); a refused host command (`admin grant` or `revoke`, `idp add`, `enable` or `disable`) writes a row with outcome `refused`, actor `system` and its reason code (`src/server/admin-grant/grants.ts`, `src/server/idp/command.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts`, `src/server/cli-refusals.test.ts`, `src/server/admin-grant/grants.test.ts` | met |
 | V16.3.3 | 2 | yes | rejected uploads (S4) and refused access belong in the B4 audit log | unit tests with S4 and B4 | planned |
 | V16.3.4 | 2 | yes | an unreachable FerroEHR or FerroBRIDGE is checked every minute, stored with its error class and shown in the Admin portal within 5 minutes (B3, `src/server/integrations/`); a failed scheduled run is logged by its class only; other unexpected errors are not logged centrally yet | unit `src/server/integrations/checks.test.ts`, e2e `tests/e2e/admin-analysers.spec.ts` | partial |
 

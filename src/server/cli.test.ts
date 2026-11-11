@@ -4,6 +4,7 @@
 // The host CLI dispatcher (src/server/cli.ts): what the tools image runs for the operator.
 import { describe, expect, it, vi } from "vitest";
 import { CLI_COMMANDS, runCli } from "./cli.ts";
+import { setSecurityLogWriter } from "./security-log.ts";
 
 async function run(...args: string[]) {
   const lines: string[] = [];
@@ -64,13 +65,47 @@ describe("runCli", () => {
     expect(lines).toEqual(["refused: give a provider id"]);
   });
 
-  it("turns a configuration error into exit code 1 with a message that names no value", async () => {
+  it("turns a configuration error into exit code 1 and a log line that names no value (#86)", async () => {
     vi.stubEnv("DATABASE_URL", "");
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { code } = await run("prune");
-    expect(code).toBe(1);
-    expect(error).toHaveBeenCalledWith(expect.stringMatching(/DATABASE_URL/));
-    vi.unstubAllEnvs();
-    vi.restoreAllMocks();
+    const logged: string[] = [];
+    const restore = setSecurityLogWriter((line) => logged.push(line));
+    try {
+      const { code, lines } = await run("prune");
+      expect(code).toBe(1);
+      expect(lines).toEqual(["failed: invalid environment configuration (DATABASE_URL)"]);
+    } finally {
+      restore();
+      vi.unstubAllEnvs();
+    }
+    expect(logged.map((line): unknown => JSON.parse(line))).toEqual([
+      expect.objectContaining({
+        level: "error",
+        event: "cli_command_failed",
+        actor_type: "system",
+        command: "prune",
+        reason: "env_invalid",
+        variables: ["DATABASE_URL"],
+        cause: ["EnvConfigError", "ZodError"],
+      }),
+    ]);
+  });
+
+  it("keeps a variable's value out of the log line and the output", async () => {
+    vi.stubEnv("DATABASE_URL", "not a url with Test Student");
+    const logged: string[] = [];
+    const restore = setSecurityLogWriter((line) => logged.push(line));
+    try {
+      const { code, lines } = await run("migrate");
+      expect(code).toBe(1);
+      expect(lines.join("\n")).not.toContain("Test Student");
+    } finally {
+      restore();
+      vi.unstubAllEnvs();
+    }
+    expect(logged.join("")).not.toContain("Test Student");
+    expect(JSON.parse(logged[0] ?? "null")).toMatchObject({
+      command: "migrate",
+      variables: ["DATABASE_URL"],
+    });
   });
 });
