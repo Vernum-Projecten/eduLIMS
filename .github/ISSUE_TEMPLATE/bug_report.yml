@@ -1,0 +1,108 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+name: Bug report
+description: Report a defect in eduLIMS.
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. The type is already Bug, and a maintainer
+        sets the priority during triage.
+
+        Do not use this form for a security vulnerability: report it privately
+        through the Security tab. Do not paste real personal data (names,
+        student numbers, grades); use the pseudonymised test set.
+  - type: dropdown
+    id: requirement
+    attributes:
+      label: Requirement
+      description: The requirement from the requirements analysis whose behaviour is wrong.
+      options:
+        - "S1: Sign in with the Hanze account (Entra ID)"
+        - "S2: View the practical assignment and measurement protocol"
+        - "S3: Register samples with a unique sample ID"
+        - "S4: Upload and validate the Gen5 Excel export"
+        - "S5: Check measurement results per sample (Afinion, Epoch)"
+        - "S6: Submit a lab report before the deadline"
+        - "S7: View feedback and grade"
+        - "S8: View the submission status"
+        - "S9: Submit a resit or a new version"
+        - "D1: Create a practical"
+        - "D2: Link classes or students to a practical"
+        - "D3: View the measurement results of all students"
+        - "D4: Grade a submission with the rubric"
+        - "D5: KPI dashboard"
+        - "D6: Export grades (CSV)"
+        - "D7: Flag implausible measurement values"
+        - "D8: Reuse a rubric between practicals"
+        - "B1: Manage users and roles"
+        - "B2: Manage classes"
+        - "B3: Manage analysers and integrations"
+        - "B4: View the log of uploads, HL7 messages and errors"
+        - "Quality requirement (ISO 25010: security, privacy, accessibility, ...)"
+        - "None: no requirement covers this"
+    validations:
+      required: true
+  - type: textarea
+    id: criterion
+    attributes:
+      label: Acceptance criterion that fails
+      description: The acceptance criterion of that requirement the bug breaks, quoted or in your words.
+      placeholder: An Excel file with an unknown sample ID is refused with a clear error message.
+    validations:
+      required: true
+  - type: dropdown
+    id: portal
+    attributes:
+      label: Portal
+      options:
+        - Studentportaal
+        - Docentportaal
+        - Beheerportaal
+        - An integration (FerroEHR, FerroBRIDGE)
+        - Not portal-specific
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The exact steps that trigger the bug, starting from sign-in.
+      placeholder: |
+        1. Sign in as a student
+        2. Open the practical ...
+        3. Upload ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What happened instead. Include the error message shown.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: The release tag or commit SHA of the environment you used.
+      placeholder: v0.1.0, or a commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Local development
+        - Test environment
+        - Production
+    validations:
+      required: true
