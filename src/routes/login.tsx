@@ -1,15 +1,16 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, type ErrorComponentProps, redirect } from "@tanstack/react-router";
 import { z } from "zod";
-import { BrandPanel } from "@/components/login/brand-panel";
 import { LoginForm } from "@/components/login/login-form";
-import { BrandLink, DisplayMenus } from "@/components/shell/public-layout";
-import { MAIN_CONTENT_ID, SkipLink } from "@/components/shell/skip-link";
+import { LoginLayout, LoginSkeleton } from "@/components/login/login-layout";
+import { RouteErrorState } from "@/components/shell/route-error";
+import { UpdatingIndicator } from "@/components/shell/updating-indicator";
 import { m } from "@/i18n/messages";
 import { safeRedirectPath } from "@/lib/guards";
-import { getLoginOptions } from "@/lib/session.functions";
+import { loginOptionsQueryOptions } from "@/lib/login.query-options";
 import { portalPathFor } from "@/server/authz";
 
 const loginSearchSchema = z.object({
@@ -24,44 +25,42 @@ export const Route = createFileRoute("/login")({
       throw redirect({ href: search.redirect ?? portalPathFor(context.user) ?? "/" });
     }
   },
-  loader: () => getLoginOptions(),
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(loginOptionsQueryOptions());
+  },
   head: () => ({ meta: [{ title: `${m.sign_in()} | eduLIMS` }] }),
+  pendingComponent: LoginPending,
+  errorComponent: LoginError,
   component: LoginPage,
 });
 
+function LoginPending() {
+  return (
+    <LoginLayout busy>
+      <LoginSkeleton />
+    </LoginLayout>
+  );
+}
+
+function LoginError({ reset }: Pick<ErrorComponentProps, "reset">) {
+  return (
+    <LoginLayout>
+      <RouteErrorState reset={reset} />
+    </LoginLayout>
+  );
+}
+
 /** The login page, from the login-02 block: the form on one side, the brand panel on the other. */
 function LoginPage() {
-  const { providers, emailRouting, devLogin, demoAccounts, lastSignInMethod } =
-    Route.useLoaderData();
+  const { data, isFetching } = useSuspenseQuery(loginOptionsQueryOptions());
   const search = Route.useSearch();
 
   return (
-    <div className="grid min-h-svh lg:grid-cols-2">
-      <SkipLink />
-      <div className="flex flex-col gap-4 p-4 sm:p-6 md:p-10">
-        <header className="flex flex-wrap items-center justify-between gap-2">
-          <BrandLink />
-          <DisplayMenus signedIn={false} />
-        </header>
-        <main
-          id={MAIN_CONTENT_ID}
-          tabIndex={-1}
-          className="flex flex-1 items-center justify-center py-6 outline-none"
-        >
-          <div className="w-full max-w-sm">
-            <LoginForm
-              providers={providers}
-              emailRouting={emailRouting}
-              devLogin={devLogin}
-              demoAccounts={demoAccounts}
-              lastSignInMethod={lastSignInMethod}
-              redirectTo={search.redirect}
-              error={search.error}
-            />
-          </div>
-        </main>
+    <LoginLayout busy={isFetching}>
+      <UpdatingIndicator active={isFetching} />
+      <div className="w-full max-w-sm">
+        <LoginForm options={data} redirectTo={search.redirect} error={search.error} />
       </div>
-      <BrandPanel className="min-h-40 lg:min-h-0" />
-    </div>
+    </LoginLayout>
   );
 }

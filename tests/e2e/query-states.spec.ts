@@ -223,3 +223,39 @@ test("/ and Mod+K focus the users search, but not in a text field or over a dial
   await page.keyboard.type("/b");
   await expect(search).toHaveValue("a/b");
 });
+
+test("the login page shows an error state and its retry loads the sign-in options again (#84)", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const signIn = page.getByRole("main").getByRole("link", { name: "Sign in" });
+  await expectHydrated(signIn);
+
+  // Only the login options fail: theirs is the one payload that names the email routing.
+  const pattern = "**/_serverFn/**";
+  const handler = async (route: Route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    const response = await route.fetch();
+    if ((await response.text()).includes("emailRouting")) {
+      return route.fulfill({ status: 500, body: "forced failure" });
+    }
+    return route.fulfill({ response });
+  };
+  await page.route(pattern, handler);
+  await signIn.click();
+
+  const heading = page.getByRole("heading", { level: 1, name: "Something went wrong" });
+  await expect(heading).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("An unexpected error occurred.");
+  // The login frame stays around the error: the main landmark and the display menus.
+  await expect(page.getByRole("main")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Theme: System" })).toBeVisible();
+  await axe(page);
+  await shot(page, "login-error-state");
+
+  await page.unroute(pattern, handler);
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(heading).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1, name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in with a test account" })).toBeVisible();
+});
