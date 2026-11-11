@@ -53,6 +53,10 @@ adding one, and update it instead of duplicating.
 
 ## Stack
 
+- [Greenfield until 1.0](greenfield-until-1-0.md): no data migrations or
+  compatibility shims before the first stable release; migrations may be
+  edited or squashed; reset local databases; owner 2026-11-11
+
 - [Stack decisions](stack-decisions.md): TanStack Start full SSR on Vite 8 and
   Nitro, TypeScript 7 native tsc, React 19, shadcn/ui radix-nova, Biome 2.6,
   Vitest 5, Kysely on PostgreSQL 18, better-auth with Entra ID or Keycloak, Node 26 LTS,
