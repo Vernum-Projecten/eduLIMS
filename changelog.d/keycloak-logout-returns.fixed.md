@@ -1,0 +1,1 @@
+- Signing out of eduLIMS through Keycloak now returns you to the eduLIMS sign-in page instead of Keycloak's "You are logged out" page. A production Keycloak client needs `<BETTER_AUTH_URL>/login` as a valid post logout redirect URI.

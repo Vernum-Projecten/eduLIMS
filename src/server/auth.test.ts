@@ -3,7 +3,7 @@
 
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
-import { createAuth, identityProviders } from "./auth.ts";
+import { createAuth, identityProviders, keycloakProviders, POST_LOGOUT_PATH } from "./auth.ts";
 import { parseRoles } from "./authz.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
@@ -87,6 +87,12 @@ describe("identityProviders", () => {
       { id: "microsoft" },
       { id: "keycloak", label: "Sign in with Campus ID" },
     ]);
+  });
+
+  it("returns the user to the sign-in page after a Keycloak logout", () => {
+    const [provider] = keycloakProviders(parseEnv({ ...VALID_ENV, ...keycloak }));
+    expect(provider?.postLogoutRedirectURI).toBe(POST_LOGOUT_PATH);
+    expect(POST_LOGOUT_PATH).toBe("/login");
   });
 
   it("leaves the Keycloak label to the UI when KEYCLOAK_LABEL is unset", () => {
