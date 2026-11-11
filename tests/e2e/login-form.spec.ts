@@ -145,3 +145,41 @@ test("the test-account sign-in works with the keyboard alone (#84)", async ({ pa
   await expect(page).toHaveURL(/\/student$/);
   await expect(page.getByRole("heading", { level: 1, name: "Student portal" })).toBeVisible();
 });
+
+test("a provider that refuses the start shows why, with focus on the message (#84)", async ({
+  page,
+}) => {
+  // The answer of the sso guard for a disabled provider (403, `provider_disabled`). Disabling
+  // the seeded provider for real would change the login page under the parallel specs.
+  const pattern = "**/api/auth/sign-in/sso";
+  await page.route(pattern, (route) =>
+    route.request().method() === "POST"
+      ? route.fulfill({
+          status: 403,
+          contentType: "application/json",
+          body: JSON.stringify({
+            code: "provider_disabled",
+            message: "Identity provider disabled",
+          }),
+        })
+      : route.fallback(),
+  );
+  await openLogin(page);
+  const keycloak = page.getByRole("button", { name: "Sign in with Keycloak", exact: true });
+  await expectHydrated(keycloak);
+  await keycloak.click();
+
+  const refusal = page.getByRole("alert");
+  await expect(refusal).toHaveText(
+    "This sign-in option is switched off. Use another one, or contact an administrator.",
+  );
+  await expect(refusal).toBeFocused();
+  await expect(keycloak).toBeEnabled();
+  await expect(page).toHaveURL(/\/login$/);
+  await axe(page);
+
+  // A second refusal takes focus again.
+  await keycloak.focus();
+  await page.keyboard.press("Enter");
+  await expect(refusal).toBeFocused();
+});

@@ -470,6 +470,7 @@
   "language_switcher_label": "Language",
   "loading": "Loading…",
   "login_description": "Sign in with your organisation account to use eduLIMS.",
+  "login_email_check_failed": "eduLIMS could not check this address. Try again.",
   "login_email_help": "eduLIMS sends you to your institution's sign-in page.",
   "login_email_label": "Institution email address",
   "login_email_separator": "Or use your institution email",

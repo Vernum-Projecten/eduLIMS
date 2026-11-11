@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { CircleAlertIcon, HistoryIcon, KeyRoundIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DevLoginForm } from "@/components/login/dev-login-form";
 import { InstitutionEmailForm } from "@/components/login/institution-email-form";
 import { ProviderIconGlyph } from "@/components/login/provider-icon";
@@ -49,16 +49,13 @@ export function LoginForm({
 }>) {
   const { providers, emailRouting, devLogin, demoAccounts, lastSignInMethod } = options;
   const noMethod = providers.length === 0 && !emailRouting && !devLogin;
+  const [refusal, setRefusal] = useState<StartRefusal | null>(null);
+  const message = refusal?.message ?? (error ? loginErrorMessage(error) : null);
   return (
     <div className="flex flex-col gap-6">
       <LoginHeading />
       <FieldGroup>
-        {error && (
-          <Alert variant="destructive">
-            <CircleAlertIcon aria-hidden="true" />
-            <AlertDescription>{loginErrorMessage(error)}</AlertDescription>
-          </Alert>
-        )}
+        {message && <SignInErrorAlert message={message} focusKey={refusal?.key ?? null} />}
         {lastSignInMethod && (
           <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
             <HistoryIcon aria-hidden="true" className="size-4 shrink-0" />
@@ -66,7 +63,17 @@ export function LoginForm({
           </p>
         )}
         {providers.map((provider) => (
-          <ProviderLoginButton key={provider.id} provider={provider} redirectTo={redirectTo} />
+          <ProviderLoginButton
+            key={provider.id}
+            provider={provider}
+            redirectTo={redirectTo}
+            onRefused={(code) =>
+              setRefusal((last) => ({
+                message: loginErrorMessage(code),
+                key: (last?.key ?? 0) + 1,
+              }))
+            }
+          />
         ))}
         {emailRouting && <InstitutionEmailForm redirectTo={redirectTo} />}
         {noMethod && <NoSignInMethod />}
@@ -105,16 +112,63 @@ function lastMethodName(
   return label ?? signInMethodLabel(method);
 }
 
+/** A refused start of a provider sign-in; `key` counts refusals, so a repeat takes focus again. */
+interface StartRefusal {
+  readonly message: string;
+  readonly key: number;
+}
+
+/**
+ * Why a sign-in was refused: from the identity provider's callback (`?error=`) or from a
+ * provider that refused the start. A refused start moves focus here (WCAG 3.3.1, 4.1.3).
+ */
+function SignInErrorAlert({
+  message,
+  focusKey,
+}: Readonly<{ message: string; focusKey: number | null }>) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focusKey !== null) ref.current?.focus();
+  }, [focusKey]);
+  return (
+    <Alert
+      ref={ref}
+      tabIndex={-1}
+      variant="destructive"
+      className="outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+    >
+      <CircleAlertIcon aria-hidden="true" />
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
+  );
+}
+
 function ProviderLoginButton({
   provider,
   redirectTo,
-}: Readonly<{ provider: IdentityProviderOption; redirectTo: string | undefined }>) {
+  onRefused,
+}: Readonly<{
+  provider: IdentityProviderOption;
+  redirectTo: string | undefined;
+  /** Called with the error code when the provider refuses the start. */
+  onRefused: (code: string) => void;
+}>) {
   const [pending, setPending] = useState(false);
 
   async function signIn() {
     setPending(true);
-    const { error } = await startSignIn(provider.id, redirectTo);
-    if (error) setPending(false);
+    let code: string;
+    try {
+      const { error } = await startSignIn(provider.id, redirectTo);
+      // On success the browser is already on its way to the identity provider.
+      if (!error) return;
+      code = error.code ?? "";
+    } catch {
+      // NOTE: no requirement governs this: our own design. A network failure gets the generic message.
+      code = "";
+    }
+    setPending(false);
+    onRefused(code);
   }
 
   return (

@@ -85,6 +85,28 @@ describe("InstitutionEmailForm", () => {
       }),
     );
   });
+
+  it("shows a failed address check at the top of the form, and the user can try again", async () => {
+    mocks.route.mockRejectedValueOnce(new Error("HTTP 500"));
+    render(<InstitutionEmailForm redirectTo={undefined} />);
+    const input = screen.getByLabelText(label);
+    fireEvent.change(input, { target: { value: "teacher@example.test" } });
+    submit("Continue");
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toBe(
+        "eduLIMS could not check this address. Try again.",
+      ),
+    );
+    // The address itself is fine: the field is not marked invalid.
+    expect(input.getAttribute("aria-invalid")).toBe("false");
+    expect(mocks.sso).not.toHaveBeenCalled();
+
+    mocks.route.mockResolvedValueOnce({ providerId: "keycloak" });
+    mocks.sso.mockResolvedValueOnce({ error: null });
+    submit("Continue");
+    await waitFor(() => expect(mocks.sso).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });
 
 describe("DevLoginForm", () => {

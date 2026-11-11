@@ -24,7 +24,14 @@ export function InstitutionEmailForm({ redirectTo }: Readonly<{ redirectTo: stri
     validationLogic: revalidateLogic(),
     validators: { onDynamic: institutionEmailInput },
     onSubmit: async ({ value, formApi }) => {
-      const { providerId } = await route({ data: value });
+      let providerId: Awaited<ReturnType<typeof route>>["providerId"];
+      try {
+        ({ providerId } = await route({ data: value }));
+      } catch {
+        // A failed check is not an unknown address: say so, and let the user try again.
+        applyServerRefusal(formApi, { form: m.login_email_check_failed() });
+        return;
+      }
       if (!providerId) {
         applyServerRefusal(formApi, { fields: { email: m.login_email_unknown() } });
         return;
