@@ -105,7 +105,7 @@ describe("identityProviders", () => {
   });
 
   it("registers Keycloak as an OAuth provider next to Microsoft", async () => {
-    db = await createTestDb({ migrate: false });
+    db = await createTestDb();
     const auth = createAuth(parseEnv({ ...VALID_ENV, ...keycloak }), { db, type: "postgres" });
     const ids = auth.options.plugins.map((plugin) => plugin.id);
     expect(ids).toContain("generic-oauth");

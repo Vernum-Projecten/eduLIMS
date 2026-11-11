@@ -3,15 +3,15 @@
 
 import { defineConfig, devices } from "@playwright/test";
 
-// E2E runs the production build (`pnpm build` first) against a throwaway database:
-// E2E_DATABASE_URL when given (CI service container), otherwise an in-memory PGlite
-// server speaking the Postgres wire protocol, so no Docker is needed locally.
+// E2E runs the production build (`pnpm build` first) against a throwaway PostgreSQL 18
+// database: E2E_DATABASE_URL when given (the CI service container), otherwise the
+// `edulims_e2e` database of the dev stack (`pnpm dev:db`). `pnpm db:reset` empties,
+// migrates and seeds it before the app starts; it refuses anything but localhost.
 const PORT = 3100;
-const PGLITE_PORT = 54329;
 const baseURL = `http://localhost:${PORT}`;
-const externalDatabase = process.env["E2E_DATABASE_URL"];
 const databaseUrl =
-  externalDatabase ?? `postgres://postgres:postgres@127.0.0.1:${PGLITE_PORT}/postgres`;
+  process.env["E2E_DATABASE_URL"]?.trim() ||
+  "postgres://edulims:edulims@127.0.0.1:5432/edulims_e2e";
 
 const appEnv = {
   NODE_ENV: "test",
@@ -40,22 +40,11 @@ export default defineConfig({
   reporter: process.env["CI"] ? [["github"], ["html", { open: "never" }]] : "list",
   use: { baseURL, locale: "en-US", trace: "retain-on-failure" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: [
-    ...(externalDatabase
-      ? []
-      : [
-          {
-            command: `pnpm exec pglite-server --port=${PGLITE_PORT} --max-connections=10`,
-            port: PGLITE_PORT,
-            reuseExistingServer: false,
-          },
-        ]),
-    {
-      command: "pnpm db:migrate && pnpm db:seed && pnpm start",
-      url: `${baseURL}/api/ready`,
-      env: appEnv,
-      reuseExistingServer: false,
-      timeout: 60_000,
-    },
-  ],
+  webServer: {
+    command: "pnpm db:reset && pnpm start",
+    url: `${baseURL}/api/ready`,
+    env: appEnv,
+    reuseExistingServer: false,
+    timeout: 60_000,
+  },
 });

@@ -14,18 +14,25 @@ before you make a change. The published documentation is at
 ## Setup
 
 You need Node.js 26.13.0, pnpm 12.18.0 and a container engine with Compose:
-Docker, or Podman with `podman compose` (every `docker compose` command below
-works the same as `podman compose`). Without one, `pnpm dev:db` runs an
-embedded PostgreSQL instead. The
+Podman with `podman compose`, or Docker with `docker compose`. The
 `devEngines` field in `package.json` fails the install on any other runtime
 or package manager version.
 
 ```sh
-docker compose -f compose.dev.yaml up -d
 pnpm install
+cp .env.example .env    # then set BETTER_AUTH_SECRET (openssl rand -hex 32)
+pnpm dev:db             # podman compose -f compose.dev.yaml up -d --wait (docker compose without Podman)
 pnpm db:migrate
+pnpm db:seed
 pnpm dev
 ```
+
+`pnpm dev:db` starts PostgreSQL 18 and Keycloak from `compose.dev.yaml` and
+waits until they are healthy. `pnpm dev:db:stop` stops them and keeps the
+data volume, and `pnpm dev:db:logs` follows their logs. `pnpm db:reset`
+empties the local development database, then migrates and seeds it again,
+for a clean start before visual work. It refuses unless `NODE_ENV` is
+`development` or `test` and `DATABASE_URL` points at localhost.
 
 The development database only ever holds the pseudonymised test set. Never
 load real names, student numbers or grades into it.
@@ -40,7 +47,16 @@ pnpm lint             # Biome lint and format check
 pnpm test             # Vitest unit and data tests
 pnpm test:coverage    # coverage; the core stays at 70% or more (Q-MAINT-1)
 pnpm check            # the three gates above in one run
+pnpm test:e2e         # production build, then Playwright with the axe scan
 ```
+
+The database tests and the browser tests run on a real PostgreSQL 18, so
+they need the dev stack (`pnpm dev:db`). `pnpm test` uses the `edulims_test`
+database: the run empties and migrates it once, and every test runs in a
+transaction that is rolled back. `pnpm test:e2e` empties, migrates and seeds
+the `edulims_e2e` database before the app starts. Neither touches the
+`edulims` development database. Set `TEST_DATABASE_URL` or `E2E_DATABASE_URL`
+to use another local server.
 
 Browser and accessibility tests run with Playwright and axe. CI runs them on
 every pull request; [`docs/test-strategy.md`](docs/test-strategy.md) lists

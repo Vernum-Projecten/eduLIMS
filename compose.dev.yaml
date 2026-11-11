@@ -2,13 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # What `pnpm dev` needs on a developer machine: PostgreSQL 18 with the eduLIMS
-# database, and Keycloak with a ready `edulims` realm, so sign-in works
-# without a Microsoft Entra ID app registration. eduLIMS itself runs on the
-# host with `pnpm dev`, so it reloads on every save.
+# database (plus `edulims_test` and `edulims_e2e` for `pnpm test` and
+# `pnpm test:e2e`), and Keycloak with a ready `edulims` realm, so sign-in
+# works without a Microsoft Entra ID app registration. eduLIMS itself runs on
+# the host with `pnpm dev`, so it reloads on every save.
 #
-#   docker compose -f compose.dev.yaml up -d --wait
+#   pnpm dev:db                     # podman compose (or docker compose) -f compose.dev.yaml up -d --wait
 #   cp .env.example .env            # the dev values below are already in it
 #   pnpm db:migrate
+#   pnpm db:seed
 #   pnpm dev
 #
 # Keycloak:  http://localhost:8180 (admin console: admin / admin)
@@ -18,7 +20,7 @@
 # With FerroEHR beside it, for work on the openEHR integration (it needs
 # config/ferroehr.toml, as in production; docs/deployment.md):
 #
-#   docker compose -f compose.dev.yaml --profile ferroehr up -d --wait
+#   podman compose -f compose.dev.yaml --profile ferroehr up -d --wait
 #
 # The development credentials below are fixed and public, and the ports bind
 # the loopback interface only. Never point this file at real data.
@@ -51,6 +53,8 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql
       - ./docker/postgres/init/20-edulims.sh:/docker-entrypoint-initdb.d/20-edulims.sh:ro
+      # The throwaway databases `pnpm test` and `pnpm test:e2e` use.
+      - ./docker/postgres/init/30-edulims-test-databases.sh:/docker-entrypoint-initdb.d/30-edulims-test-databases.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
       interval: 5s
