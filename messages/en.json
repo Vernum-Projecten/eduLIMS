@@ -7,6 +7,8 @@
   "sign_out": "Sign out",
   "sign_out_failed": "Signing out failed. Please try again.",
   "language_switcher_label": "Language",
+  "language_menu_trigger": "Language: {language}",
+  "language_save_failed": "Your language could not be saved. Please try again.",
   "role_student": "Student",
   "role_teacher": "Teacher",
   "role_admin": "Administrator",
