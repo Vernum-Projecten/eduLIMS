@@ -110,6 +110,23 @@ seeds it again. Run `pnpm env:sync` again after a pull that changes the
 example env file: it adds new variables, comments out obsolete ones and never
 changes a value you set, printing variable names only.
 
+### Demo accounts
+
+Open <http://localhost:3000> and sign in with one of these development
+accounts. Their passwords are public: they exist only on a development
+machine.
+
+| Role          | Keycloak (username / password) | Development login (email / password)     |
+| ------------- | ------------------------------ | ---------------------------------------- |
+| Student       | `student` / `student`          | `student@example.test` / `eduLIMS-dev-only` |
+| Teacher       | `teacher` / `teacher`          | `teacher@example.test` / `eduLIMS-dev-only` |
+| Administrator | `admin` / `admin`              | `admin@example.test` / `eduLIMS-dev-only`   |
+
+The Keycloak admin console at <http://localhost:8180> is a separate account
+in the `master` realm (`admin` / `admin`); it manages Keycloak and does not
+sign in to eduLIMS. [Demo accounts](https://edulims.eu/get-started/demo-accounts/)
+on the docs site has the details.
+
 Before you open a pull request, run the same gates as CI. The tests need the
 dev stack running: `pnpm test` uses its `edulims_test` database and
 `pnpm test:e2e` its `edulims_e2e` database, never your development data.

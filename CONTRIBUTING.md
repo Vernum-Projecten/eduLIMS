@@ -27,6 +27,12 @@ pnpm db:seed
 pnpm dev
 ```
 
+Sign in at <http://localhost:3000> with a demo account: through Keycloak as
+`student`, `teacher` or `admin` (the password is the username), or with the
+development login as `student@example.test`, `teacher@example.test` or
+`admin@example.test` (password `eduLIMS-dev-only`). The README's "Demo
+accounts" table has all of them.
+
 `pnpm dev:db` starts PostgreSQL 18 and Keycloak from `compose.dev.yaml` and
 waits until they are healthy. `pnpm dev:db:stop` stops them and keeps the
 data volume, and `pnpm dev:db:logs` follows their logs. `pnpm db:reset`

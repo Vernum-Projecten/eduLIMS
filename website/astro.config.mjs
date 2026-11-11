@@ -61,7 +61,11 @@ export default defineConfig({
         {
           label: "Get started",
           translations: { nl: "Aan de slag" },
-          items: ["get-started/introduction", "get-started/quick-start"],
+          items: [
+            "get-started/introduction",
+            "get-started/quick-start",
+            "get-started/demo-accounts",
+          ],
         },
         {
           label: "User guides",
