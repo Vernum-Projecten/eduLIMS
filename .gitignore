@@ -147,3 +147,21 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# eduLIMS
+.output/
+.vinxi/
+.tanstack/
+.nitro/
+playwright-report/
+test-results/
+.claude/settings.local.json
+.claude/worktrees/
+
+# Playwright
+/test-results/
+/playwright-report/
+
+# Operator config and database backups on a deployment host
+/config/
+/backups/

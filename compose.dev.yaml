@@ -1,0 +1,119 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# What `pnpm dev` needs on a developer machine: PostgreSQL 18 with the eduLIMS
+# database, and Keycloak with a ready `edulims` realm, so sign-in works
+# without a Microsoft Entra ID app registration. eduLIMS itself runs on the
+# host with `pnpm dev`, so it reloads on every save.
+#
+#   docker compose -f compose.dev.yaml up -d --wait
+#   cp .env.example .env.local      # the dev values below are already in it
+#   pnpm db:migrate
+#   pnpm dev
+#
+# Keycloak:  http://localhost:8180 (admin console: admin / admin)
+#            issuer http://localhost:8180/realms/edulims
+#            users student / student, docent / docent, beheerder / beheerder
+#
+# With FerroEHR beside it, for work on the openEHR integration (it needs
+# config/ferroehr.toml, as in production; docs/deployment.md):
+#
+#   docker compose -f compose.dev.yaml --profile ferroehr up -d --wait
+#
+# The development credentials below are fixed and public, and the ports bind
+# the loopback interface only. Never point this file at real data.
+#
+# No mail catcher: sign-in goes through Keycloak, Entra ID or the
+# EDULIMS_DEV_LOGIN shortcut, and eduLIMS sends no mail.
+
+name: edulims-dev
+
+services:
+  postgres:
+    # The FerroEHR PostgreSQL image, as in compose.yaml, so a dev database has
+    # the same server version and the same databases as production.
+    image: ghcr.io/ferrohealth/ferroehr-postgres:5.7.0@sha256:3b7dbfce603b4ff3c8a29366655f195baf2bfeaf903a1bf1be851ba69293743a
+    environment:
+      POSTGRES_PASSWORD: postgres
+      PG_INIT_USER: ferroehr
+      PG_INIT_PASSWORD: ferroehr
+      PG_INIT_DB: ferroehr
+      EDULIMS_DB_USER: edulims
+      EDULIMS_DB_PASSWORD: edulims
+      EDULIMS_DB_NAME: edulims
+      # The read-only role the Postgres MCP server connects as
+      # (EDULIMS_MCP_PG* in .env.example). Development only: compose.yaml
+      # creates no such role.
+      EDULIMS_READONLY_USER: edulims_readonly
+      EDULIMS_READONLY_PASSWORD: edulims_readonly
+    ports:
+      - "127.0.0.1:${EDULIMS_DEV_DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./docker/postgres/init/20-edulims.sh:/docker-entrypoint-initdb.d/20-edulims.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Keycloak in development mode on its built-in dev-file database, with the
+  # realm imported from docker/keycloak/edulims-realm.json at every start
+  # (an existing realm is kept). The realm file is the whole state that
+  # matters, so a Keycloak database in PostgreSQL would only add a role to
+  # create and a schema to migrate. To load a changed realm file, recreate
+  # the container: `docker compose -f compose.dev.yaml up -d --force-recreate keycloak`.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2@sha256:723b1d6e254c0fc96d5cffec860c7e0744d6a3277822b865bb538cf891575e41
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # One issuer for the browser and for `pnpm dev` on the host: both reach
+      # Keycloak at this URL, so every token's `iss` matches KEYCLOAK_ISSUER.
+      KC_HOSTNAME: http://localhost:${EDULIMS_DEV_KEYCLOAK_PORT:-8180}
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "127.0.0.1:${EDULIMS_DEV_KEYCLOAK_PORT:-8180}:8080"
+    volumes:
+      - ./docker/keycloak/edulims-realm.json:/opt/keycloak/data/import/edulims-realm.json:ro
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # The image ships bash and no HTTP client, so the probe reads the realm's
+    # discovery document over bash's /dev/tcp: healthy means the realm is
+    # imported and the listener answers.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "exec 3<>/dev/tcp/127.0.0.1/8080; printf 'GET /realms/edulims/.well-known/openid-configuration HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '^HTTP/1.1 200' <&3"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  ferroehr:
+    profiles: [ferroehr]
+    image: ghcr.io/ferrohealth/ferroehr:5.7.0@sha256:44c9268cb8a154df118a10ffe84329633f22923ea2cc54261ff0cea57a2ee7e7
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FERROEHR_CONFIG: /etc/ferroehr/ferroehr.toml
+      FERROEHR__DATABASE__URL: postgres://ferroehr:ferroehr@postgres:5432/ferroehr
+      FERROEHR__TELEMETRY__FORMAT: pretty
+      FERROEHR__USAGE_REPORT__ENABLED: "false"
+    ports:
+      - "127.0.0.1:${EDULIMS_DEV_FERROEHR_PORT:-8080}:8080"
+    volumes:
+      - ./config/ferroehr.toml:/etc/ferroehr/ferroehr.toml:ro
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/ferroehr", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+
+volumes:
+  pgdata:

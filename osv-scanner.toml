@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# The OSV findings judged not to affect eduLIMS, beside pnpm-lock.yaml where
+# OSV-Scanner and the OpenSSF Scorecard Vulnerabilities check read them
+# (https://github.com/ossf/scorecard/blob/main/docs/checks.md#vulnerabilities).
+# An entry names the event that deletes it; a finding with a fix the
+# dependency can take is fixed, never listed here. `ignoreUntil` forces a
+# re-judgement even when nothing else changes.
+
+# 2026-11-11: deepmerge 4.3.1 reaches the lock only through the shadcn CLI
+# (shadcn -> @shadcn/registry), a devDependency run by a developer to copy
+# components into src/. It is not in the server bundle or either image, and the
+# CLI merges only its own registry JSON, never request data. No fixed release
+# exists. Deleted when shadcn drops deepmerge or a fixed release ships.
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2027-01-11T00:00:00Z
+reason = "dev-only through the shadcn CLI; not in the server bundle or images; no fixed release"
+
+# 2026-11-11: minimatch 10.2.6 reaches the lock only through the shadcn CLI
+# (shadcn -> ts-morph -> @ts-morph/common), a devDependency that globs the
+# developer's own project files. The fix is 11.0.1, a major that
+# @ts-morph/common does not accept. Not in the server bundle or either image.
+# Deleted when ts-morph takes minimatch 11.0.1 or later.
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2027-01-11T00:00:00Z
+reason = "dev-only through the shadcn CLI (ts-morph); fix is a major ts-morph does not take; not in the server bundle or images"

@@ -1,0 +1,9 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/Vernum-Projecten/eduLIMS/blob/main/security/vex/edulims.openvex.json",
+  "author": "Ruben Talstra",
+  "role": "Document Creator",
+  "timestamp": "2026-11-11T00:00:00Z",
+  "version": 1,
+  "statements": []
+}

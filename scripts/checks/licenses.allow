@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# The SPDX license identifiers a dependency of eduLIMS may carry, one per line.
+# scripts/checks/licenses.sh reads this file. Every entry is compatible with
+# distributing eduLIMS under Apache-2.0. A strong copyleft license (GPL, AGPL,
+# SSPL) or an unknown license stays out: add one only after the owner decides.
+#
+# Permissive licenses.
+0BSD
+Apache-2.0
+BlueOak-1.0.0
+BSD-2-Clause
+BSD-3-Clause
+ISC
+MIT
+MIT-0
+Python-2.0
+Unlicense
+Zlib
+# Public-domain dedications.
+CC0-1.0
+# Data and fonts: caniuse-lite ships its data under CC-BY-4.0, and the Geist
+# font under OFL-1.1. Neither is linked code.
+CC-BY-4.0
+OFL-1.1
+# File-level copyleft: a change to an MPL file is published under MPL, and
+# eduLIMS ships those files unmodified.
+MPL-2.0

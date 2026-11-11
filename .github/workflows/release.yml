@@ -1,0 +1,439 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# The release pipeline. One workflow owns the `v*` tag, and every ordering in
+# it is a `needs` edge:
+#
+#   plan ── github-release (draft) ── build ── image ─────────┬─ vulnerability-record ── scan-and-tag ── finalize-release (publish) ── milestone
+#                                   └─ migrate-image ─────────┘
+#
+# `plan` runs scripts/release/plan.sh at the tagged commit: the version, the
+# assembled changelog section and the milestone titled as the tag. The draft
+# release waits for approval in the `release` environment, so nothing is built
+# or pushed until a maintainer says so.
+#
+# `build` (release-build.yml) and the two image lanes (release-image.yml) are
+# reusable workflows called with nothing else in the job: SLSA Build L3 keeps
+# the signing identity out of reach of caller-defined steps, and a job that
+# calls a reusable workflow cannot carry steps. Both images are pushed by
+# digest with no tag. `vulnerability-record` scans them with every severity,
+# fixed or not, and scripts/release/vex-coverage.sh refuses the release while
+# a HIGH or CRITICAL finding has no statement under security/vex/.
+# `scan-and-tag` then gates on fixable HIGH and CRITICAL findings and only
+# then tags the digests. The release page is published last, after its asset
+# set and the image tags are checked, and a published release is immutable:
+# the recovery for a bad cut is a new patch version, never a retag.
+#
+# `workflow_dispatch` re-runs the pipeline for an existing tag and must be
+# dispatched at that tag.
+#
+# The reusable-workflow calls keep the `./...` form with an inline zizmor
+# ignore: zizmor asks for the self-repository form (`$/...`), and actionlint
+# 1.7.12 rejects that form as an invalid reference. Switch when actionlint
+# accepts it.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing vX.Y.Z tag to (re)publish; dispatch this workflow at that tag"
+        required: true
+        type: string
+
+# A release is never cancelled part-way through publishing. A second run for
+# the same ref queues behind the first.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  # ── plan: every release fact, verified before anything is built ───────────
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read # the milestone titled as the tag
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      is-prerelease: ${{ steps.tag.outputs.is_prerelease }}
+    steps:
+      - id: tag
+        name: Resolve and validate the release tag
+        # The dispatch input reaches the shell through env, and must match a
+        # full SemVer tag before it is used as a ref.
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            tag="$INPUT_TAG"
+            if [ "${GITHUB_REF}" != "refs/tags/${tag}" ]; then
+              echo "::error::dispatched at '${GITHUB_REF}', not at refs/tags/${tag}. Run: gh workflow run Release --ref ${tag} -f tag=${tag}" >&2
+              exit 1
+            fi
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          if ! printf '%s\n' "$tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$tag' is not a vX.Y.Z tag" >&2
+            exit 1
+          fi
+          case "$tag" in
+            *-*) is_prerelease=true ;;
+            *)   is_prerelease=false ;;
+          esac
+          {
+            echo "tag=$tag"
+            echo "version=${tag#v}"
+            echo "is_prerelease=$is_prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+      # github.sha is the commit the event ref points at; the dispatch check
+      # above makes it the tag's commit on a dispatch too.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Every release fact holds at the tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: bash scripts/release/plan.sh "$TAG" --notes release-notes.md
+
+      - name: Upload the release notes
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+
+  # ── github-release: the draft, after approval ─────────────────────────────
+  github-release:
+    name: github release (draft)
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # A required reviewer on this environment pauses the release here.
+    environment: release
+    permissions:
+      contents: write # create the draft release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Download the release notes
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-notes
+
+      # The files a host needs beside the images: compose.yaml, the PostgreSQL
+      # init script and the environment template (docs/deployment.md).
+      - name: Pack the deploy bundle
+        env:
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          set -euo pipefail
+          bundle="edulims-deploy-${TAG}.tar.gz"
+          epoch="$(git log -1 --format=%ct)"
+          tar --sort=name --owner=0 --group=0 --numeric-owner --mtime="@${epoch}" \
+            --transform "s,^,edulims-deploy-${TAG}/," \
+            -czf "$bundle" compose.yaml .env.example docker/postgres/init
+          sha256sum "$bundle" > "${bundle}.sha256sum"
+          tar -tzf "$bundle"
+
+      # A draft stays mutable, which the lanes below need to attach their
+      # assets; finalize-release publishes it once every asset is there. A
+      # re-run for the same tag finds its draft and updates it.
+      - name: Create the GitHub release as a draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          PRERELEASE: ${{ needs.plan.outputs.is-prerelease }}
+        run: |
+          set -euo pipefail
+          bundle="edulims-deploy-${TAG}.tar.gz"
+          state="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null || echo none)"
+          case "$state" in
+            none)
+              flags=(--draft --verify-tag --title "$VERSION" --notes-file release-notes.md)
+              [ "$PRERELEASE" = "true" ] && flags+=(--prerelease)
+              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" "${flags[@]}" "$bundle" "${bundle}.sha256sum"
+              ;;
+            true)
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$VERSION" --notes-file release-notes.md
+              gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "$bundle" "${bundle}.sha256sum"
+              ;;
+            *)
+              echo "::error::${TAG} is already published, and a published release is immutable. Cut a new patch version."
+              exit 1
+              ;;
+          esac
+
+  # ── build: the `.output/` tarball and its SBOM, SLSA L3 ───────────────────
+  build:
+    name: build (.output tarball)
+    needs: [plan, github-release]
+    # Declared on both sides: a reusable workflow receives the caller's token
+    # permissions, and GitHub's L3 guide asks for the same set in both places.
+    permissions:
+      contents: write # attach the assets to the draft release
+      id-token: write # Sigstore
+      attestations: write
+    uses: ./.github/workflows/release-build.yml # zizmor: ignore[self-repository]
+    with:
+      tag: ${{ needs.plan.outputs.tag }}
+      sha: ${{ github.sha }}
+
+  # ── image: the server image from the attested tarball ─────────────────────
+  image:
+    name: image edulims (linux/amd64, linux/arm64)
+    needs: [plan, build]
+    permissions:
+      contents: read
+      packages: write # push the image and its attestations to GHCR
+      id-token: write # Sigstore
+      attestations: write
+    uses: ./.github/workflows/release-image.yml # zizmor: ignore[self-repository]
+    with:
+      tag: ${{ needs.plan.outputs.tag }}
+      sha: ${{ github.sha }}
+      name: edulims
+      target: runtime
+      from-tarball: true
+      title: eduLIMS
+      description: A laboratory information management system for LifeScience practical education
+
+  # ── migrate-image: the schema migration one-shot, from source ─────────────
+  migrate-image:
+    name: image edulims-migrate (linux/amd64, linux/arm64)
+    needs: [plan, github-release]
+    permissions:
+      contents: read
+      packages: write # push the image and its attestations to GHCR
+      id-token: write # Sigstore
+      attestations: write
+    uses: ./.github/workflows/release-image.yml # zizmor: ignore[self-repository]
+    with:
+      tag: ${{ needs.plan.outputs.tag }}
+      sha: ${{ github.sha }}
+      name: edulims-migrate
+      target: migrate
+      title: eduLIMS migrate
+      description: Applies the eduLIMS database migrations to DATABASE_URL and exits
+
+  # ── vulnerability-record: every finding recorded, the serious ones judged ──
+  # Both images are scanned by their pushed digests with no severity floor and
+  # unfixed findings included. The record and the raw reports are release
+  # assets. scripts/release/vex-coverage.sh refuses the release while a HIGH
+  # or CRITICAL finding has no OpenVEX statement under security/vex/
+  # (security/vex/README.md).
+  vulnerability-record:
+    name: vulnerability record
+    needs: [plan, image, migrate-image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # attach the record to the draft release
+      packages: read # pull the pushed digests
+    env:
+      TRIVY_VERSION: "0.76.2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: The coverage check refuses what it claims to refuse
+        run: bash scripts/release/vex-coverage.sh --self-test
+      - name: Install Trivy from its GitHub release, checked by sha256
+        run: bash scripts/release/install-trivy.sh "$TRIVY_VERSION" "$RUNNER_TEMP/trivy-bin"
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Scan both images, every severity, fixed or not
+        env:
+          APP_DIGEST: ${{ needs.image.outputs.digest }}
+          MIGRATE_DIGEST: ${{ needs.migrate-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          # An explicit empty configuration and ignore file: Trivy reads
+          # ./trivy.yaml and its ignore file by default, which would put the
+          # gate's floor and exceptions back into the record.
+          : > "$RUNNER_TEMP/empty.yaml"
+          : > "$RUNNER_TEMP/empty.ignore"
+          scan=(--config "$RUNNER_TEMP/empty.yaml" --ignorefile "$RUNNER_TEMP/empty.ignore"
+            --scanners vuln --severity "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"
+            --ignore-unfixed=false --format json --quiet)
+          mkdir -p reports
+          targets=()
+          for entry in "edulims|$APP_DIGEST" "edulims-migrate|$MIGRATE_DIGEST"; do
+            image="${entry%%|*}"
+            digest="${entry#*|}"
+            [ -n "$digest" ] || { echo "::error::no pushed digest for ${image}"; exit 1; }
+            for platform in linux/amd64 linux/arm64; do
+              report="reports/${image}-${platform##*/}.json"
+              trivy image "${scan[@]}" --platform "$platform" --output "$report" \
+                "ghcr.io/vernum-projecten/${image}@${digest}"
+              targets+=("pkg:oci/${image}=${report}")
+            done
+          done
+          printf '%s\n' "${targets[@]}" > targets.txt
+      - name: Every HIGH and CRITICAL finding carries a judgement
+        env:
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          set -euo pipefail
+          mapfile -t targets < targets.txt
+          bash scripts/release/vex-coverage.sh \
+            --record "edulims-${TAG}-vulnerability-record.json" "${targets[@]}"
+          tar -czf "edulims-${TAG}-trivy-reports.tar.gz" reports
+      # Kept for a refused run too, so the findings to judge are one download
+      # away.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: vulnerability-record
+          path: |
+            reports/
+            edulims-*-vulnerability-record.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Attach the record to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber \
+            "edulims-${TAG}-vulnerability-record.json" "edulims-${TAG}-trivy-reports.tar.gz"
+
+  # ── scan-and-tag: the gate that makes the digests referencable ────────────
+  scan-and-tag:
+    name: scan + tag
+    needs: [image, migrate-image, vulnerability-record]
+    permissions:
+      contents: read
+      packages: write # pull the pushed digests, then tag them
+    uses: ./.github/workflows/scan-and-tag.yml # zizmor: ignore[self-repository]
+    with:
+      app-image: ghcr.io/vernum-projecten/edulims
+      app-digest: ${{ needs.image.outputs.digest }}
+      app-tags: ${{ needs.image.outputs.tags }}
+      migrate-image: ghcr.io/vernum-projecten/edulims-migrate
+      migrate-digest: ${{ needs.migrate-image.outputs.digest }}
+      migrate-tags: ${{ needs.migrate-image.outputs.tags }}
+
+  # ── finalize-release: check the asset set and the tags, then publish ──────
+  finalize-release:
+    name: github release (publish)
+    needs: [plan, build, image, migrate-image, vulnerability-record, scan-and-tag]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # publish the release
+      packages: read # resolve the image tags scan-and-tag applied
+    steps:
+      - name: Every expected asset is attached before the release is published
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          set -euo pipefail
+          assets="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          echo "$assets"
+          missing=""
+          # `grep -Fxq`: fixed string, whole line, so ".tar.gz" is not
+          # satisfied by ".tar.gz.sigstore.json".
+          for name in \
+            "edulims-${TAG}.tar.gz" \
+            "edulims-${TAG}.tar.gz.sha256sum" \
+            "edulims-${TAG}.tar.gz.sigstore.json" \
+            "edulims-${TAG}.tar.gz.sbom.sigstore.json" \
+            "edulims-${TAG}.tar.gz.intoto.jsonl" \
+            "edulims-${TAG}.cdx.json" \
+            "edulims-deploy-${TAG}.tar.gz" \
+            "edulims-deploy-${TAG}.tar.gz.sha256sum" \
+            "edulims-${TAG}-vulnerability-record.json" \
+            "edulims-${TAG}-trivy-reports.tar.gz"; do
+            printf '%s\n' "$assets" | grep -Fxq "$name" || missing="$missing $name"
+          done
+          [ -z "$missing" ] || {
+            echo "::error::the draft is missing assets, so it will not be published:$missing"
+            exit 1
+          }
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Every image is tagged with the version, at the digest its lane pushed
+        env:
+          VERSION: ${{ needs.plan.outputs.version }}
+          APP_DIGEST: ${{ needs.image.outputs.digest }}
+          MIGRATE_DIGEST: ${{ needs.migrate-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          wrong=""
+          for entry in "edulims|$APP_DIGEST" "edulims-migrate|$MIGRATE_DIGEST"; do
+            image="ghcr.io/vernum-projecten/${entry%%|*}"
+            want="${entry#*|}"
+            found="$(docker buildx imagetools inspect "${image}:${VERSION}" --format '{{json .Manifest}}' | jq -r .digest || true)"
+            echo "${image}:${VERSION} -> ${found:-nothing}"
+            [ -n "$want" ] && [ "$found" = "$want" ] || wrong="$wrong ${image}:${VERSION}"
+          done
+          [ -z "$wrong" ] || {
+            echo "::error::these images are not tagged at the digest their lane pushed, so the release will not be published:$wrong"
+            exit 1
+          }
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+
+  # ── milestone: close the release's milestone ──────────────────────────────
+  # `always()` keeps the job in the graph when a leg fails, so its log names
+  # that leg and the milestone stays open; a re-run of the failed jobs closes
+  # it.
+  milestone:
+    name: close the milestone
+    needs:
+      [
+        plan,
+        github-release,
+        build,
+        image,
+        migrate-image,
+        vulnerability-record,
+        scan-and-tag,
+        finalize-release,
+      ]
+    if: ${{ always() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # check out the script
+      issues: write # close the milestone
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: Close the milestone titled as the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: bash scripts/release/milestone.sh close "$TAG"

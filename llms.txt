@@ -1,0 +1,26 @@
+# eduLIMS
+
+> eduLIMS is a Laboratory Information Management System for the LifeScience practical courses at Hanze University of Applied Sciences. Students register samples, upload Gen5 Excel exports from the Epoch 2 plate readers, check their measurements and submit a lab report; teachers set up practicals, grade with a rubric and follow a KPI dashboard; an administrator manages users, classes and analysers. Measurement data is stored as openEHR compositions in FerroEHR (Afinion 2 results arrive over HL7 v2 through FerroBRIDGE); teaching data and grades live in the eduLIMS PostgreSQL database. It is a TanStack Start (full SSR) application on Vite and Nitro, written in TypeScript 7, with sign-in through Microsoft Entra ID. eduLIMS ships no AI; AI coding assistance is used to build it, under human review.
+
+## Start here
+
+- [README](README.md): what eduLIMS is, the status, the quick start and the stack.
+- [Architecture](docs/architecture.md): the design authority: principles, integrations, data split, portals and roles, deployment, quality requirements.
+- [Requirements](docs/requirements.md) (working draft, not final): S1 to S9, D1 to D8, B1 to B4, the Q-* quality requirements, risks R-01 to R-10 and the KPIs, with stable IDs.
+- [Working rules](CLAUDE.md): the rules for changing the code.
+
+## Design
+
+- [Test strategy](docs/test-strategy.md): test levels, test data and the Definition of Done.
+- [KPI dashboard](docs/kpi-dashboard.md): KPIs, norms, data sources and wireframes.
+- [Decision records](docs/adr/README.md): the architecture and technology decisions.
+- [Version matrix](docs/VERSIONS.md): the pinned versions, checked in CI.
+
+## Governance and policies
+
+- [AI statement](AI_STATEMENT.md): how AI tools are used to build eduLIMS.
+- [Governance](GOVERNANCE.md): roles and how decisions are made.
+- [Maintainers](MAINTAINERS.md): the roster and access continuity.
+- [Contributing](CONTRIBUTING.md): setup, gates and the work loop.
+- [Security policy](SECURITY.md): private vulnerability reporting.
+- [Support](SUPPORT.md): where to get help.

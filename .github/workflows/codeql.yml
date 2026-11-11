@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# CodeQL code scanning, two languages in one matrix:
+#
+#   * javascript-typescript: the application under src/ and its tests, with
+#     build mode "none" (CodeQL reads the TypeScript sources directly).
+#   * actions: the workflows in this directory, which hold tokens that can
+#     publish releases, so they get the same scrutiny as the application.
+#
+# Code scanning must be the advanced setup for this workflow to upload:
+# GitHub rejects an advanced analysis while the default setup is on.
+# scripts/gh/repo-settings.sh turns the default setup off.
+#
+# Docs: https://docs.github.com/en/code-security/code-scanning
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "23 5 * * 1" # Mondays 05:23 UTC, off the hour
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write # upload the SARIF results
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          # The extended suite adds the lower-precision security queries.
+          queries: security-extended
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: "/language:${{ matrix.language }}"

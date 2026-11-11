@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# OpenSSF Scorecard: an independent score of the repository's security
+# posture (pinned action digests, token permissions, dangerous workflow
+# patterns, code scanning, branch protection, signed releases, dependency
+# updates). A self-made "hardened" badge would claim the same and prove
+# nothing.
+#
+# Results go to the OpenSSF API (the source of the README badge, through
+# `publish_results`) and to code scanning, so a regression shows in the
+# Security tab.
+#
+# Three checks score low for a solo repository by construction, and
+# docs/ci-cd.md records why: Code-Review and the top Branch-Protection tiers
+# want a second person to approve, and Maintained waits 90 days after the
+# repository is created. Do not chase them.
+#
+# Docs: https://github.com/ossf/scorecard-action
+name: Scorecard
+
+on:
+  # Re-score when branch protection changes, which the Branch-Protection check
+  # reads.
+  branch_protection_rule:
+  # Weekly: most checks measure configuration, which a push does not change.
+  schedule:
+    - cron: "37 5 * * 1"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # publish_results works only from the default branch.
+    if: github.ref_name == github.event.repository.default_branch
+    permissions:
+      security-events: write # upload the SARIF into code scanning
+      id-token: write # publish to the OpenSSF API through OIDC
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publishing makes the score public, including when it drops.
+          publish_results: true
+
+      - name: Upload the SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: results.sarif
