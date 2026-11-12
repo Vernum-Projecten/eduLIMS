@@ -1,1 +1,0 @@
-- Users created outside the sign-in flow (by the seed or by directory provisioning) now appear under **Active** and **Never signed in** on Users and roles, and in the status counts, instead of under no status (#121).

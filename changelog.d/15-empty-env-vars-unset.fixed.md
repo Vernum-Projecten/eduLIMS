@@ -1,1 +1,0 @@
-- An empty variable in the environment file now counts as unset, so an empty identity-provider block switches that provider off, and the example file sets `NODE_ENV=development` and the development login for local use (#15).

@@ -1,1 +1,0 @@
-- The `edulims-migrate` image is now the eduLIMS tools image: it still migrates by default, and also runs `prune`, `admin grant|revoke` and `idp add|list|enable|disable|rekey` through `docker compose run`; the daily prune command is now `docker compose run --rm edulims-migrate prune`.

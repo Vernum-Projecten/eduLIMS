@@ -1,1 +1,0 @@
-- Screen readers announce the close buttons of sheets and dialogs, the mobile menu and the other built-in control labels in Dutch when the interface is Dutch, and date pickers follow the interface language. Notifications follow the dark theme (#55, #27).

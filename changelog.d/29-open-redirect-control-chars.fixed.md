@@ -1,1 +1,0 @@
-- A sign-in link can no longer send you to another website after you sign in: the redirect target now refuses control characters, whitespace and backslashes and must stay on eduLIMS (#29).

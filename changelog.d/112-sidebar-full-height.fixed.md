@@ -1,1 +1,0 @@
-- The sidebar's background and edge now run the full height of a long page when it is printed or captured as a full-page screenshot (#112).

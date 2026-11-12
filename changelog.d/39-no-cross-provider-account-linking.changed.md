@@ -1,1 +1,0 @@
-- Signing in with a second identity provider (Entra ID or Keycloak) under the email address of a user who signs in through the other one is now refused with a clear message, so one provider can never take over another provider's account (#39).

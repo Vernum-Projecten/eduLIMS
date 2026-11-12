@@ -1,1 +1,0 @@
-- Destructive buttons, badges and error text reach the 4.5:1 contrast WCAG 2.1 AA asks for in the light and the dark theme, and the admin user screens use the standard destructive buttons again (#54).

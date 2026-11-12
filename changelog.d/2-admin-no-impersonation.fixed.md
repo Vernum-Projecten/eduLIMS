@@ -1,1 +1,0 @@
-- The admin role no longer carries better-auth's impersonation and credential actions, so an administrator cannot sign in as a student or change sign-in credentials (#2).

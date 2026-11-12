@@ -1,2 +1,0 @@
-- The app container now removes activity-log events older than 12 months, sessions that expired more than 30 days ago and unused expired administrator grants on its own, a minute after it starts and every 24 hours after, and logs each run in the activity log (B4, #65).
-  Upgrade step: remove the host cron job or systemd timer that ran `docker compose run --rm edulims-migrate prune`; the command still works by hand.
