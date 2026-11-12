@@ -7,7 +7,7 @@
 // works with the keyboard alone.
 import { expect, type Page, test } from "@playwright/test";
 import { axe, dutch } from "./admin-users-helpers";
-import { expectHydrated, pressUntilFocused } from "./fixtures";
+import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
 
 /** Where the journeys save their screenshots, when the caller asks for them. */
@@ -144,6 +144,16 @@ test("the test-account sign-in works with the keyboard alone (#84)", async ({ pa
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/student$/);
   await expect(page.getByRole("heading", { level: 1, name: "Student portal" })).toBeVisible();
+});
+
+test("a navigation right after devLogin lands on the page, not on the login form (#250)", async ({
+  page,
+}) => {
+  await devLogin(page, "teacher@example.test");
+  await page.goto("/teacher/classes");
+  await expect(page).toHaveURL(/\/teacher\/classes$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Classes" })).toBeVisible();
+  await axe(page);
 });
 
 test("a provider that refuses the start shows why, with focus on the message (#84)", async ({

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page, type Response } from "@playwright/test";
 
 /** Seeded by `pnpm db:seed` (src/server/db/seed.ts). */
 export const DEV_PASSWORD = "eduLIMS-dev-only";
@@ -46,13 +46,36 @@ export async function pressUntilFocused(
   await expect(target).toBeFocused();
 }
 
-/** Signs in with a seeded dev account through the English login form. */
-export async function devLogin(page: Page, email: string): Promise<void> {
+/**
+ * Submits the English login form for a seeded dev account and returns once the server has
+ * answered the sign-in request, whatever its answer. For a sign-in the journey expects to be
+ * refused; every other journey uses {@link devLogin}.
+ */
+export async function submitDevLogin(page: Page, email: string): Promise<Response> {
   await page.goto("/login");
   await expectHydrated(page.getByRole("form", { name: "Sign in with a test account" }));
   await page.getByLabel("Email address", { exact: true }).fill(email);
   await page.getByLabel("Password").fill(DEV_PASSWORD);
+  const answered = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/auth/sign-in/email",
+  );
   await page.getByRole("button", { name: "Sign in with a test account" }).click();
+  return answered;
+}
+
+/**
+ * Signs in with a seeded dev account through the English login form and returns once the app
+ * has left `/login`, so the caller can navigate at once: a navigation during the sign-in
+ * request aborts it and lands on the login form (#250).
+ */
+export async function devLogin(page: Page, email: string): Promise<void> {
+  const response = await submitDevLogin(page, email);
+  expect(response.ok(), `the dev sign-in of ${email} answered ${response.status()}`).toBe(true);
+  await expect(page, `the dev sign-in of ${email} stayed on /login`).not.toHaveURL(
+    (url) => url.pathname === "/login",
+  );
 }
 
 /** Asserts the page has no WCAG 2.1 A/AA violations detectable by axe. */

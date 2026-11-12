@@ -5,11 +5,12 @@
 // test database and signed-in sessions of fictional @example.test people.
 import type { Kysely } from "kysely";
 import type { Role } from "../../lib/roles.ts";
-import { type Auth, createAuth } from "../auth.ts";
+import type { Auth } from "../auth.ts";
 import type { SessionUser } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { parseEnv } from "../env.ts";
+import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
 import type { ActionContext } from "./actions.ts";
 
@@ -18,7 +19,7 @@ export const TEST_PASSWORD = "correct-horse-battery";
 /** A test database and a better-auth instance on it. */
 export async function authOnTestDb(): Promise<{ auth: Auth; db: Kysely<DB> }> {
   const db = await createTestDb();
-  const auth = createAuth(parseEnv({ ...VALID_ENV, EDULIMS_DEV_LOGIN: "true" }), {
+  const auth = await createTestAuth(parseEnv({ ...VALID_ENV, EDULIMS_DEV_LOGIN: "true" }), {
     db,
     type: "postgres",
   });
