@@ -640,6 +640,7 @@ jobs:
 
   # FerroEHR and FerroBRIDGE accept the environment compose.yaml and
   # compose.dev.yaml give them: each pinned image's own `config check`, offline.
+  # FerroEHR is checked with config/ferroehr.toml.example (#226).
   # The HL7 v2 face runs only with [hl7v2.tls] (#211).
   ferro-compose:
     name: ferro-compose
