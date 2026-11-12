@@ -10,10 +10,17 @@
 # image's own `config check` with that environment, offline and read-only.
 #
 # compose.yaml points each service at a configuration file the operator
-# writes (config/ferroehr.toml, config/ferrobridge/ferrobridge.toml). The
-# repository ships neither file. The check leaves that file out, and stands
-# in for the FerroEHR settings it must hold (a subject index, authentication)
-# with example values, so a refusal names a key from the Compose file.
+# writes (config/ferroehr.toml, config/ferrobridge/ferrobridge.toml). For
+# FerroEHR the repository ships the reference config/ferroehr.toml.example
+# (#226). The check fills its <placeholders> with throwaway values, runs the
+# image's `config check` on it with the environment of compose.yaml, and reads
+# the effective configuration the image prints back. The image accepts
+# authentication off and a missing system client, so the check refuses both
+# itself: [auth] on, a `machines` issuer, the eduLIMS system client
+# `edulims-ferroehr` of that issuer writing eduLIMS-lab.v1 only, the ADMIN API
+# off, and no usage report. Two altered copies of the example (authentication
+# off, the system client removed) must be refused. FerroBRIDGE has no
+# reference file yet, so its check leaves the file out.
 #
 # The HL7 v2 face of FerroBRIDGE 0.0.24 serves MLLP over TLS only (#211,
 # FerroBRIDGE book, "The HL7 v2 face"). Two checks hold that:
@@ -24,10 +31,11 @@
 #     throwaway certificates made with openssl.
 #
 #   bash scripts/checks/ferro-compose.sh              # the checks
-#   bash scripts/checks/ferro-compose.sh --self-test  # the [hl7v2.tls] rule alone, needs jq only
+#   bash scripts/checks/ferro-compose.sh --self-test  # the [hl7v2.tls] and FerroEHR rules alone, needs jq only
 #
-# Needs `docker compose` or `podman compose`, jq, openssl, and the two images
-# (pulled on first use). Reads no .env file.
+# Needs `docker compose` or `podman compose`, jq, openssl, python3 (3.11 or
+# later, for tomllib), and the two images (pulled on first use). Reads no
+# .env file.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -55,8 +63,63 @@ hl7v2_tls_gaps() {
     | select(($env[.] // "" | tostring) == "")' "${HL7V2_TLS_KEYS[@]}" <<<"$1"
 }
 
+# The reference FerroEHR configuration and eduLIMS's system client in it.
+FERROEHR_EXAMPLE=config/ferroehr.toml.example
+FERROEHR_CLIENT=edulims-ferroehr
+FERROEHR_TEMPLATE=eduLIMS-lab.v1
+# The operator's <placeholders> in the example, each with a throwaway value.
+FERROEHR_FILL=(
+  '<issuer>=https://idp.example.test/realms/edulims'
+  '<provider-issuer>=urn:example:provider'
+  '<provider-id>=example-provider'
+  '<facility-issuer>=urn:example:facility'
+  '<facility-id>=example-lab'
+  '<system-id>=cdr.edulims.example.test'
+)
+
+# ferroehr_posture_gaps <effective configuration JSON>: prints each rule of
+# the reference configuration that a FerroEHR configuration breaks, one per
+# line. Prints nothing when it holds every rule.
+ferroehr_posture_gaps() {
+  jq -r --arg client "$FERROEHR_CLIENT" --arg template "$FERROEHR_TEMPLATE" '
+    ([.auth.issuer[]? | select(.kind == "machines") | .issuer]) as $machines
+    | [.authz.system_client[]? | select(.client_id == $client)] as $clients
+    | (if .auth.enabled == true then empty else "authentication is off ([auth] enabled)" end),
+      (if ($machines | length) > 0 then empty else "no [[auth.issuer]] of kind machines" end),
+      (if ($clients | length) > 0 then empty else "no [[authz.system_client]] for \($client)" end),
+      ($clients[] | select(.issuer as $i | $machines | index($i) | not)
+        | "\($client) belongs to no machines issuer"),
+      ($clients[] | select(.writes != [$template])
+        | "\($client) writes \(.writes | tojson), not [\"\($template)\"]"),
+      (if .api.admin == false then empty else "the ADMIN API is on ([api] admin)" end),
+      (if .usage_report.enabled == false then empty else "the usage report is on ([usage_report] enabled)" end)
+  ' <<<"$1"
+}
+
 self_test() {
-  local gaps
+  local gaps good
+  good='{"auth":{"enabled":true,"issuer":[{"issuer":"https://idp.example.test","kind":"machines"}]},
+    "authz":{"system_client":[{"issuer":"https://idp.example.test","client_id":"edulims-ferroehr",
+      "writes":["eduLIMS-lab.v1"]}]},"api":{"admin":false},"usage_report":{"enabled":false}}'
+  gaps=$(ferroehr_posture_gaps "$good")
+  [[ -z $gaps ]] || { echo "self-test: the reference posture was refused: $gaps" >&2; return 1; }
+  gaps=$(ferroehr_posture_gaps "$(jq '.auth.enabled = false' <<<"$good")")
+  [[ $gaps == *"authentication is off"* ]] || { echo "self-test: authentication off was not refused" >&2; return 1; }
+  gaps=$(ferroehr_posture_gaps "$(jq 'del(.authz.system_client)' <<<"$good")")
+  [[ $gaps == *"no [[authz.system_client]] for edulims-ferroehr"* ]] || {
+    echo "self-test: a configuration without the eduLIMS system client was not refused" >&2
+    return 1
+  }
+  gaps=$(ferroehr_posture_gaps "$(jq '.auth.issuer[0].kind = "persons"' <<<"$good")")
+  [[ $gaps == *"belongs to no machines issuer"* ]] || {
+    echo "self-test: a system client of a persons issuer was not refused" >&2
+    return 1
+  }
+  gaps=$(ferroehr_posture_gaps "$(jq '.authz.system_client[0].writes += ["other.v1"]' <<<"$good")")
+  [[ $gaps == *"writes"* ]] || { echo "self-test: a system client writing another template was not refused" >&2; return 1; }
+  gaps=$(ferroehr_posture_gaps "$(jq '.api.admin = true | .usage_report.enabled = true' <<<"$good")")
+  [[ $(wc -l <<<"$gaps") -eq 2 ]] || { echo "self-test: the ADMIN API or the usage report on was not refused" >&2; return 1; }
+
   gaps=$(hl7v2_tls_gaps '{}')
   [[ -z $gaps ]] || { echo "self-test: an environment without the face was refused" >&2; return 1; }
   gaps=$(hl7v2_tls_gaps '{"FERROBRIDGE__HL7V2__ENABLED":"false"}')
@@ -103,6 +166,10 @@ else
 fi
 command -v openssl >/dev/null 2>&1 || {
   echo "ferro-compose: openssl is not installed" >&2
+  exit 2
+}
+python3 -I -c 'import tomllib' >/dev/null 2>&1 || {
+  echo "ferro-compose: python3 with tomllib (3.11 or later) is not installed" >&2
   exit 2
 }
 
@@ -250,10 +317,93 @@ hl7v2_probe() {
   fi
 }
 
+# ferroehr_effective_json: the effective configuration `config check` printed
+# into CHECK_OUTPUT, as JSON. Each `key = value  # source` line is TOML; the
+# lines around them are not.
+ferroehr_effective_json() {
+  grep -E '^[a-z][a-z0-9_]*(\.[a-z0-9_]+)* = ' <<<"$CHECK_OUTPUT" |
+    python3 -I -c 'import json, sys, tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))'
+}
+
+# ferroehr_reference_run <json> <file>: runs the pinned FerroEHR's
+# `config check` on <file> as compose.yaml mounts config/ferroehr.toml, with
+# the environment of the ferroehr service. Sets CHECK_OUTPUT, CHECK_STATUS
+# and GAPS (the posture rules the effective configuration breaks).
+ferroehr_reference_run() {
+  local json=$1 file=$2
+  GAPS=""
+  image_check "$json" ferroehr -v "$file:/etc/ferroehr/ferroehr.toml:ro" \
+    -e FERROEHR_CONFIG=/etc/ferroehr/ferroehr.toml || return 1
+  if ((CHECK_STATUS == 0)); then
+    local effective
+    effective=$(ferroehr_effective_json) || {
+      GAPS="the effective configuration does not parse"
+      return 0
+    }
+    GAPS=$(ferroehr_posture_gaps "$effective")
+  fi
+}
+
+# ferroehr_reference <json>: the filled reference configuration passes the
+# image and every posture rule, and two altered copies are refused.
+ferroehr_reference() {
+  local json=$1 dir pair
+  dir=$(mktemp -d)
+  # shellcheck disable=SC2064 # expand now: the directory is fixed
+  trap "rm -rf '$dir'" RETURN
+  cp "$FERROEHR_EXAMPLE" "$dir/filled.toml"
+  for pair in "${FERROEHR_FILL[@]}"; do
+    local placeholder=${pair%%=*} value=${pair#*=}
+    sed -i.bak "s|$placeholder|$value|g" "$dir/filled.toml"
+  done
+  rm -f "$dir"/*.bak
+  # A placeholder this script does not fill would reach the operator unnoticed.
+  if grep -vE '^[[:space:]]*#' "$dir/filled.toml" | grep -qE '<[a-z-]+>'; then
+    fail "$FERROEHR_EXAMPLE: a placeholder has no throwaway value: $(grep -vE '^[[:space:]]*#' "$dir/filled.toml" | grep -oE '<[a-z-]+>' | sort -u | paste -sd ' ' -)"
+    return
+  fi
+  # The copies: [auth] enabled turned off, and the system client table removed.
+  awk '/^\[/ { section = $0 } section == "[auth]" && /^enabled = true$/ { $0 = "enabled = false" } { print }' \
+    "$dir/filled.toml" >"$dir/auth-off.toml"
+  awk '/^\[\[authz\.system_client\]\]$/ { skip = 1; next } /^\[/ { skip = 0 } !skip' \
+    "$dir/filled.toml" >"$dir/no-client.toml"
+  # The image runs as uid 65532.
+  chmod 0755 "$dir"
+  chmod 0644 "$dir"/*.toml
+
+  ferroehr_reference_run "$json" "$dir/filled.toml" || {
+    fail "$FERROEHR_EXAMPLE: no ferroehr service"
+    return
+  }
+  if ((CHECK_STATUS != 0)); then
+    fail "$FERROEHR_EXAMPLE: ferroehr refuses the reference configuration (exit $CHECK_STATUS)"
+    show_refusal
+  elif [[ -n $GAPS ]]; then
+    fail "$FERROEHR_EXAMPLE: the reference configuration breaks a rule: $(paste -sd ';' - <<<"$GAPS")"
+  else
+    pass "$FERROEHR_EXAMPLE: ferroehr accepts it with the environment of compose.yaml, and it holds every rule"
+  fi
+
+  local copy label
+  for copy in auth-off no-client; do
+    case $copy in
+      auth-off) label="authentication off" ;;
+      no-client) label="no $FERROEHR_CLIENT system client" ;;
+    esac
+    ferroehr_reference_run "$json" "$dir/$copy.toml"
+    if ((CHECK_STATUS != 0)); then
+      pass "$FERROEHR_EXAMPLE: a copy with $label is refused by ferroehr (exit $CHECK_STATUS)"
+    elif [[ -n $GAPS ]]; then
+      pass "$FERROEHR_EXAMPLE: a copy with $label is refused: $(paste -sd ';' - <<<"$GAPS")"
+    else
+      fail "$FERROEHR_EXAMPLE: a copy with $label is not refused"
+    fi
+  done
+}
+
 if production=$(compose_json -f compose.yaml); then
   pass "compose.yaml is valid with the example values"
-  config_check compose.yaml "$production" ferroehr ferroehr \
-    FERROEHR__RECORD__SUBJECT_INDEX=local FERROEHR__AUTH__ENABLED=false
+  ferroehr_reference "$production"
   config_check compose.yaml "$production" ferrobridge ferrobridge
   hl7v2_tls_rule compose.yaml "$production"
   hl7v2_probe "$production"

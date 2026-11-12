@@ -162,7 +162,9 @@ test-results/
 /test-results/
 /playwright-report/
 
-# Operator config and database backups on a deployment host
-/config/
+# Operator config and database backups on a deployment host; the reference
+# FerroEHR configuration is the one tracked file.
+/config/*
+!/config/ferroehr.toml.example
 /backups/
 

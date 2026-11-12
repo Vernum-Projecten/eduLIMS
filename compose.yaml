@@ -13,7 +13,8 @@
 #
 # WHAT YOU PROVIDE beside this file:
 #   .env                          every secret and setting (.env.example lists them)
-#   config/ferroehr.toml          FerroEHR's server configuration
+#   config/ferroehr.toml          FerroEHR's server configuration, copied from
+#                                 config/ferroehr.toml.example and filled in
 #   config/ferrobridge/           FerroBRIDGE's ferrobridge.toml; an enabled
 #                                 [hl7v2] face also needs its [hl7v2.tls]
 #                                 PEM files here (docs/deployment.md)

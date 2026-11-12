@@ -98,8 +98,9 @@ cd edulims-deploy-vX.Y.Z
    readable by root alone (`chmod 600 .env`). Generate each secret and
    database password with `openssl rand -hex 32`; hex keeps the database URLs
    valid without escaping.
-2. Write `config/ferroehr.toml` (FerroEHR's configuration, from FerroEHR's
-   operator documentation) and `config/ferrobridge/ferrobridge.toml` with its
+2. Copy `config/ferroehr.toml.example` to `config/ferroehr.toml` and replace
+   every `<placeholder>` (below, "FerroEHR's configuration"). Write
+   `config/ferrobridge/ferrobridge.toml` with its
    `[hl7v2]` section (FerroBRIDGE's documentation, "HL7 v2 face").
    `compose.yaml` sets the database URL, the CDR URL and the listen address;
    the files hold the rest. FerroBRIDGE 0.0.24 serves MLLP over TLS only and
@@ -130,6 +131,55 @@ data, run the eduLIMS script by hand:
 ```sh
 docker compose exec -T postgres bash < docker/postgres/init/20-edulims.sh
 ```
+
+### FerroEHR's configuration
+
+`config/ferroehr.toml.example` is the reference configuration for FerroEHR
+5.7.0, with each setting explained and cited to the FerroEHR v5.7.0 book. It
+turns authentication on, trusts your identity provider as an issuer of kind
+`machines`, and declares eduLIMS as the system client `edulims-ferroehr`,
+which may commit the `eduLIMS-lab.v1` template only, for your lab. eduLIMS
+authenticates with the OAuth 2.0 client credentials grant and `system/`
+scopes; FerroEHR checks the tokens and never issues one. The file holds no secret.
+
+The values are yours:
+
+| Placeholder | What you fill in |
+|---|---|
+| `<issuer>` (twice) | the issuer URL of your identity provider (Entra ID, Keycloak or any OIDC issuer), exactly as its tokens' `iss` names it |
+| `<provider-issuer>`, `<provider-id>` (twice) | your institution, as FerroEHR names the provider on every access record |
+| `<facility-issuer>`, `<facility-id>` | the lab eduLIMS commits measurements for |
+| `<system-id>` | this CDR's openEHR system identifier, a DNS-style name such as `cdr.lab.example.edu`; choose it once, before the first EHR |
+
+In your identity provider, register the confidential client
+`edulims-ferroehr` with the client credentials grant, make its tokens carry
+FerroEHR's audience (`ferroehr` in the file), and set the token profile the
+file's comments name for Entra ID or Keycloak. On Entra ID the token names
+the client by its application (client) ID, so that ID goes into
+`client_id`.
+
+Check the file before you start the stack. The check runs the same
+validation FerroEHR runs at start, touches no database, and exits 78 on a
+configuration FerroEHR refuses:
+
+```sh
+docker compose run --rm --no-deps ferroehr config check
+```
+
+On success it prints the effective configuration with every secret
+redacted. The check cannot see two things that the server checks at start.
+FerroEHR reads the issuer's metadata at start and refuses to start when it
+cannot reach it. It also refuses to start while its store lacks a template a
+system client writes, so the `eduLIMS-lab.v1` template must be in its store
+before FerroEHR starts with this file. The template and the step that loads
+it ship with #146; until then FerroEHR does not start with the
+`[[authz.system_client]]` table in place.
+
+Two settings wait on product-owner decisions (#131). Who the EHR subject is
+(X1) decides `[privacy] subject_namespaces`: until it is answered, FerroEHR
+stores a subject reference as eduLIMS sends it. Whether a pilot holds
+personal data (X2) decides `[deployment] profile`, which stays at
+FerroEHR's default `sandbox`.
 
 ## Database TLS
 

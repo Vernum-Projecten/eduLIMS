@@ -1,0 +1,126 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+#
+# The reference configuration of FerroEHR 5.7.0 for an eduLIMS host. Copy it
+# to config/ferroehr.toml and replace every <placeholder> with your value
+# (docs/deployment.md, "First deployment"). FerroEHR refuses an unfilled copy.
+#
+# Every citation is to the FerroEHR v5.7.0 book, website/book/src/ in the
+# FerroEHR repository. compose.yaml sets the database URL, the log filter and
+# the log format beside this file; the environment wins over the file
+# (installation/configuration.md, "How configuration loads"). The file holds no
+# secret: eduLIMS authenticates with an OAuth 2.0 client of your issuer, and
+# FerroEHR only checks the tokens (smart-app-launch.md, introduction).
+#
+# scripts/checks/ferro-compose.sh runs the pinned image's `config check` on
+# this file in CI, filled with throwaway values, and fails when authentication
+# is off or the eduLIMS system client is missing.
+
+[auth]
+# Every request needs a token; `false` is for development only
+# (installation/config-auth.md, `[auth]`).
+enabled = true
+
+# Your identity provider (Entra ID, Keycloak or any OIDC issuer) as the issuer
+# of eduLIMS's client credentials tokens; a `machines` issuer signs those only
+# (installation/config-auth.md, `[[auth.issuer]]`).
+[[auth.issuer]]
+# The issuer URL exactly as the tokens' `iss` names it; `https` only.
+issuer = "<issuer>"
+kind = "machines"
+# The `aud` your issuer writes into the tokens it mints for FerroEHR; a token
+# naming none of these is refused (RFC 9068 §4).
+audience = ["ferroehr"]
+# The token shape: `rfc9068` (the default) reads an RFC 9068 access token. Set
+# `profile = "entra"` for Entra ID. For Keycloak set `profile = "keycloak"`
+# and `app_only = [{ subjects = ["<sub of service-account-edulims-ferroehr>"] }]`,
+# because a Keycloak service account's `sub` is a user id
+# (identity-providers.md, "Keycloak", step 3, and "Binding and provisioning
+# with the `entra` preset").
+
+[authz.party_binding]
+# The provider this deployment acts for, named on every access record; FerroEHR
+# requires it once `[auth]` admits a credential (installation/config-auth.md,
+# `[authz.party_binding]`). For eduLIMS it is your institution.
+provider = { issuer = "<provider-issuer>", id = "<provider-id>" }
+
+# eduLIMS's FerroEHR identity: the OAuth 2.0 client `edulims-ferroehr`, with
+# the client credentials grant and `system/` scopes only (ADR 0019). A system
+# client without this table reads but commits nothing (`403`)
+# (installation/config-auth.md, `[authz.import]` and `[[authz.system_client]]`;
+# security/committer.md, "The committer for each kind of caller").
+[[authz.system_client]]
+issuer = "<issuer>"
+# The client the token names (`client_id`, or `azp` under the `entra` and
+# `keycloak` profiles). On Entra ID that is the application (client) ID.
+client_id = "edulims-ferroehr"
+# The same provider as above; required (EHDS Annex II 3.2(a)).
+provider = { issuer = "<provider-issuer>", id = "<provider-id>" }
+# The lab eduLIMS commits for: each composition names it in
+# `context.health_care_facility`, which FerroEHR checks and never fills
+# (identity-providers.md, "Who the caller is").
+facilities = [{ issuer = "<facility-issuer>", id = "<facility-id>" }]
+# eduLIMS commits the `eduLIMS-lab.v1` template only. FerroEHR refuses to
+# start while its store lacks a template listed here, so the template is
+# loaded before FerroEHR starts (docs/deployment.md, "First deployment").
+writes = ["eduLIMS-lab.v1"]
+# `device`: the composer is the system eduLIMS, never a student (decided on
+# #146), so no professional is named, and FerroEHR answers a `relay` commit
+# without one with `422` (identity-providers.md, "Who the caller is").
+# TODO(#146): the composer carries an identifier under this issuer that is
+# also `feeder_audit.originating_system_audit.system_id`, as a device act needs.
+origins = ["device"]
+device_identifier_issuers = ["https://edulims.eu/id/device"]
+
+# FerroBRIDGE gets its own `[[authz.system_client]]` (origin `relay`, HL7 v2)
+# with the Afinion 2 route; its mapping waits on #131, X3.
+
+[auth.smart]
+# No client may use a `system/aql-*` wildcard: eduLIMS runs named stored
+# queries (ADR 0019; installation/config-auth.md, `[auth.smart]`).
+backend_clients = []
+# No discovery document: eduLIMS is a backend service and needs none.
+discovery = false
+
+[record]
+# The EHR index is FerroEHR's own: the stack runs no IHE patient identity
+# source (installation/config-integrations.md, `[pixm]`).
+subject_index = "local"
+
+# Whose pseudonyms the EHR subjects are, or whether there is a human subject
+# at all, is the product owner's open question (#131, X1). Once it is
+# answered, `[privacy] subject_namespaces` names the namespace eduLIMS mints
+# its pseudonyms in, and FerroEHR then refuses any subject reference that is
+# not a UUID in it (installation/config-privacy.md, "The subject reference").
+# Until then FerroEHR stores a subject reference as eduLIMS sends it, so
+# pseudonymisation is eduLIMS's own (Q-PRIV-1).
+
+[api]
+# This CDR's openEHR system identifier, stored with every EHR and version: a
+# DNS-style name such as `cdr.lab.example.edu`, chosen once before the first
+# EHR (installation/config-server.md, "`system_id`: the data-authoring
+# identity").
+system_id = "<system-id>"
+# The ADMIN API deletes physically and irreversibly; off answers `405`
+# (installation/config-auth.md, "`[api] admin`").
+admin = false
+
+[management]
+# The introspection surface stays unmounted (installation/config-auth.md,
+# `[management]`); the health probes are served regardless.
+enabled = false
+
+[telemetry]
+# JSON lines for the log shipping, as compose.yaml sets it
+# (installation/config-cli.md, production checklist).
+format = "json"
+
+[usage_report]
+# No report to FerroPULSE: the backend network has no route out, as
+# compose.yaml says (usage-report.md).
+enabled = false
+
+# `[deployment] profile` stays at the binary's `sandbox` posture, which "must
+# not hold real personal data" (installation/configuration.md,
+# "`deployment.profile`"). Whether and when a pilot holds personal data waits
+# on the privacy review (#131, X2).
