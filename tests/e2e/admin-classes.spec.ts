@@ -198,8 +198,13 @@ test("the class list searches and filters on the server (#37)", async ({ page })
   await page.getByRole("button", { name: /^Status/ }).click();
   const statuses = page.getByRole("listbox", { name: "Status" });
   await statuses.getByRole("option", { name: /^Archived/ }).click();
-  // Each choice is a navigation; the next one starts from the URL the first one wrote.
+  // Each choice is a navigation, and the next one toggles from the filter the page shows. The URL
+  // changes before the page renders the new search, so wait for the checked option as well (#130).
   await expect(page).toHaveURL(/status=%5B%22active%22%2C%22archived%22%5D/);
+  await expect(statuses.getByRole("option", { name: /^Archived/ })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
   await statuses.getByRole("option", { name: /^Active/ }).click();
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/status=%5B%22archived%22%5D/);
@@ -214,12 +219,19 @@ test("the class list searches and filters on the server (#37)", async ({ page })
     .getByRole("option", { name: /^2031–2032/ })
     .click();
   await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: /^Academic year 1 selected: 2031–2032/ }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Owner", exact: true }).click();
   await page
     .getByRole("listbox", { name: "Owner" })
     .getByRole("option", { name: new RegExp(`^${HEIR}`) })
     .click();
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: /^Owner 1 selected/ })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Academic year 1 selected: 2031–2032/ }),
+  ).toBeVisible();
   await expect(table.getByRole("row", { name: new RegExp(CLASS) })).toBeVisible();
   await expect(table.getByRole("row")).toHaveCount(2);
   await axe(page);
