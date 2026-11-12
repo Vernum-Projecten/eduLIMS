@@ -39,7 +39,8 @@ export function planDemoData(now: Date) {
   return { people, activity, classes: planDemoClasses(demoRandom(DEMO_SEED + 1), now, people) };
 }
 
-async function insertClasses(trx: Kysely<DB>, classes: DemoClasses): Promise<void> {
+/** Writes planned classes with their members, invitations, lab groups and activity-log events. */
+export async function insertClasses(trx: Kysely<DB>, classes: DemoClasses): Promise<void> {
   for (const item of classes.classes) {
     await trx
       .insertInto("organization")

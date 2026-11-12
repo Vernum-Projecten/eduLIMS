@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // CLI: `pnpm db:seed`. Creates the dev-login users, registers the dev Keycloak as the
-// identity providers `keycloak` (OIDC) and `keycloak-saml` (SAML), and the fictional demo set
-// (all idempotent). Refuses to run unless EDULIMS_DEV_LOGIN=true, which env validation in turn
-// refuses in production. Prints e-mail addresses of the public dev-login users and counts only.
+// identity providers `keycloak` (OIDC) and `keycloak-saml` (SAML), the fictional demo set, and
+// classes for Test Teacher, Test Coordinator and Test Student (all idempotent). Refuses to run
+// unless EDULIMS_DEV_LOGIN=true, which env validation in turn refuses in production. Prints
+// e-mail addresses of the public dev-login users and counts only.
 import { getAuth } from "../auth.ts";
 import { DEV_PASSWORD, DEV_USERS } from "../demo-accounts.ts";
 import { getEnv } from "../env.ts";
 import { keyringOf } from "../idp/crypto.ts";
 import { seedDemoAnalysers } from "./demo/analysers.ts";
 import { seedDemoData, seedSummary } from "./demo/seed-demo.ts";
+import { seedDevAccountClasses } from "./demo/seed-dev-classes.ts";
 import { getDb } from "./index.ts";
 import { seedDevProviders } from "./seed-providers.ts";
 
@@ -69,9 +71,11 @@ try {
 
   const now = new Date();
   const created = await seedDemoData(db, now);
+  const devClasses = await seedDevAccountClasses(db, now);
   const summary = await seedSummary(db, now);
   process.stdout.write(
     `${created ? "created" : "exists "} demo data\n` +
+      `${devClasses ? "created" : "exists "} dev-account classes (LS-3A, LS-3B, LS-3A archived)\n` +
       `  users by role:       ${counts(summary.usersByRole)}\n` +
       `  accounts:            ${counts(summary.accountsByProvider)}\n` +
       `  sessions:            ${summary.activeSessions} active, ${summary.expiredSessions} expired\n` +

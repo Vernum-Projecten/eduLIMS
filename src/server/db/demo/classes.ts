@@ -133,7 +133,7 @@ export function planDemoClasses(random: DemoRandom, now: Date, people: DemoPeopl
 }
 
 /** The activity-log events of the demo classes: ids and codes only. */
-function planClassActivity(classes: readonly DemoClass[]): AuditEvent[] {
+export function planClassActivity(classes: readonly DemoClass[]): AuditEvent[] {
   const events: AuditEvent[] = [];
   for (const item of classes) {
     const owner = item.members.find((member) => member.role === "owner");
