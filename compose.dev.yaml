@@ -173,9 +173,10 @@ services:
       # eduLIMS as a system client, the only way a caller acting for no
       # person commits into an EHR (config-auth.md, [[authz.system_client]]),
       # as config/ferroehr.toml.example declares it: origin `device`, one
-      # facility. A `writes` template the store lacks refuses the start, so
-      # the client commits no COMPOSITION yet; it creates and reads EHRs and
-      # uploads and reads templates.
+      # facility; the composer is the analyser, named by its serial number
+      # (#146). A `writes` template the store lacks refuses the start, so the
+      # client commits no COMPOSITION yet; its one scope lists and reads
+      # templates (docker/keycloak/edulims-realm.json).
       # TODO(#146): load eduLIMS-lab.v1 with `ferroehr definitions load` before FerroEHR starts and list it in WRITES.
       FERROEHR__AUTHZ__SYSTEM_CLIENT__0__ISSUER: http://localhost:${EDULIMS_DEV_KEYCLOAK_PORT:-8180}/realms/edulims
       FERROEHR__AUTHZ__SYSTEM_CLIENT__0__CLIENT_ID: edulims-ferroehr
@@ -183,7 +184,7 @@ services:
       FERROEHR__AUTHZ__SYSTEM_CLIENT__0__PROVIDER__ID: edulims
       FERROEHR__AUTHZ__SYSTEM_CLIENT__0__FACILITIES: '[{ issuer = "urn:example:edulims-dev-facility", id = "dev-lab" }]'
       FERROEHR__AUTHZ__SYSTEM_CLIENT__0__ORIGINS: device
-      FERROEHR__AUTHZ__SYSTEM_CLIENT__0__DEVICE_IDENTIFIER_ISSUERS: https://edulims.eu/id/device
+      FERROEHR__AUTHZ__SYSTEM_CLIENT__0__DEVICE_IDENTIFIER_ISSUERS: https://edulims.eu/id/analyser
       FERROEHR__TELEMETRY__FORMAT: pretty
       FERROEHR__USAGE_REPORT__ENABLED: "false"
     cap_drop: [ALL]

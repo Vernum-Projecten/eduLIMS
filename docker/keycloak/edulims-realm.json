@@ -712,26 +712,8 @@
       ]
     },
     {
-      "name": "system/composition-*.cr",
-      "description": "SMART on openEHR: create and read compositions and the EHRs that hold them (FerroEHR)",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "false"
-      }
-    },
-    {
-      "name": "system/template-*.cr",
-      "description": "SMART on openEHR: list, read and upload operational templates (FerroEHR)",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "false"
-      }
-    },
-    {
-      "name": "system/aql-eu.edulims::*.s",
-      "description": "SMART on openEHR: run the stored AQL queries of the eu.edulims namespace (FerroEHR)",
+      "name": "system/template-*.r",
+      "description": "SMART on openEHR: list and read operational templates (FerroEHR)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
@@ -953,11 +935,7 @@
       "redirectUris": [],
       "webOrigins": [],
       "defaultClientScopes": ["basic"],
-      "optionalClientScopes": [
-        "system/composition-*.cr",
-        "system/template-*.cr",
-        "system/aql-eu.edulims::*.s"
-      ],
+      "optionalClientScopes": ["system/template-*.r"],
       "protocolMappers": [
         {
           "name": "FerroEHR audience (aud)",

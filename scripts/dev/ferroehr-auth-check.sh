@@ -29,7 +29,7 @@ client_secret=edulims-dev-ferroehr-secret
 # The fixed id of service-account-edulims-ferroehr in the realm file, which
 # compose.dev.yaml lists in FERROEHR__AUTH__ISSUER__0__APP_ONLY__0__SUBJECTS.
 service_account=f1c34e57-c0f7-4482-b9b3-e3d138c8e79d
-scope='system/composition-*.cr system/template-*.cr system/aql-eu.edulims::*.s'
+scope='system/template-*.r'
 
 failures=0
 check() {
@@ -41,10 +41,12 @@ check() {
   fi
 }
 
-# token <scope>: an access token of the client for the scope.
+# token [scope]: an access token of the client, for the scope when one is given.
 token() {
+  local -a scope_args=()
+  [[ -z "${1:-}" ]] || scope_args=(--data-urlencode "scope=$1")
   curl -sf -d grant_type=client_credentials -d "client_id=${client_id}" \
-    -d "client_secret=${client_secret}" --data-urlencode "scope=$1" \
+    -d "client_secret=${client_secret}" ${scope_args[@]+"${scope_args[@]}"} \
     "${issuer}/protocol/openid-connect/token" | jq -r .access_token
 }
 
@@ -69,11 +71,11 @@ check "iss is the issuer FerroEHR trusts" "$(jq -r .iss <<<"$payload")" "$issuer
 check "aud names ferroehr" "$(jq -r '[.aud] | flatten | index("ferroehr") != null' <<<"$payload")" true
 check "azp names the client" "$(jq -r .azp <<<"$payload")" "$client_id"
 check "sub is the service account FerroEHR lists as app-only" "$(jq -r .sub <<<"$payload")" "$service_account"
-check "scope holds the template grant" "$(jq -r '.scope | split(" ") | index("system/template-*.cr") != null' <<<"$payload")" true
+check "scope holds the template grant" "$(jq -r '.scope | split(" ") | index("system/template-*.r") != null' <<<"$payload")" true
 
 check "no token: 401" "$(status "")" 401
 check "the client's token: 200" "$(status "$access")" 200
-check "a token without the template scope: 403" "$(status "$(token 'system/aql-eu.edulims::*.s')")" 403
+check "a token without the template scope: 403" "$(status "$(token)")" 403
 
 if ((failures > 0)); then
   echo "ferroehr-auth-check: ${failures} check(s) failed"

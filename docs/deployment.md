@@ -1035,17 +1035,20 @@ FerroEHR runs with authentication on, as in production. It trusts the
 `edulims` realm as a `machines` issuer (FerroEHR book v5.7.0,
 `installation/config-auth.md`, `[[auth.issuer]]`) and declares the realm's
 client `edulims-ferroehr` as a system client (`[[authz.system_client]]`), as
-`config/ferroehr.toml.example` does: origin `device`, the example provider
+`config/ferroehr.toml.example` does: origin `device` with the device
+identifier issuer `https://edulims.eu/id/analyser` (the composer is the
+analyser, named by its serial number, #146), the example provider
 `urn:example:edulims-dev-provider` and one example facility. The Keycloak
 profile reads a token as app-only by its `sub`, so the realm file fixes the id
 of the client's service account and FerroEHR lists it in `app_only`. eduLIMS takes
 a token with the client credentials grant at
 `http://localhost:8180/realms/edulims/protocol/openid-connect/token`, client
 `edulims-ferroehr`, secret `edulims-dev-ferroehr-secret`, and scope
-`system/composition-*.cr system/template-*.cr system/aql-eu.edulims::*.s`
-(the SMART on openEHR grants for EHRs and compositions, templates, and the
-stored queries of the `eu.edulims` namespace; FerroEHR book,
-`smart-app-launch.md`). The system client lists no template in `writes` yet:
+`system/template-*.r`, the one optional client scope the client has: it lists
+and reads operational templates and nothing else (FerroEHR book,
+`smart-app-launch.md`, "What each route requires"). The template reaches
+FerroEHR through `ferroehr definitions load` before FerroEHR starts, never
+over REST. The system client lists no template in `writes` yet:
 FerroEHR refuses to start with a template its store does not hold, so it
 commits no composition until `eduLIMS-lab.v1` (#146) is loaded with
 `ferroehr definitions load` before FerroEHR starts.
