@@ -66,6 +66,27 @@ export const DEV_USERS = [
     roles: ["teacher"],
     hidden: true,
   },
+  // The classes journeys (#28): an owner, a co-teacher, students to group and one who joins.
+  {
+    email: "classes-owner@example.test",
+    name: "Classes Test Owner",
+    roles: ["teacher"],
+    hidden: true,
+  },
+  {
+    email: "classes-co@example.test",
+    name: "Classes Test Co-teacher",
+    roles: ["teacher"],
+    hidden: true,
+  },
+  { email: "classes-ada@example.test", name: "Ada Classes Test", roles: ["student"], hidden: true },
+  { email: "classes-bo@example.test", name: "Bo Classes Test", roles: ["student"], hidden: true },
+  {
+    email: "classes-join@example.test",
+    name: "Joining Classes Test Student",
+    roles: ["student"],
+    hidden: true,
+  },
 ] as const satisfies readonly DevUser[];
 
 /** The realm of the development Keycloak (compose.dev.yaml). */

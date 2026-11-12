@@ -105,6 +105,38 @@ export interface IntegrationChecks {
   state: string;
 }
 
+export interface Invitation {
+  createdAt: Generated<Timestamp>;
+  email: string;
+  ended_at: Timestamp | null;
+  expiresAt: Timestamp;
+  id: string;
+  inviterId: string;
+  organizationId: string;
+  role: string;
+  status: Generated<string>;
+  teamId: string | null;
+}
+
+export interface Member {
+  createdAt: Timestamp;
+  id: string;
+  organizationId: string;
+  role: string;
+  userId: string;
+}
+
+export interface Organization {
+  academic_year: string;
+  archived_at: Timestamp | null;
+  createdAt: Timestamp;
+  id: string;
+  logo: string | null;
+  metadata: string | null;
+  name: string;
+  slug: string;
+}
+
 export interface PendingAdminGrant {
   created_at: Generated<Timestamp>;
   email: string;
@@ -227,6 +259,8 @@ export interface ScimUser {
 }
 
 export interface Session {
+  activeOrganizationId: string | null;
+  activeTeamId: string | null;
   createdAt: Generated<Timestamp>;
   expiresAt: Timestamp;
   id: string;
@@ -248,6 +282,24 @@ export interface SsoProvider {
   providerId: string;
   samlConfig: string | null;
   userId: string | null;
+}
+
+export interface Team {
+  createdAt: Timestamp;
+  group_set: string;
+  id: string;
+  memberCount: Generated<number>;
+  name: string;
+  organizationId: string;
+  updatedAt: Timestamp | null;
+}
+
+export interface TeamMember {
+  createdAt: Timestamp | null;
+  id: string;
+  membershipKey: string | null;
+  teamId: string;
+  userId: string;
 }
 
 export interface User {
@@ -288,6 +340,9 @@ export interface DB {
   identity_provider: IdentityProvider;
   identity_provider_domain: IdentityProviderDomain;
   integration_checks: IntegrationChecks;
+  invitation: Invitation;
+  member: Member;
+  organization: Organization;
   pending_admin_grant: PendingAdminGrant;
   scim_token: ScimToken;
   scimConnectionBinding: ScimConnectionBinding;
@@ -299,6 +354,8 @@ export interface DB {
   scimUser: ScimUser;
   session: Session;
   ssoProvider: SsoProvider;
+  team: Team;
+  teamMember: TeamMember;
   user: User;
   verification: Verification;
 }

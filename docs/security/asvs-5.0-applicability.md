@@ -67,9 +67,9 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 175 |
-| Status met | 92 |
+| Status met | 93 |
 | Status partial | 48 |
-| Status planned | 27 |
+| Status planned | 26 |
 | Status open | 8 |
 | Status n-a | 170 |
 
@@ -478,7 +478,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V8.2.1 | 1 | yes | `requireRole` and `authMiddleware` on every server function (`src/server/middleware.ts`); role writes guarded (`src/server/role-guard.ts`); `user.role_channel` records whether an ID-token claim, SCIM or eduLIMS wrote a set, so a role a claim gave never outlives the claim and a SCIM write never removes it (`src/server/role-ownership.ts`, `src/server/scim/roles.ts`, #45) | unit `src/server/middleware.test.ts`, `src/server/role-guard.test.ts`, `src/server/role-ownership.test.ts`, `src/server/scim/roles.test.ts`; integration `tests/integration/scim-hardening.test.ts` | met |
-| V8.2.2 | 1 | partly | `canViewResultsOf` (`src/server/authz.ts`) is the rule; ownership in the SQL comes with S7, D3 and #28 | unit `src/server/authz.test.ts`; role-isolation tests per function | partial |
+| V8.2.2 | 1 | partly | `canViewResultsOf` (`src/server/authz.ts`) is the rule for results; classes check membership and class role in the SQL of every read and write (`src/server/classes/access.ts`, `queries.ts`, #28); results ownership comes with S7 and D3 | unit `src/server/authz.test.ts`; `src/server/classes/*.test.ts` (another class's teacher gets `not_found`, a student 403) | partial |
 | V8.2.3 | 2 | partly | `input: false` on `locale` and `lastPortal` (`src/server/auth.ts`); result and grade fields with S7 and D3 | review | partial |
 | V8.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -494,7 +494,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V8.4.1 | 2 | yes | classes as tenants: every class function checks membership and class role (#28) | role-isolation tests with #28 | planned |
+| V8.4.1 | 2 | yes | classes as tenants: every class function checks the app role, then membership and class role on the session user in one locked transaction; the organization plugin's endpoints are unreachable (`src/server/classes/`, ADR 0018) | unit `src/server/classes/classes.test.ts`, `invitations.test.ts`, `groups.test.ts`, `queries.test.ts`, `plugin.test.ts` | met |
 | V8.4.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V9 Self-contained Tokens
@@ -834,7 +834,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`); every SCIM write too, and every refused SCIM token for any method as `scim_token_refused` with the reason (missing, unknown, revoked, expired, provider disabled): an unknown or missing one once per client and minute with the count it stands for, any other once per token and minute (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts`, `src/server/scim/gate.test.ts`; integration `tests/integration/scim-provisioning.test.ts`, `tests/integration/scim-hardening.test.ts` | met |
-| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`); a refused host command (`admin grant` or `revoke`, `idp add`, `enable` or `disable`) writes a row with outcome `refused`, actor `system` and its reason code (`src/server/admin-grant/grants.ts`, `src/server/idp/command.ts`); a SCIM 403 or 404 (another provider's resource) is a refused `scim_user_*` or `scim_group_*` row, reads included (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts`, `src/server/cli-refusals.test.ts`, `src/server/admin-grant/grants.test.ts`; integration `tests/integration/scim-provisioning.test.ts` | met |
+| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`); so is a class the teacher does not teach, the `not_found` of the class service and the class page (`logClassNotFound`, `src/server/classes/access.ts`); class refusals by role or archive are activity-log rows; a refused host command (`admin grant` or `revoke`, `idp add`, `enable` or `disable`) writes a row with outcome `refused`, actor `system` and its reason code (`src/server/admin-grant/grants.ts`, `src/server/idp/command.ts`); a SCIM 403 or 404 (another provider's resource) is a refused `scim_user_*` or `scim_group_*` row, reads included (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts`, `src/server/classes/classes.test.ts`, `src/server/classes/queries.test.ts`, `src/server/cli-refusals.test.ts`, `src/server/admin-grant/grants.test.ts`; integration `tests/integration/scim-provisioning.test.ts` | met |
 | V16.3.3 | 2 | yes | rejected uploads (S4) and refused access belong in the B4 audit log | unit tests with S4 and B4 | planned |
 | V16.3.4 | 2 | yes | an unreachable FerroEHR or FerroBRIDGE is checked every minute, stored with its error class and shown in the Admin portal within 5 minutes (B3, `src/server/integrations/`); a failed scheduled run is logged by its class only; other unexpected errors are not logged centrally yet | unit `src/server/integrations/checks.test.ts`, e2e `tests/e2e/admin-analysers.spec.ts` | partial |
 

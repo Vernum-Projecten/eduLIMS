@@ -26,6 +26,10 @@ export interface AccountCounts {
   activeSessions: number;
   /** Accounts blocked now: a block without an end, or one that ends later. */
   blockedUsers: number;
+  /** Classes that are not archived (#28). */
+  classes: number;
+  /** Class invitations still pending and unexpired (#28). */
+  pendingInvitations: number;
 }
 
 /** Who acted on an event: a user (their name, `null` once the account is gone) or eduLIMS. */
@@ -51,7 +55,10 @@ export interface AdminOverview {
   readAt: string;
 }
 
-/** Counts the accounts per role, the live sessions and the blocked accounts in one query. */
+/**
+ * Counts the accounts per role, the live sessions, the blocked accounts, the active classes and
+ * the pending class invitations in one query.
+ */
 export async function accountCounts(db: Kysely<DB>, now: Date): Promise<AccountCounts> {
   const row = await db
     .selectFrom("user")
@@ -74,6 +81,17 @@ export async function accountCounts(db: Kysely<DB>, now: Date): Promise<AccountC
         .select((sb) => sb.fn.countAll<string>().as("n"))
         .where("expiresAt", ">", now)
         .as("sessions"),
+      eb
+        .selectFrom("organization")
+        .select((ob) => ob.fn.countAll<string>().as("n"))
+        .where("archived_at", "is", null)
+        .as("classes"),
+      eb
+        .selectFrom("invitation")
+        .select((ib) => ib.fn.countAll<string>().as("n"))
+        .where("status", "=", "pending")
+        .where("expiresAt", ">", now)
+        .as("invitations"),
     ])
     .executeTakeFirstOrThrow();
   return {
@@ -83,6 +101,8 @@ export async function accountCounts(db: Kysely<DB>, now: Date): Promise<AccountC
     admins: Number(row.admins),
     activeSessions: Number(row.sessions ?? 0),
     blockedUsers: Number(row.blocked),
+    classes: Number(row.classes ?? 0),
+    pendingInvitations: Number(row.invitations ?? 0),
   };
 }
 

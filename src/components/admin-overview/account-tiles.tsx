@@ -8,7 +8,9 @@ import {
   FlaskConicalIcon,
   GraduationCapIcon,
   type LucideIcon,
+  MailIcon,
   MonitorSmartphoneIcon,
+  SchoolIcon,
   ShieldCheckIcon,
   UsersIcon,
 } from "lucide-react";
@@ -57,11 +59,11 @@ function Tile({
 }
 
 /**
- * The account tiles of the overview (#36): users per role, active sessions and blocked users.
- * A tile with a filter of the Users screen links to it with that filter in the URL.
+ * The account tiles of the overview (#36): users per role, active sessions, blocked users, and
+ * the active classes and pending class invitations (#28). A tile with a filter of the Users
+ * screen links to it with that filter in the URL; the class tiles link to the class list.
  */
 export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
-  // TODO(#28): the classes and pending invitations tiles, once the classes tables exist.
   return (
     <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <li className="flex">
@@ -127,6 +129,30 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
           link={
             <Link to="/admin/users" search={{ status: ["blocked"] }} className={COVER_LINK}>
               {m.admin_overview_blocked_users()}
+            </Link>
+          }
+        />
+      </li>
+      <li className="flex">
+        <Tile
+          icon={SchoolIcon}
+          label={m.admin_overview_classes()}
+          value={counts.classes}
+          link={
+            <Link to="/admin/classes" className={COVER_LINK}>
+              {m.admin_overview_classes()}
+            </Link>
+          }
+        />
+      </li>
+      <li className="flex">
+        <Tile
+          icon={MailIcon}
+          label={m.admin_overview_pending_invitations()}
+          value={counts.pendingInvitations}
+          link={
+            <Link to="/admin/classes" className={COVER_LINK}>
+              {m.admin_overview_pending_invitations()}
             </Link>
           }
         />

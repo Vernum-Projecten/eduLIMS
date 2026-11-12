@@ -43,6 +43,17 @@ try {
     });
     process.stdout.write(`created ${user.email} (${user.roles.join(",")})\n`);
   }
+  // NOTE: #28; a sign-in accepts invitations for a verified email only, and these public test
+  // addresses stand in for an identity provider's verified ones.
+  await db
+    .updateTable("user")
+    .set({ emailVerified: true })
+    .where(
+      "email",
+      "in",
+      DEV_USERS.map((user) => user.email),
+    )
+    .execute();
 
   const env = getEnv();
   const providerLines = await seedDevProviders(db, {
@@ -66,6 +77,9 @@ try {
       `  sessions:            ${summary.activeSessions} active, ${summary.expiredSessions} expired\n` +
       `  blocked users:       ${summary.blockedUsers}\n` +
       `  activity-log events: ${summary.auditEvents}\n` +
+      `  classes:             ${summary.classes} (${summary.archivedClasses} archived), ` +
+      `${summary.classMembers} members, ${summary.labGroups} lab groups, ` +
+      `${summary.pendingInvitations} pending invitations\n` +
       "The demo people sign in through an identity provider only: they have no password and are " +
       "not in the development Keycloak realm, so they cannot sign in locally. Use the dev-login " +
       "and Keycloak demo accounts above.\n",

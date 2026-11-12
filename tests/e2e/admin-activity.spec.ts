@@ -223,7 +223,8 @@ test("a filter that matches nothing shows the empty state with a way back (#36)"
   page,
 }) => {
   await signInAsAdmin(page);
-  await openLog(page, "?action=class_archived");
+  // An action nothing records yet: the demo classes (#28) archive one, so class_archived matches.
+  await openLog(page, "?action=upload_delete");
   await expect(page.getByRole("heading", { level: 2, name: "No events match" })).toBeVisible();
   await axe(page);
   await page.getByRole("link", { name: "Clear filters" }).click();

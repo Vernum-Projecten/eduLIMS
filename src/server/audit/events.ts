@@ -33,9 +33,15 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "class_created",
   "class_updated",
   "class_archived",
+  "class_unarchived",
   "class_owner_changed",
+  "class_deleted",
+  "class_copied",
+  "class_member_removed",
+  "class_group_changed",
   "invitation_created",
   "invitation_accepted",
+  "invitation_resent",
   "invitation_revoked",
   "upload_complete",
   "upload_validation_fail",
@@ -181,6 +187,18 @@ export const auditMetadataSchema = z.strictObject({
   attest_pkce: z.boolean().optional(),
   /** How many sessions an `idp_disabled` ended. */
   sessions_ended: z.number().int().min(0).optional(),
+  /** The class an `invitation_*` event belongs to, or the source class of a `class_copied`. */
+  class_id: z.uuid().optional(),
+  /** The person a `class_member_removed` or `class_owner_changed` is about: an id only. */
+  user_id: z.string().min(1).max(128).optional(),
+  /** The class role an invitation or a removed member held. */
+  class_role: z.enum(["owner", "teacher", "student"]).optional(),
+  /** The lab group a `class_group_changed` is about. */
+  team_id: z.uuid().optional(),
+  /** What a `class_group_changed` did. */
+  group_change: z.enum(["created", "renamed", "deleted", "members", "split", "copied"]).optional(),
+  /** How many rows a bulk class action touched (groups created, students moved). */
+  count: z.number().int().min(0).optional(),
   /** The outcome code of an `idp_tested` sign-in. */
   test_outcome: z
     .string()
@@ -189,6 +207,7 @@ export const auditMetadataSchema = z.strictObject({
   /** How many rows a `sys_retention_prune` removed, per kind: counts only. */
   removed_audit_events: z.number().int().min(0).optional(),
   removed_sessions: z.number().int().min(0).optional(),
+  removed_invitations: z.number().int().min(0).optional(),
   removed_admin_grants: z.number().int().min(0).optional(),
   /** The analyser status after the change (B3); a code, never free text. */
   analyser_status: z.enum(["in_use", "maintenance", "retired"]).optional(),

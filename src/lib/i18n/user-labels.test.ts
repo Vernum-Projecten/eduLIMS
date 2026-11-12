@@ -41,6 +41,7 @@ describe("user labels (#34)", () => {
   it("names activity-log actions, outcomes and actors, with a fallback", () => {
     expect(auditActionLabel("user_banned")).toBe("Blocked");
     expect(auditActionLabel("class_created")).toBe("Class created");
+    expect(auditActionLabel("invitation_accepted")).toBe("Invitation accepted");
     expect(auditActionLabel("sample_registered")).toBe("Other activity");
     expect(auditActionLabel("toString")).toBe("Other activity");
     expect(auditOutcomeLabel("success")).toBe("succeeded");
@@ -56,6 +57,10 @@ describe("user labels (#34)", () => {
     const messages = ADMIN_ACTION_ERRORS.map(adminActionErrorMessage);
     expect(new Set(messages).size).toBe(ADMIN_ACTION_ERRORS.length);
     expect(adminActionErrorMessage("something_else")).toBe(adminActionErrorMessage("failed"));
+    // Deleting a class owner is refused (security review of #28).
+    expect(adminActionErrorMessage("owns_class")).toBe(
+      "This user owns a class. Transfer the ownership of their classes to another teacher first.",
+    );
   });
 
   it("names a language in the active locale", () => {

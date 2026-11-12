@@ -83,14 +83,20 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   scim_group_updated: m.audit_action_scim_group_updated,
   scim_group_deleted: m.audit_action_scim_group_deleted,
   scim_group_read: m.audit_action_scim_group_read,
-  sys_data_key_rotated: m.audit_action_data_key_rotated,
   class_created: m.audit_action_class_created,
   class_updated: m.audit_action_class_updated,
   class_archived: m.audit_action_class_archived,
+  class_unarchived: m.audit_action_class_unarchived,
   class_owner_changed: m.audit_action_class_owner_changed,
+  class_deleted: m.audit_action_class_deleted,
+  class_copied: m.audit_action_class_copied,
+  class_member_removed: m.audit_action_class_member_removed,
+  class_group_changed: m.audit_action_class_group_changed,
   invitation_created: m.audit_action_invitation_created,
   invitation_accepted: m.audit_action_invitation_accepted,
+  invitation_resent: m.audit_action_invitation_resent,
   invitation_revoked: m.audit_action_invitation_revoked,
+  sys_data_key_rotated: m.audit_action_data_key_rotated,
   upload_complete: m.audit_action_upload_complete,
   upload_validation_fail: m.audit_action_upload_validation_fail,
   upload_delete: m.audit_action_upload_delete,
@@ -145,6 +151,8 @@ export function adminActionErrorMessage(code: string): string {
       return m.admin_users_error_roles_not_local();
     case "role_set_not_allowed":
       return m.role_error_not_allowed();
+    case "owns_class":
+      return m.admin_users_error_owns_class();
     default:
       return m.admin_users_error_failed();
   }

@@ -114,6 +114,55 @@ describe("accountCounts (#36)", () => {
   });
 });
 
+describe("accountCounts of classes (#28)", () => {
+  it("counts the active classes and the pending, unexpired invitations", async () => {
+    const database = await testDb();
+    const before = await accountCounts(database, NOW);
+    const owner = await insertUser(database, { role: "teacher" });
+    const classes = [
+      ["01960000-0000-7000-8000-0000000000a1", null],
+      ["01960000-0000-7000-8000-0000000000a2", NOW],
+    ] as const;
+    for (const [id, archivedAt] of classes) {
+      await database
+        .insertInto("organization")
+        .values({
+          id,
+          slug: id,
+          name: "LS-2A",
+          academic_year: "2026-2027",
+          createdAt: NOW,
+          archived_at: archivedAt,
+        })
+        .execute();
+    }
+    const invitations = [
+      ["live", "pending", NOW.getTime() + HOUR],
+      ["expired", "pending", NOW.getTime() - HOUR],
+      ["accepted", "accepted", NOW.getTime() + HOUR],
+    ] as const;
+    for (const [key, status, expiresAt] of invitations) {
+      await database
+        .insertInto("invitation")
+        .values({
+          id: randomUUID(),
+          organizationId: classes[0][0],
+          email: `${key}@example.test`,
+          role: "student",
+          status,
+          ended_at: status === "pending" ? null : NOW,
+          expiresAt: new Date(expiresAt),
+          createdAt: NOW,
+          inviterId: owner,
+        })
+        .execute();
+    }
+    const after = await accountCounts(database, NOW);
+    expect(after.classes - before.classes).toBe(1);
+    expect(after.pendingInvitations - before.pendingInvitations).toBe(1);
+  });
+});
+
 describe("recentActivity (#36, B4)", () => {
   async function insertEvent(
     database: Kysely<DB>,

@@ -26,6 +26,7 @@ Each significant architecture or technology decision is recorded here in the
 | [0015](0015-runtime-identity-providers.md) | Identity providers at runtime with the better-auth SSO plugin | Proposed |
 | [0016](0016-charts-tanstack-charts.md) | Charts: TanStack Charts, through one accessible wrapper | Proposed |
 | [0017](0017-scim-provisioning.md) | Provisioning users with SCIM 2.0 | Proposed |
+| [0018](0018-classes-as-organizations.md) | A class is a better-auth organization, a lab group a team | Proposed |
 
 ## Adding a record
 

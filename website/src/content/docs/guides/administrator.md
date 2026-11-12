@@ -77,8 +77,8 @@ glance:
   (a teacher who is also an administrator counts under both), how many
   sessions are active and how many users are blocked. Choose a tile to open
   **Users and roles** with that filter, such as only the students or only
-  the blocked users. Classes and pending invitations get their own tiles
-  once classes exist.
+  the blocked users. Two more tiles count the classes that are not archived
+  and the class invitations still pending; choose one to open **Classes**.
 - **Integrations:** the state of FerroEHR and FerroBRIDGE, as an icon with
   text, and when eduLIMS last checked them. Choose one to open **Analysers
   and integrations**.
@@ -263,6 +263,28 @@ of its last change.
 
 Only administrators can change the register. Every addition, change and
 retirement is recorded in the activity log.
+
+## Classes
+
+Teachers create their own classes and invite their students and
+co-teachers; see the teacher guide. **Classes** in the admin portal lists
+every class in eduLIMS, newest academic year first, with its owner, its
+co-teachers, the number of students, the number of pending invitations and
+whether it is archived. It shows no grades or results. The list is
+read-only.
+
+A person who signs in with an address a class invited joins that class
+without any further step. When the identity provider sends no eduLIMS role
+for a person signing in for the first time, a pending invitation as a
+student gives them the student role, and only that role, if the provider's
+email addresses are marked as verified. It never gives back a role the
+identity provider took away. You cannot delete a user who owns a class:
+the owner transfers the class to a co-teacher first. Teacher and administrator roles always come from the identity
+provider or from **Users and roles**.
+
+Creating, inviting, accepting, removing, archiving, copying, transferring
+ownership and every lab-group change are recorded in the activity log, with
+ids only.
 
 ## System
 

@@ -77,8 +77,9 @@ eduLIMS ervoor staat:
   (een docent die ook beheerder is, telt bij allebei), hoeveel sessies actief
   zijn en hoeveel gebruikers geblokkeerd zijn. Kies een tegel om
   **Gebruikers en rollen** met dat filter te openen, bijvoorbeeld alleen de
-  studenten of alleen de geblokkeerde gebruikers. Klassen en openstaande
-  uitnodigingen krijgen eigen tegels zodra er klassen zijn.
+  studenten of alleen de geblokkeerde gebruikers. Twee tegels tellen de
+  klassen die niet zijn gearchiveerd en de klasuitnodigingen die nog openstaan;
+  kies er een om **Klassen** te openen.
 - **Koppelingen:** de status van FerroEHR en FerroBRIDGE, als pictogram met
   tekst, en wanneer eduLIMS ze het laatst controleerde. Kies er een om
   **Analyzers en koppelingen** te openen.
@@ -277,6 +278,29 @@ studenten de export uploaden), de status (**In gebruik**, **In onderhoud** of
 
 Alleen beheerders wijzigen het register. Elke toevoeging, wijziging en
 buitengebruikstelling komt in het activiteitenlogboek.
+
+## Klassen
+
+Docenten maken hun eigen klassen aan en nodigen hun studenten en
+mededocenten uit; zie de handleiding voor docenten. **Klassen** in het
+Beheerportaal toont elke klas in eduLIMS, het nieuwste studiejaar eerst, met
+de eigenaar, de mededocenten, het aantal studenten, het aantal openstaande
+uitnodigingen en of de klas is gearchiveerd. Cijfers en resultaten staan er
+niet in. De lijst is alleen-lezen.
+
+Wie inlogt met een adres waarop een klas heeft uitgenodigd, komt zonder
+verdere stap in die klas. Stuurt de identity provider geen eduLIMS-rol voor
+iemand die voor het eerst inlogt, dan geeft een openstaande uitnodiging als
+student de rol student, en alleen die rol, als de e-mailadressen van de
+provider als geverifieerd zijn gemarkeerd. Een rol die de identity provider
+heeft ingetrokken, komt zo nooit terug. Een gebruiker die eigenaar is van een
+klas kun je niet verwijderen: de eigenaar draagt de klas eerst over aan een
+mededocent. De rollen docent en beheerder komen altijd van
+de identity provider of uit **Gebruikers en rollen**.
+
+Aanmaken, uitnodigen, accepteren, verwijderen, archiveren, kopiëren,
+eigenaarschap overdragen en elke wijziging van practicumgroepen komen in het
+activiteitenlogboek, alleen met id's.
 
 ## Systeem
 

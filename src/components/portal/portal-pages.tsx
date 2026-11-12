@@ -3,6 +3,7 @@
 
 import { Link } from "@tanstack/react-router";
 import { ArrowRightIcon, HourglassIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { Page } from "@/components/shell/page-header";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -23,13 +24,14 @@ export function portalPageTitle(portal: PortalNavigation, page: NavItem): string
 }
 
 /**
- * A portal's overview: a welcome with the user's name and one card per section. It shows no
- * data, because the features are still to be built.
+ * A portal's overview: a welcome with the user's name, the portal's own content (`children`,
+ * such as a student's classes) and one card per section.
  */
 export function PortalOverview({
   portal,
   userName,
-}: Readonly<{ portal: PortalNavigation; userName: string }>) {
+  children,
+}: Readonly<{ portal: PortalNavigation; userName: string; children?: ReactNode }>) {
   return (
     <Page
       title={portal.label()}
@@ -40,6 +42,7 @@ export function PortalOverview({
         </>
       }
     >
+      {children}
       <PortalSections portal={portal} />
     </Page>
   );

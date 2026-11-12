@@ -33,7 +33,16 @@ test("the overview shows the counts, the integrations and the latest activity (#
   await signInAsAdmin(page);
   await expect(page.getByRole("heading", { level: 1, name: "Admin portal" })).toBeVisible();
   const accounts = section(page, "Accounts");
-  for (const tile of ["All users", "Students", "Teachers", "Administrators", "Blocked users"]) {
+  const tiles = [
+    "All users",
+    "Students",
+    "Teachers",
+    "Administrators",
+    "Blocked users",
+    "Active classes",
+    "Pending class invitations",
+  ];
+  for (const tile of tiles) {
     await expect(accounts.getByRole("link", { name: tile, exact: true })).toBeVisible();
   }
   await expect(accounts.getByRole("heading", { level: 3, name: "Active sessions" })).toBeVisible();
@@ -63,6 +72,12 @@ test("the overview's links open their screens with the filter in the URL (#36)",
   await section(page, "Accounts").getByRole("link", { name: "Blocked users" }).click();
   await expect(page).toHaveURL(/\/admin\/users\?/);
   expect(new URL(page.url()).searchParams.get("status")).toBe('["blocked"]');
+
+  // The class tiles open the class list (#28).
+  await page.goto("/admin");
+  await section(page, "Accounts").getByRole("link", { name: "Active classes" }).click();
+  await expect(page).toHaveURL(/\/admin\/classes$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Classes" })).toBeVisible();
 
   await page.goto("/admin");
   await section(page, "Integrations").getByRole("link", { name: "FerroEHR" }).click();

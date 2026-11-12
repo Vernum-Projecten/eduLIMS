@@ -394,6 +394,78 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
     expect(consumeAdminGrant).not.toHaveBeenCalled();
   });
 
+  it("grants only student to a new user with a pending class invitation (#28 (2))", async () => {
+    const hasStudentInvitation = vi.fn(async () => true);
+    const consumeAdminGrant = vi.fn(async () => true);
+    const { sync, ctx } = authoritative({ hasStudentInvitation, consumeAdminGrant });
+    const data = oauth("create-user", "entra", { roles: [] }, { email: "invited@example.test" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(hasStudentInvitation).toHaveBeenCalledWith("invited@example.test");
+    expect(consumeAdminGrant).not.toHaveBeenCalled();
+    expect(data.user["role"]).toBe("student");
+    expect(data.user["roleSource"]).toBe("local");
+  });
+
+  it("never grants an invitation's student role to a SCIM-provisioned user (#28, #45)", async () => {
+    const hasStudentInvitation = vi.fn(async () => true);
+    const { ctx } = setup(undefined, {
+      u1: { role: "", roleSource: "keycloak", provisionedBy: "keycloak" },
+    });
+    const settings = provider("keycloak", "oidc", "realm_access.roles", {
+      emailAuthoritative: true,
+    });
+    const sync = createIdpRoleSync({ settingsOf: async () => settings, hasStudentInvitation });
+    const data = oauth("sign-in", "keycloak", {}, { id: "u1", email: "scim@example.test" });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(hasStudentInvitation).not.toHaveBeenCalled();
+  });
+
+  it("never restores a role the IdP took away from an existing user (#28 review)", async () => {
+    const hasStudentInvitation = vi.fn(async () => true);
+    const ctx = {
+      context: {
+        internalAdapter: {
+          updateUser: vi.fn(async () => null),
+          deleteUserSessions: vi.fn(async () => undefined),
+          // A student set the IdP once sent and no longer does (A07).
+          findUserById: vi.fn(async () => ({
+            role: "student",
+            roleSource: "entra",
+            emailVerified: true,
+          })),
+        },
+      },
+    } as unknown as Ctx;
+    const settings = provider("entra", "oidc", "roles", { emailAuthoritative: true });
+    const sync = createIdpRoleSync({ settingsOf: async () => settings, hasStudentInvitation });
+    const data = oauth("sign-in", "entra", { roles: [] }, { id: "u1", email: "back@example.test" });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(hasStudentInvitation).not.toHaveBeenCalled();
+  });
+
+  it("never lets an invitation override a role the IdP sends (#28 (2))", async () => {
+    const hasStudentInvitation = vi.fn(async () => true);
+    const { sync, ctx } = authoritative({ hasStudentInvitation });
+    const data = oauth(
+      "create-user",
+      "entra",
+      { roles: ["edulims-teacher"] },
+      { email: "t@example.test" },
+    );
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(hasStudentInvitation).not.toHaveBeenCalled();
+    expect(data.user["role"]).toBe("teacher");
+  });
+
+  it("never asks for an invitation through a provider whose email is not authoritative", async () => {
+    const hasStudentInvitation = vi.fn(async () => true);
+    const { ctx } = setup();
+    const gated = createIdpRoleSync({ settingsOf: providersWith(), hasStudentInvitation });
+    const data = oauth("create-user", "microsoft", {}, { email: "x@example.test" });
+    expect(await gated(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(hasStudentInvitation).not.toHaveBeenCalled();
+  });
+
   it("marks the email verified on a sign-in of an authoritative provider", async () => {
     const { sync, ctx, updateUser } = authoritative();
     const data = oauth("sign-in", "entra", {}, { id: "u1", email: "u@example.test" });
