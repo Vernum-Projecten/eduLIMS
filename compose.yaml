@@ -15,7 +15,7 @@
 #   .env                          every secret and setting (.env.example lists them)
 #   config/ferroehr.toml          FerroEHR's server configuration
 #   config/ferrobridge/           FerroBRIDGE's ferrobridge.toml, with the [hl7v2]
-#                                 section, and the TLS files it names
+#                                 section
 #   docker/postgres/init/20-edulims.sh   from the release's deploy bundle
 #   config/postgres-tls/          ca.crt, server.crt and server.key for
 #                                 PostgreSQL's TLS (docs/deployment.md,
@@ -33,7 +33,9 @@
 # (https://docs.docker.com/engine/network/packet-filtering-firewalls/). The
 # reverse proxy that terminates TLS for eduLIMS runs on the host and reaches
 # 127.0.0.1:3000. The MLLP port is the one that must face the lab network, so
-# set FERROBRIDGE_MLLP_BIND_HOST to the host's lab-facing address.
+# set FERROBRIDGE_MLLP_BIND_HOST to the host's lab-facing address and let the
+# host firewall admit only the analysers' fixed addresses (docs/deployment.md,
+# "The MLLP port").
 #
 # IDENTITY PROVIDER. eduLIMS signs users in with Microsoft Entra ID, with
 # Keycloak, or with both (docs/deployment.md, "Identity provider"). Keycloak
@@ -151,8 +153,10 @@ services:
       start_period: 60s
 
   # ── FerroBRIDGE, HL7 v2 over MLLP into FerroEHR ────────────────────────────
-  # Lab analysers send results over MLLP (TLS with client certificates, set up
-  # in config/ferrobridge/ferrobridge.toml); FerroBRIDGE commits them to
+  # The Afinion 2 sends results over plain MLLP: no document the repository
+  # cites describes TLS on the analyser, and MLLP has no authentication. The
+  # bind address and the host firewall are the controls (ADR 0013,
+  # docs/deployment.md, "The MLLP port"). FerroBRIDGE commits the results to
   # FerroEHR.
   ferrobridge:
     image: ghcr.io/ferrohealth/ferrobridge:0.0.24@sha256:6e14c783955da9ecd5683fbe781542580e2ebae18d0f4c07e888a1c086e05e59
