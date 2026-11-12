@@ -10,12 +10,14 @@ import {
   CircleOffIcon,
   ClipboardCopyIcon,
   KeyRoundIcon,
+  MailIcon,
   PowerOffIcon,
   RefreshCwIcon,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmButton } from "@/components/admin-users/admin-action";
+import { classLabel } from "@/components/classes/class-name";
 import { useClassMutation } from "@/components/classes/use-class-mutation";
 import { useAppForm } from "@/components/form/app-form";
 import { Button } from "@/components/ui/button";
@@ -133,8 +135,33 @@ function JoinCodeSettingsForm({
   );
 }
 
-/** The new code, shown once, with its copy button and when it ends. */
-function FreshCode({ fresh }: Readonly<{ fresh: NewJoinCode }>) {
+/** Returns the translated text a teacher pastes into an email: the link, the code and its end. */
+export function joinInvitationText(
+  page: Pick<ClassPage, "name" | "academicYear">,
+  fresh: Pick<NewJoinCode, "code" | "expiresAt">,
+  origin: string,
+): string {
+  return m.classes_join_invitation_text({
+    class: classLabel({ name: page.name, academicYear: page.academicYear }),
+    link: `${origin}/login`,
+    code: fresh.code,
+    until: formatDateTime(fresh.expiresAt),
+  });
+}
+
+/** Puts `text` on the clipboard and says so in a toast; no email is sent. */
+function copy(text: string, done: string): void {
+  navigator.clipboard.writeText(text).then(
+    () => toast.success(done),
+    () => toast.error(m.classes_join_copy_failed()),
+  );
+}
+
+/**
+ * The new code, shown once, with a button that copies the code and one that copies a ready
+ * invitation text with the sign-in link and the code, for an email or a course page.
+ */
+function FreshCode({ fresh, page }: Readonly<{ fresh: NewJoinCode; page: ClassPage }>) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border bg-muted/40 p-4">
       <dl className="flex flex-col gap-1">
@@ -142,16 +169,23 @@ function FreshCode({ fresh }: Readonly<{ fresh: NewJoinCode }>) {
         <dd className="font-mono text-2xl font-semibold tracking-widest break-all">{fresh.code}</dd>
       </dl>
       <p className="text-sm text-muted-foreground">{m.classes_join_shown_once()}</p>
-      <div>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          onClick={() =>
+            copy(
+              joinInvitationText(page, fresh, window.location.origin),
+              m.classes_invitation_text_copied(),
+            )
+          }
+        >
+          <MailIcon aria-hidden="true" data-icon="inline-start" />
+          {m.classes_invitation_text_copy()}
+        </Button>
         <Button
           type="button"
           variant="outline"
-          onClick={() => {
-            navigator.clipboard.writeText(fresh.code).then(
-              () => toast.success(m.classes_join_copied()),
-              () => toast.error(m.classes_join_copy_failed()),
-            );
-          }}
+          onClick={() => copy(fresh.code, m.classes_join_copied())}
         >
           <ClipboardCopyIcon aria-hidden="true" data-icon="inline-start" />
           {m.classes_join_copy()}
@@ -276,7 +310,7 @@ export function ClassJoinCode({ page }: Readonly<{ page: ClassPage }>) {
       <p className="text-muted-foreground">{m.classes_join_description()}</p>
       <CodeStatus state={state} />
       {archived && <p className="text-muted-foreground">{m.classes_join_archived()}</p>}
-      {canManage && state.enabled && fresh && <FreshCode fresh={fresh} />}
+      {canManage && state.enabled && fresh && <FreshCode fresh={fresh} page={page} />}
       {canManage && !state.enabled && (
         <JoinCodeSettingsForm
           label={m.classes_join_title()}

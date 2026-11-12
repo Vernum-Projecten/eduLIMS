@@ -71,10 +71,10 @@ test("the administrator creates a class on a teacher's behalf (#37, B2)", async 
   await dialog.getByRole("button", { name: "Create class" }).click();
   await expect(page).toHaveURL(/\/admin\/classes\/[0-9a-f-]{36}$/);
   await expect(page.getByText(`${CLASS} is created.`)).toBeVisible();
-  const members = page.getByRole("table", { name: "Members of this class with their role" });
+  const members = page.getByRole("table", { name: "Teachers of the class" });
   await expect(members.getByRole("row")).toHaveCount(2);
   await expect(members.getByRole("row", { name: `${OWNER} Owner` })).toBeVisible();
-  await expect(page.getByRole("heading", { level: 2, name: "Members (1)" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Teachers (1)" })).toBeVisible();
   await axe(page);
 });
 
@@ -107,7 +107,8 @@ test("the administrator imports students from CSV after a preview (#37, B2)", as
     pending.getByRole("cell", { name: "adm-two@example.test", exact: true }),
   ).toBeVisible();
   // Nobody joins before their own sign-in (#28): the members stay the owner alone.
-  await expect(page.getByRole("heading", { level: 2, name: "Members (1)" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Teachers (1)" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Students (0)" })).toBeVisible();
 
   await emails.fill("adm-two@example.test");
   await emails.press("Enter");
@@ -144,10 +145,10 @@ test("the administrator transfers the ownership; the old owner stays a co-teache
   ).toBeVisible();
   await dialog.getByRole("button", { name: "Transfer ownership" }).click();
   await expect(page.getByText(`The ownership of ${CLASS} is transferred.`)).toBeVisible();
-  const members = page.getByRole("table", { name: "Members of this class with their role" });
+  const members = page.getByRole("table", { name: "Teachers of the class" });
   await expect(members.getByRole("row", { name: `${HEIR} Owner` })).toBeVisible();
   await expect(members.getByRole("row", { name: `${OWNER} Co-teacher` })).toBeVisible();
-  await expect(page.getByRole("heading", { level: 2, name: "Members (2)" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Teachers (2)" })).toBeVisible();
 });
 
 test("the administrator archives and reopens a class with the keyboard (#37)", async ({ page }) => {
@@ -278,7 +279,7 @@ test("a class whose owner is no longer a teacher is flagged on the overview (#37
   await choose(transfer, "New owner", HEIR);
   await transfer.getByRole("button", { name: "Transfer ownership" }).click();
   await expect(page.getByText(`The ownership of ${orphan} is transferred.`)).toBeVisible();
-  const members = page.getByRole("table", { name: "Members of this class with their role" });
+  const members = page.getByRole("table", { name: "Teachers of the class" });
   await expect(members.getByRole("row", { name: new RegExp(former) })).toHaveCount(0);
   await page.goto(`/admin/classes?ownerNotTeacher=true&q=${orphan}`);
   await expect(page.getByRole("heading", { level: 2, name: "No classes match" })).toBeVisible();

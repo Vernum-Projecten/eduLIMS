@@ -50,6 +50,7 @@ function AdminClassesPage() {
   );
   return (
     <Page
+      fill
       title={sectionOf("admin", "classes").label()}
       description={<p>{m.classes_admin_description()}</p>}
       actions={<AdminCreateClassDialog />}

@@ -53,7 +53,7 @@ function UsersPage() {
   );
 
   return (
-    <Page title={section.label()} description={<p>{m.admin_users_description()}</p>}>
+    <Page fill title={section.label()} description={<p>{m.admin_users_description()}</p>}>
       {data ? (
         <UsersTable
           page={data}

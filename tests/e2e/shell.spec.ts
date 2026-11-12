@@ -76,10 +76,13 @@ for (const role of ROLES) {
     );
     for (const section of portal.sections) {
       await expect(nav.getByRole("link", { name: section, exact: true })).toBeVisible();
-      // The overview links every section from a card.
-      await expect(
-        page.getByRole("main").getByRole("link", { name: section, exact: true }),
-      ).toBeVisible();
+      // The overview links every section from a card, except the admin overview, which fits
+      // one screen and leaves the sections to the sidebar (#129).
+      if (role !== "admin") {
+        await expect(
+          page.getByRole("main").getByRole("link", { name: section, exact: true }),
+        ).toBeVisible();
+      }
     }
     for (const other of ROLES.filter((candidate) => candidate !== role)) {
       await expect(nav).not.toContainText(PORTALS[other].heading);
@@ -392,6 +395,8 @@ test.describe("the sidebar on a page taller than the viewport (#112)", () => {
       await setThemeCookie(context, theme);
       await page.setViewportSize({ width: 1280, height: 400 });
       await signInAs(page, "admin");
+      // The overview fits one screen (#129); the system page is still taller than the window.
+      await page.goto("/admin/system");
       await expect(page.locator("html")).toHaveClass(new RegExp(`\\b${theme}\\b`));
       await expectHydrated(sidebarToggle(page));
 

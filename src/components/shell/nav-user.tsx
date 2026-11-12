@@ -29,6 +29,7 @@ import {
 import { m } from "@/i18n/messages";
 import { roleLabel } from "@/lib/i18n/labels";
 import { initials } from "@/lib/navigation";
+import { ROLE_ICONS } from "@/lib/role-icons";
 import {
   ariaKeyShortcuts,
   isCharacterKeyShortcut,
@@ -95,11 +96,15 @@ export function NavUser({ user }: Readonly<{ user: SessionUser }>) {
               </span>
               <span className="flex flex-wrap gap-1 px-1 pb-1.5">
                 <span className="sr-only">{m.user_menu_roles()}:</span>
-                {user.roles.map((role) => (
-                  <Badge key={role} variant="secondary">
-                    {roleLabel(role)}
-                  </Badge>
-                ))}
+                {user.roles.map((role) => {
+                  const Icon = ROLE_ICONS[role];
+                  return (
+                    <Badge key={role} variant="secondary">
+                      <Icon aria-hidden="true" data-icon="inline-start" />
+                      {roleLabel(role)}
+                    </Badge>
+                  );
+                })}
               </span>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
