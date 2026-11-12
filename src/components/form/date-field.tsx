@@ -19,14 +19,17 @@ import { formatDate } from "@/lib/i18n/format";
  * Names a day button by its full date in the active locale ("Friday, November 27, 2026"), so
  * the visible day number is part of the accessible name (WCAG 2.5.3).
  */
-function labelDayButton(date: Date, modifiers: { today?: boolean; selected?: boolean }): string {
+export function labelDayButton(
+  date: Date,
+  modifiers: { today?: boolean; selected?: boolean },
+): string {
   const full = new Intl.DateTimeFormat(getLocale(), { dateStyle: "full" }).format(date);
   const named = modifiers.today ? m.calendar_today({ date: full }) : full;
   return modifiers.selected ? m.calendar_selected({ date: named }) : named;
 }
 
 /** Formats a `YYYY-MM-DD` day in the active locale, as that day in the app's time zone. */
-function formatDay(day: string): string {
+export function formatDay(day: string): string {
   return formatDate(new Date(endOfDayIn(day).getTime() - 1));
 }
 

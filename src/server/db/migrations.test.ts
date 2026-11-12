@@ -60,6 +60,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0013_scim", "Success"],
+      ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -82,6 +83,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0013_scim", "Success"],
+      ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -104,6 +106,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0013_scim", "Success"],
+      ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -150,6 +153,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0013_scim", "Success"],
+      ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -179,6 +183,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0013_scim", "Success"],
+      ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -192,11 +197,41 @@ describe("migrations", () => {
     await expect(insert(db, "Not A Slug")).rejects.toThrow(/check constraint/);
   });
 
+  it("0011_audit_event_indexes orders the activity log by time and id, and reverts (#36)", async () => {
+    db = await createTestDb();
+    const indexes = async (database: Kysely<DB>) => {
+      const rows = await sql<{ indexname: string; indexdef: string }>`
+        select indexname, indexdef from pg_indexes
+        where tablename = 'audit_event' and indexname <> 'audit_event_pkey'
+        order by indexname`.execute(database);
+      return rows.rows.map((row) => `${row.indexname}: ${row.indexdef.replace(/^.* USING /, "")}`);
+    };
+    expect(await indexes(db)).toEqual([
+      "audit_event_action_occurred_at_idx: btree (action, occurred_at)",
+      "audit_event_actor_id_occurred_at_idx: btree (actor_id, occurred_at)",
+      "audit_event_occurred_at_id_idx: btree (occurred_at, id)",
+      "audit_event_target_occurred_at_idx: btree (target_type, target_id, occurred_at, id)",
+    ]);
+    const migrator = createMigrator(db);
+    const down = await migrator.migrateTo("0010_integration_check");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0013_scim", "Success"],
+      ["0011_audit_event_indexes", "Success"],
+    ]);
+    expect(await indexes(db)).toEqual([
+      "audit_event_action_occurred_at_idx: btree (action, occurred_at)",
+      "audit_event_actor_id_occurred_at_idx: btree (actor_id, occurred_at)",
+      "audit_event_occurred_at_idx: btree (occurred_at DESC)",
+      "audit_event_target_idx: btree (target_type, target_id)",
+    ]);
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
+  });
+
   it("0013_scim backfills role_channel 'claim' for a provider's role set, and reverts", async () => {
     const database = await createTestDb();
     db = database;
     const migrator = createMigrator(database);
-    const down = await migrator.migrateTo("0010_integration_check");
+    const down = await migrator.migrateTo("0011_audit_event_indexes");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0013_scim", "Success"],
     ]);

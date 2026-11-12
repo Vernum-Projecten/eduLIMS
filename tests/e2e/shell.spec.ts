@@ -376,8 +376,9 @@ test.describe("in Dutch", () => {
 
     await nav.getByRole("link", { name: dutch("nav_activity_log") }).click();
     await expect(
-      page.getByRole("heading", { level: 2, name: dutch("coming_soon_title") }),
+      page.getByRole("heading", { level: 1, name: dutch("nav_activity_log") }),
     ).toBeVisible();
+    await expect(page.getByRole("table")).toBeVisible();
     await expect(page.getByRole("navigation", { name: dutch("breadcrumb_label") })).toContainText(
       dutch("nav_activity_log"),
     );

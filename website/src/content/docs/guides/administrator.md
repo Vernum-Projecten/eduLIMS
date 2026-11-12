@@ -283,6 +283,46 @@ retirement is recorded in the activity log.
 The page never shows a secret: no client secret, no signing key and no value
 of the server's secret settings.
 
+## Activity log
+
+**Activity log** lists what happened in eduLIMS, newest first, 25 events to
+a page: every sign-in, failed or refused sign-in, sign-out, ended session,
+role change, block and unblock, and every account created or deleted. Each
+row shows:
+
+- **Time:** the date and time, in the Amsterdam time zone.
+- **Action** and **Outcome:** what happened, and whether it **Succeeded**,
+  **Failed** or was **Refused**. Each outcome has its own icon as well as
+  its name.
+- **By:** the user who acted, **eduLIMS** for something eduLIMS did by
+  itself, or **Not signed in** for a sign-in attempt.
+- **About:** the user the event is about, or the kind of object, such as
+  **A session**.
+- **Details:** the reason, the sign-in method and, for a role change or a
+  block, the new roles, the previous roles or the last day of the block.
+
+Choose a name in **By** or **About** to open that user's details. The details
+of a user also link to **Events by this user** and **Events about this
+user**.
+
+Filter the log with the buttons above it, and combine the filters:
+
+- **By user** and **About user:** type part of a name or e-mail address and
+  choose the user from the list.
+- **Action** and **Outcome:** choose one or more values; each shows how many
+  events it would show with the other filters applied.
+- **Period:** choose a day in the calendar to see that day, then a second day
+  to make it the first or last day of the period. The days are in the
+  Amsterdam time zone. **Clear the period** removes it.
+
+**Reset** clears every filter. The menu of the **Time** column sorts the log
+**Ascending** (oldest first) or **Descending** (newest first). The filters, the sort and the page are part of the
+address, so you can bookmark a view or send it to another administrator.
+
+The log stores ids and codes only. eduLIMS looks up the names to show you
+on this screen; it never writes them into the log. A user who has been
+deleted shows as **Deleted user**. Events are kept for 12 months.
+
 ## Planned tasks
 
 | Task                                                                          | Requirement                      |
