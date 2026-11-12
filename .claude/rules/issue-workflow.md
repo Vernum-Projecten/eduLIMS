@@ -91,12 +91,17 @@ bootstrap it with `scripts/gh/labels.sh`:
 - **Work kind, on a `Task` only, exactly ONE:** `documentation`, `chore`,
   `refactor`, `perf`, `test`, `ci`.
 - **Portal:** `portal:student`, `portal:teacher`, `portal:admin`.
-- **Area:** `auth`, `database`, `upload` (Gen5/Epoch Excel), `openehr`
-  (FerroEHR REST and AQL), `hl7` (Afinion via FerroBRIDGE), `kpi`, `infra`.
+- **Area:** `auth`, `database`, `upload` (Gen5/Epoch Excel),
+  `integration:ferroehr` (FerroEHR REST and AQL), `integration:ferrobridge`
+  (Afinion HL7 v2 via FerroBRIDGE), `kpi-dashboard`, `ui`, `infra`.
+- **MoSCoW:** `moscow:must`, `moscow:should`, `moscow:could`, `moscow:wont`,
+  the priority of the requirement the issue serves.
 - **Workflow:** `security`, `privacy`, `accessibility`, `dependencies`
   (Dependabot), `on-hold` (waits on an input nobody here can provide, such as
-  the identity provider registration from the institution's IT department), and the PR escape hatch
-  `no-changelog`. Blocked-ness is the native blocked-by edge, never a label.
+  the identity provider registration from the institution's IT department),
+  `blocked-upstream` (waits on a release of FerroEHR, FerroBRIDGE or a tool),
+  and the PR escape hatches `no-changelog` and `no-issue`. `.github/labels.yml`
+  is the full set. Blocked-ness is the native blocked-by edge, never a label.
 
 ## Milestones = releases
 
