@@ -5,6 +5,8 @@ import { type DayButton, DayPicker, getDefaultClassNames, type Locale } from "re
 import { enUS, nl } from "react-day-picker/locale";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { getLocale } from "@/i18n/runtime";
+import { dayIn } from "@/lib/app-day";
+import { dayToDate } from "@/lib/forms/calendar-day";
 
 const DAY_PICKER_LOCALES = { en: enUS, nl } as const;
 
@@ -15,6 +17,7 @@ function Calendar({
   captionLayout = "label",
   buttonVariant = "ghost",
   locale: localeProp,
+  today: todayProp,
   formatters,
   components,
   ...props
@@ -23,9 +26,13 @@ function Calendar({
 }) {
   const defaultClassNames = getDefaultClassNames();
   const locale = localeProp ?? DAY_PICKER_LOCALES[getLocale()];
+  // eduLIMS edit: "today" is today in the app's time zone, where every day filter is read, not
+  // the browser's; near midnight the two differ.
+  const today = todayProp ?? dayToDate(dayIn(new Date()));
 
   return (
     <DayPicker
+      today={today}
       showOutsideDays={showOutsideDays}
       className={cn(
         "group/calendar bg-background p-2 [--cell-radius:var(--radius-md)] [--cell-size:--spacing(7)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",

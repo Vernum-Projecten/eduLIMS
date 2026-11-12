@@ -13,7 +13,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -140,18 +139,16 @@ export function DataTableFacetedFilter<TData extends RowData, TValue>({
                 );
               })}
             </CommandGroup>
+            {/* A border, not a CommandSeparator: a separator is no allowed child of a listbox (WCAG 4.1.2, axe aria-required-children). */}
             {chosen.length > 0 && (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem
-                    onSelect={() => column.setFilterValue(undefined)}
-                    className="justify-center text-center"
-                  >
-                    {m.data_table_facet_clear()}
-                  </CommandItem>
-                </CommandGroup>
-              </>
+              <CommandGroup className="border-t">
+                <CommandItem
+                  onSelect={() => column.setFilterValue(undefined)}
+                  className="justify-center text-center"
+                >
+                  {m.data_table_facet_clear()}
+                </CommandItem>
+              </CommandGroup>
             )}
           </CommandList>
         </Command>

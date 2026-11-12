@@ -14,6 +14,7 @@ import * as m0007 from "./0007_user_role_source.ts";
 import * as m0008 from "./0008_identity_provider.ts";
 import * as m0009 from "./0009_analyser.ts";
 import * as m0010 from "./0010_integration_check.ts";
+import * as m0011 from "./0011_audit_event_indexes.ts";
 
 export const migrations: Record<string, Migration> = {
   "0001_auth": m0001,
@@ -26,6 +27,7 @@ export const migrations: Record<string, Migration> = {
   "0008_identity_provider": m0008,
   "0009_analyser": m0009,
   "0010_integration_check": m0010,
+  "0011_audit_event_indexes": m0011,
 };
 
 export const migrationProvider: MigrationProvider = {

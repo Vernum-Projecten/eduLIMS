@@ -70,7 +70,7 @@ is a wish, so every rule below names what enforces it.
   default title and description of `command.tsx`, and the region label of
   `sonner.tsx`, which takes its theme from the app's `ThemeProvider` in place of
   `next-themes`. `calendar.tsx` defaults react-day-picker's locale to the active
-  Paraglide locale. After an update,
+  Paraglide locale and its `today` to today in the app's time zone. After an update,
   `grep -nE 'sr-only">[A-Za-z]|aria-label="[A-Za-z]|title="[A-Za-z]' src/components/ui/`
   must print nothing.
 
