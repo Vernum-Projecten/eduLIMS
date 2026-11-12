@@ -144,7 +144,8 @@ oude code werkt meteen niet meer. **Uitzetten** zet de code uit; studenten die
 al in de klas kwamen, blijven erin. Een code werkt nooit zolang de klas
 gearchiveerd is, en wie te veel verkeerde codes achter elkaar invult, moet 15
 minuten wachten. Een student die je uit de klas haalt, kan niet met de code
-terugkomen; nodig zijn adres opnieuw uit om hem weer toe te laten. Zegt het
+terugkomen, en zijn openstaande uitnodigingen voor de klas worden ingetrokken;
+nodig zijn adres opnieuw uit om hem weer toe te laten. Zegt het
 paneel dat de code niet meer werkt omdat het geheim van de server is
 gewijzigd, maak dan een nieuwe code.
 

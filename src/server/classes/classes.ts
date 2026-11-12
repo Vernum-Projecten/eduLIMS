@@ -19,7 +19,7 @@ import {
   refused,
   withClass,
 } from "./access.ts";
-import { clearRemoval, recordRemoval } from "./removals.ts";
+import { clearRemoval, recordRemoval, revokeInvitationsOfRemoved } from "./removals.ts";
 
 /** The fields of a class a teacher types. */
 export interface ClassFields {
@@ -331,7 +331,9 @@ export async function removeMember(
       .execute();
     // NOTE: #49 (security review of #119); a removed student does not rejoin with the code.
     if (targetRole === "student") {
-      await recordRemoval(trx, locked.id, input.userId, actor.id, new Date());
+      const now = new Date();
+      await recordRemoval(trx, locked.id, input.userId, actor.id, now);
+      await revokeInvitationsOfRemoved(trx, locked.id, input.userId, actor.id, now);
     }
     await refreshGroupCounts(trx, locked.id);
     await recordAudit(trx, {

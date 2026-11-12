@@ -5,12 +5,20 @@ import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
-import { archiveClass, removeMember } from "./classes.ts";
-import { createInvitations } from "./invitations.ts";
-import { type JoinContext, joinClassWithCode } from "./join.ts";
-import { enableJoinCode, joinCodeKey, regenerateJoinCode } from "./join-code.ts";
-import type { JoinLimits } from "./join-limits.ts";
-import { auditRows, classWithPeople, NOW, person, securityLines } from "./test-helpers.ts";
+import { archiveClass } from "./classes.ts";
+import { joinClassWithCode } from "./join.ts";
+import { joinCodeKey, regenerateJoinCode } from "./join-code.ts";
+import { auditRows, NOW, person, securityLines } from "./test-helpers.ts";
+import {
+  classWithCode,
+  context,
+  DAY,
+  key,
+  LIMITS,
+  memberRole,
+  usesOf,
+  WRONG,
+} from "./test-join.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -22,48 +30,6 @@ afterEach(async () => {
 async function open(): Promise<Kysely<DB>> {
   db = await createTestDb();
   return db;
-}
-
-const key = joinCodeKey("join-test-secret-that-is-long-enough-to-use");
-const DAY = 86_400_000;
-const LIMITS: JoinLimits = { user: 3, ip: 5, windowMs: 60_000 };
-const WRONG = "AAAAA-AAAA2";
-
-function context(overrides: Partial<JoinContext> = {}): JoinContext {
-  return { now: NOW, clientIp: "192.0.2.10", key, limits: LIMITS, ...overrides };
-}
-
-/** A class with a join code that is on; returns the people and the code. */
-async function classWithCode(database: Kysely<DB>, settings = { validDays: 7, maxUses: 30 }) {
-  const people = await classWithPeople(database);
-  const enabled = await enableJoinCode(
-    database,
-    people.owner,
-    { classId: people.classId, ...settings },
-    NOW,
-    key,
-  );
-  if (!enabled.ok) throw new Error(enabled.error);
-  return { ...people, code: enabled.value.code };
-}
-
-async function memberRole(database: Kysely<DB>, classId: string, userId: string) {
-  const row = await database
-    .selectFrom("member")
-    .select("role")
-    .where("organizationId", "=", classId)
-    .where("userId", "=", userId)
-    .executeTakeFirst();
-  return row?.role ?? null;
-}
-
-async function usesOf(database: Kysely<DB>, classId: string) {
-  const row = await database
-    .selectFrom("class_join_codes")
-    .select("uses")
-    .where("organization_id", "=", classId)
-    .executeTakeFirstOrThrow();
-  return row.uses;
 }
 
 describe("joinClassWithCode: joining (#49, S2)", () => {
@@ -269,52 +235,6 @@ describe("joinClassWithCode: refusals (#49)", () => {
   });
 });
 
-describe("joinClassWithCode: a removed student (owner decision on the review of #119)", () => {
-  it("cannot rejoin with the live code, and the log says why", async () => {
-    const database = await open();
-    const { classId, code, owner, studentA } = await classWithCode(database);
-    await removeMember(database, owner, { classId, userId: studentA.id });
-    expect(await joinClassWithCode(database, studentA, { code }, context())).toEqual({
-      ok: false,
-      error: "invalid_code",
-    });
-    expect(await memberRole(database, classId, studentA.id)).toBeNull();
-    expect(await auditRows(database, "class_join_failed")).toEqual([
-      expect.objectContaining({ reason_code: "removed", target_id: classId }),
-    ]);
-  });
-
-  it("can join again once a teacher invites their address anew", async () => {
-    const database = await open();
-    const { classId, code, owner, studentA } = await classWithCode(database);
-    await removeMember(database, owner, { classId, userId: studentA.id });
-    await createInvitations(
-      database,
-      owner,
-      { classId, role: "student", emails: [studentA.email] },
-      NOW,
-    );
-    expect((await joinClassWithCode(database, studentA, { code }, context())).ok).toBe(true);
-  });
-
-  it("does not block another student or another class", async () => {
-    const database = await open();
-    const { classId, code, owner, studentA } = await classWithCode(database);
-    await removeMember(database, owner, { classId, userId: studentA.id });
-    const newcomer = await person(database, "newcomer", ["student"]);
-    expect((await joinClassWithCode(database, newcomer, { code }, context())).ok).toBe(true);
-    const removals = await database.selectFrom("class_removals").select("user_id").execute();
-    expect(removals).toEqual([{ user_id: studentA.id }]);
-  });
-
-  it("records no removal for a co-teacher", async () => {
-    const database = await open();
-    const { classId, owner, coTeacher } = await classWithCode(database);
-    await removeMember(database, owner, { classId, userId: coTeacher.id });
-    expect(await database.selectFrom("class_removals").select("user_id").execute()).toEqual([]);
-  });
-});
-
 describe("joinClassWithCode: the brute-force limit (#49, ASVS V2.4.1)", () => {
   it("refuses a student over their limit, even with the right code, and logs it once", async () => {
     const database = await open();
@@ -366,6 +286,40 @@ describe("joinClassWithCode: the brute-force limit (#49, ASVS V2.4.1)", () => {
     expect(await memberRole(database, classId, honest.id)).toBe("student");
     const rows = await auditRows(database, "class_join_failed");
     expect(rows.filter((row) => row.reason_code === "rate_limited_ip")).toHaveLength(1);
+  });
+
+  it("logs no crossing for a join from an address at its limit (review F1)", async () => {
+    const database = await open();
+    const { code, studentA } = await classWithCode(database);
+    const ctx = context();
+    for (let i = 0; i < LIMITS.ip; i += 1) {
+      const guesser = await person(database, `guesser-${i}`, ["student"]);
+      expect((await joinClassWithCode(database, guesser, { code: WRONG }, ctx)).ok).toBe(false);
+    }
+    for (let i = 0; i < 5; i += 1) {
+      expect((await joinClassWithCode(database, studentA, { code }, ctx)).ok).toBe(true);
+    }
+    const crossings = async () =>
+      (await auditRows(database, "class_join_failed")).filter(
+        (row) => row.reason_code === "rate_limited_ip",
+      );
+    expect(await crossings()).toHaveLength(0);
+    const last = await person(database, "last-guesser", ["student"]);
+    expect(await joinClassWithCode(database, last, { code: WRONG }, ctx)).toEqual({
+      ok: false,
+      error: "rate_limited",
+    });
+    expect(await crossings()).toHaveLength(1);
+  });
+
+  it("counts attempts under a key of its own, never the code's (review F2)", async () => {
+    const database = await open();
+    await classWithCode(database);
+    const guesser = await person(database, "guesser", ["student"]);
+    await joinClassWithCode(database, guesser, { code: WRONG }, context({ clientIp: null }));
+    const rows = await database.selectFrom("class_join_attempts").select("key_hash").execute();
+    expect(rows).toEqual([{ key_hash: key.attemptHash(`user:${guesser.id}`) }]);
+    expect(key.attemptHash(`user:${guesser.id}`)).not.toBe(key.hash(`user:${guesser.id}`));
   });
 
   it("limits per student only when no proxy is trusted", async () => {

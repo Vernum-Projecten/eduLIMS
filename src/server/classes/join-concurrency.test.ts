@@ -149,4 +149,33 @@ describe("a join meeting another class write (#49, review L1)", () => {
     const rows = await auditRows(db, "class_join_failed");
     expect(rows).toEqual([expect.objectContaining({ reason_code: "unknown_code" })]);
   });
+
+  it("never deadlocks with a writer that locks the code row before the class (review F3)", async () => {
+    const { db, pool } = database();
+    const { classId, code } = await classWithCode(db);
+    const newcomer = await person(db, "newcomer", ["student"]);
+    const client = await pool.connect();
+    let join: Promise<Awaited<ReturnType<typeof joinClassWithCode>>> | undefined;
+    try {
+      await client.query("begin");
+      await client.query(
+        "select uses from class_join_codes where organization_id = $1 for update",
+        [classId],
+      );
+      join = joinClassWithCode(db, newcomer, { code }, context);
+      expect(await settlesWithin(join, 200)).toBe(false);
+      // The join keeps letting the class go while the code row is taken, so this lock is granted.
+      await client.query('select id from "organization" where id = $1 for update', [classId]);
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
+    }
+    expect(await join).toEqual({
+      ok: true,
+      value: expect.objectContaining({ status: "joined" }),
+    });
+  });
 });

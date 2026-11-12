@@ -22,24 +22,33 @@ import {
 import { userActor } from "./classes.ts";
 
 /**
- * The key of join codes: `hash` turns a normalised code (or a rate-limit key) into its stored
- * HMAC (hex); `fingerprint` names the key, so a code made under another key shows as stale.
+ * The keys of join codes: `hash` turns a normalised code into its stored HMAC (hex);
+ * `attemptHash` does the same for a rate-limit key, under a key of its own; `fingerprint` names
+ * the code key, so a code made under another key shows as stale.
  */
 export interface JoinCodeKey {
   hash: (value: string) => string;
+  attemptHash: (value: string) => string;
   fingerprint: string;
 }
 
+function derive(secret: string, info: string): Buffer {
+  return Buffer.from(hkdfSync("sha256", secret, "", info, 32));
+}
+
 /**
- * Returns the key of join codes: HMAC-SHA-256 under a key derived from `secret` (the better-auth
- * secret) with HKDF, so the stored hashes alone cannot be guessed offline.
+ * Returns the keys of join codes: HMAC-SHA-256 under keys derived from `secret` (the better-auth
+ * secret) with HKDF, one per use, so the stored hashes alone cannot be guessed offline.
  */
 export function joinCodeKey(secret: string): JoinCodeKey {
   // NOTE: #49; a rotated BETTER_AUTH_SECRET makes every join code stop working, as it should.
-  const key = Buffer.from(hkdfSync("sha256", secret, "", "edulims class join code", 32));
+  const codeKey = derive(secret, "edulims class join code");
+  // NOTE: #49 (verification review of #119, F2); the counters' key is separate from the codes'.
+  const attemptKey = derive(secret, "edulims class join attempts");
   return {
-    hash: (value) => createHmac("sha256", key).update(value, "utf8").digest("hex"),
-    fingerprint: createHash("sha256").update(key).digest("hex").slice(0, 16),
+    hash: (value) => createHmac("sha256", codeKey).update(value, "utf8").digest("hex"),
+    attemptHash: (value) => createHmac("sha256", attemptKey).update(value, "utf8").digest("hex"),
+    fingerprint: createHash("sha256").update(codeKey).digest("hex").slice(0, 16),
   };
 }
 

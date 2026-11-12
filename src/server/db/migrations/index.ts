@@ -17,7 +17,7 @@ import * as m0010 from "./0010_integration_check.ts";
 import * as m0011 from "./0011_audit_event_indexes.ts";
 import * as m0012 from "./0012_classes.ts";
 import * as m0013 from "./0013_scim.ts";
-import * as m0015 from "./0015_class_join_code.ts";
+import * as m0014 from "./0014_class_join_code.ts";
 
 export const migrations: Record<string, Migration> = {
   "0001_auth": m0001,
@@ -33,7 +33,7 @@ export const migrations: Record<string, Migration> = {
   "0011_audit_event_indexes": m0011,
   "0012_classes": m0012,
   "0013_scim": m0013,
-  "0015_class_join_code": m0015,
+  "0014_class_join_code": m0014,
 };
 
 export const migrationProvider: MigrationProvider = {

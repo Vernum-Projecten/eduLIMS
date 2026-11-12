@@ -57,10 +57,28 @@ type Attempt =
   | { ok: true; value: JoinOutcome }
   | { ok: false; reason: JoinFailure; classId: string | null };
 
+/** Thrown inside the join transaction when the code row is locked, so it rolls back and retries. */
+class CodeRowBusy extends Error {
+  override readonly name = "CodeRowBusy";
+}
+
+/** PostgreSQL's `lock_not_available` (55P03), the answer of `FOR UPDATE NOWAIT` on a locked row. */
+function isLockNotAvailable(error: unknown): boolean {
+  return typeof error === "object" && error !== null && Reflect.get(error, "code") === "55P03";
+}
+
+// NOTE: no requirement governs these numbers: our own design. A join holds its locks for a few
+// milliseconds, so 40 tries spread over about half a second outlast any normal queue.
+const LOCK_TRIES = 40;
+const LOCK_PAUSE_MS = 12;
+
 /**
  * Looks the code up and joins. The first read takes no lock; the transaction then locks the class
- * (`FOR SHARE`) before the code row (`FOR UPDATE`), the order every class write uses, and checks
- * the hash, the archive state and the uses again, so a parallel archive, new code or join is seen.
+ * (`FOR SHARE`) before the code row (`FOR UPDATE NOWAIT`), the order every class write uses, and
+ * checks the hash, the archive state and the uses again, so a parallel archive, new code or join
+ * is seen. A locked code row ends the transaction, which lets the class go, and the join tries
+ * again: a join never waits on the code row while it holds the class, so it cannot deadlock with
+ * a writer that takes the two the other way round (review of #119, F3).
  */
 async function attempt(
   db: Kysely<DB>,
@@ -75,7 +93,24 @@ async function attempt(
     .where("code_hash", "=", codeHash)
     .executeTakeFirst();
   if (!found) return { ok: false, reason: "unknown_code", classId: null };
-  const classId = found.organization_id;
+  for (let tries = 1; ; tries += 1) {
+    try {
+      return await lockedAttempt(db, actor, found.organization_id, codeHash, ctx, tries);
+    } catch (error) {
+      if (!(error instanceof CodeRowBusy)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, LOCK_PAUSE_MS * (1 + Math.random())));
+    }
+  }
+}
+
+async function lockedAttempt(
+  db: Kysely<DB>,
+  actor: ClassActor,
+  classId: string,
+  codeHash: string,
+  ctx: JoinContext,
+  tries: number,
+): Promise<Attempt> {
   return db.transaction().execute(async (trx): Promise<Attempt> => {
     const fail = (reason: JoinFailure): Attempt => ({ ok: false, reason, classId });
     const klass = await trx
@@ -84,12 +119,19 @@ async function attempt(
       .where("id", "=", classId)
       .forShare()
       .executeTakeFirst();
-    const row = await trx
+    const query = trx
       .selectFrom("class_join_codes")
       .select(["code_hash", "expires_at", "uses", "max_uses"])
       .where("organization_id", "=", classId)
-      .forUpdate()
-      .executeTakeFirst();
+      .forUpdate();
+    // The last try waits its turn, so a long but live queue still ends in an answer.
+    const row = await (tries < LOCK_TRIES ? query.noWait() : query)
+      .executeTakeFirst()
+      .catch((error: unknown) => {
+        if (isLockNotAvailable(error))
+          throw new CodeRowBusy("join code row locked", { cause: error });
+        throw error;
+      });
     if (!klass || !row || row.code_hash !== codeHash) return fail("unknown_code");
     if (klass.archived_at !== null) return fail("class_archived");
     if (row.expires_at <= ctx.now) return fail("code_expired");
@@ -140,7 +182,7 @@ function failedJoin(
 async function charge(db: Kysely<DB>, keys: readonly LimitKey[], ctx: JoinContext) {
   const charges: Charge[] = [];
   for (const key of keys) {
-    const keyHash = ctx.key.hash(limitKeyText(key));
+    const keyHash = ctx.key.attemptHash(limitKeyText(key));
     const attempts = await chargeAttempt(db, keyHash, ctx.now, ctx.limits.windowMs);
     charges.push({ key, keyHash, attempts });
   }
@@ -149,7 +191,8 @@ async function charge(db: Kysely<DB>, keys: readonly LimitKey[], ctx: JoinContex
 
 /**
  * Logs the moment a key goes over its limit, once per key and window: later attempts in the same
- * window are refused without a line, so a guesser cannot flood the log (#49, review L3).
+ * window are refused without a line, so a guesser cannot flood the log (#49, review L3). Called
+ * for a refused attempt only: a join refunds its charge, so logging it would repeat (F1).
  */
 async function logLimitReached(
   db: Kysely<DB>,
@@ -184,9 +227,11 @@ export async function joinClassWithCode(
   // applies, so one shared bucket cannot lock a whole school out.
   if (ctx.clientIp !== null) keys.push({ kind: "ip", address: ctx.clientIp });
   const charges = await charge(db, keys, ctx);
-  await logLimitReached(db, actor, charges, ctx.limits);
   const userOver = charges.some((each) => each.key.kind === "user" && overLimit(each, ctx.limits));
-  if (userOver) return refused("rate_limited");
+  if (userOver) {
+    await logLimitReached(db, actor, charges, ctx.limits);
+    return refused("rate_limited");
+  }
   const code = normalizeJoinCode(input.code);
   const result: Attempt = code
     ? await attempt(db, actor, code, ctx)
@@ -196,6 +241,7 @@ export async function joinClassWithCode(
     return done(result.value);
   }
   await recordAudit(db, failedJoin(actor, "failure", result.reason, result.classId));
+  await logLimitReached(db, actor, charges, ctx.limits);
   const ipOver = charges.some((each) => overLimit(each, ctx.limits));
   return refused(ipOver ? "rate_limited" : "invalid_code");
 }

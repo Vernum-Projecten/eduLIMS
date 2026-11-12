@@ -144,7 +144,8 @@ and the fingerprint of its key. Every attempt is counted per student and per
 client IP (only through `EDULIMS_TRUSTED_PROXIES`) in `class_join_attempts`,
 one atomic upsert per key before the lookup, so parallel requests, restarts
 and replicas share the count; a join takes its count back. A student a
-teacher removes is recorded in `class_removals` and cannot rejoin with the
+teacher removes is recorded in `class_removals`, their pending invitations to
+the class are revoked in the same transaction, and they cannot rejoin with the
 code until a new invitation or a re-add clears the record.
 
 ### Template `eduLIMS-lab`

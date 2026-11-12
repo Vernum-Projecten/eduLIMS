@@ -6,6 +6,7 @@
 // their address, or any way back into the class, clears the record. Relative imports and no
 // server-only marker: `pnpm db:seed` loads the invitation acceptance in plain Node.
 import type { Kysely } from "kysely";
+import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 
 /** Records that `userId` was removed from the class by `actorId`. */
@@ -25,6 +26,46 @@ export async function recordRemoval(
         .doUpdateSet({ removed_by: actorId, removed_at: now }),
     )
     .execute();
+}
+
+/**
+ * Revokes the pending invitations of the removed person's address to this class, in the caller's
+ * transaction, each with its `invitation_revoked` row, so a pending invitation cannot quietly undo
+ * the removal at the next sign-in (owner decision on the review of #119). Returns how many.
+ */
+export async function revokeInvitationsOfRemoved(
+  trx: Kysely<DB>,
+  classId: string,
+  userId: string,
+  actorId: string,
+  now: Date,
+): Promise<number> {
+  const revoked = await trx
+    .updateTable("invitation")
+    .set({ status: "canceled", ended_at: now })
+    .where("organizationId", "=", classId)
+    .where("status", "=", "pending")
+    .where("email", "in", (q) =>
+      q
+        .selectFrom("user")
+        .select((eb) => eb.fn<string>("lower", ["email"]).as("email"))
+        .where("id", "=", userId),
+    )
+    .returning(["id", "role"])
+    .execute();
+  for (const invitation of revoked) {
+    await recordAudit(trx, {
+      action: "invitation_revoked",
+      actor: { type: "user", id: actorId },
+      outcome: "success",
+      target: { type: "invitation", id: invitation.id },
+      metadata: {
+        class_id: classId,
+        class_role: invitation.role === "teacher" ? "teacher" : "student",
+      },
+    });
+  }
+  return revoked.length;
 }
 
 /** Returns whether a teacher removed `userId` from the class, read in the caller's transaction. */
