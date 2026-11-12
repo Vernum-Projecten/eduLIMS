@@ -151,8 +151,8 @@ jobs:
           password: ${{ github.token }}
 
       # Tags: the version, its major.minor, and latest, which the action
-      # leaves out for a pre-release. Tags on GHCR are mutable, so
-      # docs/deployment.md tells operators to pin the digest as well.
+      # leaves out for a pre-release. Tags on GHCR are mutable; the attested
+      # digest is what `gh attestation verify` checks (docs/release.md).
       - name: Image tags, labels, and annotations
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0

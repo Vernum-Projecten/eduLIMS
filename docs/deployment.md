@@ -22,7 +22,6 @@ same.
 | `edulims-tools` (profile) | `ghcr.io/vernum-projecten/edulims-migrate` | nothing | the tools image for the operator commands (`admin`, `idp`), run by hand |
 | `edulims` | `ghcr.io/vernum-projecten/edulims` | `127.0.0.1:3000` | the application |
 | `keycloak` (profile) | `quay.io/keycloak/keycloak:26.8.2` | `127.0.0.1:8180` | the optional identity provider |
-| `logship` (`compose.logship.yaml`) | `docker.io/fluent/fluent-bit:5.2.0` | `127.0.0.1:24224` | the optional log forwarder ("Shipping logs off the host") |
 | `logship` (`compose.logship.yaml`) | `docker.io/fluent/fluent-bit:5.2.0` | `127.0.0.1:24224` | the optional log forwarder (below, "Shipping logs off the host") |
 
 Every third-party image is pinned by digest in `compose.yaml`; the eduLIMS
