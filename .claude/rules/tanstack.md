@@ -137,6 +137,8 @@ a new domain adds its row here and there.
 | Classes (`classesKeys`) | 30 s | Co-teachers change a class, rarely within a minute; every write invalidates the class and the lists. |
 | Admin overview (`adminOverviewKeys.summary`) | 30 s | A snapshot of counts and the latest events; the next visit after 30 s reads it again (#36). |
 | System page (`systemKeys.configuration`) | 0 | An identity-provider change on its own screen shows on the next visit (#36). |
+| Activity log page (`activityKeys.list`) | 30 s | Events arrive all day, but a page a minute old still helps; a filter change reads anew. |
+| Activity log user search (`activityKeys.userSearch`) | 60 s | Names change rarely. |
 | Anything else (the `QueryClient` default) | 30 s | A fallback only; every factory sets its own. |
 
 ### Four states on every data route

@@ -34,6 +34,10 @@ export const STALE_TIME = {
    * show on the next visit, so it is always revalidated.
    */
   systemConfiguration: 0,
+  /** A page of the activity log: events arrive all day, but a page a minute old still helps. */
+  adminActivityList: 30_000,
+  /** The user search of the activity log's actor and target filters: names change rarely. */
+  adminActivityUserSearch: 60_000,
 } as const;
 
 // NOTE: B3 ("unreachable … within 5 minutes"); our own interval: a check result reaches an open

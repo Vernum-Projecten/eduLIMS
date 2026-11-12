@@ -348,6 +348,49 @@ beheerders.
 De pagina toont nooit een geheim: geen clientgeheim, geen ondertekensleutel
 en geen waarde van de geheime instellingen van de server.
 
+## Activiteitenlogboek
+
+**Activiteitenlogboek** toont wat er in eduLIMS is gebeurd, nieuwste eerst,
+25 gebeurtenissen per pagina: elke aanmelding, mislukte of geweigerde
+aanmelding, afmelding, beëindigde sessie, rolwijziging, blokkade en
+deblokkade, en elk aangemaakt of verwijderd account. Elke rij toont:
+
+- **Tijd:** de datum en tijd, in de tijdzone van Amsterdam.
+- **Actie** en **Uitkomst:** wat er gebeurde, en of het **Gelukt**,
+  **Mislukt** of **Geweigerd** is. Elke uitkomst heeft naast de naam een eigen
+  pictogram.
+- **Door:** de gebruiker die het deed, **eduLIMS** als eduLIMS het zelf deed,
+  of **Niet ingelogd** bij een poging om in te loggen.
+- **Over:** de gebruiker waar de gebeurtenis over gaat, of het soort object,
+  zoals **Een sessie**.
+- **Details:** de reden, de aanmeldmethode en, bij een rolwijziging of een
+  blokkade, de nieuwe rollen, de vorige rollen of de laatste dag van de
+  blokkade.
+
+Kies een naam onder **Door** of **Over** om de gegevens van die gebruiker te
+openen. De gegevens van een gebruiker linken ook naar **Gebeurtenissen door
+deze gebruiker** en **Gebeurtenissen over deze gebruiker**.
+
+Filter het logboek met de knoppen erboven, en combineer de filters:
+
+- **Door gebruiker** en **Over gebruiker:** typ een deel van een naam of
+  e-mailadres en kies de gebruiker uit de lijst.
+- **Actie** en **Uitkomst:** kies een of meer waarden; bij elke waarde staat
+  hoeveel gebeurtenissen die met de andere filters zou tonen.
+- **Periode:** kies een dag in de kalender om die dag te zien, en daarna een
+  tweede dag om die de eerste of laatste dag van de periode te maken. De dagen
+  zijn in de tijdzone van Amsterdam. **Periode wissen** haalt de periode weg.
+
+**Wissen** wist alle filters. Met het menu van de kolom **Tijd** sorteer je
+het logboek **Oplopend** (oudste eerst) of **Aflopend** (nieuwste eerst). De filters, de sortering en
+de pagina staan in het adres, dus je kunt een weergave bewaren als bladwijzer
+of naar een andere beheerder sturen.
+
+Het logboek bewaart alleen id's en codes. eduLIMS zoekt de namen op om ze op
+dit scherm te tonen en schrijft ze nooit in het logboek. Een verwijderde
+gebruiker staat er als **Verwijderde gebruiker**. Gebeurtenissen blijven 12
+maanden bewaard.
+
 ## Geplande taken
 
 | Taak                                                                               | Requirement                      |
