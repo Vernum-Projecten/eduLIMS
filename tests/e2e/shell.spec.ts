@@ -356,6 +356,54 @@ test.describe("axe in both themes", () => {
   }
 });
 
+/**
+ * Measures the sidebar from its main menu: the background its panel paints, and how far down
+ * the document the lowest box around the menu with that background reaches. A full-page capture
+ * shows the page as laid out, so a box one viewport tall leaves the rest of the column bare.
+ */
+async function sidebarPaint(page: Page) {
+  return page.getByRole("navigation", { name: "Main menu" }).evaluate((nav) => {
+    const transparent = "rgba(0, 0, 0, 0)";
+    const ancestors: Element[] = [];
+    for (let node = nav.parentElement; node; node = node.parentElement) ancestors.push(node);
+    const colour = ancestors
+      .map((node) => getComputedStyle(node).backgroundColor)
+      .find((background) => background !== transparent);
+    const bottom = Math.max(
+      ...ancestors
+        .filter((node) => getComputedStyle(node).backgroundColor === colour)
+        .map((node) => node.getBoundingClientRect().bottom + window.scrollY),
+    );
+    return {
+      colour,
+      bottom,
+      documentHeight: document.documentElement.scrollHeight,
+      viewportHeight: window.innerHeight,
+    };
+  });
+}
+
+test.describe("the sidebar on a page taller than the viewport (#112)", () => {
+  for (const theme of ["light", "dark"] as const) {
+    test(`its background reaches the bottom of the document in the ${theme} theme`, async ({
+      page,
+      context,
+    }) => {
+      await setThemeCookie(context, theme);
+      await page.setViewportSize({ width: 1280, height: 400 });
+      await signInAs(page, "admin");
+      await expect(page.locator("html")).toHaveClass(new RegExp(`\\b${theme}\\b`));
+      await expectHydrated(sidebarToggle(page));
+
+      const paint = await sidebarPaint(page);
+      expect(paint.colour).toBeDefined();
+      expect(paint.documentHeight).toBeGreaterThan(2 * paint.viewportHeight);
+      expect(paint.bottom).toBeGreaterThanOrEqual(paint.documentHeight);
+      await expectNoA11yViolations(page);
+    });
+  }
+});
+
 test.describe("in Dutch", () => {
   test("the shell, an overview and a section are translated and axe-clean", async ({
     page,
