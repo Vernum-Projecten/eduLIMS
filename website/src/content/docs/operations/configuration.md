@@ -85,8 +85,8 @@ variable without a value stops `docker compose` before any container starts.
 | --------------------------- | ------- | ------------------------------------------- |
 | `EDULIMS_DEV_DB_PORT`       | `5432`  | Host port of the development PostgreSQL.    |
 | `EDULIMS_DEV_KEYCLOAK_PORT` | `8180`  | Host port of the development Keycloak.      |
-| `EDULIMS_DEV_FERROEHR_PORT` | `8080`  | Host port of FerroEHR (profile `ferro`). |
-| `EDULIMS_DEV_FERROBRIDGE_PORT` | `8081` | Host port of FerroBRIDGE (profile `ferro`). |
+| `EDULIMS_DEV_FERROEHR_PORT` | `8080`  | Host port of FerroEHR. |
+| `EDULIMS_DEV_FERROBRIDGE_PORT` | `8081` | Host port of FerroBRIDGE. |
 
 The test commands read these from the shell, not from `.env`:
 

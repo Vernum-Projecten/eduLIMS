@@ -1016,9 +1016,57 @@ realm file needs `pnpm dev:db:stop && pnpm dev:db`. It also creates the
 `pnpm test` and `pnpm test:e2e` run creates its own database next to one of
 them and drops it at the end. On a dev volume created before that grant, run
 the script once by hand (its header has the command).
-FerroEHR is the opt-in `ferroehr` profile. `pnpm dev:db` starts the stack
-with `podman compose`, or `docker compose` without Podman; the header of
-`compose.dev.yaml` has the commands.
+`pnpm dev:db` starts the stack with `podman compose`, or `docker compose`
+without Podman, and `pnpm dev:db:stop` stops it and keeps the `pgdata` and
+`ferrobridge-state` volumes; the header of `compose.dev.yaml` has the
+commands.
+
+The stack also runs FerroEHR and FerroBRIDGE from the images `compose.yaml`
+pins:
+
+| Service | Address on the host | Notes |
+|---|---|---|
+| PostgreSQL | `localhost:5432` | `EDULIMS_DEV_DB_PORT` |
+| Keycloak | `http://localhost:8180` | admin console `admin` / `admin`; `EDULIMS_DEV_KEYCLOAK_PORT` |
+| FerroEHR | `http://localhost:8080/ferroehr/rest/openehr/v1` | authentication on; `EDULIMS_DEV_FERROEHR_PORT` |
+| FerroBRIDGE | `http://localhost:8081` | health at `/health/readiness`, HL7 v2 listener off; `EDULIMS_DEV_FERROBRIDGE_PORT` |
+
+FerroEHR runs with authentication on, as in production. It trusts the
+`edulims` realm as a `machines` issuer (FerroEHR book v5.7.0,
+`installation/config-auth.md`, `[[auth.issuer]]`) and declares the realm's
+client `edulims-ferroehr` as a system client (`[[authz.system_client]]`), as
+`config/ferroehr.toml.example` does: origin `device`, the example provider
+`urn:example:edulims-dev-provider` and one example facility. The Keycloak
+profile reads a token as app-only by its `sub`, so the realm file fixes the id
+of the client's service account and FerroEHR lists it in `app_only`. eduLIMS takes
+a token with the client credentials grant at
+`http://localhost:8180/realms/edulims/protocol/openid-connect/token`, client
+`edulims-ferroehr`, secret `edulims-dev-ferroehr-secret`, and scope
+`system/composition-*.cr system/template-*.cr system/aql-eu.edulims::*.s`
+(the SMART on openEHR grants for EHRs and compositions, templates, and the
+stored queries of the `eu.edulims` namespace; FerroEHR book,
+`smart-app-launch.md`). The system client lists no template in `writes` yet:
+FerroEHR refuses to start with a template its store does not hold, so it
+commits no composition until `eduLIMS-lab.v1` (#146) is loaded with
+`ferroehr definitions load` before FerroEHR starts.
+
+Every token carries the issuer `http://localhost:8180/realms/edulims`
+(`KC_HOSTNAME`), whichever host asks. FerroEHR accepts a plain-HTTP issuer on
+a loopback host only and reads the issuer's metadata and keys at that URL, so
+the FerroEHR container joins the Keycloak container's network namespace, as
+FerroEHR's own quickstart does with its issuer: there `localhost:8180` is
+Keycloak. Keycloak therefore listens on the host port inside its container,
+publishes FerroEHR's port, and answers to `ferroehr` on the Compose network.
+`bash scripts/dev/ferroehr-auth-check.sh` proves the round trip: the token's
+`iss` and `aud`, `401` without a token, `200` on the template list with it,
+and `403` to a token without the template scope.
+
+The realm is imported only when the Keycloak container is created. A change
+to the Keycloak service in `compose.dev.yaml` recreates the container on the
+next `pnpm dev:db`, which imports the realm again; after a change to the
+realm file alone, run `pnpm dev:db:stop && pnpm dev:db`. Keycloak keeps no
+other state worth saving, and the eduLIMS and FerroEHR data stay on their
+volumes, so neither needs a reset.
 
 `pnpm db:seed` registers the development Keycloak through the admin service
 as two identity providers, `keycloak` (OIDC) and `keycloak-saml` (SAML), when

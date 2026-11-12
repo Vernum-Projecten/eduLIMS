@@ -39,7 +39,7 @@ pnpm dev:db
 
 `pnpm dev:db` runs `podman compose -f compose.dev.yaml up -d --wait`, or
 `docker compose -f compose.dev.yaml up -d --wait` when Podman is not
-installed. `pnpm dev:db:stop` stops the stack and keeps its data volume;
+installed. `pnpm dev:db:stop` stops the stack and keeps its data volumes;
 `pnpm dev:db:logs` follows its logs.
 
 | Service    | Address                 | Notes                                                                                                                            |
@@ -47,18 +47,16 @@ installed. `pnpm dev:db:stop` stops the stack and keeps its data volume;
 | PostgreSQL | `localhost:5432`        | databases `edulims` (development), `edulims_test` and `edulims_e2e` (tests); change the port with `EDULIMS_DEV_DB_PORT`          |
 | Keycloak   | `http://localhost:8180` | admin console `admin` / `admin`; issuer `http://localhost:8180/realms/edulims`; change the port with `EDULIMS_DEV_KEYCLOAK_PORT` |
 
-FerroEHR and FerroBRIDGE are an opt-in profile, `ferro`, for work on the
-integrations and the integration status of the admin portal. They run from
-the images `compose.yaml` pins, configured by environment only, without
-authentication and on loopback ports:
-
-```sh
-pnpm dev:db:ferro
-```
+The same command starts FerroEHR and FerroBRIDGE, from the images
+`compose.yaml` pins, configured by environment only and on loopback ports.
+FerroEHR runs with authentication on, as in production: eduLIMS calls it with
+a token of the realm's client `edulims-ferroehr` (client credentials, secret
+`edulims-dev-ferroehr-secret`). `bash scripts/dev/ferroehr-auth-check.sh`
+checks that FerroEHR accepts such a token.
 
 | Service     | Address                                           | Notes                                                                |
 | ----------- | ------------------------------------------------- | -------------------------------------------------------------------- |
-| FerroEHR    | `http://localhost:8080/ferroehr/rest/openehr/v1`  | openEHR REST; change the port with `EDULIMS_DEV_FERROEHR_PORT`       |
+| FerroEHR    | `http://localhost:8080/ferroehr/rest/openehr/v1`  | openEHR REST, bearer token required; change the port with `EDULIMS_DEV_FERROEHR_PORT` |
 | FerroBRIDGE | `http://localhost:8081`                           | health at `/health/readiness`; change the port with `EDULIMS_DEV_FERROBRIDGE_PORT` |
 
 To see the admin portal show a service as **Unavailable**, stop it and start
