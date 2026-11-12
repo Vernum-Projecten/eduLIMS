@@ -14,8 +14,9 @@
 # WHAT YOU PROVIDE beside this file:
 #   .env                          every secret and setting (.env.example lists them)
 #   config/ferroehr.toml          FerroEHR's server configuration
-#   config/ferrobridge/           FerroBRIDGE's ferrobridge.toml, with the [hl7v2]
-#                                 section
+#   config/ferrobridge/           FerroBRIDGE's ferrobridge.toml; an enabled
+#                                 [hl7v2] face also needs its [hl7v2.tls]
+#                                 PEM files here (docs/deployment.md)
 #   docker/postgres/init/20-edulims.sh   from the release's deploy bundle
 #   config/postgres-tls/          ca.crt, server.crt and server.key for
 #                                 PostgreSQL's TLS (docs/deployment.md,
@@ -153,11 +154,15 @@ services:
       start_period: 60s
 
   # ── FerroBRIDGE, HL7 v2 over MLLP into FerroEHR ────────────────────────────
-  # The Afinion 2 sends results over plain MLLP: no document the repository
-  # cites describes TLS on the analyser, and MLLP has no authentication. The
-  # bind address and the host firewall are the controls (ADR 0013,
-  # docs/deployment.md, "The MLLP port"). FerroBRIDGE commits the results to
-  # FerroEHR.
+  # FerroBRIDGE 0.0.24 serves MLLP over TLS only: an enabled [hl7v2] face
+  # needs the [hl7v2.tls] files and a certificate_subject per
+  # [[hl7v2.senders]] entry, or the bridge does not start. The Afinion 2 has
+  # no TLS (Afinion 2 User Manual, 1117346 Rev. A, 2023/02), so its route
+  # waits on the FerroBRIDGE release with address-bound plain MLLP for
+  # devices (FerroHEALTH/FerroBRIDGE#1918, decided on #131); [hl7v2] stays
+  # off until then. That lane goes with the bind address and the host
+  # firewall allow-list (ADR 0013, docs/deployment.md, "The MLLP port").
+  # FerroBRIDGE commits the results to FerroEHR.
   ferrobridge:
     image: ghcr.io/ferrohealth/ferrobridge:0.0.24@sha256:6e14c783955da9ecd5683fbe781542580e2ebae18d0f4c07e888a1c086e05e59
     restart: unless-stopped

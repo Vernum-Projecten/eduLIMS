@@ -102,8 +102,13 @@ cd edulims-deploy-vX.Y.Z
    operator documentation) and `config/ferrobridge/ferrobridge.toml` with its
    `[hl7v2]` section (FerroBRIDGE's documentation, "HL7 v2 face").
    `compose.yaml` sets the database URL, the CDR URL and the listen address;
-   the files hold the rest. The listener takes plain MLLP, because the
-   Afinion 2 sends nothing else (below, "The MLLP port").
+   the files hold the rest. FerroBRIDGE 0.0.24 serves MLLP over TLS only and
+   requires a client certificate from every sender, so an enabled `[hl7v2]`
+   face needs the `[hl7v2.tls]` files and a `certificate_subject` for each
+   `[[hl7v2.senders]]` entry, or FerroBRIDGE does not start. The Afinion 2
+   has no TLS, so its route waits on a FerroBRIDGE release that accepts
+   plain MLLP bound to a device's address (below, "The MLLP port"). Until
+   then, leave `[hl7v2] enabled` at its default, `false`.
 3. Create the PostgreSQL certificates in `config/postgres-tls/` (below,
    "Database TLS").
 4. Pull, verify and start:
@@ -165,17 +170,54 @@ network; ADR 0013 records that residual risk and when to revisit it.
 ## The MLLP port
 
 The Afinion 2 sends its results as HL7 v2 over MLLP to FerroBRIDGE on port
-2575. No Afinion 2 document the repository cites describes TLS. The Afinion
-2 HL7 Connectivity Protocol v4.0 describes plain MLLP framing (`<VT>` before
-the message, `<FS><CR>` after it) and says nothing about TLS, and the
-Afinion 2 manual asks only that the analyser "communicates with the external
-information system over a secure network" (#186). The repository holds no
-copy of either document, so this rests on the reading recorded on #186. Read
-the current Abbott documentation before you plan TLS on this segment.
+2575.
 
-The segment from the lab network to the host is therefore plain MLLP, and
-MLLP has no authentication: any host that reaches the port can send a result
-under any sample ID. Two controls limit who reaches it:
+**What FerroBRIDGE requires.** The HL7 v2 face of FerroBRIDGE 0.0.24, the
+pinned image, "serves MLLP over TLS and requires a client certificate that
+chains to `tls.client_ca_file`; a peer without one never completes the
+handshake" (FerroBRIDGE book, "The HL7 v2 face"; CHANGELOG 0.0.23). Each
+`[[hl7v2.senders]]` entry names the MSH-4 sending facility and the
+`certificate_subject`, the DNS name its client certificate carries in its
+subject alternative name. A message is accepted only on a connection whose
+certificate carries the subject of the sender its MSH-4 names. The bridge
+refuses to start without the `[hl7v2.tls]` files (`certificate_file`,
+`key_file`, `client_ca_file`), without a sender, or with a sender that names
+no `certificate_subject`. `compose.yaml` mounts `config/ferrobridge/` at
+`/etc/ferrobridge/`, so the PEM files can sit beside `ferrobridge.toml`; the
+container runs as uid 65532 and must be able to read them.
+`bash scripts/checks/ferro-compose.sh` (the `ferro-compose` CI job) checks
+that the pinned image still refuses the face without `[hl7v2.tls]`. The
+repository ships no `ferrobridge.toml`, so check your own file with the
+image before a start: `docker compose run --rm --no-deps ferrobridge config
+check` exits 0 when FerroBRIDGE would start and 78 with every refusal when it
+would not (FerroBRIDGE book, "Configuration").
+
+**What the Afinion 2 offers.** The Afinion 2 cannot do TLS. The Afinion 2
+User Manual, 1117346 Rev. A, 2023/02, chapter "Configuration", lists every
+setting the analyser has. Its network settings (Table 1) are DHCP, the web
+server, the IP address, the gateway, the network mask and the host name. Its
+connectivity settings (Table 2) are the protocol (ASTM HL, ASTM LL, HL7
+"based on HL7 version 2.4", POCT1-A), the results, the server IP, the port,
+the receiving application, the receiving facility, and the patient ID (HIS
+patient ID or visit number). Neither table has a TLS, encryption or
+certificate setting. The chapter "Connectivity" asks only: "Ensure that the
+Afinion 2 Analyzer communicates with the external information system over a
+secure network." The HL7 Connectivity Protocol v4.0 describes plain MLLP
+framing (`<VT>` before the message, `<FS><CR>` after it) (#186). The manual
+is being vendored under `docs/vendor/afinion/` (#209).
+
+**The route waits on FerroBRIDGE.** The analyser cannot meet what
+FerroBRIDGE 0.0.24 requires, so the Afinion 2 route waits on the FerroBRIDGE
+release that adds plain MLLP for devices, bound to their network addresses
+(FerroHEALTH/FerroBRIDGE#1918, "Accept plain MLLP from devices that cannot
+do TLS, bound to their network addresses"; decided on #131). Once that
+release ships and this repository pins it, the Afinion 2 sends on that plain
+lane, bound to the analyser's fixed address. Until then, keep
+`[hl7v2] enabled = false`. A TLS-terminating sidecar next to each analyser
+would be a technical alternative; it is not chosen and not planned.
+
+**The host controls.** The plain lane goes together with two controls on
+the host, which limit which hosts reach the port at all:
 
 1. **Bind the port to the lab-facing address.** Set
    `FERROBRIDGE_MLLP_BIND_HOST` in `.env` to the host's address on the
@@ -205,9 +247,10 @@ under any sample ID. Two controls limit who reaches it:
    that the port refuses the connection. On Podman the published port goes
    through netavark's rules instead; this route is not tested here.
 
-What stays open: a device that takes over an analyser's address on the lab
-network, or a host on the path between them, can still send or alter a
-result. ADR 0013 records this as an accepted residual risk.
+What these controls leave open: a device that takes over an allowed
+address on the lab network passes the bind address, the allow-list and
+FerroBRIDGE's address binding alike, and a host on the plain MLLP path can
+read or alter a result. ADR 0013 records this.
 
 ## Migrations
 

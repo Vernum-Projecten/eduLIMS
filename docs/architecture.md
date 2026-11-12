@@ -46,7 +46,7 @@ with the CSV export (D6).
 
 | Interface | From → to | Protocol | What is built | Priority |
 |---|---|---|---|---|
-| Afinion 2 → FerroBRIDGE | analyser → integration layer | HL7 v2 over plain MLLP (TCP/IP, Ethernet), no TLS and no authentication | configuration: FerroBRIDGE's IP address and port on the device; HL7 to openEHR mapping; the port bound to the lab-facing address (`FERROBRIDGE_MLLP_BIND_HOST`) and a host-firewall allow-list of the analysers' fixed addresses ([deployment](deployment.md#the-mllp-port), [ADR 0013](adr/0013-internal-transport-security.md)) | Must |
+| Afinion 2 → FerroBRIDGE | analyser → integration layer | HL7 v2 over MLLP (TCP/IP, Ethernet); FerroBRIDGE 0.0.24 accepts MLLP only over TLS with a client certificate per `[[hl7v2.senders]]` entry, and the Afinion 2 has none (Afinion 2 User Manual, 1117346 Rev. A, 2023/02) | configuration: FerroBRIDGE's IP address and port on the device; HL7 to openEHR mapping; waits on the FerroBRIDGE release with address-bound plain MLLP for devices ([FerroBRIDGE#1918](https://github.com/FerroHEALTH/FerroBRIDGE/issues/1918), decided on #131), then that lane bound to the analyser's fixed address, with the port bound to the lab-facing address (`FERROBRIDGE_MLLP_BIND_HOST`) and a host-firewall allow-list of the analysers' fixed addresses ([deployment](deployment.md#the-mllp-port), [ADR 0013](adr/0013-internal-transport-security.md)) | Must |
 | FerroBRIDGE → FerroEHR | integration layer → CDR | openEHR REST (ITS-REST 1.1.0) | mapping to the template `eduLIMS-lab` | Must |
 | Epoch 2 / Gen5 → eduLIMS | Gen5 PC → web app | Excel file (fixed export template, sample ID per well) | upload, parser and validation in the student portal (S4) | Must |
 | eduLIMS → FerroEHR (write) | web app → CDR | openEHR REST, compositions | convert Epoch results to compositions | Must |
@@ -61,7 +61,7 @@ with the CSV export (D6).
 
 | Device | Route | What is built |
 |---|---|---|
-| Abbott Afinion 2, HbA1c and CRP | sends HL7 v2 itself over Ethernet to the MLLP listener of FerroBRIDGE, as plain MLLP with no authentication | configuration on the device; on the host, the bind address and the analysers' address allow-list ([deployment](deployment.md#the-mllp-port), [ADR 0013](adr/0013-internal-transport-security.md)) |
+| Abbott Afinion 2, HbA1c and CRP | sends HL7 v2 itself over Ethernet as plain MLLP; the MLLP listener of FerroBRIDGE 0.0.24 requires TLS with a client certificate, so the route waits on the address-bound plain lane of FerroBRIDGE#1918 (decided on #131) | configuration on the device; FerroBRIDGE's plain lane bound to the analyser's fixed address; on the host, the bind address and the analysers' address allow-list ([deployment](deployment.md#the-mllp-port), [ADR 0013](adr/0013-internal-transport-security.md)) |
 | BioTek Epoch 2 | Gen5 3.11 on its own PC exports to Excel; the student uploads the file in the student portal | an upload in eduLIMS that parses the file and writes the results through openEHR REST to FerroEHR |
 
 The Epoch 2 has no direct link and Gen5 does not speak HL7, so the upload is
@@ -218,7 +218,7 @@ Two places carry the system:
 |---|---|
 | eduLIMS (web app and backend) | built here |
 | FerroEHR | configured: upload the template `eduLIMS-lab`; not developed here |
-| FerroBRIDGE | configured: MLLP listener and HL7 to template mapping; not developed here |
+| FerroBRIDGE | configured: MLLP listener (TLS with client certificates in 0.0.24; the Afinion 2 waits on FerroBRIDGE#1918) and HL7 to template mapping; not developed here |
 | PostgreSQL 18 | one server, two databases: FerroEHR's and eduLIMS's |
 
 Images are built in GitHub Actions, pushed to GHCR with SLSA Build Level 3
