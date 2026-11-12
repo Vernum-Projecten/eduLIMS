@@ -21,6 +21,8 @@
 #      services' own check of the Compose configuration.
 #   6. The container images: both docker/Dockerfile targets, built without a
 #      push, when a change touches the image inputs.
+#   7. The integration lane: the compose.dev.yaml stack with FerroEHR and
+#      FerroBRIDGE (integration.yml), when a change touches its inputs.
 name: CI
 
 on:
@@ -750,6 +752,66 @@ jobs:
           provenance: false
           sbom: false
 
+  # ── 7. The integration lane ─────────────────────────────────────────────────
+
+  # Whether a change touches what the integration lane proves: the openEHR
+  # client, the integration check, the upload, the Compose stack and its
+  # configuration, or the lane itself (#150). A pull request and a merge group
+  # compare with their base; a push to main and a manual run always run it.
+  # integration.yml also runs nightly on main.
+  integration-paths:
+    name: integration-paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Compare with the base
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          case "$EVENT" in
+            pull_request) base="$PR_BASE" ;;
+            merge_group) base="$QUEUE_BASE" ;;
+            *)
+              echo "run=true" >> "$GITHUB_OUTPUT"
+              echo "a ${EVENT} run always runs the integration lane"
+              exit 0
+              ;;
+          esac
+          if [ -z "$base" ]; then
+            echo "::error::no base commit in the ${EVENT} payload"
+            exit 1
+          fi
+          changed="$(git diff --name-only "$base" HEAD)"
+          pattern='^(src/server/openehr/|src/server/integrations/|src/server/upload/|compose[^/]*\.yaml$|docker/|config/|tests/integration/ferro-stack\.test\.ts$|scripts/dev/ferroehr-auth-check\.sh$|\.github/workflows/(ci|integration)\.yml$)'
+          if grep -Eq "$pattern" <<<"$changed"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "the change touches the integration lane's inputs:"
+            grep -E "$pattern" <<<"$changed"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "the change touches no integration input; the integration lane is skipped"
+          fi
+
+  integration:
+    name: integration
+    needs: integration-paths
+    if: needs.integration-paths.outputs.run == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/integration.yml
+
   # ── The single required check ───────────────────────────────────────────────
 
   # The ruleset requires this job alone, so jobs can come and go without a
@@ -782,6 +844,8 @@ jobs:
       - ferro-compose
       - image-paths
       - image
+      - integration-paths
+      - integration
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
