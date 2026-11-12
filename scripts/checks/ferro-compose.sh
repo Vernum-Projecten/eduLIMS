@@ -5,9 +5,9 @@
 # Checks that FerroEHR and FerroBRIDGE accept the configuration the Compose
 # files give them. Both refuse an unknown key and do not start, so a renamed
 # key in a new image release is a stack that never comes up. For each service
-# in compose.yaml and in compose.dev.yaml (profile `ferro`), it reads the
-# environment Compose resolves with example values, and runs the pinned
-# image's own `config check` with that environment, offline and read-only.
+# in compose.yaml and in compose.dev.yaml, it reads the environment Compose
+# resolves with example values, and runs the pinned image's own
+# `config check` with that environment, offline and read-only.
 #
 # compose.yaml points each service at a configuration file the operator
 # writes (config/ferroehr.toml, config/ferrobridge/ferrobridge.toml). For
@@ -413,13 +413,13 @@ else
   fail "compose.yaml is not valid with the example values"
 fi
 
-if development=$(compose_json -f compose.dev.yaml --profile ferro); then
-  pass "compose.dev.yaml with the ferro profile is valid"
+if development=$(compose_json -f compose.dev.yaml); then
+  pass "compose.dev.yaml is valid"
   config_check compose.dev.yaml "$development" ferroehr ferroehr
   config_check compose.dev.yaml "$development" ferrobridge ferrobridge
   hl7v2_tls_rule compose.dev.yaml "$development"
 else
-  fail "compose.dev.yaml with the ferro profile is not valid"
+  fail "compose.dev.yaml is not valid"
 fi
 
 if ((failures > 0)); then

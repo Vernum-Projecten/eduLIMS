@@ -16,14 +16,29 @@
 # Keycloak:  http://localhost:8180 (admin console: admin / admin)
 #            issuer http://localhost:8180/realms/edulims
 #            users student / student, teacher / teacher, admin / admin
+#            client edulims-ferroehr / edulims-dev-ferroehr-secret (client
+#            credentials, eduLIMS's FerroEHR identity)
 #
-# With FerroEHR and FerroBRIDGE beside it (profile `ferro`), for work on the
-# integrations and the integration status of the Admin portal (B3):
+# FerroEHR:    http://localhost:8080/ferroehr/rest/openehr/v1, authentication on
+#              (a token of the realm's client edulims-ferroehr, below)
+# FerroBRIDGE: http://localhost:8081 (health at /health/readiness)
 #
-#   pnpm dev:db:ferro               # the stack above plus FerroEHR (:8080) and FerroBRIDGE (:8081)
+# FerroEHR and FerroBRIDGE run from the images compose.yaml pins, configured by
+# environment only. FerroEHR authenticates as in production: it trusts the
+# `edulims` realm as a `machines` issuer and declares eduLIMS's client as a
+# system client, so development meets the scopes and refusals production
+# enforces (#225).
 #
-# Both run from the images compose.yaml pins, configured by environment only:
-# no config files, no authentication, loopback ports.
+# One issuer on both sides: KC_HOSTNAME pins every token's `iss` to
+# http://localhost:8180/realms/edulims, whichever host asked for the token.
+# FerroEHR accepts a plain-http issuer on a loopback host only (FerroEHR book
+# v5.7.0, installation/config-auth.md, [[auth.issuer]] `issuer`), and it reads
+# the issuer's metadata and key set at that URL. So FerroEHR joins Keycloak's
+# network namespace, as the FerroEHR quickstart does with its issuer
+# (installation/compose.md, "The patient identity source"): inside it,
+# localhost:8180 is Keycloak. Keycloak therefore listens on the host port
+# inside the container too, publishes FerroEHR's port, and answers to the
+# name `ferroehr` on the compose network.
 #
 # The development credentials below are fixed and public, and the ports bind
 # the loopback interface only. Never point this file at real data.
@@ -70,23 +85,37 @@ services:
       start_period: 20s
 
   # Keycloak in development mode on its built-in dev-file database, with the
-  # realm imported from docker/keycloak/edulims-realm.json at every start
-  # (an existing realm is kept). The realm file is the whole state that
-  # matters, so a Keycloak database in PostgreSQL would only add a role to
-  # create and a schema to migrate. To load a changed realm file, recreate
-  # the container: `docker compose -f compose.dev.yaml up -d --force-recreate keycloak`.
+  # realm imported from docker/keycloak/edulims-realm.json when the container
+  # is created (an existing realm is kept). The realm file is the whole state
+  # that matters, so a Keycloak database in PostgreSQL would only add a role to
+  # create and a schema to migrate. To load a changed realm file, recreate the
+  # container: `pnpm dev:db:stop && pnpm dev:db`.
+  #
+  # It also owns the network namespace FerroEHR joins (the header says why).
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.2@sha256:723b1d6e254c0fc96d5cffec860c7e0744d6a3277822b865bb538cf891575e41
     command: ["start-dev", "--import-realm"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-      # One issuer for the browser and for `pnpm dev` on the host: both reach
-      # Keycloak at this URL, so every token's `iss` matches KEYCLOAK_ISSUER.
+      # One issuer for the browser, for `pnpm dev` on the host and for
+      # FerroEHR in this namespace: all three reach Keycloak at this URL, so
+      # every token's `iss` matches KEYCLOAK_ISSUER and FerroEHR's issuer.
       KC_HOSTNAME: http://localhost:${EDULIMS_DEV_KEYCLOAK_PORT:-8180}
+      # The listener takes the host port, so localhost:<port> inside the
+      # namespace is the same Keycloak as on the host. FerroEHR listens on
+      # 8080 here.
+      KC_HTTP_PORT: ${EDULIMS_DEV_KEYCLOAK_PORT:-8180}
       KC_HEALTH_ENABLED: "true"
+    networks:
+      default:
+        # FerroBRIDGE reaches FerroEHR by this name.
+        aliases: [ferroehr]
     ports:
-      - "127.0.0.1:${EDULIMS_DEV_KEYCLOAK_PORT:-8180}:8080"
+      - "127.0.0.1:${EDULIMS_DEV_KEYCLOAK_PORT:-8180}:${EDULIMS_DEV_KEYCLOAK_PORT:-8180}"
+      # FerroEHR's port, published here because FerroEHR has no network of
+      # its own.
+      - "127.0.0.1:${EDULIMS_DEV_FERROEHR_PORT:-8080}:8080"
     volumes:
       - ./docker/keycloak/edulims-realm.json:/opt/keycloak/data/import/edulims-realm.json:ro
     cap_drop: [ALL]
@@ -94,33 +123,70 @@ services:
       - no-new-privileges:true
     # The image ships bash and no HTTP client, so the probe reads the realm's
     # discovery document over bash's /dev/tcp: healthy means the realm is
-    # imported and the listener answers.
+    # imported and the listener answers. `$$` is a literal `$` to Compose.
     healthcheck:
       test:
         - CMD-SHELL
-        - "exec 3<>/dev/tcp/127.0.0.1/8080; printf 'GET /realms/edulims/.well-known/openid-configuration HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '^HTTP/1.1 200' <&3"
+        - "exec 3<>/dev/tcp/127.0.0.1/$${KC_HTTP_PORT}; printf 'GET /realms/edulims/.well-known/openid-configuration HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\nConnection: close\\r\\n\\r\\n' >&3; grep -q '^HTTP/1.1 200' <&3"
       interval: 10s
       timeout: 5s
       retries: 30
       start_period: 30s
 
-  # FerroEHR in development: the record subject index in the instance and no
-  # authentication, so it starts without config/ferroehr.toml. Production
-  # (compose.yaml) reads its configuration file and requires authentication.
+  # FerroEHR in development: the record subject index in the instance and
+  # authentication on, configured by environment only (no config/ferroehr.toml).
+  # Its data lives in the `ferroehr` database on the pgdata volume.
   ferroehr:
-    profiles: [ferro]
     image: ghcr.io/ferrohealth/ferroehr:5.7.0@sha256:44c9268cb8a154df118a10ffe84329633f22923ea2cc54261ff0cea57a2ee7e7
+    # Keycloak's namespace (the header says why); Keycloak publishes 8080.
+    network_mode: service:keycloak
     depends_on:
       postgres:
+        condition: service_healthy
+      # FerroEHR reads the issuer's metadata and key set at boot and refuses
+      # to start while they do not answer.
+      keycloak:
         condition: service_healthy
     environment:
       FERROEHR__DATABASE__URL: postgres://ferroehr:ferroehr@postgres:5432/ferroehr
       FERROEHR__RECORD__SUBJECT_INDEX: local
-      FERROEHR__AUTH__ENABLED: "false"
+      FERROEHR__AUTH__ENABLED: "true"
+      # The realm as a `machines` issuer: it signs client credentials tokens
+      # only, and FerroEHR admits no person through it (FerroEHR book v5.7.0,
+      # installation/config-auth.md, [[auth.issuer]] `kind`).
+      FERROEHR__AUTH__ISSUER__0__ISSUER: http://localhost:${EDULIMS_DEV_KEYCLOAK_PORT:-8180}/realms/edulims
+      FERROEHR__AUTH__ISSUER__0__KIND: machines
+      # Keycloak's access tokens: `typ: JWT`, `azp` as the client.
+      FERROEHR__AUTH__ISSUER__0__PROFILE: keycloak
+      # The realm's client puts this audience in `aud` (its audience mapper).
+      FERROEHR__AUTH__ISSUER__0__AUDIENCE: ferroehr
+      # A Keycloak service account's `sub` is a user id, and a machines token
+      # must be app-only, so the issuer lists the client's service account
+      # (identity-providers.md, "Keycloak", step 3). The realm file fixes that
+      # user's id, as config/ferroehr.toml.example asks for Keycloak.
+      FERROEHR__AUTH__ISSUER__0__APP_ONLY__0__SUBJECTS: f1c34e57-c0f7-4482-b9b3-e3d138c8e79d
+      # Required once [auth] admits a credential (config-auth.md,
+      # [authz.party_binding] `provider`). A development example identifier
+      # (RFC 6963 urn:example), never a real provider.
+      FERROEHR__AUTHZ__PARTY_BINDING__PROVIDER__ISSUER: urn:example:edulims-dev-provider
+      FERROEHR__AUTHZ__PARTY_BINDING__PROVIDER__ID: edulims
+      # eduLIMS as a system client, the only way a caller acting for no
+      # person commits into an EHR (config-auth.md, [[authz.system_client]]),
+      # as config/ferroehr.toml.example declares it: origin `device`, one
+      # facility; the composer is the analyser, named by its serial number
+      # (#146). A `writes` template the store lacks refuses the start, so the
+      # client commits no COMPOSITION yet; its one scope lists and reads
+      # templates (docker/keycloak/edulims-realm.json).
+      # TODO(#146): load eduLIMS-lab.v1 with `ferroehr definitions load` before FerroEHR starts and list it in WRITES.
+      FERROEHR__AUTHZ__SYSTEM_CLIENT__0__ISSUER: http://localhost:${EDULIMS_DEV_KEYCLOAK_PORT:-8180}/realms/edulims
+      FERROEHR__AUTHZ__SYSTEM_CLIENT__0__CLIENT_ID: edulims-ferroehr
+      FERROEHR__AUTHZ__SYSTEM_CLIENT__0__PROVIDER__ISSUER: urn:example:edulims-dev-provider
+      FERROEHR__AUTHZ__SYSTEM_CLIENT__0__PROVIDER__ID: edulims
+      FERROEHR__AUTHZ__SYSTEM_CLIENT__0__FACILITIES: '[{ issuer = "urn:example:edulims-dev-facility", id = "dev-lab" }]'
+      FERROEHR__AUTHZ__SYSTEM_CLIENT__0__ORIGINS: device
+      FERROEHR__AUTHZ__SYSTEM_CLIENT__0__DEVICE_IDENTIFIER_ISSUERS: https://edulims.eu/id/analyser
       FERROEHR__TELEMETRY__FORMAT: pretty
       FERROEHR__USAGE_REPORT__ENABLED: "false"
-    ports:
-      - "127.0.0.1:${EDULIMS_DEV_FERROEHR_PORT:-8080}:8080"
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
@@ -138,7 +204,6 @@ services:
   # integration status checks (GET /health/readiness). The HL7 v2 listener
   # stays off; it needs the [hl7v2] configuration of docs/deployment.md.
   ferrobridge:
-    profiles: [ferro]
     image: ghcr.io/ferrohealth/ferrobridge:0.0.24@sha256:6e14c783955da9ecd5683fbe781542580e2ebae18d0f4c07e888a1c086e05e59
     depends_on:
       ferroehr:
@@ -148,6 +213,11 @@ services:
       FERROBRIDGE__USAGE_REPORT__ENABLED: "false"
     ports:
       - "127.0.0.1:${EDULIMS_DEV_FERROBRIDGE_PORT:-8081}:8080"
+    # The image's home directory, which its runtime user owns, on a named
+    # volume, so what the server writes there survives a restart
+    # (FerroBRIDGE book v0.0.24, operate/container.md).
+    volumes:
+      - ferrobridge-state:/home/nonroot
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
@@ -163,3 +233,4 @@ services:
 
 volumes:
   pgdata:
+  ferrobridge-state:
