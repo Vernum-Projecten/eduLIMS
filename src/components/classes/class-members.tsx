@@ -6,10 +6,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useTable } from "@tanstack/react-table";
 import { CrownIcon, UserMinusIcon, UsersIcon } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
-import { ConfirmButton } from "@/components/admin-users/admin-action";
 import { useClassMutation } from "@/components/classes/use-class-mutation";
 import { DataTable } from "@/components/data-table/data-table";
 import { createDataTableColumnHelper, dataTableFeatures } from "@/components/data-table/features";
+import { type RowAction, RowActionMenu } from "@/components/data-table/row-action-menu";
 import { Badge } from "@/components/ui/badge";
 import {
   Empty,
@@ -45,34 +45,40 @@ function MemberActions({
   if (archived || member.role === "owner") return null;
   const canRemove = classCan(myRole, memberPermission(member.role, "remove"));
   const canTransfer = member.role === "teacher" && classCan(myRole, { class: ["transfer"] });
-  if (!canRemove && !canTransfer) return null;
-  return (
-    <div className="flex flex-wrap justify-end gap-2">
-      {canTransfer && (
-        <ConfirmButton
-          icon={CrownIcon}
-          label={m.classes_transfer({ name: member.name })}
-          title={m.classes_transfer_title({ name: member.name })}
-          description={m.classes_transfer_description({ name: member.name })}
-          confirm={m.classes_transfer_confirm()}
-          pending={transfer.isPending}
-          onConfirm={() => transfer.mutate({ classId, userId: member.userId })}
-        />
-      )}
-      {canRemove && (
-        <ConfirmButton
-          icon={UserMinusIcon}
-          label={m.classes_remove({ name: member.name })}
-          title={m.classes_remove_title({ name: member.name })}
-          description={m.classes_remove_description()}
-          confirm={m.classes_remove_confirm()}
-          destructive
-          pending={remove.isPending}
-          onConfirm={() => remove.mutate({ classId, userId: member.userId })}
-        />
-      )}
-    </div>
-  );
+  const input = { classId, userId: member.userId };
+  const actions: RowAction[] = [];
+  if (canTransfer) {
+    actions.push({
+      id: "transfer",
+      icon: CrownIcon,
+      label: m.classes_transfer_short(),
+      accessibleName: m.classes_transfer({ name: member.name }),
+      pending: transfer.isPending,
+      confirmation: {
+        title: m.classes_transfer_title({ name: member.name }),
+        description: m.classes_transfer_description({ name: member.name }),
+        confirm: m.classes_transfer_confirm(),
+      },
+      onRun: () => transfer.mutate(input),
+    });
+  }
+  if (canRemove) {
+    actions.push({
+      id: "remove",
+      icon: UserMinusIcon,
+      label: m.classes_remove_confirm(),
+      accessibleName: m.classes_remove({ name: member.name }),
+      destructive: true,
+      pending: remove.isPending,
+      confirmation: {
+        title: m.classes_remove_title({ name: member.name }),
+        description: m.classes_remove_description(),
+        confirm: m.classes_remove_confirm(),
+      },
+      onRun: () => remove.mutate(input),
+    });
+  }
+  return <RowActionMenu name={member.name} actions={actions} />;
 }
 
 const helper = createDataTableColumnHelper<ClassMemberView>();
