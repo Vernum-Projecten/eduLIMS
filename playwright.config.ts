@@ -3,7 +3,7 @@
 
 import { defineConfig, devices } from "@playwright/test";
 import { E2E_SECRETS, runDatabaseUrl, runPort } from "./tests/e2e/run-env.ts";
-import { setupThenServe } from "./tests/e2e/web-server-command.ts";
+import { setupThenServe, webServerTimeout } from "./tests/e2e/web-server-command.ts";
 
 // E2E runs the production build (`pnpm build` first) against a database of its own on a port
 // of its own, so two runs on one machine never meet. The database is created next to
@@ -18,6 +18,18 @@ const baseDatabaseUrl =
   "postgres://edulims:edulims@127.0.0.1:5432/edulims_e2e";
 const databaseUrl = runDatabaseUrl(baseDatabaseUrl);
 const INTEGRATION_STATUS_SPEC = /admin-integrations\.spec\.ts$/;
+
+// The web server's setup, each step with its own bound (#248). Measured on CI and on a loaded
+// developer machine (load average 10 on 18 cores): the run database 1 to 1.5 s, `pnpm db:reset`
+// 15 to 19 s on CI and 35 s loaded, the providers under 3 s, the start to /api/ready 12.5 s
+// loaded. Each bound is about 2.5 times the slowest measurement or more.
+// tests/e2e/seed-providers.ts stores the dev Keycloak providers when no Keycloak runs (CI).
+const SETUP_STEPS = [
+  { command: "node src/server/db/test-run-database-cli.ts create", timeoutMs: 15_000 },
+  { command: "pnpm db:reset", timeoutMs: 90_000 },
+  { command: "node tests/e2e/seed-providers.ts", timeoutMs: 15_000 },
+] as const;
+const START_TIMEOUT_MS = 45_000;
 
 // Read by the specs (appUrl) and by global-teardown.ts, in the runner and in every worker.
 process.env["EDULIMS_E2E_BASE_URL"] = baseURL;
@@ -72,19 +84,12 @@ export default defineConfig({
   ],
   globalTeardown: "./tests/e2e/global-teardown.ts",
   webServer: {
-    // tests/e2e/seed-providers.ts stores the dev Keycloak providers when no Keycloak runs (CI).
-    // The setup's stdout, the seed's summary among it, reaches the run log (#192).
-    command: setupThenServe(
-      [
-        "node src/server/db/test-run-database-cli.ts create",
-        "pnpm db:reset",
-        "node tests/e2e/seed-providers.ts",
-      ],
-      "pnpm start",
-    ),
+    // The setup's stdout, the seed's summary among it, reaches the run log (#192), with each
+    // step's time; a step past its bound stops the run naming it (#248).
+    command: setupThenServe(SETUP_STEPS, "pnpm start"),
     url: `${baseURL}/api/ready`,
     env: appEnv,
     reuseExistingServer: false,
-    timeout: 60_000,
+    timeout: webServerTimeout(SETUP_STEPS, START_TIMEOUT_MS),
   },
 });

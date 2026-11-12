@@ -12,7 +12,7 @@ import {
   signInAsAdmin,
   usersTable,
 } from "./admin-users-helpers";
-import { devLogin, expectHydrated } from "./fixtures";
+import { devLogin, expectHydrated, submitDevLogin } from "./fixtures";
 import { appUrl } from "./run-env";
 
 const SEARCH = "Search by name or email address";
@@ -219,7 +219,8 @@ test("an administrator blocks a user with a reason and an end date, and unblocks
   await expect(sheet.getByText("Account shared with another person")).toBeVisible();
 
   const other = await (await browser.newContext()).newPage();
-  await devLogin(other, "blocked@example.test");
+  const refused = await submitDevLogin(other, "blocked@example.test");
+  expect(refused.ok()).toBe(false);
   await expect(other.getByRole("alert")).toHaveText(
     "Your account is blocked. Contact an administrator.",
   );
