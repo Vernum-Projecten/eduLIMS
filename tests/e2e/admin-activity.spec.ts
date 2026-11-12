@@ -33,6 +33,16 @@ async function columnTexts(page: Page, column: keyof typeof COLUMNS): Promise<st
     .allInnerTexts();
 }
 
+/**
+ * Returns each body row's position in the whole result (`aria-rowindex`). It is unique per row,
+ * where the time column shows minutes only and many events can share one (#222).
+ */
+async function rowPositions(page: Page): Promise<string[]> {
+  return bodyRows(page).evaluateAll((rows) =>
+    rows.map((row) => row.getAttribute("aria-rowindex") ?? ""),
+  );
+}
+
 async function openLog(page: Page, query = ""): Promise<void> {
   await page.goto(`/admin/activity${query}`);
   await expect(page.getByRole("heading", { level: 1, name: "Activity log" })).toBeVisible();
@@ -122,11 +132,14 @@ test("pages through the log and changes the page size (#36)", async ({ page }) =
   await openLog(page);
   const pager = page.getByRole("navigation", { name: "Pages of the activity log" });
   await expect(pager).toContainText(/Showing 1 to 25 of [\d,]+ events/);
-  const firstPage = await columnTexts(page, "time");
+  // The header is row 1, so the events on page 1 are rows 2 to 26 and on page 2 rows 27 to 51.
+  // The minute-resolution time column cannot tell the pages apart when 50 events share a minute.
+  const positions = (from: number) => Array.from({ length: 25 }, (_, i) => String(from + i));
+  await expect.poll(() => rowPositions(page)).toEqual(positions(2));
   await pager.getByRole("button", { name: "Next page" }).click();
   await expect(page).toHaveURL(/page=2/);
   await expect(pager).toContainText(/Showing 26 to 50 of/);
-  await expect.poll(() => columnTexts(page, "time")).not.toEqual(firstPage);
+  await expect.poll(() => rowPositions(page)).toEqual(positions(27));
 
   await pager.getByRole("combobox", { name: "Rows per page" }).click();
   await page.getByRole("option", { name: "50" }).click();
