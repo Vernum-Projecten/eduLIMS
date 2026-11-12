@@ -15,8 +15,10 @@ import {
 import {
   ADMIN_CLASS_FILTER_KEYS,
   type AdminClassListSearch,
+  type AdminClassStatus,
   adminClassListSearchSchema,
   DEFAULT_ADMIN_CLASS_PAGE_SIZE,
+  DEFAULT_ADMIN_CLASS_STATUS,
   type ListAdminClassesInput,
 } from "./admin-schemas.ts";
 
@@ -36,10 +38,27 @@ export interface AdminClassesTableState {
   pagination: PaginationState;
 }
 
-/** Returns the class table's state for the URL's search params. */
+/** Returns the archive states the list shows: the URL's, else the default (active classes). */
+export function effectiveStatus(search: AdminClassListSearch): AdminClassStatus[] {
+  return search.status ?? [...DEFAULT_ADMIN_CLASS_STATUS];
+}
+
+function isDefaultStatus(status: readonly AdminClassStatus[] | undefined): boolean {
+  return (
+    status === undefined ||
+    (status.length === DEFAULT_ADMIN_CLASS_STATUS.length &&
+      status.every((value) => DEFAULT_ADMIN_CLASS_STATUS.includes(value)))
+  );
+}
+
+/**
+ * Returns the class table's state for the URL's search params. The status facet shows the
+ * default (Active) as chosen when the URL names none, so the list never looks unfiltered.
+ */
 export function adminClassesTableState(search: AdminClassListSearch): AdminClassesTableState {
+  const shown = { ...search, status: effectiveStatus(search) };
   return {
-    columnFilters: filtersFromSearch<AdminClassFilterKey>(search, ADMIN_CLASS_FILTER_COLUMNS),
+    columnFilters: filtersFromSearch<AdminClassFilterKey>(shown, ADMIN_CLASS_FILTER_COLUMNS),
     pagination: paginationFromSearch(search, DEFAULT_ADMIN_CLASS_PAGE_SIZE),
   };
 }
@@ -68,7 +87,9 @@ export function nextAdminClassesSearch(
     const filters = filterSchema.parse(
       searchFromFilters(change.columnFilters, ADMIN_CLASS_FILTER_COLUMNS),
     );
-    return { ...prev, ...filters, page: undefined };
+    // The default status stays out of the URL, so a plain link and the default view agree.
+    const status = isDefaultStatus(filters.status) ? undefined : filters.status;
+    return { ...prev, ...filters, status, page: undefined };
   }
   const next = searchFromPagination(change.pagination, DEFAULT_ADMIN_CLASS_PAGE_SIZE);
   const sizeChanged =
@@ -86,16 +107,18 @@ export function onlyClassSearchTextChanged(
   return prev.q !== next.q && (["status", "year", "owner", "size"] as const).every(same);
 }
 
-/** Returns whether the search text or any facet narrows the list. */
+/** Returns whether the search text, or a facet other than the default status, narrows the list. */
 export function hasAdminClassFilters(search: AdminClassListSearch): boolean {
-  return ADMIN_CLASS_FILTER_KEYS.some((key) => search[key] !== undefined);
+  return ADMIN_CLASS_FILTER_KEYS.some((key) =>
+    key === "status" ? !isDefaultStatus(search.status) : search[key] !== undefined,
+  );
 }
 
 /** Returns the server function input for the URL search params, without empty keys. */
 export function adminClassesInputFromSearch(search: AdminClassListSearch): ListAdminClassesInput {
   const input: ListAdminClassesInput = {};
   if (search.q) input.q = search.q;
-  if (search.status) input.status = search.status;
+  input.status = effectiveStatus(search);
   if (search.year) input.year = search.year;
   if (search.owner) input.owner = search.owner;
   if (search.page) input.page = search.page;

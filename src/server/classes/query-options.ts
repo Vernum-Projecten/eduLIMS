@@ -31,7 +31,7 @@ export const classesKeys = {
   adminLists: () => [...classesKeys.admin(), "list"] as const,
   adminList: (input: ListAdminClassesInput) => [...classesKeys.adminLists(), input] as const,
   adminDetail: (classId: string) => [...classesKeys.admin(), "detail", classId] as const,
-  teachers: () => [...classesKeys.admin(), "teachers"] as const,
+  teachers: (q: string) => [...classesKeys.admin(), "teachers", q] as const,
   student: () => [...classesKeys.all, "student"] as const,
 };
 

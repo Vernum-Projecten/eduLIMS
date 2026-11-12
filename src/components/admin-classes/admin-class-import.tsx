@@ -120,7 +120,7 @@ export function AdminClassImport({ classId }: Readonly<{ classId: string }>) {
             <FieldDescription id={fileHelpId}>{m.classes_invite_csv_help()}</FieldDescription>
           </Field>
         </FieldGroup>
-        {rows && <InvitePreview rows={rows} />}
+        {rows && <InvitePreview rows={rows} headingLevel={3} />}
         <div className="flex flex-wrap gap-2">
           {rows ? (
             <form.SubmitButton icon={<SendIcon aria-hidden="true" data-icon="inline-start" />}>

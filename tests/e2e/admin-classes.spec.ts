@@ -7,7 +7,7 @@
 // One journey: each step builds on the class the first made.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
 import { axe, dutch, signInAsAdmin } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
@@ -37,11 +37,14 @@ async function openClass(page: Page): Promise<void> {
   await expectHydrated(page.getByRole("form", { name: "Import students" }));
 }
 
-/** Picks `option` in the Radix select labelled `label` and waits for its list to close. */
-async function choose(page: Page, label: string, option: RegExp): Promise<void> {
-  await page.getByRole("combobox", { name: label }).click();
-  await page.getByRole("option", { name: option }).click();
+/** Picks the teacher `name` in the owner field labelled `label` by mouse, after a search. */
+async function choose(dialog: Locator, label: string, name: string): Promise<void> {
+  const page = dialog.page();
+  await dialog.getByRole("button", { name: new RegExp(`^${label} `) }).click();
+  await page.getByRole("combobox", { name: label, exact: true }).fill(name);
+  await page.getByRole("option", { name: new RegExp(`^${name}`) }).click();
   await expect(page.getByRole("listbox")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: new RegExp(`^${label} ${name}`) })).toBeVisible();
 }
 
 async function screenshot(page: Page, name: string): Promise<void> {
@@ -64,7 +67,7 @@ test("the administrator creates a class on a teacher's behalf (#37, B2)", async 
   await dialog.getByLabel("Class name").fill(CLASS);
   await dialog.getByLabel("Academic year").fill(YEAR);
   await axe(page);
-  await choose(page, "Owner", new RegExp(`^${OWNER}`));
+  await choose(dialog, "Owner", OWNER);
   await dialog.getByRole("button", { name: "Create class" }).click();
   await expect(page).toHaveURL(/\/admin\/classes\/[0-9a-f-]{36}$/);
   await expect(page.getByText(`${CLASS} is created.`)).toBeVisible();
@@ -124,7 +127,21 @@ test("the administrator transfers the ownership; the old owner stays a co-teache
   await dialog.getByRole("button", { name: "Transfer ownership" }).click();
   await expect(dialog.getByText("Choose a teacher.")).toBeVisible();
   await axe(page);
-  await choose(page, "New owner", new RegExp(`^${HEIR}`));
+  // The owner search by keyboard alone: open, type, Enter picks the first match (WCAG 2.1.1).
+  const owner = dialog.getByRole("button", { name: /^New owner / });
+  await owner.focus();
+  await page.keyboard.press("Enter");
+  const searchBox = page.getByRole("combobox", { name: "New owner", exact: true });
+  await expect(searchBox).toBeFocused();
+  await page.keyboard.type(HEIR);
+  await expect(page.getByRole("option")).toHaveCount(1);
+  await expect(page.getByRole("option", { name: new RegExp(`^${OWNER}`) })).toHaveCount(0);
+  await axe(page);
+  await page.keyboard.press("Enter");
+  await expect(owner).toBeFocused();
+  await expect(
+    dialog.getByRole("button", { name: new RegExp(`^New owner ${HEIR}`) }),
+  ).toBeVisible();
   await dialog.getByRole("button", { name: "Transfer ownership" }).click();
   await expect(page.getByText(`The ownership of ${CLASS} is transferred.`)).toBeVisible();
   const members = page.getByRole("table", { name: "Members of this class with their role" });
@@ -176,11 +193,12 @@ test("the class list searches and filters on the server (#37)", async ({ page })
   await expect(table.getByRole("row")).toHaveCount(2);
   await expect(table.getByRole("row", { name: new RegExp(CLASS) })).toContainText(HEIR);
 
-  await page.getByRole("button", { name: "Status", exact: true }).click();
-  await page
-    .getByRole("listbox", { name: "Status" })
-    .getByRole("option", { name: /^Archived/ })
-    .click();
+  // The list shows active classes by default; choosing Archived and dropping Active leaves none.
+  await expect(page.getByRole("button", { name: /^Status 1 selected: Active/ })).toBeVisible();
+  await page.getByRole("button", { name: /^Status/ }).click();
+  const statuses = page.getByRole("listbox", { name: "Status" });
+  await statuses.getByRole("option", { name: /^Archived/ }).click();
+  await statuses.getByRole("option", { name: /^Active/ }).click();
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/status=%5B%22archived%22%5D/);
   await expect(page.getByRole("heading", { level: 2, name: "No classes match" })).toBeVisible();

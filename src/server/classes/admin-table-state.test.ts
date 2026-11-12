@@ -71,10 +71,11 @@ describe("the administrator's forms (#37)", () => {
 });
 
 describe("the class table state in the URL (#37)", () => {
-  it("maps the search params to filters and a zero-based page", () => {
+  it("maps the search params to filters and a zero-based page, Active by default", () => {
     expect(adminClassesTableState({ q: "LS", year: ["2026-2027"], page: 3 })).toEqual({
       columnFilters: [
         { id: "name", value: "LS" },
+        { id: "status", value: ["active"] },
         { id: "year", value: ["2026-2027"] },
       ],
       pagination: { pageIndex: 2, pageSize: 25 },
@@ -110,13 +111,24 @@ describe("the class table state in the URL (#37)", () => {
     expect(onlyClassSearchTextChanged({ q: "L" }, { q: "L" })).toBe(false);
   });
 
-  it("tells a filtered list from the full list", () => {
+  it("leaves the default status out of the URL and keeps any other choice", () => {
+    const active = { columnFilters: [{ id: "status", value: ["active"] }] };
+    expect(nextAdminClassesSearch({ status: ["archived"] }, active).status).toBeUndefined();
+    const none = { columnFilters: [] };
+    expect(nextAdminClassesSearch({ status: ["archived"] }, none).status).toBeUndefined();
+    const both = { columnFilters: [{ id: "status", value: ["active", "archived"] }] };
+    expect(nextAdminClassesSearch({}, both).status).toEqual(["active", "archived"]);
+  });
+
+  it("tells a filtered list from the default list", () => {
     expect(hasAdminClassFilters({ page: 2 })).toBe(false);
+    expect(hasAdminClassFilters({ status: ["active"] })).toBe(false);
+    expect(hasAdminClassFilters({ status: ["archived"] })).toBe(true);
     expect(hasAdminClassFilters({ owner: [OWNER] })).toBe(true);
   });
 
-  it("builds the server input without empty keys", () => {
-    expect(adminClassesInputFromSearch({ q: undefined, status: ["active"], size: 50 })).toEqual({
+  it("builds the server input without empty keys, Active when no status is chosen", () => {
+    expect(adminClassesInputFromSearch({ q: undefined, size: 50 })).toEqual({
       status: ["active"],
       size: 50,
     });
@@ -127,6 +139,6 @@ describe("the class table state in the URL (#37)", () => {
         owner: [OWNER],
         page: 2,
       }),
-    ).toEqual({ q: "LS", year: ["2026-2027"], owner: [OWNER], page: 2 });
+    ).toEqual({ q: "LS", status: ["active"], year: ["2026-2027"], owner: [OWNER], page: 2 });
   });
 });

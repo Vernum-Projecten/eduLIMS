@@ -223,7 +223,8 @@ test("a filter that matches nothing shows the empty state with a way back (#36)"
   page,
 }) => {
   await signInAsAdmin(page);
-  await openLog(page, "?action=class_archived");
+  // No journey deletes an upload yet; the class journeys (#28, #37) archive classes.
+  await openLog(page, "?action=upload_delete");
   await expect(page.getByRole("heading", { level: 2, name: "No events match" })).toBeVisible();
   await axe(page);
   await page.getByRole("link", { name: "Clear filters" }).click();

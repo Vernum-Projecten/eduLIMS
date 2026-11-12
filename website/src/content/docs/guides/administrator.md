@@ -270,18 +270,19 @@ Teachers create their own classes and invite their students and
 co-teachers; see the teacher guide. **Classes** in the admin portal lists
 every class in eduLIMS, newest academic year first, with its owner, its
 co-teachers, the number of students, the number of pending invitations and
-whether it is archived. It shows no grades or results. Search by the class
-name or a teacher's name, and filter by status (active or archived),
-academic year and owner; the filters stay in the address, so you can share
-a filtered list.
+whether it is archived. It shows no grades or results. It shows active
+classes until you choose **Archived** under **Status**. Search by the class
+name or a teacher's name, and filter by status, academic year and owner; the
+filters stay in the address, so you can share a filtered list.
 
 You are not a member of the classes you manage, and none of the actions
 below makes you one. Each one asks you to confirm or to fill in a short
 form:
 
 - **New class:** create a class on a teacher's behalf. Choose its name, its
-  academic year and the owner, who must have the teacher role. The class
-  opens on its own page.
+  academic year and the owner: search for a teacher by name or email
+  address. Only people with the teacher role who are not blocked are
+  offered. The class opens on its own page.
 - **Class page:** open a class from the list to see its members (names and
   class roles), its pending invitations and its counts.
 - **Import students:** on the class page, type or paste student addresses,
@@ -291,8 +292,8 @@ form:
   **Import** then creates a pending student invitation for each new
   address, the same invitation a teacher creates. A student joins the class
   only when they sign in with that address.
-- **Transfer ownership:** choose any user with the teacher role as the new
-  owner, member of the class or not. The old owner stays as a co-teacher
+- **Transfer ownership:** choose any user with the teacher role who is not
+  blocked as the new owner, member of the class or not. The old owner stays as a co-teacher
   while they have the teacher role and otherwise leaves the class.
 - **Archive** and **Reopen:** an archived class is read-only for its owner
   and co-teachers and keeps its members, groups and history.

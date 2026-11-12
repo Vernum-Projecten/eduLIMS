@@ -11,10 +11,7 @@ import { Page } from "@/components/shell/page-header";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { m } from "@/i18n/messages";
 import { portalNavigation, sectionOf } from "@/lib/navigation";
-import {
-  adminClassesQueryOptions,
-  teacherCandidatesQueryOptions,
-} from "@/server/classes/admin-query-options";
+import { adminClassesQueryOptions } from "@/server/classes/admin-query-options";
 import { adminClassListSearchSchema } from "@/server/classes/admin-schemas";
 import { adminClassesInputFromSearch } from "@/server/classes/admin-table-state";
 
@@ -23,11 +20,9 @@ export const Route = createFileRoute("/_authed/admin/classes/")({
   loaderDeps: ({ search }) => adminClassesInputFromSearch(search),
   loader: async ({ context, deps, cause }) => {
     const page = context.queryClient.ensureQueryData(adminClassesQueryOptions(deps));
-    // The owner choices of "New class" (#37).
-    const teachers = context.queryClient.ensureQueryData(teacherCandidatesQueryOptions());
     // NOTE: #58; a new filter or page keeps the table on screen with "Updating…".
     if (cause === "stay") return void page.catch(() => undefined);
-    await Promise.all([page, teachers]);
+    await page;
   },
   head: () => ({
     meta: [{ title: portalPageTitle(portalNavigation("admin"), sectionOf("admin", "classes")) }],

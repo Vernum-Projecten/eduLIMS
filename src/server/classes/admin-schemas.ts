@@ -13,6 +13,9 @@ import { classFormSchema, INVITE_LIST_MAX } from "./schemas.ts";
 export const ADMIN_CLASS_STATUSES = ["active", "archived"] as const;
 export type AdminClassStatus = (typeof ADMIN_CLASS_STATUSES)[number];
 
+/** The archive states the list shows when the URL names none: active classes, as for teachers. */
+export const DEFAULT_ADMIN_CLASS_STATUS: readonly AdminClassStatus[] = ["active"];
+
 /** The page sizes the list offers. */
 export const ADMIN_CLASS_PAGE_SIZES = [10, 25, 50, 100] as const;
 export const DEFAULT_ADMIN_CLASS_PAGE_SIZE = 25;
@@ -131,3 +134,6 @@ export const adminImportInput = z.object({
   classId: z.uuid(),
   emails: z.array(z.string().max(320)).min(1).max(INVITE_LIST_MAX),
 });
+
+/** The input of the owner search: the text typed, cut to the search limit. */
+export const teacherSearchInput = z.strictObject({ q: z.string().max(ADMIN_CLASS_SEARCH_MAX) });

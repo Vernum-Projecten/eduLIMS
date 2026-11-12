@@ -6,7 +6,11 @@
 // and administrator pages and every list.
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { STALE_TIME } from "../../lib/query-config.ts";
-import { getAdminClassFn, listAdminClassesFn, listTeacherCandidatesFn } from "./admin-functions.ts";
+import {
+  getAdminClassFn,
+  listAdminClassesFn,
+  searchTeacherCandidatesFn,
+} from "./admin-functions.ts";
 import type { ListAdminClassesInput } from "./admin-schemas.ts";
 import { classesKeys } from "./query-options.ts";
 
@@ -40,11 +44,13 @@ export function adminClassQueryOptions(classId: string) {
 /** The page {@link adminClassQueryOptions} returns. */
 export type AdminClassPageData = Awaited<ReturnType<typeof getAdminClassFn>>;
 
-/** The users who can own a class, for the owner fields. */
-export function teacherCandidatesQueryOptions() {
+/** The users who can own a class whose name or address contains `q`, for the owner fields. */
+export function teacherCandidatesQueryOptions(q: string) {
+  const text = q.trim();
   return queryOptions({
-    queryKey: classesKeys.teachers(),
-    queryFn: () => listTeacherCandidatesFn(),
+    queryKey: classesKeys.teachers(text),
+    queryFn: () => searchTeacherCandidatesFn({ data: { q: text } }),
     staleTime: STALE_TIME.classes,
+    placeholderData: keepPreviousData,
   });
 }

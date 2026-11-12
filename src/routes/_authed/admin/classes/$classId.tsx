@@ -24,16 +24,11 @@ import { portalNavigation, sectionOf } from "@/lib/navigation";
 import {
   type AdminClassPageData,
   adminClassQueryOptions,
-  teacherCandidatesQueryOptions,
 } from "@/server/classes/admin-query-options";
 
 export const Route = createFileRoute("/_authed/admin/classes/$classId")({
   loader: async ({ context, params }) => {
-    const [page] = await Promise.all([
-      context.queryClient.ensureQueryData(adminClassQueryOptions(params.classId)),
-      // The owner choices of "Transfer ownership" (#37).
-      context.queryClient.ensureQueryData(teacherCandidatesQueryOptions()),
-    ]);
+    const page = await context.queryClient.ensureQueryData(adminClassQueryOptions(params.classId));
     // The top-bar breadcrumb reads `crumb` (AppBreadcrumb).
     return { crumb: classLabel(page) };
   },

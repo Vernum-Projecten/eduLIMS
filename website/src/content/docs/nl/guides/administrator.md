@@ -286,17 +286,19 @@ mededocenten uit; zie de handleiding voor docenten. **Klassen** in het
 Beheerportaal toont elke klas in eduLIMS, het nieuwste studiejaar eerst, met
 de eigenaar, de mededocenten, het aantal studenten, het aantal openstaande
 uitnodigingen en of de klas is gearchiveerd. Cijfers en resultaten staan er
-niet in. Zoek op de klasnaam of de naam van een docent, en filter op status
-(actief of gearchiveerd), studiejaar en eigenaar; de filters staan in het
-adres, dus je kunt een gefilterde lijst delen.
+niet in. De lijst toont actieve klassen, tot je **Gearchiveerd** kiest onder
+**Status**. Zoek op de klasnaam of de naam van een docent, en filter op
+status, studiejaar en eigenaar; de filters staan in het adres, dus je kunt
+een gefilterde lijst delen.
 
 Je bent geen lid van de klassen die je beheert, en geen van de acties
 hieronder maakt je lid. Elke actie vraagt een bevestiging of een kort
 formulier:
 
 - **Nieuwe klas:** maak een klas aan namens een docent. Kies de naam, het
-  studiejaar en de eigenaar, die de rol docent moet hebben. De klas opent op
-  een eigen pagina.
+  studiejaar en de eigenaar: zoek een docent op naam of e-mailadres. Alleen
+  mensen met de rol docent die niet geblokkeerd zijn, staan in de lijst. De
+  klas opent op een eigen pagina.
 - **Klaspagina:** open een klas uit de lijst voor de leden (namen en
   klasrollen), de openstaande uitnodigingen en de aantallen.
 - **Studenten importeren:** typ of plak op de klaspagina adressen van
@@ -306,8 +308,8 @@ formulier:
   of nieuw. **Importeren** maakt daarna voor elk nieuw adres een
   openstaande studentuitnodiging aan, dezelfde uitnodiging die een docent
   aanmaakt. Een student komt pas in de klas als die met dat adres inlogt.
-- **Eigenaarschap overdragen:** kies iemand met de rol docent als nieuwe
-  eigenaar, lid van de klas of niet. De oude eigenaar blijft mededocent
+- **Eigenaarschap overdragen:** kies iemand met de rol docent die niet
+  geblokkeerd is als nieuwe eigenaar, lid van de klas of niet. De oude eigenaar blijft mededocent
   zolang die de rol docent heeft, en verlaat anders de klas.
 - **Archiveren** en **Heropenen:** een gearchiveerde klas is alleen-lezen
   voor de eigenaar en mededocenten en houdt leden, groepen en geschiedenis.

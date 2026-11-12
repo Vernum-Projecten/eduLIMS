@@ -16,12 +16,13 @@ import {
   adminTransferOwnership,
   adminUnarchiveClass,
 } from "./admin.ts";
-import { getAdminClass, listAdminClassPage, listTeacherCandidates } from "./admin-queries.ts";
+import { getAdminClass, listAdminClassPage, searchTeacherCandidates } from "./admin-queries.ts";
 import {
   adminClassFormSchema,
   adminImportInput,
   adminTransferInput,
   listAdminClassesInput,
+  teacherSearchInput,
 } from "./admin-schemas.ts";
 import { classIdInput } from "./schemas.ts";
 
@@ -43,10 +44,11 @@ export const getAdminClassFn = createServerFn({ method: "GET" })
     return page;
   });
 
-/** Returns the users who can own a class: the app role teacher. */
-export const listTeacherCandidatesFn = createServerFn({ method: "GET" })
+/** Returns the users who can own a class: the app role teacher, not blocked, by a search. */
+export const searchTeacherCandidatesFn = createServerFn({ method: "GET" })
   .middleware([admin])
-  .handler(() => listTeacherCandidates(getDb()));
+  .validator(teacherSearchInput)
+  .handler(({ data }) => searchTeacherCandidates(getDb(), data, new Date()));
 
 /** Creates a class on a teacher's behalf. */
 export const adminCreateClassFn = createServerFn({ method: "POST" })

@@ -44,7 +44,7 @@ function seeded(): QueryClient {
     [classesKeys.adminList({}), { rows: [] }],
     [classesKeys.adminDetail(ONE), { id: ONE }],
     [classesKeys.adminDetail(TWO), { id: TWO }],
-    [classesKeys.teachers(), []],
+    [classesKeys.teachers(""), []],
     [classesKeys.student(), { classes: [], invitations: [] }],
     [sessionKeys.current(), { id: "teacher" }],
   ]);
@@ -75,7 +75,7 @@ describe("classesKeys", () => {
     expect(classesKeys.sources(ONE)).toEqual(["classes", "detail", ONE, "sources"]);
     expect(classesKeys.adminList({ q: "LS" })).toEqual(["classes", "admin", "list", { q: "LS" }]);
     expect(classesKeys.adminDetail(ONE)).toEqual(["classes", "admin", "detail", ONE]);
-    expect(classesKeys.teachers()).toEqual(["classes", "admin", "teachers"]);
+    expect(classesKeys.teachers("ada")).toEqual(["classes", "admin", "teachers", "ada"]);
   });
 });
 

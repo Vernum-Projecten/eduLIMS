@@ -84,6 +84,8 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   invalid_code: m.admin_activity_reason_invalid_code,
   invalid_email_or_password: m.admin_activity_reason_invalid_password,
   no_edulims_role: m.admin_activity_reason_no_role,
+  not_a_teacher: m.admin_activity_reason_not_a_teacher,
+  owner_blocked: m.admin_activity_reason_owner_blocked,
   role_conflict: m.admin_activity_reason_role_conflict,
   roles_not_local: m.admin_activity_reason_roles_not_local,
   sign_in_refused: m.admin_activity_reason_sign_in_refused,
@@ -128,6 +130,9 @@ function metadataParts(metadata: AuditMetadata, labels: ProviderLabels): string[
   if (metadata.previous_roles) {
     const roles = rolesLabel(roleList(metadata.previous_roles));
     parts.push(m.admin_activity_detail_previous_roles({ roles }));
+  }
+  if (metadata.previous_user_id) {
+    parts.push(m.admin_activity_detail_previous_owner({ user: metadata.previous_user_id }));
   }
   if (metadata.ban_expires_at) {
     const date = formatDateTime(metadata.ban_expires_at);

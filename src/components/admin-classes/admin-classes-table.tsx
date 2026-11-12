@@ -136,7 +136,29 @@ function statusLabel(status: AdminClassStatus): string {
   return status === "archived" ? m.classes_filter_archived() : m.classes_filter_active();
 }
 
-function ClassesEmpty({ filtered }: Readonly<{ filtered: boolean }>) {
+/** Why the list is empty: nothing at all, no active class (the default), or no match. */
+type EmptyKind = "none" | "no_active" | "filtered";
+
+function emptyText(kind: EmptyKind): { title: string; body: string } {
+  switch (kind) {
+    case "filtered":
+      return {
+        title: m.classes_admin_empty_filtered(),
+        body: m.classes_admin_empty_filtered_body(),
+      };
+    case "no_active":
+      return { title: m.classes_admin_empty_active(), body: m.classes_admin_empty_active_body() };
+    case "none":
+      return { title: m.classes_admin_empty(), body: m.classes_admin_empty_body() };
+    default: {
+      const unknown: never = kind;
+      return unknown;
+    }
+  }
+}
+
+function ClassesEmpty({ kind }: Readonly<{ kind: EmptyKind }>) {
+  const text = emptyText(kind);
   return (
     <Empty>
       <EmptyHeader>
@@ -144,18 +166,22 @@ function ClassesEmpty({ filtered }: Readonly<{ filtered: boolean }>) {
           <SchoolIcon aria-hidden="true" />
         </EmptyMedia>
         <EmptyTitle>
-          <h2>{filtered ? m.classes_admin_empty_filtered() : m.classes_admin_empty()}</h2>
+          <h2>{text.title}</h2>
         </EmptyTitle>
-        <EmptyDescription>
-          {filtered ? m.classes_admin_empty_filtered_body() : m.classes_admin_empty_body()}
-        </EmptyDescription>
+        <EmptyDescription>{text.body}</EmptyDescription>
       </EmptyHeader>
-      {filtered && (
+      {kind !== "none" && (
         <EmptyContent>
           <Button variant="outline" asChild>
-            <Link to="/admin/classes" search={{}}>
-              {m.classes_admin_clear_filters()}
-            </Link>
+            {kind === "filtered" ? (
+              <Link to="/admin/classes" search={{}}>
+                {m.classes_admin_clear_filters()}
+              </Link>
+            ) : (
+              <Link to="/admin/classes" search={{ status: ["archived"] }}>
+                {m.classes_admin_show_archived()}
+              </Link>
+            )}
           </Button>
         </EmptyContent>
       )}
@@ -275,7 +301,17 @@ export function AdminClassesTable({
           pages: formatNumber(pages),
         })}
         busy={fetching}
-        empty={<ClassesEmpty filtered={hasAdminClassFilters(search)} />}
+        empty={
+          <ClassesEmpty
+            kind={
+              hasAdminClassFilters(search)
+                ? "filtered"
+                : page.facets.status.archived > 0
+                  ? "no_active"
+                  : "none"
+            }
+          />
+        }
       />
       <DataTablePagination
         table={table}

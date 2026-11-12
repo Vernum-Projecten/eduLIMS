@@ -92,15 +92,22 @@ function listKeyOf(value: InviteForm): string {
   return `${value.role}|${value.emails.join(",")}`;
 }
 
-/** The preview of a list: every address with what will happen to it, before anything is sent. */
-export function InvitePreview({ rows }: Readonly<{ rows: readonly PreviewRow[] }>) {
+/**
+ * The preview of a list: every address with what will happen to it, before anything is sent.
+ * `headingLevel` places its heading under the section that holds the form (WCAG 1.3.1).
+ */
+export function InvitePreview({
+  rows,
+  headingLevel = 4,
+}: Readonly<{ rows: readonly PreviewRow[]; headingLevel?: 3 | 4 }>) {
   const fresh = rows.filter((row) => row.status === "new").length;
   const headingId = useId();
+  const Heading = headingLevel === 3 ? "h3" : "h4";
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-2 rounded-lg border p-4">
-      <h4 id={headingId} className="font-medium">
+      <Heading id={headingId} className="font-medium">
         {m.classes_invite_preview_title()}
-      </h4>
+      </Heading>
       <p role="status">
         {m.classes_invite_preview_summary({
           fresh: formatNumber(fresh),

@@ -39,6 +39,7 @@ export const CLASS_ACTION_ERRORS = [
   "invitation_not_found",
   "not_a_teacher",
   "already_owner",
+  "owner_blocked",
 ] as const;
 export type ClassActionError = (typeof CLASS_ACTION_ERRORS)[number];
 

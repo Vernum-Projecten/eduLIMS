@@ -51,6 +51,25 @@ export function isAppTeacher(stored: string | null | undefined): boolean {
   return parsed.ok && parsed.roles.includes("teacher");
 }
 
+/**
+ * Returns why `userId` cannot own a class at `now`, or `null` when they can: the app role
+ * teacher is required (`not_a_teacher`), and a blocked user is refused (`owner_blocked`, #37).
+ */
+async function ownerRefusal(
+  trx: Kysely<DB>,
+  userId: string,
+  now: Date,
+): Promise<"not_a_teacher" | "owner_blocked" | null> {
+  const user = await trx
+    .selectFrom("user")
+    .select(["role", "banned", "banExpires"])
+    .where("id", "=", userId)
+    .executeTakeFirst();
+  if (!user || !isAppTeacher(user.role)) return "not_a_teacher";
+  const blocked = user.banned === true && (user.banExpires === null || user.banExpires > now);
+  return blocked ? "owner_blocked" : null;
+}
+
 /** A class the administrator locked: its id and archive state. */
 interface AdminLockedClass {
   id: string;
@@ -175,9 +194,9 @@ export function adminUnarchiveClass(
 
 /**
  * Transfers the ownership of any class to a user whose app role includes teacher (#37), member
- * of the class or not. The old owner stays as a co-teacher while they hold the app role teacher
- * and leaves the class (and its lab groups) otherwise, so the class keeps exactly one owner.
- * Not when archived.
+ * of the class or not, and who is not blocked. The old owner stays as a co-teacher while they
+ * hold the app role teacher and leaves the class (and its lab groups) otherwise, so the class
+ * keeps exactly one owner. Not when archived.
  */
 export function adminTransferOwnership(
   db: Kysely<DB>,
@@ -187,14 +206,10 @@ export function adminTransferOwnership(
 ): Promise<ClassResult> {
   const check = { classId: input.classId, action: "class_owner_changed" } as const;
   return withAdminClass(db, actor, check, async (trx, locked) => {
-    const target = await trx
-      .selectFrom("user")
-      .select("role")
-      .where("id", "=", input.userId)
-      .executeTakeFirst();
-    if (!isAppTeacher(target?.role)) {
-      await recordAdminRefusal(trx, actor, check.action, locked.id, "not_a_teacher");
-      return refused("not_a_teacher");
+    const unfit = await ownerRefusal(trx, input.userId, now);
+    if (unfit) {
+      await recordAdminRefusal(trx, actor, check.action, locked.id, unfit);
+      return refused(unfit);
     }
     const owner = await trx
       .selectFrom("member")
@@ -258,7 +273,7 @@ async function removeFromClass(trx: Kysely<DB>, classId: string, userId: string)
 
 /**
  * Creates a class on a teacher's behalf (#37, B2): the chosen user, whose app role must include
- * teacher, becomes its owner; the administrator does not become a member.
+ * teacher and who is not blocked, becomes its owner; the administrator does not become a member.
  *
  * @throws AuthError 403 without the app role admin.
  */
@@ -270,19 +285,15 @@ export async function adminCreateClass(
 ): Promise<ClassResult<{ classId: string }>> {
   assertAdmin(actor);
   return db.transaction().execute(async (trx) => {
-    const owner = await trx
-      .selectFrom("user")
-      .select("role")
-      .where("id", "=", input.ownerId)
-      .executeTakeFirst();
-    if (!isAppTeacher(owner?.role)) {
+    const unfit = await ownerRefusal(trx, input.ownerId, now);
+    if (unfit) {
       await recordAudit(trx, {
         action: "class_created",
         actor: userActor(actor),
         outcome: "refused",
-        reason: "not_a_teacher",
+        reason: unfit,
       });
-      return refused<{ classId: string }>("not_a_teacher");
+      return refused<{ classId: string }>(unfit);
     }
     const classId = await insertClass(trx, input, now);
     await addMember(trx, classId, input.ownerId, "owner", now);

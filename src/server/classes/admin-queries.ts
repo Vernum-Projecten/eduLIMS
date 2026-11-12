@@ -376,24 +376,51 @@ export async function getAdminClass(
   };
 }
 
-/** A user who can own a class: the app role teacher (ADR 0012). */
+/** A user who can own a class: the app role teacher and not blocked (ADR 0012, #37). */
 export interface TeacherCandidate {
   id: string;
   name: string;
   email: string;
 }
 
-// NOTE: no requirement governs this: our own design. A bound on the owner list of one form.
+// NOTE: no requirement governs this: our own design. A bound on the owner choices of one search.
 export const TEACHER_CANDIDATES_MAX = 500;
 
-/** Returns the users whose app role includes teacher, by name, for the owner fields (#37). */
-export async function listTeacherCandidates(db: Kysely<DB>): Promise<TeacherCandidate[]> {
+/** The condition that a user is blocked at `now`: a ban without an end, or ending later. */
+export function blockedCondition(
+  eb: ExpressionBuilder<DB, "user">,
+  now: Date,
+): Expression<SqlBool> {
+  return eb.and([
+    eb("user.banned", "is", true),
+    eb.or([eb("user.banExpires", "is", null), eb("user.banExpires", ">", now)]),
+  ]);
+}
+
+/**
+ * Returns the users who can own a class for the owner fields (#37): the app role teacher, not
+ * blocked at `now`, with a name or e-mail address that contains `q` (all of them for an empty
+ * `q`), by name, at most {@link TEACHER_CANDIDATES_MAX}.
+ */
+export async function searchTeacherCandidates(
+  db: Kysely<DB>,
+  input: { q: string },
+  now: Date,
+): Promise<TeacherCandidate[]> {
+  const text = input.q.trim();
   return db
     .selectFrom("user")
-    .select(["id", "name", "email"])
-    .where("role", "in", roleValuesWith("teacher"))
-    .orderBy("name")
-    .orderBy("id")
+    .select(["user.id", "user.name", "user.email"])
+    .where("user.role", "in", roleValuesWith("teacher"))
+    .where((eb) => eb.not(blockedCondition(eb, now)))
+    .$if(text !== "", (qb) =>
+      qb.where((eb) => {
+        const pattern = containsPattern(text);
+        return eb.or([eb("user.name", "ilike", pattern), eb("user.email", "ilike", pattern)]);
+      }),
+    )
+    .orderBy("user.name")
+    .orderBy("user.id")
     .limit(TEACHER_CANDIDATES_MAX)
     .execute();
 }

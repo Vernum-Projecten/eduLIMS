@@ -58,6 +58,15 @@ async function archivedAt(database: Kysely<DB>, classId: string) {
   return row.archived_at;
 }
 
+/** Blocks `userId` until `until`, or for good with `null`. */
+async function block(database: Kysely<DB>, userId: string, until: Date | null): Promise<void> {
+  await database
+    .updateTable("user")
+    .set({ banned: true, banExpires: until })
+    .where("id", "=", userId)
+    .execute();
+}
+
 /** A class with its people and an administrator who is no member of it. */
 async function setup(database: Kysely<DB>) {
   const people = await classWithPeople(database);
@@ -255,6 +264,22 @@ describe("adminTransferOwnership (#37)", () => {
     ]);
   });
 
+  it("refuses a blocked teacher as the new owner and logs it, but not an ended block", async () => {
+    const database = await open();
+    const { classId, outsider, coTeacher, admin } = await setup(database);
+    await block(database, outsider.id, null);
+    expect(
+      await adminTransferOwnership(database, admin, { classId, userId: outsider.id }, NOW),
+    ).toEqual({ ok: false, error: "owner_blocked" });
+    expect(await auditRows(database, "class_owner_changed")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "owner_blocked" }),
+    ]);
+    await block(database, coTeacher.id, new Date(NOW.getTime() - 1000));
+    expect(
+      await adminTransferOwnership(database, admin, { classId, userId: coTeacher.id }, NOW),
+    ).toEqual({ ok: true, value: null });
+  });
+
   it("refuses the current owner as the new owner", async () => {
     const database = await open();
     const { classId, owner, admin } = await setup(database);
@@ -333,6 +358,24 @@ describe("adminCreateClass (#37, B2)", () => {
       NOW,
     );
     expect(result.ok).toBe(true);
+  });
+
+  it("refuses a blocked owner, creates nothing and logs it", async () => {
+    const database = await open();
+    const admin = await person(database, "admin", ["admin"]);
+    const teacher = await person(database, "t", ["teacher"]);
+    await block(database, teacher.id, new Date(NOW.getTime() + 60_000));
+    const result = await adminCreateClass(
+      database,
+      admin,
+      { name: "LS-3D", academicYear: "2026-2027", ownerId: teacher.id },
+      NOW,
+    );
+    expect(result).toEqual({ ok: false, error: "owner_blocked" });
+    expect(await database.selectFrom("organization").select("id").execute()).toEqual([]);
+    expect(await auditRows(database, "class_created")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "owner_blocked" }),
+    ]);
   });
 
   it("refuses an owner without the app role teacher, creates nothing and logs it", async () => {
@@ -422,6 +465,29 @@ describe("adminPreviewImport and adminImportStudents (#37, B2)", () => {
     const existing = await person(database, "existing", ["student"]);
     await adminImportStudents(database, admin, { classId, emails: [existing.email] }, NOW);
     expect(await roleOf(database, classId, existing.id)).toBeNull();
+  });
+
+  it("keeps the invitations when their inviter is deleted (#37)", async () => {
+    const database = await open();
+    const { classId, owner, admin } = await setup(database);
+    await adminImportStudents(database, admin, { classId, emails: ["a@example.test"] }, NOW);
+    await createInvitations(
+      database,
+      owner,
+      { classId, role: "student", emails: ["b@example.test"] },
+      NOW,
+    );
+    await database.deleteFrom("user").where("id", "in", [admin.id, owner.id]).execute();
+    const rows = await database
+      .selectFrom("invitation")
+      .select(["email", "status", "inviterId"])
+      .where("organizationId", "=", classId)
+      .orderBy("email")
+      .execute();
+    expect(rows).toEqual([
+      { email: "a@example.test", status: "pending", inviterId: null },
+      { email: "b@example.test", status: "pending", inviterId: null },
+    ]);
   });
 
   it("refuses an archived class and logs the refusal under the class", async () => {

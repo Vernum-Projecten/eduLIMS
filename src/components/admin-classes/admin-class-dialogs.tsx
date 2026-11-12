@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { revalidateLogic } from "@tanstack/react-form";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ArchiveIcon, ArchiveRestoreIcon, PlusIcon, UserRoundCogIcon } from "lucide-react";
 import { useState } from "react";
+import { OwnerComboboxField } from "@/components/admin-classes/owner-combobox-field";
 import { ConfirmButton } from "@/components/admin-users/admin-action";
 import { useClassMutation } from "@/components/classes/use-class-mutation";
 import { useAppForm } from "@/components/form/app-form";
@@ -42,11 +43,7 @@ import {
   adminTransferOwnershipFn,
   adminUnarchiveClassFn,
 } from "@/server/classes/admin-functions";
-import type { TeacherCandidate } from "@/server/classes/admin-queries";
-import {
-  type AdminClassPageData,
-  teacherCandidatesQueryOptions,
-} from "@/server/classes/admin-query-options";
+import type { AdminClassPageData } from "@/server/classes/admin-query-options";
 import {
   type AdminClassForm,
   adminClassFormSchema,
@@ -54,16 +51,6 @@ import {
   transferFormSchema,
 } from "@/server/classes/admin-schemas";
 import { classErrorCode, classMutationOptions } from "@/server/classes/query-options";
-
-/** The teachers as owner choices: the name with the address, since names repeat. */
-function teacherOptions(teachers: readonly TeacherCandidate[], except?: string) {
-  return teachers
-    .filter((teacher) => teacher.id !== except)
-    .map((teacher) => ({
-      value: teacher.id,
-      label: m.classes_admin_teacher_option({ name: teacher.name, email: teacher.email }),
-    }));
-}
 
 /**
  * "New class" for the administrator (#37, B2): a class on a teacher's behalf, with that teacher
@@ -73,7 +60,6 @@ export function AdminCreateClassDialog() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: teachers } = useSuspenseQuery(teacherCandidatesQueryOptions());
   const create = useClassMutation(
     classMutationOptions(queryClient, useServerFn(adminCreateClassFn)),
     (_data, variables) => m.classes_created({ name: variables.name.trim() }),
@@ -94,7 +80,9 @@ export function AdminCreateClassDialog() {
         const message = classErrorMessage(code);
         applyServerRefusal(
           formApi,
-          code === "not_a_teacher" ? { fields: { ownerId: message } } : { form: message },
+          code === "not_a_teacher" || code === "owner_blocked"
+            ? { fields: { ownerId: message } }
+            : { form: message },
         );
       }
     },
@@ -145,12 +133,11 @@ export function AdminCreateClassDialog() {
                 )}
               </form.AppField>
               <form.AppField name="ownerId">
-                {(field) => (
-                  <field.SelectField
+                {() => (
+                  <OwnerComboboxField
                     label={m.classes_admin_field_owner()}
                     description={m.classes_admin_field_owner_help()}
                     placeholder={m.classes_admin_field_owner_placeholder()}
-                    options={teacherOptions(teachers)}
                   />
                 )}
               </form.AppField>
@@ -177,7 +164,6 @@ export function AdminCreateClassDialog() {
 export function TransferOwnershipDialog({ page }: Readonly<{ page: AdminClassPageData }>) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { data: teachers } = useSuspenseQuery(teacherCandidatesQueryOptions());
   const transfer = useClassMutation(
     classMutationOptions(queryClient, useServerFn(adminTransferOwnershipFn)),
     () => m.classes_admin_transferred({ name: page.name }),
@@ -197,7 +183,7 @@ export function TransferOwnershipDialog({ page }: Readonly<{ page: AdminClassPag
         const message = classErrorMessage(code);
         applyServerRefusal(
           formApi,
-          code === "not_a_teacher" || code === "already_owner"
+          code === "not_a_teacher" || code === "owner_blocked" || code === "already_owner"
             ? { fields: { userId: message } }
             : { form: message },
         );
@@ -233,12 +219,12 @@ export function TransferOwnershipDialog({ page }: Readonly<{ page: AdminClassPag
             <form.FormErrors />
             <FieldGroup>
               <form.AppField name="userId">
-                {(field) => (
-                  <field.SelectField
+                {() => (
+                  <OwnerComboboxField
                     label={m.classes_admin_field_new_owner()}
                     description={m.classes_admin_field_owner_help()}
                     placeholder={m.classes_admin_field_owner_placeholder()}
-                    options={teacherOptions(teachers, page.owner?.id)}
+                    except={page.owner?.id}
                   />
                 )}
               </form.AppField>

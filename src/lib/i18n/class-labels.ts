@@ -86,6 +86,8 @@ export function classErrorMessage(code: string | null): string {
       return m.classes_error_not_a_teacher();
     case "already_owner":
       return m.classes_error_already_owner();
+    case "owner_blocked":
+      return m.classes_error_owner_blocked();
     default:
       return m.classes_error_failed();
   }

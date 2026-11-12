@@ -242,7 +242,8 @@ test("the administrator sees every class, without grades or results (#28, #37, R
 }) => {
   await devLogin(page, "admin@example.test");
   await expect(page).toHaveURL(/\/admin$/);
-  await page.goto(`/admin/classes?q=${CLASS}`);
+  // The class is archived at this step of the journey; the list shows active ones by default.
+  await page.goto(`/admin/classes?q=${CLASS}&status=archived`);
   const table = page.getByRole("table", {
     name: /^All classes with their owner, co-teachers and counts/,
   });

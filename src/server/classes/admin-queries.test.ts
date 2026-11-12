@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import type { ClassActor } from "./access.ts";
-import { getAdminClass, listAdminClassPage, listTeacherCandidates } from "./admin-queries.ts";
+import { getAdminClass, listAdminClassPage, searchTeacherCandidates } from "./admin-queries.ts";
 import { archiveClass, createClass } from "./classes.ts";
 import { createGroups } from "./groups.ts";
 import { createInvitations } from "./invitations.ts";
@@ -192,7 +192,7 @@ describe("getAdminClass (#37, R-01)", () => {
   });
 });
 
-describe("listTeacherCandidates (#37)", () => {
+describe("searchTeacherCandidates (#37)", () => {
   it("lists the users whose app role includes teacher, by name", async () => {
     const database = await open();
     const zed = await person(database, "zed", ["teacher"], { name: "Zed Teacher" });
@@ -203,9 +203,44 @@ describe("listTeacherCandidates (#37)", () => {
     await person(database, "admin", ["admin"]);
     const classId = await newClass(database, zed, "LS-1A", "2026-2027");
     await join(database, classId, coordinator.id, "teacher");
-    expect(await listTeacherCandidates(database)).toEqual([
+    expect(await searchTeacherCandidates(database, { q: "" }, NOW)).toEqual([
       { id: coordinator.id, name: "Coordinator Test", email: coordinator.email },
       { id: zed.id, name: "Zed Teacher", email: zed.email },
     ]);
+  });
+
+  it("searches the name and the e-mail address, LIKE wildcards as plain text", async () => {
+    const database = await open();
+    const zed = await person(database, "zed", ["teacher"], { name: "Zed Teacher" });
+    await person(database, "yan", ["teacher"], { name: "Yan Teacher" });
+    const byName = await searchTeacherCandidates(database, { q: " zed " }, NOW);
+    expect(byName.map((row) => row.id)).toEqual([zed.id]);
+    const byEmail = await searchTeacherCandidates(database, { q: "zed@example" }, NOW);
+    expect(byEmail.map((row) => row.id)).toEqual([zed.id]);
+    expect(await searchTeacherCandidates(database, { q: "%" }, NOW)).toEqual([]);
+  });
+
+  it("leaves out a blocked teacher, and offers one whose block has ended", async () => {
+    const database = await open();
+    const blocked = await person(database, "blocked", ["teacher"], { name: "Blocked Teacher" });
+    const ended = await person(database, "ended", ["teacher"], { name: "Ended Teacher" });
+    const later = await person(database, "later", ["teacher"], { name: "Later Teacher" });
+    await database
+      .updateTable("user")
+      .set({ banned: true, banExpires: null })
+      .where("id", "=", blocked.id)
+      .execute();
+    await database
+      .updateTable("user")
+      .set({ banned: true, banExpires: new Date(NOW.getTime() - DAY) })
+      .where("id", "=", ended.id)
+      .execute();
+    await database
+      .updateTable("user")
+      .set({ banned: true, banExpires: new Date(NOW.getTime() + DAY) })
+      .where("id", "=", later.id)
+      .execute();
+    const rows = await searchTeacherCandidates(database, { q: "" }, NOW);
+    expect(rows.map((row) => row.id)).toEqual([ended.id]);
   });
 });
