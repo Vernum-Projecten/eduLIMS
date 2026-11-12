@@ -13,6 +13,8 @@ import {
 } from "./env.ts";
 import { VALID_ENV } from "./test-env.ts";
 
+const PRODUCTION_TOKEN_URL =
+  "https://idp.example.test/realms/edulims/protocol/openid-connect/token";
 const VERIFIED_DATABASE_URL =
   "postgres://edulims:secret@postgres:5432/edulims?sslmode=verify-full&sslrootcert=/etc/edulims/postgres-ca.crt";
 
@@ -34,6 +36,7 @@ describe("parseEnv", () => {
       ...rest,
       BETTER_AUTH_URL: "https://edulims.example",
       DATABASE_URL: VERIFIED_DATABASE_URL,
+      FERROEHR_TOKEN_URL: PRODUCTION_TOKEN_URL,
     });
     expect(env.NODE_ENV).toBe("production");
     expect(env.EDULIMS_DEV_LOGIN).toBe(false);
@@ -128,6 +131,7 @@ describe("parseEnv", () => {
 const PRODUCTION = {
   NODE_ENV: "production",
   DATABASE_URL: VERIFIED_DATABASE_URL,
+  FERROEHR_TOKEN_URL: PRODUCTION_TOKEN_URL,
   BETTER_AUTH_URL: "https://edulims.example",
   EDULIMS_DEV_LOGIN: "false",
   EDULIMS_IDP_PRIVATE_ORIGINS: "https://idp.campus.internal",
@@ -226,6 +230,35 @@ describe("FerroEHR client credentials (#145, RFC 6749 §4.4)", () => {
     expect(() => parseEnv({ ...VALID_ENV, FERROEHR_TOKEN_URL: "ftp://idp.test/token" })).toThrow(
       /FERROEHR_TOKEN_URL/,
     );
+  });
+
+  it("refuses an http token URL in production (ASVS V12.3.1)", () => {
+    const plain = {
+      ...VALID_ENV,
+      ...PRODUCTION,
+      FERROEHR_TOKEN_URL: "http://idp.example.test/token",
+    };
+    const error: unknown = (() => {
+      try {
+        return parseEnv(plain);
+      } catch (caught) {
+        return caught;
+      }
+    })();
+    expect(error).toBeInstanceOf(EnvConfigError);
+    expect(error).toMatchObject({ variables: ["FERROEHR_TOKEN_URL"] });
+    expect(String(error)).toMatch(
+      /must use https when NODE_ENV=production \(the client secret is sent to it\)/,
+    );
+    expect(parseEnv({ ...VALID_ENV, ...PRODUCTION }).FERROEHR_TOKEN_URL).toBe(PRODUCTION_TOKEN_URL);
+  });
+
+  it("keeps an http://localhost token URL outside production", () => {
+    for (const NODE_ENV of ["development", "test"]) {
+      expect(parseEnv({ ...VALID_ENV, NODE_ENV }).FERROEHR_TOKEN_URL).toBe(
+        "http://localhost:4003/token",
+      );
+    }
   });
 
   it("refuses the development client secret in production (ASVS V13.2.3)", () => {

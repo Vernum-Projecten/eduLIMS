@@ -46,7 +46,6 @@ export type {
   OpenEhrClientConfig,
   TemplateDocument,
   TemplateFormat,
-  TemplateUpload,
 } from "./client.ts";
 export { createOpenEhrClient, DEFAULT_TIMEOUT_MS } from "./client.ts";
 export type { OpenEhrError, OpenEhrResult, OpenEhrTarget } from "./errors.ts";

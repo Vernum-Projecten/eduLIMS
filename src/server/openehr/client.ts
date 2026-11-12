@@ -19,7 +19,6 @@ import {
   type ConformanceManifest,
   conformanceManifest,
   type TemplateMetadata,
-  templateIdentifier,
   templateList,
   type WebTemplate,
   webTemplate,
@@ -52,9 +51,6 @@ export type TemplateDocument =
   | { format: "opt"; xml: string }
   | { format: "web_template"; webTemplate: WebTemplate };
 
-/** The outcome of an upload: stored now, or already there (templates are immutable). */
-export type TemplateUpload = { outcome: "created"; templateId: string } | { outcome: "exists" };
-
 /** The operations of FerroEHR that eduLIMS uses. */
 export interface OpenEhrClient {
   /**
@@ -72,11 +68,6 @@ export interface OpenEhrClient {
    * @throws RangeError when `templateId` is empty.
    */
   getTemplate(templateId: string, format: TemplateFormat): Promise<OpenEhrResult<TemplateDocument>>;
-  /**
-   * Uploads an ADL 1.4 operational template (Definition API, "Upload a template"); a `409` is
-   * the typed `exists` outcome, so an upload can be repeated safely.
-   */
-  uploadTemplate(optXml: string): Promise<OpenEhrResult<TemplateUpload>>;
 }
 
 // NOTE: no openEHR spec governs this: our own design. Ten seconds per request bounds a hanging
@@ -92,17 +83,13 @@ export const TEMPLATE_BODY_LIMIT_BYTES = 16 * 1024 * 1024;
 const ADL14_TEMPLATES = "definition/template/adl1.4";
 
 interface Call {
-  method: "GET" | "POST" | "OPTIONS";
+  method: "GET" | "OPTIONS";
   /** Relative to the base path; `""` is the base path itself. */
   path: string;
   accept: string;
   authenticated: boolean;
   bodyLimit: number;
   timeoutMs?: number | undefined;
-  body?: string;
-  headers?: Record<string, string>;
-  /** Non-success statuses the caller maps itself (the `409` of an upload). */
-  pass?: readonly number[];
 }
 
 interface Answer {
@@ -132,13 +119,12 @@ export function createOpenEhrClient(
 
   async function attempt(call: Call, token: string | undefined): Promise<OpenEhrResult<Answer>> {
     const url = call.path === "" ? new URL(config.baseUrl.href) : new URL(call.path, base);
-    const headers: Record<string, string> = { Accept: call.accept, ...call.headers };
+    const headers: Record<string, string> = { Accept: call.accept };
     if (token !== undefined) headers["Authorization"] = `Bearer ${token}`;
     try {
       const response = await deps.fetch(url, {
         method: call.method,
         headers,
-        ...(call.body === undefined ? {} : { body: call.body }),
         redirect: "manual",
         signal: AbortSignal.timeout(call.timeoutMs ?? timeoutMs),
       });
@@ -167,7 +153,7 @@ export function createOpenEhrClient(
       sent = await attempt(call, regranted.value);
     }
     if (!sent.ok) return sent;
-    return classify(sent.value, call);
+    return classify(sent.value);
   }
 
   return {
@@ -226,35 +212,13 @@ export function createOpenEhrClient(
       }
       return success({ format, xml });
     },
-
-    async uploadTemplate(optXml) {
-      const sent = await send({
-        method: "POST",
-        path: ADL14_TEMPLATES,
-        accept: "application/json",
-        authenticated: true,
-        bodyLimit: OPTIONS_BODY_LIMIT_BYTES,
-        body: optXml,
-        // NOTE: ITS-REST 1.1.0 `201_Template_adl1_4_upload.yaml`: `return=identifier` answers
-        // the TemplateIdentifier as JSON.
-        headers: { "Content-Type": "application/xml", Prefer: "return=identifier" },
-        pass: [409],
-      });
-      if (!sent.ok) return sent;
-      // NOTE: ITS-REST 1.1.0 `409_template_already_exists.yaml`; templates are immutable.
-      if (sent.value.status === 409) return success({ outcome: "exists" });
-      const parsed = parseBody(sent.value, templateIdentifier);
-      return parsed.ok
-        ? success({ outcome: "created", templateId: parsed.value.template_id })
-        : parsed;
-    },
   };
 }
 
-/** Maps a non-success answer to its typed error; a success (or a passed status) goes on. */
-function classify(answer: Answer, call: Call): OpenEhrResult<Answer> {
+/** Maps a non-success answer to its typed error; a success goes on. */
+function classify(answer: Answer): OpenEhrResult<Answer> {
   const { status, body } = answer;
-  if ((status >= 200 && status <= 299) || call.pass?.includes(status)) {
+  if (status >= 200 && status <= 299) {
     if (body === undefined) {
       return failure({
         kind: "invalid_response",

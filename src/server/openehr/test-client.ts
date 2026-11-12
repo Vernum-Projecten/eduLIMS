@@ -12,7 +12,7 @@ export const TEST_OPENEHR_CONFIG = {
   tokenUrl: new URL("http://idp.test/realms/edulims/protocol/openid-connect/token"),
   clientId: "edulims-ferroehr",
   clientSecret: "test-only-client-secret-0123456789",
-  scope: "system/template-*.cr",
+  scope: "system/template-*.r",
 } as const;
 
 /** Returns a client over `fetch`, with `baseUrl` in place of the test base URL when given. */

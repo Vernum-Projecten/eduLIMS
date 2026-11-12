@@ -255,36 +255,6 @@ describe("getTemplate (Definition API, Get a template)", () => {
   });
 });
 
-describe("uploadTemplate (Definition API, Upload a template)", () => {
-  it("posts the OPT as XML and returns the created template id", async () => {
-    const fetch = stack(() => json({ template_id: "eduLIMS-lab" }, 201));
-    const result = await testOpenEhrClient(fetch).uploadTemplate("<template/>");
-    expect(result).toEqual({ ok: true, value: { outcome: "created", templateId: "eduLIMS-lab" } });
-    const [url, init] = fetch.mock.calls.at(-1) ?? [];
-    expect(url?.href).toBe(TEMPLATES);
-    expect(init).toMatchObject({ method: "POST", body: "<template/>" });
-    const headers = new Headers(init?.headers);
-    expect(headers.get("Content-Type")).toBe("application/xml");
-    expect(headers.get("Prefer")).toBe("return=identifier");
-  });
-
-  it("maps a 409 to the typed exists outcome", async () => {
-    const fetch = stack(() => problem("conflict", 409));
-    expect(await testOpenEhrClient(fetch).uploadTemplate("<template/>")).toEqual({
-      ok: true,
-      value: { outcome: "exists" },
-    });
-  });
-
-  it("reports an invalid template as refused with 400 and its code", async () => {
-    const fetch = stack(() => problem("validation-failed", 400));
-    expect(await testOpenEhrClient(fetch).uploadTemplate("<x/>")).toEqual({
-      ok: false,
-      error: { kind: "refused", target: "ferroehr", status: 400, code: "validation-failed" },
-    });
-  });
-});
-
 describe("privacy of failures (Q-COMP-1, auth-security.md)", () => {
   it("keeps the secret and the token out of every error and every log line", async () => {
     const spies = (["error", "warn", "info", "debug"] as const).map((level) =>

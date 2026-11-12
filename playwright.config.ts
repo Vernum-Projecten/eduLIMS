@@ -38,7 +38,7 @@ const appEnv = {
   FERROEHR_TOKEN_URL: "http://localhost:4003/token",
   FERROEHR_CLIENT_ID: "edulims-ferroehr",
   FERROEHR_CLIENT_SECRET: "e2e-only-ferroehr-client-secret",
-  FERROEHR_SCOPE: "system/template-*.cr",
+  FERROEHR_SCOPE: "system/template-*.r",
   FERROBRIDGE_BASE_URL: "http://localhost:4002",
   EDULIMS_DEV_LOGIN: "true",
 };

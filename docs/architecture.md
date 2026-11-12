@@ -230,7 +230,7 @@ Two places carry the system:
 | Container | Role in this project |
 |---|---|
 | eduLIMS (web app and backend) | built here |
-| FerroEHR | configured: upload the template `eduLIMS-lab`; not developed here |
+| FerroEHR | configured: the template `eduLIMS-lab` is loaded with `ferroehr definitions load` before `serve`; not developed here |
 | FerroBRIDGE | configured: MLLP listener (TLS with client certificates in 0.0.24; the Afinion 2 waits on FerroBRIDGE#1918) and HL7 to template mapping; not developed here |
 | PostgreSQL 18 | one server, two databases: FerroEHR's and eduLIMS's |
 

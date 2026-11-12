@@ -118,6 +118,14 @@ export const DEV_FERROEHR_CLIENT_SECRET = "edulims-dev-ferroehr-secret";
 
 export const envSchema = envFields.superRefine((env, ctx) => {
   const production = env.NODE_ENV === "production";
+  // NOTE: ASVS V12.3.1; the FerroEHR client secret travels to the token endpoint.
+  if (production && !env.FERROEHR_TOKEN_URL.startsWith("https://")) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["FERROEHR_TOKEN_URL"],
+      message: "must use https when NODE_ENV=production (the client secret is sent to it)",
+    });
+  }
   // NOTE: ASVS V13.2.3; a service credential must not be a default one.
   if (production && env.FERROEHR_CLIENT_SECRET === DEV_FERROEHR_CLIENT_SECRET) {
     ctx.addIssue({

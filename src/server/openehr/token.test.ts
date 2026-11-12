@@ -16,7 +16,7 @@ const CONFIG: TokenConfig = {
   tokenUrl: new URL("http://idp.test/token"),
   clientId: "edulims-ferroehr",
   clientSecret: "test-only-client-secret-0123456789",
-  scope: "system/template-*.cr",
+  scope: "system/template-*.r",
   timeoutMs: 1_000,
 };
 
@@ -53,7 +53,7 @@ describe("createTokenSource (RFC 6749 §4.4)", () => {
     const body = new URLSearchParams(String(init?.body));
     expect(Object.fromEntries(body)).toEqual({
       grant_type: "client_credentials",
-      scope: "system/template-*.cr",
+      scope: "system/template-*.r",
     });
   });
 

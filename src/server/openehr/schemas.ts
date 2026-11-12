@@ -44,6 +44,3 @@ export const webTemplate = z.looseObject({
   tree: z.looseObject({}),
 });
 export type WebTemplate = z.infer<typeof webTemplate>;
-
-/** The identifier of an uploaded template (ITS-REST 1.1.0, `schemas/others/TemplateIdentifier.yaml`). */
-export const templateIdentifier = z.object({ template_id: z.string().min(1) });
