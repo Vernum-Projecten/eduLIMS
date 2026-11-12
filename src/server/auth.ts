@@ -90,6 +90,8 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
   return betterAuth({
     advanced: {
       ...authCookieOptions(env.BETTER_AUTH_URL),
+      // NOTE: #49 (ASVS V2.4.1); the client IP of the rate limits, read past the operator's proxies.
+      ipAddress: { trustedProxies: [...env.EDULIMS_TRUSTED_PROXIES] },
       // NOTE: owner decision on #28; every better-auth id is a UUIDv7, classes included.
       database: { generateId: () => newId() },
     },

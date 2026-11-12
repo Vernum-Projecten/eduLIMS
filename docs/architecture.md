@@ -136,7 +136,10 @@ tables and the class roles (`owner`, `teacher`, `student`), and eduLIMS's
 class service (`src/server/classes/`) does every write behind a membership
 check on the session user, with the plugin's own endpoints unreachable. A
 person joins every class that invited their verified email when they sign
-in; eduLIMS sends no email.
+in; eduLIMS sends no email. A student who signs in with another address joins
+with the class's join code (#49) instead: eduLIMS's own `class_join_codes`
+table keeps one HMAC of the code per class with its term and number of joins,
+and wrong codes are limited per student and per client IP in the app process.
 
 ### Template `eduLIMS-lab`
 

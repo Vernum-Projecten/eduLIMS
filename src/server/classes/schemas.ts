@@ -6,6 +6,12 @@
 import { z } from "zod";
 import { m } from "@/i18n/messages";
 import { CLASS_NAME_MAX, GROUP_NAME_MAX, INVITATION_ROLES, isAcademicYear } from "@/lib/classes";
+import {
+  JOIN_CODE_DAYS_MAX,
+  JOIN_CODE_INPUT_MAX,
+  JOIN_CODE_USES_MAX,
+  normalizeJoinCode,
+} from "@/lib/join-code";
 
 // NOTE: no requirement governs these bounds: our own design, flagged on #28 for the owner.
 /** The most addresses one invitation list takes. */
@@ -146,6 +152,46 @@ export const copyGroupSetFormSchema = z.object({
 });
 export type CopyGroupSetForm = z.input<typeof copyGroupSetFormSchema>;
 export const copyGroupSetInput = z.object({ classId: id, sourceClassId: id, groupSet });
+
+const validDaysError = () => m.classes_join_days_invalid({ max: String(JOIN_CODE_DAYS_MAX) });
+const maxUsesError = () => m.classes_join_uses_invalid({ max: String(JOIN_CODE_USES_MAX) });
+
+/** The join-code form (#49): how many days the code works and how many students may join. */
+export const joinCodeFormSchema = z.object({
+  validDays: z
+    .number({ error: validDaysError })
+    .int({ error: validDaysError })
+    .min(1, { error: validDaysError })
+    .max(JOIN_CODE_DAYS_MAX, { error: validDaysError }),
+  maxUses: z
+    .number({ error: maxUsesError })
+    .int({ error: maxUsesError })
+    .min(1, { error: maxUsesError })
+    .max(JOIN_CODE_USES_MAX, { error: maxUsesError }),
+});
+export type JoinCodeForm = z.input<typeof joinCodeFormSchema>;
+export const joinCodeInput = joinCodeFormSchema.extend({ classId: id });
+
+/**
+ * The student's join form (#49). A code of the wrong shape is refused at the field; a code of
+ * the right shape that does not work is the server's `invalid_code`, at the field too.
+ */
+export const joinFormSchema = z.object({
+  code: z
+    .string()
+    .max(JOIN_CODE_INPUT_MAX, { error: () => m.classes_join_code_shape() })
+    .refine((value) => value.trim() !== "", { error: () => m.classes_join_code_required() })
+    .refine((value) => value.trim() === "" || normalizeJoinCode(value) !== null, {
+      error: () => m.classes_join_code_shape(),
+    }),
+});
+export type JoinForm = z.input<typeof joinFormSchema>;
+
+/**
+ * The input of joining: any string up to the form's maximum. The server normalises it and
+ * counts a malformed code as a wrong one, so a crafted request skips no limit.
+ */
+export const joinInput = z.object({ code: z.string().max(JOIN_CODE_INPUT_MAX) });
 
 /** The class list's search params: the Archived filter. */
 export const classListSearchSchema = z.object({

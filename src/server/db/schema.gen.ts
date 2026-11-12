@@ -67,6 +67,16 @@ export interface AuditEvent {
   target_type: string | null;
 }
 
+export interface ClassJoinCodes {
+  code_hash: string;
+  created_at: Timestamp;
+  created_by: string | null;
+  expires_at: Timestamp;
+  max_uses: number;
+  organization_id: string;
+  uses: Generated<number>;
+}
+
 export interface IdentityProvider {
   attest_pkce: Generated<boolean>;
   created_at: Generated<Timestamp>;
@@ -219,6 +229,7 @@ export interface DB {
   account: Account;
   analysers: Analysers;
   audit_event: AuditEvent;
+  class_join_codes: ClassJoinCodes;
   identity_provider: IdentityProvider;
   identity_provider_domain: IdentityProviderDomain;
   integration_checks: IntegrationChecks;

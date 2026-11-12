@@ -5,6 +5,8 @@
 // the refusals of the class service.
 import { m } from "@/i18n/messages";
 import type { ClassRole } from "@/lib/classes";
+import { formatNumber } from "@/lib/i18n/format";
+import { JOIN_LIMIT_WINDOW_MINUTES } from "@/lib/join-code";
 
 /** Returns the name of a class role. */
 export function classRoleLabel(role: ClassRole): string {
@@ -82,6 +84,16 @@ export function classErrorMessage(code: string | null): string {
       return m.classes_error_group_set_empty();
     case "invitation_not_found":
       return m.classes_error_invitation_not_found();
+    case "join_code_exists":
+      return m.classes_error_join_code_exists();
+    case "join_code_off":
+      return m.classes_error_join_code_off();
+    case "invalid_code":
+      return m.classes_error_invalid_code();
+    case "rate_limited":
+      return m.classes_error_rate_limited({ minutes: formatNumber(JOIN_LIMIT_WINDOW_MINUTES) });
+    case "not_a_student":
+      return m.classes_error_not_a_student();
     default:
       return m.classes_error_failed();
   }

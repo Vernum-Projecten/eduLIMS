@@ -33,6 +33,9 @@ import {
   previewInvitations,
   resendInvitation,
 } from "./invitations.ts";
+import { joinClassWithCode } from "./join.ts";
+import { disableJoinCode, enableJoinCode, getJoinCode, regenerateJoinCode } from "./join-code.ts";
+import { requestJoinContext, serverJoinCodeHasher } from "./join-context.ts";
 import {
   getTeacherClass,
   listAdminClasses,
@@ -51,6 +54,8 @@ import {
   groupInput,
   invitationInput,
   inviteInput,
+  joinCodeInput,
+  joinInput,
   memberInput,
   moveStudentInput,
   renameGroupInput,
@@ -205,3 +210,43 @@ export const getStudentClasses = createServerFn({ method: "GET" })
     ]);
     return { classes, invitations };
   });
+
+/** Returns the join-code state of a class; throws `notFound` unless the teacher teaches it (#49). */
+export const getJoinCodeFn = createServerFn({ method: "GET" })
+  .middleware([teacher])
+  .validator(classIdInput)
+  .handler(async ({ data, context }) => {
+    const view = await getJoinCode(getDb(), context.user.id, data.classId, new Date());
+    if (!view) throw notFound();
+    return view;
+  });
+
+/** Turns on the join code of a class and returns the new code, once (#49). */
+export const enableJoinCodeFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(joinCodeInput)
+  .handler(({ data, context }) =>
+    enableJoinCode(getDb(), context.user, data, new Date(), serverJoinCodeHasher()),
+  );
+
+/** Replaces the join code of a class and returns the new code, once (#49). */
+export const regenerateJoinCodeFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(joinCodeInput)
+  .handler(({ data, context }) =>
+    regenerateJoinCode(getDb(), context.user, data, new Date(), serverJoinCodeHasher()),
+  );
+
+/** Turns the join code of a class off (#49). */
+export const disableJoinCodeFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(classIdInput)
+  .handler(({ data, context }) => disableJoinCode(getDb(), context.user, data));
+
+/** Joins the signed-in student to the class of a join code (#49). */
+export const joinClassFn = createServerFn({ method: "POST" })
+  .middleware([requireRole("student")])
+  .validator(joinInput)
+  .handler(({ data, context }) =>
+    joinClassWithCode(getDb(), context.user, data, requestJoinContext(new Date())),
+  );

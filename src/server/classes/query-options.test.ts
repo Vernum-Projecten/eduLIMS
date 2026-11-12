@@ -21,10 +21,13 @@ import {
   classMutationOptions,
   classReadMutationOptions,
   deleteClassMutationOptions,
+  joinClassMutationOptions,
+  joinCodeQueryOptions,
 } from "./query-options.ts";
 
 vi.mock("./functions.ts", () => ({
   getClassPage: vi.fn(),
+  getJoinCodeFn: vi.fn(),
   getStudentClasses: vi.fn(),
   listAllClasses: vi.fn(),
   listGroupSetSourcesFn: vi.fn(),
@@ -68,6 +71,28 @@ describe("classesKeys", () => {
     expect(classesKeys.list({ archived: true })).toEqual(["classes", "list", { archived: true }]);
     expect(classesKeys.detail(ONE)).toEqual(["classes", "detail", ONE]);
     expect(classesKeys.sources(ONE)).toEqual(["classes", "detail", ONE, "sources"]);
+    expect(joinCodeQueryOptions(ONE).queryKey).toEqual(["classes", "detail", ONE, "join-code"]);
+  });
+});
+
+describe("joinClassMutationOptions (#49)", () => {
+  const outcome = { status: "joined", className: "LS-2A", academicYear: "2026-2027" } as const;
+
+  it("invalidates the student's classes only", async () => {
+    const call = () => Promise.resolve({ ok: true, value: outcome } as const);
+    const result = await runMutation(queryClient, joinClassMutationOptions(queryClient, call), {
+      code: "ABCDE-FGH23",
+    });
+    expect(result).toEqual({ data: outcome });
+    expect(invalidatedKeys(queryClient)).toEqual(keys(classesKeys.student()));
+  });
+
+  it("throws a refusal with its code", async () => {
+    const call = () => Promise.resolve({ ok: false, error: "rate_limited" } as const);
+    const { error } = await runMutation(queryClient, joinClassMutationOptions(queryClient, call), {
+      code: "ABCDE-FGH23",
+    });
+    expect(classErrorCode(error)).toBe("rate_limited");
   });
 });
 

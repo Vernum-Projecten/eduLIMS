@@ -26,13 +26,17 @@ import {
   classMutationOptions,
   classPageQueryOptions,
   deleteClassMutationOptions,
+  joinCodeQueryOptions,
 } from "@/server/classes/query-options";
 import { CLASS_TABS, classPageSearchSchema } from "@/server/classes/schemas";
 
 export const Route = createFileRoute("/_authed/teacher/classes/$classId")({
   validateSearch: classPageSearchSchema,
   loader: async ({ context, params }) => {
-    const page = await context.queryClient.ensureQueryData(classPageQueryOptions(params.classId));
+    const [page] = await Promise.all([
+      context.queryClient.ensureQueryData(classPageQueryOptions(params.classId)),
+      context.queryClient.ensureQueryData(joinCodeQueryOptions(params.classId)),
+    ]);
     // The top-bar breadcrumb reads `crumb` (AppBreadcrumb).
     return { crumb: classLabel(page) };
   },

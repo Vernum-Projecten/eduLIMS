@@ -118,6 +118,27 @@ that are not used yet; **Renew** gives an invitation, expired or not, another
 30 days, and **Cancel** withdraws it. eduLIMS deletes old invitations 90
 days after they were used, canceled or expired.
 
+### Let students join with a code
+
+A student who signs in with another address than the one you invited does
+not join through the invitation. For them, turn on the class's join code on
+the **Invitations** tab. It is off until you turn it on.
+
+1. Under **Join code**, choose how many days the code works (7 unless you
+   change it, at most 30) and how many students may join with it (100 unless
+   you change it, at most 500).
+2. Choose **Turn on join code**. eduLIMS shows the code, such as
+   `ABCDE-FGH23`, once. Choose **Copy code** and share it with your students.
+   eduLIMS keeps only a fingerprint of the code, so after you leave the page
+   it cannot show the code again.
+3. Students enter the code on their overview and join as students.
+
+The panel shows until when the code works and how many students joined with
+it. **New code** makes a new code with new settings; the old code stops
+working at once. **Turn off** stops the code; the students who joined stay in
+the class. A code never works while the class is archived, and too many wrong
+codes in a row lock a student out for 15 minutes.
+
 ### Lab groups
 
 Students often work in pairs or small groups. A class can have several

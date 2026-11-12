@@ -58,6 +58,21 @@ terwijl een menu of venster open is. Zitten **?** en **/** in de weg,
 bijvoorbeeld bij spraakbediening, zet dan in die lijst **Sneltoetsen met één
 toets** uit.
 
+## Met een code in een klas komen
+
+Meestal nodigt je docent je adres uit, en kom je in de klas zodra je de
+volgende keer inlogt. Log je in met een ander adres, dan kan je docent je een
+klascode geven.
+
+1. Zoek op je overzicht **In een klas komen**.
+2. Typ de code bij **Klascode**, zoals `ABCDE-FGH23`. Hoofdletters en kleine
+   letters werken allebei, en streepjes en spaties tellen niet mee.
+3. Kies **In de klas komen**. De klas staat dan onder **Je klassen**.
+
+Zegt eduLIMS dat de code niet werkt, controleer hem dan bij je docent: hij is
+misschien verlopen, of de klas is vol. Na te veel verkeerde codes wacht je 15
+minuten voordat je het opnieuw probeert.
+
 ## De taal wijzigen
 
 eduLIMS is er in het Nederlands en het Engels. Kies bovenaan de pagina de

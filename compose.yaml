@@ -266,6 +266,8 @@ services:
       # A key with no value passes the variable through from .env only when it
       # is set there: an on-premises identity provider's origin.
       EDULIMS_IDP_PRIVATE_ORIGINS:
+      # The host's reverse proxy, as seen from the container (rate limits, #49).
+      EDULIMS_TRUSTED_PROXIES:
       FERROEHR_BASE_URL: http://ferroehr:8080/ferroehr/rest/openehr/v1
       FERROBRIDGE_BASE_URL: http://ferrobridge:8080
     volumes:

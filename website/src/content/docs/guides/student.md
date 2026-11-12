@@ -58,6 +58,21 @@ type in a field or while a menu or dialog is open. If **?** and **/** get in
 the way, for example with speech input, turn off **Single-key shortcuts** in
 that list.
 
+## Join a class with a code
+
+Your teacher usually invites your address, and you join the class the next
+time you sign in. If you sign in with another address, your teacher can give
+you a join code instead.
+
+1. On your overview, find **Join a class**.
+2. Type the code in **Join code**, such as `ABCDE-FGH23`. Capitals or small
+   letters both work, and dashes and spaces are ignored.
+3. Choose **Join class**. The class shows under **Your classes**.
+
+If eduLIMS says the code does not work, check it with your teacher: it may
+have ended, or the class may be full. After too many wrong codes, wait 15
+minutes before you try again.
+
 ## Change the language
 
 eduLIMS is in English and Dutch. Choose the language button in the header

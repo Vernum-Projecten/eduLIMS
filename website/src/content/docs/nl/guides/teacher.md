@@ -122,6 +122,29 @@ uitnodiging, verlopen of niet, weer 30 dagen geldig en **Intrekken** trekt
 haar in. eduLIMS verwijdert oude uitnodigingen 90 dagen nadat ze zijn
 gebruikt, ingetrokken of verlopen.
 
+### Studenten met een code laten aansluiten
+
+Een student die inlogt met een ander adres dan het adres dat je uitnodigde,
+komt niet via de uitnodiging in de klas. Zet voor hen de klascode aan op het
+tabblad **Uitnodigingen**. De code staat uit tot je hem aanzet.
+
+1. Kies onder **Klascode** hoeveel dagen de code werkt (7 tenzij je dat
+   wijzigt, hoogstens 30) en hoeveel studenten er hoogstens mee in de klas
+   kunnen (100 tenzij je dat wijzigt, hoogstens 500).
+2. Kies **Klascode aanzetten**. eduLIMS toont de code, zoals `ABCDE-FGH23`,
+   één keer. Kies **Code kopiëren** en deel hem met je studenten. eduLIMS
+   bewaart alleen een vingerafdruk van de code, dus als je de pagina verlaat,
+   kan eduLIMS de code niet meer tonen.
+3. Studenten vullen de code in op hun overzicht en komen als student in de
+   klas.
+
+Het paneel toont tot wanneer de code werkt en hoeveel studenten ermee in de
+klas kwamen. **Nieuwe code** maakt een nieuwe code met nieuwe instellingen; de
+oude code werkt meteen niet meer. **Uitzetten** zet de code uit; studenten die
+al in de klas kwamen, blijven erin. Een code werkt nooit zolang de klas
+gearchiveerd is, en wie te veel verkeerde codes achter elkaar invult, moet 15
+minuten wachten.
+
 ### Practicumgroepen
 
 Studenten werken vaak in tweetallen of kleine groepen. Een klas kan meerdere

@@ -4,6 +4,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { MailOpenIcon, SchoolIcon } from "lucide-react";
 import { ClassName } from "@/components/classes/class-name";
+import { JoinClassForm } from "@/components/classes/join-class-form";
 import {
   Empty,
   EmptyDescription,
@@ -63,6 +64,7 @@ export function StudentClasses() {
           </ul>
         )}
       </section>
+      <JoinClassForm />
       {data.invitations.length > 0 && (
         <section aria-labelledby="my-invitations" className="flex flex-col gap-4">
           <h2 id="my-invitations" className="text-lg font-semibold">
