@@ -159,6 +159,8 @@ function metadataParts(metadata: AuditMetadata, labels: ProviderLabels): string[
     [metadata.removed_audit_events, m.admin_activity_detail_removed_events],
     [metadata.removed_sessions, m.admin_activity_detail_removed_sessions],
     [metadata.removed_admin_grants, m.admin_activity_detail_removed_grants],
+    [metadata.resealed_providers, m.admin_activity_detail_resealed_providers],
+    [metadata.resealed_id_tokens, m.admin_activity_detail_resealed_id_tokens],
   ] as const;
   for (const [value, message] of removed) {
     if (value !== undefined) parts.push(message({ count: formatNumber(value) }));

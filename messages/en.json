@@ -25,6 +25,8 @@
   "admin_activity_detail_removed_events": "Events removed: {count}",
   "admin_activity_detail_removed_grants": "Administrator grants removed: {count}",
   "admin_activity_detail_removed_sessions": "Sessions removed: {count}",
+  "admin_activity_detail_resealed_id_tokens": "ID tokens re-encrypted: {count}",
+  "admin_activity_detail_resealed_providers": "Identity providers re-encrypted: {count}",
   "admin_activity_detail_roles": "Roles: {roles}",
   "admin_activity_detail_sessions_ended": "Sessions ended: {count}",
   "admin_activity_detail_test_outcome": "Test result: {result}",
