@@ -263,9 +263,13 @@ test("every field kind takes keyboard input and a refusal of the whole form take
   await expect(
     form.getByText("not-an-address is not a valid email address. Correct or remove it."),
   ).toBeVisible();
-  await form.getByRole("button", { name: "Remove not-an-address" }).press("Enter");
+  // The refused submit moves focus to the first invalid control one frame later; a key pressed
+  // before that frame would land in the field and not on the remove button.
   await expect(observers).toBeFocused();
+  await form.getByRole("button", { name: "Remove not-an-address" }).press("Enter");
+  await expect(form.getByRole("listitem").filter({ hasText: "not-an-address" })).toHaveCount(0);
   await expect(form.getByRole("list", { name: "Addresses (1)" })).toBeVisible();
+  await expect(observers).toBeFocused();
 
   await form.getByRole("button", { name: "Check session" }).click();
   const refusal = form.getByRole("alert").filter({ hasText: "The form was not saved" });

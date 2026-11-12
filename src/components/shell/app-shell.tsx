@@ -48,7 +48,13 @@ export function AppShell({ user, children }: Readonly<{ user: SessionUser; child
   };
   return (
     <ShortcutsProvider portals={navigationFor(user)}>
-      <SidebarProvider open={open} onOpenChange={changeOpen}>
+      {/* The sidebar's fixed panel is one viewport tall; its in-flow column spans the page, so it
+          paints the sidebar background and edge too, for a full-page capture or print (#112). */}
+      <SidebarProvider
+        open={open}
+        onOpenChange={changeOpen}
+        className="*:data-[slot=sidebar]:bg-sidebar *:data-[slot=sidebar]:shadow-[inset_-1px_0_0_var(--color-border)]"
+      >
         <SkipLink />
         <AppSidebar user={user} />
         <div className="flex min-w-0 flex-1 flex-col">
