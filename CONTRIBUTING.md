@@ -75,7 +75,16 @@ worktrees never meet. `pnpm test` migrates its database once, and every test
 runs in a transaction that is rolled back. `pnpm test:e2e` migrates and seeds
 its database before the app starts, on a free port of its own. A run also
 drops run databases older than 6 hours that a crashed run left behind.
-Neither touches the `edulims` development database. Set `TEST_DATABASE_URL`
+Neither touches the `edulims` development database.
+
+Only the role that creates a run database may connect to it: CONNECT is
+revoked from PUBLIC, so the read-only `edulims_readonly` role of the Postgres
+MCP server reaches the `edulims` database and no run database. To drop one,
+the run closes it to new sessions, ends its own sessions on it, and drops it
+without `FORCE`. PostgreSQL then signals an autovacuum worker on the database
+itself; `FORCE` refuses to end that worker for a role without
+`pg_signal_backend` (#199). A superuser session on a run database still makes
+the drop fail after 5 seconds, so close it first. Set `TEST_DATABASE_URL`
 or `E2E_DATABASE_URL` to use another local server; its user needs the
 `CREATEDB` right.
 

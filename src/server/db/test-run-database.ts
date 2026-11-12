@@ -72,9 +72,30 @@ async function onBase<T>(baseUrl: string, work: (client: pg.Client) => Promise<T
   }
 }
 
+/**
+ * Drops the database `name` this user owns, after closing it to new sessions and ending the
+ * sessions this user holds on it (a crashed run, a still-running app server).
+ *
+ * NOTE: no `WITH (FORCE)`. FORCE refuses with "permission denied to terminate process" when an
+ * autovacuum worker is on the database: the worker has no role, so a role without
+ * `pg_signal_backend` may not end it (shown on PostgreSQL 18.6, #199). The plain statement
+ * signals autovacuum workers itself and waits up to 5 seconds for them to leave. No other role
+ * can hold a session here: `createRunDatabase` revokes CONNECT from PUBLIC.
+ */
 async function dropDatabase(client: pg.Client, name: string): Promise<void> {
-  // FORCE ends the sessions a crashed run or a still-running app server left open.
-  await client.query(`DROP DATABASE IF EXISTS ${pg.escapeIdentifier(name)} WITH (FORCE)`);
+  const { rows } = await client.query<{ datname: string }>(
+    "SELECT datname FROM pg_database WHERE datname = $1",
+    [name],
+  );
+  if (rows.length === 0) return;
+  const database = pg.escapeIdentifier(name);
+  await client.query(`ALTER DATABASE ${database} WITH ALLOW_CONNECTIONS false`);
+  await client.query(
+    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity " +
+      "WHERE datname = $1 AND usename = current_user AND pid <> pg_backend_pid()",
+    [name],
+  );
+  await client.query(`DROP DATABASE IF EXISTS ${database}`);
 }
 
 /**
