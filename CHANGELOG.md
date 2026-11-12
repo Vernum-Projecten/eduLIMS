@@ -11,6 +11,12 @@ each release (`docs/release.md`).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-12
+
+### Fixed
+
+- The `edulims-migrate` image builds again. v0.1.0 was tagged but never published, because its tools image failed to build: the pnpm install step ran in a directory it had just removed, and `pnpm deploy` met two workspace projects. CI now builds both images on every change to their inputs (#217).
+
 ## [0.1.0] - 2026-11-12
 
 ### Added
@@ -236,5 +242,6 @@ each release (`docs/release.md`).
   set the old key in an override file renames it (#93).
 - Signing out of eduLIMS through Keycloak now returns you to the eduLIMS sign-in page instead of Keycloak's "You are logged out" page. A production Keycloak client needs `<BETTER_AUTH_URL>/login` as a valid post logout redirect URI.
 
-[Unreleased]: https://github.com/Vernum-Projecten/eduLIMS/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Vernum-Projecten/eduLIMS/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/Vernum-Projecten/eduLIMS/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Vernum-Projecten/eduLIMS/releases/tag/v0.1.0

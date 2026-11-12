@@ -1,1 +1,0 @@
-- The `edulims-migrate` image builds again. v0.1.0 was tagged but never published, because its tools image failed to build: the pnpm install step ran in a directory it had just removed, and `pnpm deploy` met two workspace projects. CI now builds both images on every change to their inputs.
