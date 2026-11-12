@@ -65,28 +65,32 @@ Option 2.
   TLS on these two links would add little. The same holds for FerroEHR's and
   Keycloak's own connections to PostgreSQL, which their configuration
   governs.
-- **Open, the MLLP port:** the Afinion 2 reaches FerroBRIDGE from the lab
+- **The MLLP port:** the Afinion 2 reaches FerroBRIDGE from the lab
   network, outside the host. FerroBRIDGE 0.0.24, the pinned image, serves
   its HL7 v2 face as MLLP over TLS only and requires a client certificate
   that chains to `[hl7v2.tls] client_ca_file`; each `[[hl7v2.senders]]`
   entry names the `certificate_subject` its certificate carries, and the
   bridge refuses to start without the `[hl7v2.tls]` files, without a
   sender, or with a sender that names no `certificate_subject` (FerroBRIDGE
-  book, "The HL7 v2 face"; CHANGELOG 0.0.23). No Afinion 2 document the
-  repository cites describes TLS (the HL7 Connectivity Protocol v4.0
-  describes plain MLLP framing; the manual asks only for a secure network;
-  #186; the documents are not vendored yet, #209). The analyser cannot meet
-  the bridge's requirement, so the route needs either a TLS-terminating
-  sidecar next to each analyser that presents that analyser's client
-  certificate, or a FerroBRIDGE change. Neither is tested, and the choice is
-  open on #131; until then the face stays off. Whichever is chosen, the bind
-  address (`FERROBRIDGE_MLLP_BIND_HOST` on the lab-facing address) and a
-  host firewall that admits only the analysers' fixed addresses stay as
-  extra controls (`docs/deployment.md`, "The MLLP port"). Any segment that
-  stays plain MLLP (an analyser to its sidecar, for example) can be read or
-  altered by a host on it, and MLLP itself authenticates nobody (Top
-  10:2025 A01 and A08; ASVS V12.3.1 and V13.2.1). Revisit when #131 is
-  decided, or when Abbott documents TLS for the Afinion 2.
+  book, "The HL7 v2 face"; CHANGELOG 0.0.23). The Afinion 2 cannot do TLS:
+  the network and connectivity settings of the Afinion 2 User Manual,
+  1117346 Rev. A, 2023/02, chapter "Configuration", Tables 1 and 2, have no
+  TLS, encryption or certificate setting, and the chapter "Connectivity"
+  asks only that the analyser "communicates with the external information
+  system over a secure network" (being vendored under
+  `docs/vendor/afinion/`, #209). The Afinion 2 route therefore waits on the FerroBRIDGE release
+  that adds plain MLLP for devices, bound to their network addresses
+  (FerroHEALTH/FerroBRIDGE#1918; decided on #131); until then the face
+  stays off. Once it ships, the Afinion 2 sends on that plain lane, bound to
+  the analyser's fixed address, together with the bind address
+  (`FERROBRIDGE_MLLP_BIND_HOST` on the lab-facing address) and a host
+  firewall that admits only the analysers' fixed addresses
+  (`docs/deployment.md`, "The MLLP port"). A TLS-terminating sidecar per
+  analyser was the technical alternative and is not chosen. **Accepted
+  residual risk** on that lane: a device that takes over an analyser's
+  address passes all three controls, and a host on the path can read or
+  alter a result (Top 10:2025 A01 and A08; ASVS V12.3.1 and V13.2.1 are not
+  met on this segment). Revisit when Abbott documents TLS for the Afinion 2.
 - **Revisit** this record when any service runs on a second host or the
   backend network spans machines; at that point option 1 applies.
 
@@ -96,6 +100,8 @@ Option 2.
 - ASVS 5.0 V13.2: `docs/security/vendor/asvs/en/0x22-V13-Configuration.md`
 - Docker, "Packet filtering and firewalls":
   <https://docs.docker.com/engine/network/packet-filtering-firewalls/>
+- FerroHEALTH/FerroBRIDGE#1918, plain MLLP from devices that cannot do TLS:
+  <https://github.com/FerroHEALTH/FerroBRIDGE/issues/1918>
 - node-postgres SSL: <https://node-postgres.com/features/ssl>
 - PostgreSQL 18, "Secure TCP/IP Connections with SSL":
   <https://www.postgresql.org/docs/18/ssl-tcp.html>

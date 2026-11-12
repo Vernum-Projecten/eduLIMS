@@ -35,8 +35,8 @@
 # reverse proxy that terminates TLS for eduLIMS runs on the host and reaches
 # 127.0.0.1:3000. The MLLP port is the one that must face the lab network, so
 # set FERROBRIDGE_MLLP_BIND_HOST to the host's lab-facing address and let the
-# host firewall admit only the analysers' fixed addresses, on top of the client
-# certificate FerroBRIDGE requires (docs/deployment.md, "The MLLP port").
+# host firewall admit only the analysers' fixed addresses (docs/deployment.md,
+# "The MLLP port").
 #
 # IDENTITY PROVIDER. eduLIMS signs users in with Microsoft Entra ID, with
 # Keycloak, or with both (docs/deployment.md, "Identity provider"). Keycloak
@@ -156,12 +156,13 @@ services:
   # ── FerroBRIDGE, HL7 v2 over MLLP into FerroEHR ────────────────────────────
   # FerroBRIDGE 0.0.24 serves MLLP over TLS only: an enabled [hl7v2] face
   # needs the [hl7v2.tls] files and a certificate_subject per
-  # [[hl7v2.senders]] entry, or the bridge does not start. No document the
-  # repository cites describes TLS on the Afinion 2, so the route needs a
-  # TLS-terminating sidecar per analyser or a FerroBRIDGE change; the choice
-  # is open on #131, and [hl7v2] stays off until then. The bind address and
-  # the host firewall stay as extra controls (ADR 0013, docs/deployment.md,
-  # "The MLLP port"). FerroBRIDGE commits the results to FerroEHR.
+  # [[hl7v2.senders]] entry, or the bridge does not start. The Afinion 2 has
+  # no TLS (Afinion 2 User Manual, 1117346 Rev. A, 2023/02), so its route
+  # waits on the FerroBRIDGE release with address-bound plain MLLP for
+  # devices (FerroHEALTH/FerroBRIDGE#1918, decided on #131); [hl7v2] stays
+  # off until then. That lane goes with the bind address and the host
+  # firewall allow-list (ADR 0013, docs/deployment.md, "The MLLP port").
+  # FerroBRIDGE commits the results to FerroEHR.
   ferrobridge:
     image: ghcr.io/ferrohealth/ferrobridge:0.0.24@sha256:6e14c783955da9ecd5683fbe781542580e2ebae18d0f4c07e888a1c086e05e59
     restart: unless-stopped
