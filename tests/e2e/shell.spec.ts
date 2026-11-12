@@ -77,7 +77,9 @@ for (const role of ROLES) {
     for (const section of portal.sections) {
       await expect(nav.getByRole("link", { name: section, exact: true })).toBeVisible();
       // The overview links every section from a card.
-      await expect(page.getByRole("main").getByRole("link", { name: section })).toBeVisible();
+      await expect(
+        page.getByRole("main").getByRole("link", { name: section, exact: true }),
+      ).toBeVisible();
     }
     for (const other of ROLES.filter((candidate) => candidate !== role)) {
       await expect(nav).not.toContainText(PORTALS[other].heading);
@@ -374,8 +376,9 @@ test.describe("in Dutch", () => {
 
     await nav.getByRole("link", { name: dutch("nav_activity_log") }).click();
     await expect(
-      page.getByRole("heading", { level: 2, name: dutch("coming_soon_title") }),
+      page.getByRole("heading", { level: 1, name: dutch("nav_activity_log") }),
     ).toBeVisible();
+    await expect(page.getByRole("table")).toBeVisible();
     await expect(page.getByRole("navigation", { name: dutch("breadcrumb_label") })).toContainText(
       dutch("nav_activity_log"),
     );

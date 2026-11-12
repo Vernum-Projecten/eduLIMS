@@ -65,6 +65,43 @@ test("the users list shows an error state and its retry loads the list again (#6
   ).toBeVisible();
 });
 
+/** Makes every server function read whose answer carries `text` fail with a 500. */
+async function failReadsAnswering(page: Page, text: string): Promise<() => Promise<void>> {
+  const pattern = "**/_serverFn/**";
+  const handler = async (route: Route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    const response = await route.fetch();
+    const body = await response.text();
+    return body.includes(text)
+      ? route.fulfill({ status: 500, body: "forced failure" })
+      : route.fulfill({ response, body });
+  };
+  await page.route(pattern, handler);
+  return () => page.unroute(pattern, handler);
+}
+
+for (const [name, from, link, answer, heading] of [
+  ["overview", "/admin/users", "Overview", "activeSessions", "Latest activity"],
+  ["system page", "/admin", "System", "provenance", "Version and build"],
+] as const) {
+  test(`the admin ${name} shows an error state and its retry recovers (#36)`, async ({ page }) => {
+    await signInAsAdmin(page);
+    await page.goto(from);
+    const nav = page.getByRole("navigation", { name: "Main menu" });
+    await expectHydrated(nav.getByRole("link", { name: link, exact: true }));
+    const restore = await failReadsAnswering(page, answer);
+    await nav.getByRole("link", { name: link, exact: true }).click();
+    const error = page.getByRole("heading", { level: 1, name: "Something went wrong" });
+    await expect(error).toBeVisible();
+    await axe(page);
+
+    await restore();
+    await page.getByRole("button", { name: "Try again" }).click();
+    await expect(error).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 2, name: heading })).toBeVisible();
+  });
+}
+
 test("the user sheet shows an error state with a retry (#62)", async ({ page }) => {
   await signInAsAdmin(page);
   await page.goto(`/admin/users?q=${encodeURIComponent("Rollback Test Teacher")}`);

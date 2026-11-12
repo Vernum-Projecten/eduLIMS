@@ -8,7 +8,7 @@ import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
 import { recordPruneFailure, runPrune } from "../audit/prune-job.ts";
 import { envFields, parseWith } from "../env.ts";
-import type { Out } from "./migrate.ts";
+import { errorMessage, type Out } from "./migrate.ts";
 import type { DB } from "./schema.gen.ts";
 
 /** Prunes the activity log, ended sessions and expired grants; returns the exit code. */
@@ -35,6 +35,8 @@ export async function pruneCommand(args: readonly string[], out: Out): Promise<n
     return 0;
   } catch (error) {
     await recordPruneFailure(db, error);
+    // NOTE: #86; the operator's output, never shipped, keeps the message for debugging.
+    out(`Prune failed: ${errorMessage(error)}`);
     return 1;
   } finally {
     await db.destroy();

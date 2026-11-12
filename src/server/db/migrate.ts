@@ -3,26 +3,47 @@
 
 // `migrate` of the host CLI (src/server/cli.ts): `migrate` (latest) or `migrate down` (revert
 // one step). Only needs DATABASE_URL; runs on plain Node (type stripping), also in the tools
-// image.
+// image. A failure goes to the security log stream as `migration_failed`, with error classes and
+// SQLSTATE codes, never a message.
 import { Kysely, PostgresDialect } from "kysely";
 import type { MigrationResultSet } from "kysely/migration";
 import { Pool } from "pg";
 import { z } from "zod";
 import { databaseTlsProblem, envFields, parseWith } from "../env.ts";
+import { logFailure, logSecurityEvent } from "../security-log.ts";
 import { createMigrator } from "./index.ts";
 
 /** Prints one line of the CLI's output. */
 export type Out = (line: string) => void;
 
-function report({ error, results }: MigrationResultSet, out: Out): number {
+/** The security-log event of a failed `migrate`. */
+export const MIGRATION_FAILED_EVENT = "migration_failed";
+
+type Direction = "up" | "down";
+
+/**
+ * Returns the message of a failure for the operator's own output (stdout), never for the
+ * security stream: it can quote a value or a row.
+ */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function report({ error, results }: MigrationResultSet, direction: Direction, out: Out): number {
   for (const result of results ?? []) {
-    const line = `${result.direction} ${result.migrationName}: ${result.status}`;
-    if (result.status === "Error") console.error(line);
-    else out(line);
+    out(`${result.direction} ${result.migrationName}: ${result.status}`);
   }
   if (results?.length === 0) out("No migrations to run.");
   if (error) {
-    console.error("Migration failed:", error);
+    const failed = results?.find((result) => result.status === "Error");
+    logFailure(MIGRATION_FAILED_EVENT, error, {
+      actor_type: "system",
+      direction,
+      migration: failed?.migrationName,
+    });
+    // NOTE: #86; the operator's output, never shipped, keeps the message for debugging. The
+    // security line above carries codes only.
+    out(`Migration failed: ${errorMessage(error)}`);
     return 1;
   }
   return 0;
@@ -43,7 +64,12 @@ export async function migrateCommand(args: readonly string[], out: Out): Promise
   const tlsProblem =
     process.env["NODE_ENV"] === "production" ? databaseTlsProblem(DATABASE_URL) : undefined;
   if (tlsProblem) {
-    console.error(`Invalid environment configuration:\nDATABASE_URL ${tlsProblem}`);
+    logSecurityEvent("error", MIGRATION_FAILED_EVENT, {
+      actor_type: "system",
+      reason: "database_tls_required",
+      variables: ["DATABASE_URL"],
+    });
+    out(`Invalid environment configuration: DATABASE_URL ${tlsProblem}`);
     return 1;
   }
   const db = new Kysely<unknown>({
@@ -51,8 +77,10 @@ export async function migrateCommand(args: readonly string[], out: Out): Promise
   });
   try {
     const migrator = createMigrator(db);
-    const down = parsed.data[0] === "down";
-    return report(down ? await migrator.migrateDown() : await migrator.migrateToLatest(), out);
+    const direction: Direction = parsed.data[0] ?? "up";
+    const result =
+      direction === "down" ? await migrator.migrateDown() : await migrator.migrateToLatest();
+    return report(result, direction, out);
   } finally {
     await db.destroy();
   }

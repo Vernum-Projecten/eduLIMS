@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { LockOpenIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -242,7 +243,26 @@ export function UserDetailContent({
               ))}
             </ol>
           )}
-          {/* TODO(#36): link to this user's entries in the full activity log. */}
+          <ul className="mt-3 flex flex-col gap-1">
+            <li>
+              <Link
+                to="/admin/activity"
+                search={{ actor: user.id }}
+                className="underline underline-offset-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                {m.admin_users_activity_by()}
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/admin/activity"
+                search={{ target: user.id }}
+                className="underline underline-offset-4 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              >
+                {m.admin_users_activity_about()}
+              </Link>
+            </li>
+          </ul>
         </Section>
       </div>
     </>

@@ -138,9 +138,17 @@ WORKDIR /app
 # read-only root filesystem.
 COPY --from=output --chown=0:0 /src/.output /app/.output
 
+# The build values the Admin portal's System page shows (src/server/system/build-info.ts). The
+# release lane sets PROVENANCE to the image whose SLSA provenance it attests; a local build
+# keeps the defaults, which the page shows as "not available".
+ARG PROVENANCE=
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
-    PORT=3000
+    PORT=3000 \
+    EDULIMS_BUILD_VERSION=${VERSION} \
+    EDULIMS_BUILD_REVISION=${REVISION} \
+    EDULIMS_BUILD_CREATED=${CREATED} \
+    EDULIMS_BUILD_PROVENANCE=${PROVENANCE}
 EXPOSE 3000/tcp
 
 # Numeric on purpose: a runtime that checks for a non-root user cannot resolve

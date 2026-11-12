@@ -6,6 +6,7 @@
 // CLI loads this in plain Node.
 import "@tanstack/react-start/server-only";
 import type { Kysely } from "kysely";
+import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { resealIdToken } from "./account-tokens.ts";
 import { isEnvelope, type Keyring, resealConfig } from "./crypto.ts";
@@ -13,7 +14,8 @@ import { invalidateProviderCache } from "./registry.ts";
 
 /**
  * Re-encrypts the provider configs and the accounts' sealed ID tokens under the current key, in
- * one transaction, and returns how many of each.
+ * one transaction with its `sys_data_key_rotated` activity-log row (actor `system`, counts only),
+ * and returns how many of each.
  *
  * @throws DataKeyError when a secret opens with neither key; nothing is written then.
  */
@@ -54,6 +56,12 @@ export async function rekeySecrets(
         .where("id", "=", account.id)
         .execute();
     }
+    await recordAudit(trx, {
+      action: "sys_data_key_rotated",
+      actor: { type: "system" },
+      outcome: "success",
+      metadata: { resealed_providers: providers.length, resealed_id_tokens: accounts.length },
+    });
   });
   invalidateProviderCache();
   return { providers: providers.length, idTokens: accounts.length };

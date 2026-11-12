@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { getMigrations } from "better-auth/db/migration";
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import { NO_MIGRATIONS } from "kysely/migration";
 import { afterEach, describe, expect, it } from "vitest";
 import { createAuth } from "../auth.ts";
@@ -61,6 +61,7 @@ describe("migrations", () => {
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_class_join_code", "Success"],
       ["0012_classes", "Success"],
+      ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -84,6 +85,7 @@ describe("migrations", () => {
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_class_join_code", "Success"],
       ["0012_classes", "Success"],
+      ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -107,6 +109,7 @@ describe("migrations", () => {
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_class_join_code", "Success"],
       ["0012_classes", "Success"],
+      ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -154,6 +157,7 @@ describe("migrations", () => {
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_class_join_code", "Success"],
       ["0012_classes", "Success"],
+      ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -184,6 +188,7 @@ describe("migrations", () => {
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_class_join_code", "Success"],
       ["0012_classes", "Success"],
+      ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
       ["0008_identity_provider", "Success"],
@@ -195,5 +200,36 @@ describe("migrations", () => {
     expect(up.error).toBeUndefined();
     // Last: a refused statement aborts the test transaction.
     await expect(insert(db, "Not A Slug")).rejects.toThrow(/check constraint/);
+  });
+
+  it("0011_audit_event_indexes orders the activity log by time and id, and reverts (#36)", async () => {
+    db = await createTestDb();
+    const indexes = async (database: Kysely<DB>) => {
+      const rows = await sql<{ indexname: string; indexdef: string }>`
+        select indexname, indexdef from pg_indexes
+        where tablename = 'audit_event' and indexname <> 'audit_event_pkey'
+        order by indexname`.execute(database);
+      return rows.rows.map((row) => `${row.indexname}: ${row.indexdef.replace(/^.* USING /, "")}`);
+    };
+    expect(await indexes(db)).toEqual([
+      "audit_event_action_occurred_at_idx: btree (action, occurred_at)",
+      "audit_event_actor_id_occurred_at_idx: btree (actor_id, occurred_at)",
+      "audit_event_occurred_at_id_idx: btree (occurred_at, id)",
+      "audit_event_target_occurred_at_idx: btree (target_type, target_id, occurred_at, id)",
+    ]);
+    const migrator = createMigrator(db);
+    const down = await migrator.migrateTo("0010_integration_check");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0015_class_join_code", "Success"],
+      ["0012_classes", "Success"],
+      ["0011_audit_event_indexes", "Success"],
+    ]);
+    expect(await indexes(db)).toEqual([
+      "audit_event_action_occurred_at_idx: btree (action, occurred_at)",
+      "audit_event_actor_id_occurred_at_idx: btree (actor_id, occurred_at)",
+      "audit_event_occurred_at_idx: btree (occurred_at DESC)",
+      "audit_event_target_idx: btree (target_type, target_id)",
+    ]);
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
   });
 });

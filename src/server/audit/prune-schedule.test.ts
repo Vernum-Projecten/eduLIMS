@@ -3,6 +3,7 @@
 
 // The schedule of the retention prune inside the app container (B4, #65), on fake timers.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setSecurityLogWriter } from "../security-log.ts";
 import {
   installPruneSchedule,
   PRUNE_FIRST_RUN_DELAY_MS,
@@ -12,6 +13,7 @@ import {
 } from "./prune-schedule.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
+let restoreLog: (() => void) | undefined;
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -20,6 +22,8 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  restoreLog?.();
+  restoreLog = undefined;
 });
 
 describe("startPruneSchedule (#65)", () => {
@@ -43,7 +47,8 @@ describe("startPruneSchedule (#65)", () => {
   });
 
   it("logs a failed run with its cause and tries again at the next interval", async () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const lines: string[] = [];
+    restoreLog = setSecurityLogWriter((line) => lines.push(line));
     const run = vi
       .fn<() => Promise<void>>()
       .mockRejectedValueOnce(
@@ -52,10 +57,18 @@ describe("startPruneSchedule (#65)", () => {
       .mockResolvedValue(undefined);
     const stop = startPruneSchedule(run, { firstRunDelayMs: 10, intervalMs: 100 });
     await vi.advanceTimersByTimeAsync(10);
-    expect(error).toHaveBeenCalledWith("retention_prune_failed cause=Error <- Error(57P01)");
+    expect(lines.map((line): unknown => JSON.parse(line))).toEqual([
+      expect.objectContaining({
+        level: "error",
+        event: "retention_prune_failed",
+        actor_type: "system",
+        cause: ["Error", "Error:57P01"],
+      }),
+    ]);
+    expect(lines.join("")).not.toMatch(/prune failed|down/);
     await vi.advanceTimersByTimeAsync(100);
     expect(run).toHaveBeenCalledTimes(2);
-    expect(error).toHaveBeenCalledTimes(1);
+    expect(lines).toHaveLength(1);
     stop();
   });
 

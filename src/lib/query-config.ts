@@ -27,6 +27,17 @@ export const STALE_TIME = {
   integrationStatus: 0,
   /** Classes, their members, invitations and lab groups: co-teachers change them, rarely at once. */
   classes: 30_000,
+  /** The overview's counts and latest events (#36): a snapshot, refreshed on the next visit. */
+  adminOverview: 30_000,
+  /**
+   * The system page (#36): read-only, but an identity-provider change on another screen must
+   * show on the next visit, so it is always revalidated.
+   */
+  systemConfiguration: 0,
+  /** A page of the activity log: events arrive all day, but a page a minute old still helps. */
+  adminActivityList: 30_000,
+  /** The user search of the activity log's actor and target filters: names change rarely. */
+  adminActivityUserSearch: 60_000,
 } as const;
 
 // NOTE: B3 ("unreachable … within 5 minutes"); our own interval: a check result reaches an open

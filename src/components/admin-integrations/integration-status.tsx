@@ -32,7 +32,8 @@ import { checkIntegrationsNow } from "@/server/integrations/functions";
 import { checkNowMutationOptions } from "@/server/integrations/query-options";
 import type { IntegrationStatus, IntegrationStatusPage } from "@/server/integrations/store";
 
-const INTEGRATION_ICONS: Record<Integration, LucideIcon> = {
+/** The icon of each integration. */
+export const INTEGRATION_ICONS: Record<Integration, LucideIcon> = {
   ferroehr: DatabaseIcon,
   ferrobridge: NetworkIcon,
 };
@@ -54,7 +55,8 @@ const STATE_CLASSES: Record<IntegrationDisplayState, string> = {
   not_checked: "border-border bg-muted text-foreground",
 };
 
-function StateText({ state }: Readonly<{ state: IntegrationDisplayState }>) {
+/** The state of an integration as an icon and text, never colour alone (WCAG 1.4.1). */
+export function IntegrationStateText({ state }: Readonly<{ state: IntegrationDisplayState }>) {
   const Icon = STATE_ICONS[state];
   return (
     <span
@@ -97,7 +99,7 @@ function IntegrationCard({
         <CardDescription>{integrationDescription(status.integration)}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <StateText state={status.state} />
+        <IntegrationStateText state={status.state} />
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
           <div className="flex flex-col gap-0.5">
             <dt className="text-sm text-muted-foreground">{m.admin_integrations_last_check()}</dt>

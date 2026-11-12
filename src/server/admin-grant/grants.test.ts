@@ -60,6 +60,17 @@ async function actions(database: Kysely<DB>) {
   return rows.map((row) => `${row.action}:${row.actor_type}`);
 }
 
+/** The refused rows, oldest first: action, target and reason code (ASVS V16.3.2). */
+async function refusals(database: Kysely<DB>) {
+  const rows = await database
+    .selectFrom("audit_event")
+    .select(["action", "actor_type", "target_id", "reason_code", "metadata"])
+    .where("outcome", "=", "refused")
+    .orderBy("id")
+    .execute();
+  return rows.map((row) => ({ ...row, metadata: row.metadata ?? null }));
+}
+
 describe("grantAdmin (#48)", () => {
   it("adds the admin role to an existing teacher as a local set, actor system", async () => {
     const database = await setup();
@@ -84,9 +95,18 @@ describe("grantAdmin (#48)", () => {
       ok: true,
       kind: "already_admin",
     });
+    expect(await refusals(database)).toEqual([
+      {
+        action: "authz_role_change",
+        actor_type: "system",
+        target_id: "s1",
+        reason_code: "role_conflict",
+        metadata: null,
+      },
+    ]);
   });
 
-  it("refuses a user whose email no provider verified, and writes no log row (V6.8.1)", async () => {
+  it("refuses a user whose email no provider verified, and logs only the refusal (V6.8.1, V16.3.2)", async () => {
     const database = await setup();
     await user(database, "t2", "teacher", false);
     expect(await grantAdmin(database, { email: "t2@example.test", now: NOW })).toEqual({
@@ -94,7 +114,16 @@ describe("grantAdmin (#48)", () => {
       error: "email_unverified",
     });
     expect((await stored(database, "t2"))?.role).toBe("teacher");
-    expect(await actions(database)).toEqual([]);
+    expect(await actions(database)).toEqual(["authz_role_change:system"]);
+    expect(await refusals(database)).toEqual([
+      {
+        action: "authz_role_change",
+        actor_type: "system",
+        target_id: "t2",
+        reason_code: "email_unverified",
+        metadata: null,
+      },
+    ]);
   });
 
   it("grants by user id an operator looked up, whatever the email, and logs the override (#92 L4)", async () => {
@@ -124,7 +153,7 @@ describe("grantAdmin (#48)", () => {
     ]);
   });
 
-  it("refuses an override for an unknown id or a student, and writes nothing (#92 L4)", async () => {
+  it("refuses an override for an unknown id or a student, and logs only the refusals (#92 L4)", async () => {
     const database = await setup();
     await user(database, "s4", "student", false);
     expect(await grantAdminToUser(database, { userId: "missing", now: NOW })).toEqual({
@@ -136,7 +165,24 @@ describe("grantAdmin (#48)", () => {
       error: "role_conflict",
     });
     expect(await lookupUser(database, "nobody@example.test")).toBeNull();
-    expect(await actions(database)).toEqual([]);
+    expect((await stored(database, "s4"))?.role).toBe("student");
+    expect(await refusals(database)).toEqual([
+      {
+        action: "authz_role_change",
+        actor_type: "system",
+        target_id: "missing",
+        reason_code: "not_found",
+        metadata: null,
+      },
+      {
+        action: "authz_role_change",
+        actor_type: "system",
+        target_id: "s4",
+        reason_code: "role_conflict",
+        metadata: null,
+      },
+    ]);
+    expect(await actions(database)).toHaveLength(2);
   });
 
   it("records a pending grant for an unknown email through an authoritative provider", async () => {
@@ -164,7 +210,22 @@ describe("grantAdmin (#48)", () => {
       provider_id: "entra",
       expires_at: new Date(NOW.getTime() + PENDING_GRANT_TTL_MS),
     });
-    expect(await actions(database)).toEqual(["admin_grant_created:system"]);
+    const created = await database
+      .selectFrom("audit_event")
+      .select(["outcome", "reason_code", "metadata"])
+      .where("action", "=", "admin_grant_created")
+      .orderBy("id")
+      .execute();
+    expect(created).toEqual([
+      { outcome: "refused", reason_code: "provider_required", metadata: null },
+      { outcome: "refused", reason_code: "provider_unknown", metadata: { provider_id: "nope" } },
+      {
+        outcome: "refused",
+        reason_code: "provider_not_authoritative",
+        metadata: { provider_id: "loose" },
+      },
+      { outcome: "success", reason_code: null, metadata: { provider_id: "entra" } },
+    ]);
   });
 
   it("applies a pending grant once, through its own provider, before it expires", async () => {
@@ -201,6 +262,33 @@ describe("revokeAdmin (#48)", () => {
       ok: false,
       error: "last_admin",
     });
+    expect((await stored(database, "a1"))?.role).toBe("admin");
+    expect(await refusals(database)).toEqual([
+      {
+        action: "authz_role_change",
+        actor_type: "system",
+        target_id: "a1",
+        reason_code: "last_admin",
+        metadata: null,
+      },
+    ]);
+  });
+
+  it("logs a revocation for an unknown email as refused, with no target (V16.3.2)", async () => {
+    const database = await setup();
+    expect(await revokeAdmin(database, { email: "nobody@example.test", now: NOW })).toEqual({
+      ok: false,
+      error: "not_found",
+    });
+    expect(await refusals(database)).toEqual([
+      {
+        action: "authz_role_change",
+        actor_type: "system",
+        target_id: null,
+        reason_code: "not_found",
+        metadata: null,
+      },
+    ]);
   });
 
   it("keeps the other roles, ends the sessions and logs the change", async () => {
