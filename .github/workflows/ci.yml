@@ -19,6 +19,8 @@
 #   5. The self-tests of every helper under scripts/gh/ and scripts/checks/,
 #      the citation metadata guard, the brand contrast check, and the Ferro
 #      services' own check of the Compose configuration.
+#   6. The container images: both docker/Dockerfile targets, built without a
+#      push, when a change touches the image inputs.
 name: CI
 
 on:
@@ -655,6 +657,98 @@ jobs:
           bash scripts/checks/ferro-compose.sh --self-test
           bash scripts/checks/ferro-compose.sh
 
+  # ── 6. The container images ─────────────────────────────────────────────────
+
+  # Whether a change touches what docker/Dockerfile builds from or how the
+  # release builds it. A pull request and a merge group compare with their
+  # base; a push to main and a manual run always build. The v0.1.0 tools image
+  # broke in the release lane because no lane built it before (#217).
+  image-paths:
+    name: image-paths
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      build: ${{ steps.diff.outputs.build }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Compare with the base
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          QUEUE_BASE: ${{ github.event.merge_group.base_sha }}
+        run: |
+          set -euo pipefail
+          case "$EVENT" in
+            pull_request) base="$PR_BASE" ;;
+            merge_group) base="$QUEUE_BASE" ;;
+            *)
+              echo "build=true" >> "$GITHUB_OUTPUT"
+              echo "a ${EVENT} run always builds the images"
+              exit 0
+              ;;
+          esac
+          if [ -z "$base" ]; then
+            echo "::error::no base commit in the ${EVENT} payload"
+            exit 1
+          fi
+          changed="$(git diff --name-only "$base" HEAD)"
+          pattern='^(docker/|\.dockerignore$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.npmrc$|\.node-version$|\.github/workflows/(ci|release|release-build|release-image)\.yml$)'
+          if grep -Eq "$pattern" <<<"$changed"; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "the change touches the image inputs:"
+            grep -E "$pattern" <<<"$changed"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "the change touches no image input; the image lane is skipped"
+          fi
+
+  # Both final targets of docker/Dockerfile for both release platforms, with
+  # the release lane's build arguments except OUTPUT: the runtime target
+  # builds `.output/` from source here, because the attested tarball exists
+  # only in a release run. Every stage that runs code runs on the runner's
+  # platform (the Dockerfile's header), so arm64 needs no QEMU. No login, no
+  # push, no cache import: the result stays in the throwaway builder.
+  image:
+    name: image (${{ matrix.target }})
+    needs: image-paths
+    if: needs.image-paths.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [tools, runtime]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build without pushing
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ${{ matrix.target }}
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            OUTPUT=source
+            VERSION=ci
+            REVISION=${{ github.sha }}
+          outputs: type=cacheonly
+          push: false
+          no-cache: true
+          pull: true
+          provenance: false
+          sbom: false
+
   # ── The single required check ───────────────────────────────────────────────
 
   # The ruleset requires this job alone, so jobs can come and go without a
@@ -685,6 +779,8 @@ jobs:
       - asvs-coverage
       - logship-compose
       - ferro-compose
+      - image-paths
+      - image
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
