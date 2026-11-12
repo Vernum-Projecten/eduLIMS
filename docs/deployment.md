@@ -26,9 +26,20 @@ same.
 | `logship` (`compose.logship.yaml`) | `docker.io/fluent/fluent-bit:5.2.0` | `127.0.0.1:24224` | the optional log forwarder (below, "Shipping logs off the host") |
 
 Every third-party image is pinned by digest in `compose.yaml`; the eduLIMS
-images are named by the release in `EDULIMS_VERSION`. Nothing else runs: no
-mail server, no cache, no monitoring stack, because no requirement needs one.
-Keycloak starts only when you ask for it.
+images are named by the release in `EDULIMS_VERSION`. To pull one release by
+hand, name its version tag:
+
+```sh
+docker pull ghcr.io/vernum-projecten/edulims:X.Y.Z
+docker pull ghcr.io/vernum-projecten/edulims-migrate:X.Y.Z
+```
+
+GHCR's package page can show a `sha256-…` tag as the latest version; that
+tag holds an attestation, not an image (`docs/release.md`, "Verifying a
+release").
+
+Nothing else runs: no mail server, no cache, no monitoring stack, because no
+requirement needs one. Keycloak starts only when you ask for it.
 
 Two networks keep the parts apart. `backend` is internal, so PostgreSQL and
 FerroEHR have no route to the internet and no published port. eduLIMS,

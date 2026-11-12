@@ -86,6 +86,16 @@ and [issues](https://github.com/Vernum-Projecten/eduLIMS/issues).
 eduLIMS only ever holds test data from volunteer subjects under a pseudonym. It
 is not meant for patient data.
 
+Each release publishes two images on GHCR. Pull them by version tag:
+
+```sh
+docker pull ghcr.io/vernum-projecten/edulims:X.Y.Z
+docker pull ghcr.io/vernum-projecten/edulims-migrate:X.Y.Z
+```
+
+[docs/deployment.md](docs/deployment.md) runs them with Compose, and
+[docs/release.md](docs/release.md) verifies their attestations.
+
 ## Quick start
 
 You need Node.js 26 LTS (26.13.0) and pnpm 12 (12.18.0), enforced through
