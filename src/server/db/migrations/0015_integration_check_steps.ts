@@ -9,6 +9,9 @@ import { type Kysely, sql } from "kysely";
 const STEP_STATE = sql`('passed', 'failed', 'refused', 'missing', 'skipped')`;
 
 export async function up(db: Kysely<unknown>): Promise<void> {
+  // NOTE: no requirement governs this: our own design. A row holds only an integration's latest
+  // check, written again by the next scheduled check, so the rows from before the steps go.
+  await sql`delete from integration_checks`.execute(db);
   await db.schema
     .alterTable("integration_checks")
     .dropConstraint("integration_checks_state")

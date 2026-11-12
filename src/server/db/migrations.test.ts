@@ -330,6 +330,23 @@ describe("migrations", () => {
     await expect(account("a4", "u2", "oid-1")).rejects.toThrow(/duplicate key/);
   });
 
+  it("0015_integration_check_steps upgrades a database that holds checks from before the steps", async () => {
+    const database = await createTestDb();
+    db = database;
+    const migrator = createMigrator(database);
+    const down = await migrator.migrateTo("0014_class_join_code");
+    expect(down.error).toBeUndefined();
+    await sql`insert into integration_checks (integration, state, checked_at, last_success_at, response_time_ms, error_class)
+        values ('ferroehr', 'available', now(), now(), 12, null), ('ferrobridge', 'unavailable', now(), null, null, 'unreachable')`.execute(
+      database,
+    );
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
+    const rows = await sql<{
+      n: string;
+    }>`select count(*)::text as n from integration_checks`.execute(database);
+    expect(rows.rows).toEqual([{ n: "0" }]);
+  });
+
   it("0015_integration_check_steps adds the steps and not ready, and reverts (#227)", async () => {
     const database = await createTestDb();
     db = database;
