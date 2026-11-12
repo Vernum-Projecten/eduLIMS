@@ -923,10 +923,19 @@ file does), so `pnpm db:reset && pnpm db:seed` gives working Keycloak buttons.
 It adds, next to the development login users, a fictional demo set: 70
 people (students, teachers, administrators and coordinators, every address
 `@example.test`) with accounts at those two providers, live and expired
-sessions, three blocked students and about four weeks of activity-log events.
-The demo people have no password and no Keycloak user, so nobody signs in as
-one; they exist to fill the Admin portal. The seed prints counts only, and
-running it again changes nothing. `pnpm db:reset` gives a fresh copy.
+sessions, three blocked students, about four weeks of activity-log events,
+and three classes of the demo teachers with members, lab groups and pending
+invitations. The demo people have no password and no Keycloak user, so nobody
+signs in as one; they exist to fill the portals. The development login users
+get classes of their own: Test Teacher (`teacher@`) owns LS-3A of this
+academic year, with Test Coordinator (`teacher-admin@`) as co-teacher, twelve
+students including Test Student (`student@`), three lab groups in the group
+set "Practical 1" and two pending invitations; Test Coordinator owns LS-3B of
+this year, with Test Teacher as co-teacher and eight students; and Test
+Teacher owns last year's LS-3A, archived, with six students. These classes
+have no join code, because a join code is stored hashed and shown only once.
+The seed prints counts only, and running it again changes nothing; a database
+seeded before a part of the demo set existed gets that part on its next seed. `pnpm db:reset` gives a fresh copy.
 
 The host CLI runs on the developer machine through the pnpm scripts, against
 `DATABASE_URL` from `.env`: `pnpm db:migrate`, `pnpm db:prune`,
