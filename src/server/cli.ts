@@ -12,6 +12,7 @@ import { migrateCommand, type Out } from "./db/migrate.ts";
 import { pruneCommand } from "./db/prune.ts";
 import { EnvConfigError } from "./env.ts";
 import { idpCommand } from "./idp/command.ts";
+import { scimCommand } from "./scim/command.ts";
 import { logFailure } from "./security-log.ts";
 
 /** The subcommands of the host CLI. */
@@ -20,11 +21,13 @@ export const CLI_COMMANDS = {
   prune: pruneCommand,
   admin: adminCommand,
   idp: idpCommand,
+  scim: scimCommand,
 } as const satisfies Record<string, (args: readonly string[], out: Out) => Promise<number>>;
 
 const USAGE =
   "usage: cli.ts migrate [up|down] | prune | admin grant|revoke <email> [--provider <id>] | " +
-  "idp add|list|enable|disable|rekey …";
+  "idp add|list|enable|disable|rekey … | scim token create|rotate|revoke <provider-id> | " +
+  "scim external-id <provider-id> <claim>|--account-key";
 
 function isCommand(name: string | undefined): name is keyof typeof CLI_COMMANDS {
   return name !== undefined && Object.hasOwn(CLI_COMMANDS, name);

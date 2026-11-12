@@ -113,6 +113,8 @@ Option 3, with `@better-auth/sso` and `better-auth` both at exactly 1.7.20.
 - **Account linking stays off** (#39): no `trustedProviders`, no domain
   verification, no `resolveUser` link. The same email from two providers is
   two accounts, and the second is refused with `account_not_linked`.
+  [ADR 0017](0017-scim-provisioning.md) adds a `resolveUser` link on the
+  SCIM directory id of the same provider only, never on email.
 - **Disabled means disabled:** refused at `/sign-in/sso`, at the callback, at
   the ACS and at single logout, and again in the gate. Disabling a provider
   ends, in the same transaction, every session of every user with an account

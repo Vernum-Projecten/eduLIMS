@@ -55,4 +55,95 @@ describe("decideSignInRoles (hybrid role ownership, owner decision on #32)", () 
       reason: NO_ROLE_ERROR,
     });
   });
+
+  describe("SCIM is authoritative for a user it provisioned (#45, second review finding 5)", () => {
+    const campus = providerIdOf("campus");
+    const scimTeacher = {
+      role: "teacher",
+      roleSource: campus,
+      roleChannel: "scim" as const,
+      provisionedBy: campus,
+    };
+
+    it("keeps the stored set when the sign-in carries no mapped role", () => {
+      expect(decideSignInRoles(none, scimTeacher, "student")).toEqual({
+        kind: "scim",
+        roles: ["teacher"],
+      });
+    });
+
+    it("never adds a role a claim maps, admin included", () => {
+      expect(
+        decideSignInRoles({ kind: "roles", roles: ["admin"] }, scimTeacher, undefined),
+      ).toEqual({ kind: "scim", roles: ["teacher"] });
+    });
+
+    it("never refuses on a conflicting claim either: the claim does not count", () => {
+      expect(decideSignInRoles({ kind: "conflict" }, scimTeacher, undefined)).toEqual({
+        kind: "scim",
+        roles: ["teacher"],
+      });
+    });
+
+    it("keeps a local set an administrator assigned", () => {
+      expect(
+        decideSignInRoles(
+          { kind: "roles", roles: ["admin"] },
+          { role: "student", roleSource: "local", roleChannel: "local", provisionedBy: campus },
+          undefined,
+        ),
+      ).toEqual({ kind: "scim", roles: ["student"] });
+    });
+
+    it("has no roles, and no default role, until the directory or an administrator gives one", () => {
+      expect(
+        decideSignInRoles(
+          { kind: "roles", roles: ["teacher"] },
+          { role: null, roleSource: "local", roleChannel: "local", provisionedBy: campus },
+          "student",
+        ),
+      ).toEqual({ kind: "refused", reason: NO_ROLE_ERROR });
+    });
+  });
+
+  describe("a user SCIM did not provision keeps the claim rules (finding 5, the other way)", () => {
+    const campus = providerIdOf("campus");
+
+    it("drops admin a claim gave once the next sign-in has no mapped claim (B1, V8.2.1)", () => {
+      expect(
+        decideSignInRoles(
+          none,
+          { role: "admin", roleSource: campus, roleChannel: "claim", provisionedBy: null },
+          undefined,
+        ),
+      ).toEqual({ kind: "refused", reason: NO_ROLE_ERROR });
+    });
+
+    it("lets a mapped claim replace the set", () => {
+      expect(
+        decideSignInRoles(
+          { kind: "roles", roles: ["admin"] },
+          { role: "teacher", roleSource: campus, roleChannel: "claim", provisionedBy: null },
+          undefined,
+        ),
+      ).toEqual({ kind: "idp", roles: ["admin"] });
+    });
+
+    it("keeps SCIM authoritative at a sign-in through another provider (third review, N2)", () => {
+      const provisioned = {
+        role: "teacher",
+        roleSource: campus,
+        roleChannel: "scim" as const,
+        provisionedBy: campus,
+      };
+      expect(decideSignInRoles(none, provisioned, "student")).toEqual({
+        kind: "scim",
+        roles: ["teacher"],
+      });
+      // A claim from another provider can never add admin.
+      expect(
+        decideSignInRoles({ kind: "roles", roles: ["admin"] }, provisioned, undefined),
+      ).toEqual({ kind: "scim", roles: ["teacher"] });
+    });
+  });
 });

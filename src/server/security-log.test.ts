@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { providerIdOf } from "../lib/identity-providers.ts";
 import type { AuditEvent } from "./audit/events.ts";
 import {
   auditLogLevel,
@@ -197,6 +198,62 @@ describe("logAuditEvent (B4, ASVS V16.2.5)", () => {
       target_type: "analyser",
       target_id: "01900000-0000-7000-8000-000000000001",
       analyser_status: "retired",
+    });
+  });
+
+  it("logs a SCIM token rotation with the provider and both expiry instants only (#45)", () => {
+    const lines = capture();
+    logAuditEvent({
+      action: "scim_token_rotated",
+      actor: { type: "user", id: "admin-1" },
+      outcome: "success",
+      target: { type: "identity_provider", id: "campus" },
+      metadata: {
+        provider_id: "campus",
+        token_expires_at: "2027-05-10T09:30:00.000Z",
+        previous_token_valid_until: "2026-11-11T10:30:00.000Z",
+      },
+    });
+    const line = parse(lines[0]);
+    expect(Object.keys(line).sort()).toEqual(
+      [
+        ...ENVELOPE,
+        "outcome",
+        "actor_type",
+        "actor_id",
+        "target_type",
+        "target_id",
+        "provider_id",
+        "token_expires_at",
+        "previous_token_valid_until",
+      ].sort(),
+    );
+    expect(line).toMatchObject({
+      event: "scim_token_rotated",
+      token_expires_at: "2027-05-10T09:30:00.000Z",
+      previous_token_valid_until: "2026-11-11T10:30:00.000Z",
+    });
+    expect(SECURITY_LOG_FIELDS).toEqual(
+      expect.arrayContaining(["token_expires_at", "previous_token_valid_until"]),
+    );
+  });
+
+  it("logs an expired SCIM token's refusal as a warning with its reason (#45)", () => {
+    const lines = capture();
+    logAuditEvent({
+      action: "scim_token_refused",
+      actor: { type: "anonymous" },
+      outcome: "refused",
+      reason: "token_expired",
+      target: { type: "identity_provider", id: "campus" },
+      provider: providerIdOf("campus"),
+      metadata: { provider_id: "campus" },
+    });
+    expect(parse(lines[0])).toMatchObject({
+      level: "warn",
+      event: "scim_token_refused",
+      reason: "token_expired",
+      provider: "campus",
     });
   });
 

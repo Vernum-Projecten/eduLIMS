@@ -48,6 +48,20 @@ describe("parseEnv", () => {
     expect(env.EDULIMS_IDP_PRIVATE_ORIGINS).toEqual([]);
   });
 
+  it("reads EDULIMS_TRUSTED_PROXIES as IP addresses and CIDR ranges, empty by default (#45)", () => {
+    expect(parseEnv(VALID_ENV).EDULIMS_TRUSTED_PROXIES).toEqual([]);
+    expect(
+      parseEnv({ ...VALID_ENV, EDULIMS_TRUSTED_PROXIES: " 10.0.0.5, 192.0.2.0/24 ,2001:db8::/32" })
+        .EDULIMS_TRUSTED_PROXIES,
+    ).toEqual(["10.0.0.5", "192.0.2.0/24", "2001:db8::/32"]);
+  });
+
+  it("refuses an EDULIMS_TRUSTED_PROXIES entry that is no IP address or range", () => {
+    expect(() => parseEnv({ ...VALID_ENV, EDULIMS_TRUSTED_PROXIES: "proxy.example" })).toThrow(
+      /EDULIMS_TRUSTED_PROXIES/,
+    );
+  });
+
   it("still refuses an empty required variable", () => {
     expect(() => parseEnv({ ...VALID_ENV, BETTER_AUTH_SECRET: "" })).toThrow(/BETTER_AUTH_SECRET/);
   });
