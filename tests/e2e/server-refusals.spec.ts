@@ -4,9 +4,10 @@
 // Server refusals on the form foundation stay until the user changes the form (#120, Q-ACC-1,
 // WCAG 3.3.1): a form refusal sent with Enter stays visible and focused, an unchanged value can
 // be sent again, and the first click on submit after a field refusal submits. The test-account
-// form shows the form refusal; the analyser dialog shows the field refusal.
+// form shows the form refusal; the analyser dialog shows the field refusal; the block dialog
+// shows a refused block.
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { axe, dutch, signInAsAdmin } from "./admin-users-helpers";
+import { axe, dutch, failServerWrites, openUser, signInAsAdmin } from "./admin-users-helpers";
 import { expectHydrated } from "./fixtures";
 import { appUrl } from "./run-env";
 
@@ -199,3 +200,27 @@ for (const [theme, locale] of [
     await axe(page);
   });
 }
+
+test("a refused block shows in the dialog, focused, until the reason changes (#120)", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  const sheet = await openUser(page, "Language Test Student");
+  await sheet.getByRole("button", { name: "Block user" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Block Language Test Student?" });
+  const reason = dialog.getByLabel("Reason");
+  await reason.fill("Account shared with another person");
+  // A server error on the write, so the block never reaches the database.
+  const restore = await failServerWrites(page);
+  await dialog.getByRole("button", { name: "Block", exact: true }).click();
+
+  const refusal = dialog.getByRole("alert").filter({ hasText: "The action failed. Try again." });
+  await expect(refusal).toBeVisible();
+  await expect(refusal).toBeFocused();
+  await expect(dialog).toBeVisible();
+  await axe(page);
+
+  await restore();
+  await reason.fill("Account shared with two people");
+  await expect(refusal).toHaveCount(0);
+});

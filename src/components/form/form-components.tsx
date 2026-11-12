@@ -9,7 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { errorMessages } from "@/lib/forms/errors";
-import { formRefusal } from "@/lib/forms/server-refusal";
+import { fieldRefusalNumber, formRefusal } from "@/lib/forms/server-refusal";
 
 /** A control that shows an error; a radio group is focused through its radios. */
 const INVALID_CONTROL = '[aria-invalid="true"]:not([role="radiogroup"])';
@@ -20,6 +20,8 @@ const INVALID_CONTROL = '[aria-invalid="true"]:not([role="radiogroup"])';
  * It stays enabled while the form is invalid: a submit touches every field, so each error shows,
  * and focus moves to the first invalid control (WCAG 3.3.1). A button disabled on `canSubmit`
  * would hide that reason (a new, empty row makes the form invalid before anything is shown).
+ * A server refusal that marks a field arrives later; focus then moves to the first control it
+ * marks, unless the refusal also has a form-level message, which `FormErrors` focuses.
  */
 export function SubmitButton({
   children,
@@ -33,10 +35,27 @@ export function SubmitButton({
 }) {
   const form = useFormContext();
   const isSubmitting = useStore(form.store, (state) => state.isSubmitting);
+  const refusalNumber = useStore(form.store, () => fieldRefusalNumber(form));
+  const own = useRef<HTMLButtonElement | null>(null);
+  const passedRef = button.ref;
+  useEffect(() => {
+    if (refusalNumber === undefined || formRefusal(form, form.state) !== undefined) return;
+    const owner = own.current?.form;
+    // After this frame the refused fields have rendered `aria-invalid`.
+    const frame = requestAnimationFrame(() =>
+      owner?.querySelector<HTMLElement>(INVALID_CONTROL)?.focus(),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [form, refusalNumber]);
   const pending = isSubmitting || busy;
   return (
     <Button
       {...button}
+      ref={(node) => {
+        own.current = node;
+        if (typeof passedRef === "function") passedRef(node);
+        else if (passedRef) passedRef.current = node;
+      }}
       type="submit"
       disabled={pending}
       aria-busy={pending}

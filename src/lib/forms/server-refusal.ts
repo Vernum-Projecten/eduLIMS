@@ -34,6 +34,8 @@ interface FormRefusal extends RefusalMoment {
  * the `FormApi` that `onSubmit` receives, and both share the store.
  */
 const formRefusals = new WeakMap<object, FormRefusal>();
+/** The number of the latest refusal of each form that marked a field, keyed like the above. */
+const fieldRefusals = new WeakMap<object, number>();
 let sequence = 0;
 
 /**
@@ -60,6 +62,10 @@ export function applyServerRefusal<TFormData>(
   } else {
     formRefusals.delete(form.store);
   }
+  if (Object.values(refusal.fields ?? {}).some((message) => message)) {
+    sequence += 1;
+    fieldRefusals.set(form.store, sequence);
+  }
   // Also notifies every subscriber of the form store, so `FormErrors` reads the new refusal.
   form.setErrorMap({ onServer: { fields: refusal.fields ?? {} } });
 }
@@ -81,6 +87,14 @@ export function formRefusal(
     return undefined;
   }
   return { message: refusal.message, sequence: refusal.sequence };
+}
+
+/**
+ * Returns the number of the latest refusal that marked a field, or `undefined` before the
+ * first. A new number means a new refusal, even with the same message.
+ */
+export function fieldRefusalNumber(form: Pick<AnyFormApi, "store">): number | undefined {
+  return fieldRefusals.get(form.store);
 }
 
 /** Empties the `onServer` slot of the error map it runs for. */
