@@ -4,7 +4,16 @@
 // The translated names of the analyser register and the integration status (B3, #35).
 import { m } from "@/i18n/messages";
 import type { AnalyserRoute, AnalyserStatus } from "@/lib/analysers";
-import type { CheckErrorClass, Integration, IntegrationDisplayState } from "@/lib/integrations";
+import {
+  type CheckErrorClass,
+  EDULIMS_TEMPLATE_ID,
+  type FerroEhrStep,
+  type Integration,
+  type IntegrationDisplayState,
+  type ReadinessPhase,
+  type SignInTarget,
+  type StepState,
+} from "@/lib/integrations";
 
 /** Returns the name of an analyser's route to FerroEHR. */
 export function analyserRouteLabel(route: AnalyserRoute): string {
@@ -91,6 +100,8 @@ export function integrationStateLabel(state: IntegrationDisplayState): string {
       return m.admin_integrations_state_not_checked();
     case "unknown":
       return m.admin_integrations_state_unknown();
+    case "not_ready":
+      return m.admin_integrations_state_not_ready();
     default: {
       const unknown: never = state;
       return unknown;
@@ -113,8 +124,78 @@ export function checkErrorLabel(errorClass: CheckErrorClass): string {
       return m.admin_integrations_error_http_server();
     case "unexpected_response":
       return m.admin_integrations_error_unexpected();
+    case "template_missing":
+      return m.admin_integrations_error_template_missing({ template: EDULIMS_TEMPLATE_ID });
+    case "readiness_down":
+      return m.admin_integrations_error_readiness_down();
     default: {
       const unknown: never = errorClass;
+      return unknown;
+    }
+  }
+}
+
+/** Returns the name of a FerroEHR check step (#227). */
+export function ferroEhrStepLabel(step: FerroEhrStep): string {
+  switch (step) {
+    case "reachable":
+      return m.admin_integrations_step_reachable();
+    case "signed_in":
+      return m.admin_integrations_step_signed_in();
+    case "template_loaded":
+      return m.admin_integrations_step_template_loaded({ template: EDULIMS_TEMPLATE_ID });
+    default: {
+      const unknown: never = step;
+      return unknown;
+    }
+  }
+}
+
+/** Returns the outcome of one FerroEHR check step in words (#227). */
+export function stepStateLabel(state: StepState): string {
+  switch (state) {
+    case "passed":
+      return m.admin_integrations_step_passed();
+    case "failed":
+      return m.admin_integrations_step_failed();
+    case "refused":
+      return m.admin_integrations_step_refused();
+    case "missing":
+      return m.admin_integrations_step_missing();
+    case "skipped":
+      return m.admin_integrations_step_skipped();
+    default: {
+      const unknown: never = state;
+      return unknown;
+    }
+  }
+}
+
+/** Returns the service a sign-in step failed at (#227). */
+export function signInTargetLabel(target: SignInTarget): string {
+  switch (target) {
+    case "token_endpoint":
+      return m.admin_integrations_target_token_endpoint();
+    case "ferroehr":
+      return m.admin_integrations_target_ferroehr();
+    default: {
+      const unknown: never = target;
+      return unknown;
+    }
+  }
+}
+
+/** Returns FerroBRIDGE's readiness phase in words (#227). */
+export function readinessPhaseLabel(phase: ReadinessPhase): string {
+  switch (phase) {
+    case "booting":
+      return m.admin_integrations_phase_booting();
+    case "serving":
+      return m.admin_integrations_phase_serving();
+    case "draining":
+      return m.admin_integrations_phase_draining();
+    default: {
+      const unknown: never = phase;
       return unknown;
     }
   }

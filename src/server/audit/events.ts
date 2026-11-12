@@ -7,6 +7,7 @@
 // token, a request body or a grade. Relative imports: `pnpm db:seed` loads this in plain Node.
 import { z } from "zod";
 import { PROVIDER_ID_PATTERN, PROVIDER_PROTOCOLS } from "../../lib/identity-providers.ts";
+import { AUTH_REASON_PATTERN, CHECK_STATES, FERROEHR_STEPS } from "../../lib/integrations.ts";
 import { parseSignInMethod, type SignInMethod } from "../../lib/sign-in-method.ts";
 
 /** Actions better-auth's sign-in, session and admin flows record. */
@@ -27,7 +28,7 @@ export const AUTH_AUDIT_ACTIONS = [
 
 /**
  * Actions of eduLIMS's own flows: classes and invitations (#28), the class join code (#49),
- * uploads (S4), and the analyser register (B3, #35).
+ * uploads (S4), the analyser register (B3, #35) and the integration status (B3, #227).
  */
 export const EDULIMS_AUDIT_ACTIONS = [
   "class_created",
@@ -65,6 +66,7 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "analyser_created",
   "analyser_updated",
   "analyser_retired",
+  "integration_state_changed",
   "scim_token_created",
   "scim_token_rotated",
   "scim_token_revoked",
@@ -105,6 +107,7 @@ export const AUDIT_TARGET_TYPES = [
   "analyser",
   "scim_user",
   "scim_group",
+  "integration",
 ] as const;
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
@@ -131,7 +134,9 @@ export type AuditTargetOf<A extends AuditAction> = A extends `sys_${string}`
                     ? "scim_user"
                     : A extends `scim_group_${string}`
                       ? "scim_group"
-                      : "user";
+                      : A extends `integration_${string}`
+                        ? "integration"
+                        : "user";
 
 /**
  * Returns the target type an action is about (the runtime form of {@link AuditTargetOf}), or
@@ -149,6 +154,7 @@ export function targetTypeOf(action: AuditAction): AuditTargetType | null {
   if (action.startsWith("scim_token_")) return "identity_provider";
   if (action.startsWith("scim_user_")) return "scim_user";
   if (action.startsWith("scim_group_")) return "scim_group";
+  if (action.startsWith("integration_")) return "integration";
   return "user";
 }
 
@@ -221,6 +227,13 @@ export const auditMetadataSchema = z.strictObject({
   removed_admin_grants: z.number().int().min(0).optional(),
   /** The analyser status after the change (B3); a code, never free text. */
   analyser_status: z.enum(["in_use", "maintenance", "retired"]).optional(),
+  /** The state an `integration_state_changed` moved to, and the state it left (B3, #227). */
+  check_state: z.enum(CHECK_STATES).optional(),
+  previous_check_state: z.enum([...CHECK_STATES, "not_checked"]).optional(),
+  /** The FerroEHR step that failed, of an `integration_state_changed` (#227). */
+  check_step: z.enum(FERROEHR_STEPS).optional(),
+  /** The refusal code a service gave eduLIMS's credentials (RFC 6749 §5.2), never free text. */
+  auth_reason: z.string().regex(AUTH_REASON_PATTERN).optional(),
   /** When the SCIM token a `scim_token_created` or `scim_token_rotated` issued expires (#45). */
   token_expires_at: z.iso.datetime({ offset: true }).optional(),
   /** How many refused SCIM requests one `scim_token_refused` row stands for (#45). */

@@ -4,12 +4,13 @@
 import type { Kysely } from "kysely";
 import { Client } from "pg";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { EDULIMS_TEMPLATE_ID } from "../../lib/integrations.ts";
 import type { Role } from "../../lib/roles.ts";
 import { INTEGRATION_CHECK_LOCK_KEY } from "../db/advisory-locks.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb, testDatabaseUrl } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
-import { testOpenEhrClient } from "../openehr/test-client.ts";
+import { TEST_OPENEHR_CONFIG, testOpenEhrClient } from "../openehr/test-client.ts";
 import {
   CHECK_INTERVAL_MS,
   checkAndStore,
@@ -40,11 +41,31 @@ afterEach(async () => {
   db = undefined;
 });
 
-/** A fetch where FerroEHR answers as `ehr` and FerroBRIDGE as `bridge`. */
+const TEMPLATES_URL = `${ENV.FERROEHR_BASE_URL}/definition/template/adl1.4`;
+
+/**
+ * A fetch where FerroEHR answers every call with `ehr` (a 200 holds the eduLIMS template), the
+ * token endpoint grants a token, and FerroBRIDGE answers `bridge`.
+ */
 function services(ehr: number | "down", bridge: number | "down") {
   return vi.fn<ProbeFetch>((url) => {
+    if (url.href === TEST_OPENEHR_CONFIG.tokenUrl.href) {
+      return Promise.resolve(Response.json({ access_token: "t", token_type: "Bearer" }));
+    }
     const status = url.hostname === "ferroehr.test" ? ehr : bridge;
     if (status === "down") return Promise.reject(new TypeError("fetch failed"));
+    if (url.href === TEMPLATES_URL && status === 200) {
+      return Promise.resolve(
+        Response.json([
+          {
+            template_id: EDULIMS_TEMPLATE_ID,
+            concept: "c",
+            archetype_id: "a",
+            created_timestamp: "2026-11-01T00:00:00Z",
+          },
+        ]),
+      );
+    }
     return Promise.resolve(new Response("{}", { status }));
   });
 }
@@ -151,7 +172,8 @@ describe("runScheduledCheck (B3)", () => {
     const fetch = services(200, 200);
     const outcome = await runScheduledCheck(await context(fetch));
     expect(outcome.checked).toBe(true);
-    expect(fetch).toHaveBeenCalledTimes(2);
+    // FerroEHR's manifest, the token, the template list (#227), and FerroBRIDGE.
+    expect(fetch).toHaveBeenCalledTimes(4);
   });
 
   it("skips while another replica's result is younger than half the interval", async () => {
@@ -211,13 +233,17 @@ describe("checkNow and readStatus (B3, A01)", () => {
 });
 
 describe("no request can change a target (SSRF, ASVS V1.3.6)", () => {
-  it("Check now calls only the two configured URLs", async () => {
+  it("Check now calls only URLs from the configuration", async () => {
     const fetch = services(200, 200);
     await checkNow({ ...(await context(fetch)), actor: ADMIN });
-    expect(fetch.mock.calls.map(([url]) => url.href).sort()).toEqual([
-      "http://ferrobridge.test:8080/health/readiness",
-      ENV.FERROEHR_BASE_URL,
-    ]);
+    expect(fetch.mock.calls.map(([url]) => url.href).sort()).toEqual(
+      [
+        "http://ferrobridge.test:8080/health/readiness",
+        ENV.FERROEHR_BASE_URL,
+        TEMPLATES_URL,
+        TEST_OPENEHR_CONFIG.tokenUrl.href,
+      ].sort(),
+    );
   });
 
   it.each([

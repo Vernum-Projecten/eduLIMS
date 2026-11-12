@@ -82,19 +82,30 @@ describe.skipIf(!reachable && !REQUIRED)(
       expect(response.status).toBe(200);
     });
 
-    it("reports both services available in the B3 check", async () => {
-      const results = await probeAll(probeTargets({ FERROBRIDGE_BASE_URL: FERROBRIDGE }), {
+    const check = () =>
+      probeAll(probeTargets({ FERROBRIDGE_BASE_URL: FERROBRIDGE }), {
         openEhr: client,
         fetch: (url, init) => fetch(url, init),
         now: () => new Date(),
         elapsed: () => performance.now(),
       });
+
+    it("reaches FerroEHR and signs in to it in the B3 check (#227)", async () => {
+      const [ferroehr, ferrobridge] = await check();
+      expect(ferroehr?.ferroehr?.steps).toMatchObject({ reachable: "passed", signed_in: "passed" });
+      expect(ferroehr?.ferroehr?.specVersion).not.toBeNull();
+      expect(ferrobridge).toMatchObject({ state: "available", errorClass: null });
+    });
+
+    it("reports both services available in the B3 check, the template loaded (#227)", async () => {
+      const results = await check();
       expect(
         results.map(({ integration, state, errorClass }) => ({ integration, state, errorClass })),
       ).toEqual([
         { integration: "ferroehr", state: "available", errorClass: null },
         { integration: "ferrobridge", state: "available", errorClass: null },
       ]);
+      expect(results[0]?.ferroehr?.steps.template_loaded).toBe("passed");
     });
   },
 );

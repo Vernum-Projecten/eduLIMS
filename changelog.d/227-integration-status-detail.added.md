@@ -1,0 +1,1 @@
+- The integration status shows FerroEHR as reachable (with its version and REST API version), signed in (a refusal with its reason code) and holding the `eduLIMS-lab.v1` template, and FerroBRIDGE's readiness with the indicator that is down, each change of state logged in the activity log (B3, B4). Upgrade: run the database migrations.

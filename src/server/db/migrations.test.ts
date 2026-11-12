@@ -59,6 +59,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0015_integration_check_steps", "Success"],
       ["0014_class_join_code", "Success"],
       ["0013_scim", "Success"],
       ["0012_classes", "Success"],
@@ -84,6 +85,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0015_integration_check_steps", "Success"],
       ["0014_class_join_code", "Success"],
       ["0013_scim", "Success"],
       ["0012_classes", "Success"],
@@ -109,6 +111,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0015_integration_check_steps", "Success"],
       ["0014_class_join_code", "Success"],
       ["0013_scim", "Success"],
       ["0012_classes", "Success"],
@@ -158,6 +161,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0015_integration_check_steps", "Success"],
       ["0014_class_join_code", "Success"],
       ["0013_scim", "Success"],
       ["0012_classes", "Success"],
@@ -190,6 +194,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0015_integration_check_steps", "Success"],
       ["0014_class_join_code", "Success"],
       ["0013_scim", "Success"],
       ["0012_classes", "Success"],
@@ -225,6 +230,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0010_integration_check");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0015_integration_check_steps", "Success"],
       ["0014_class_join_code", "Success"],
       ["0013_scim", "Success"],
       ["0012_classes", "Success"],
@@ -243,9 +249,10 @@ describe("migrations", () => {
     const database = await createTestDb();
     db = database;
     const migrator = createMigrator(database);
-    // The migration below 0013 is 0012_classes; 0014 and then 0013 revert.
+    // The migration below 0013 is 0012_classes; 0015, 0014 and then 0013 revert.
     const down = await migrator.migrateTo("0012_classes");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0015_integration_check_steps", "Success"],
       ["0014_class_join_code", "Success"],
       ["0013_scim", "Success"],
     ]);
@@ -321,5 +328,32 @@ describe("migrations", () => {
     await account("a2", "u2", null);
     await account("a3", "u1", "oid-1");
     await expect(account("a4", "u2", "oid-1")).rejects.toThrow(/duplicate key/);
+  });
+
+  it("0015_integration_check_steps adds the steps and not ready, and reverts (#227)", async () => {
+    const database = await createTestDb();
+    db = database;
+    const migrator = createMigrator(database);
+    // Each statement runs in its own savepoint, so an expected refusal leaves the test usable.
+    const inSavepoint = (query: ReturnType<typeof sql>) =>
+      database.transaction().execute((trx) => query.execute(trx));
+    const notReady = () =>
+      inSavepoint(sql`insert into integration_checks (integration, state, checked_at, error_class)
+          values ('ferrobridge', 'not_ready', now(), 'readiness_down')`);
+    const down = await migrator.migrateTo("0014_class_join_code");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0015_integration_check_steps", "Success"],
+    ]);
+    await expect(notReady()).rejects.toThrow(/integration_checks_(state|error_class)/);
+    await expect(inSavepoint(sql`select reachable from integration_checks`)).rejects.toThrow(
+      /column "reachable" does not exist/,
+    );
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
+    await notReady();
+    const row = await database
+      .selectFrom("integration_checks")
+      .select(["state", "failing_indicators"])
+      .executeTakeFirst();
+    expect(row).toEqual({ state: "not_ready", failing_indicators: null });
   });
 });

@@ -121,12 +121,21 @@ export interface IdentityProviderDomain {
 }
 
 export interface IntegrationChecks {
+  auth_reason: string | null;
   checked_at: Timestamp;
   error_class: string | null;
+  failing_indicators: string[] | null;
   integration: string;
   last_success_at: Timestamp | null;
+  reachable: string | null;
+  readiness_phase: string | null;
   response_time_ms: number | null;
+  server_version: string | null;
+  sign_in_target: string | null;
+  signed_in: string | null;
+  spec_version: string | null;
   state: string;
+  template_loaded: string | null;
 }
 
 export interface Invitation {
