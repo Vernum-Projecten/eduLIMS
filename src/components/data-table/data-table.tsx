@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { m } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
+import { ariaRowPosition } from "@/lib/virtual-rows";
 
 function ariaSort(sorted: false | "asc" | "desc") {
   if (sorted === "asc") return "ascending";
@@ -47,6 +48,10 @@ const FILL_SCROLL = "lg:max-h-none lg:min-h-0 lg:flex-1";
  * With `virtual`, a long list that is not paginated renders only the rows in view
  * ({@link DataTableVirtualBody}); a server-paginated table leaves it out. With `fill`, on a
  * `fill` page, the table takes the height its toolbar and pager leave on large screens.
+ *
+ * A paginated table shows one page of the set, so the table carries `aria-rowcount` and every
+ * row its `aria-rowindex` in the whole set: a screen reader hears "row 27 of 1,204" on page 2
+ * (WCAG 1.3.1, WAI-ARIA 1.2 `aria-rowindex`).
  */
 export function DataTable<TData extends RowData>({
   table,
@@ -77,6 +82,9 @@ export function DataTable<TData extends RowData>({
   }
   const rows = table.getRowModel().rows;
   const columnCount = table.getVisibleLeafColumns().length;
+  const headerRows = table.getHeaderGroups().length;
+  const { pageIndex, pageSize } = table.state.pagination;
+  const firstRow = pageIndex * pageSize;
   return (
     <div className={cn("relative", fill && "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col")}>
       <UpdatingIndicator active={busy} />
@@ -86,13 +94,21 @@ export function DataTable<TData extends RowData>({
         tabIndex={0}
         className={cn(SCROLL_CONTAINER, fill && FILL_SCROLL)}
       >
-        <Table aria-busy={busy || undefined} className={cn(busy && "opacity-70")}>
+        <Table
+          aria-rowcount={rows.length === 0 ? undefined : table.getRowCount() + headerRows}
+          aria-busy={busy || undefined}
+          className={cn(busy && "opacity-70")}
+        >
           <TableCaption id={captionId} className="sr-only">
             {caption}
           </TableCaption>
           <TableHeader className="sticky top-0 z-10 bg-background shadow-[inset_0_-1px_0_var(--color-border)]">
-            {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id} className="hover:bg-transparent">
+            {table.getHeaderGroups().map((group, groupIndex) => (
+              <TableRow
+                key={group.id}
+                aria-rowindex={rows.length === 0 ? undefined : groupIndex + 1}
+                className="hover:bg-transparent"
+              >
                 {group.headers.map((header) => (
                   <TableHead
                     key={header.id}
@@ -114,9 +130,10 @@ export function DataTable<TData extends RowData>({
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((row) => (
+              rows.map((row, index) => (
                 <TableRow
                   key={row.id}
+                  aria-rowindex={ariaRowPosition(firstRow + index, headerRows)}
                   data-state={row.getIsSelected() ? "selected" : undefined}
                   className="data-[state=selected]:bg-muted/40"
                 >
