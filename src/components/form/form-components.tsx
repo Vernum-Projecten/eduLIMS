@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { errorMessages } from "@/lib/forms/errors";
+import { formRefusal } from "@/lib/forms/server-refusal";
 
 /** A control that shows an error; a radio group is focused through its radios. */
 const INVALID_CONTROL = '[aria-invalid="true"]:not([role="radiogroup"])';
@@ -60,26 +61,30 @@ export function SubmitButton({
   );
 }
 
+/** Separates the refusal number from the messages in the selected string. */
+const SEPARATOR = "\u001f";
+
 /**
  * The form-level errors (a server refusal that concerns no single field), at the top of the
- * form. When they appear, focus moves to them, so a keyboard and screen-reader user lands on
- * the reason (WCAG 3.3.1). `title={null}` leaves the title out where the message says it all
- * (a refused sign-in).
+ * form. When they appear, and again for each new refusal, focus moves to them, so a keyboard
+ * and screen-reader user lands on the reason (WCAG 3.3.1). A refusal stays until a value
+ * changes or the form is submitted again. `title={null}` leaves the title out where the
+ * message says it all (a refused sign-in).
  */
 export function FormErrors({ title = m.form_errors_title() }: Readonly<{ title?: string | null }>) {
   const form = useFormContext();
-  // A joined string is a stable selection, so the component renders only when the text changes.
-  const text = useStore(form.store, (state) =>
-    errorMessages(state.errors)
-      .map((error) => error.message)
-      .join("\n"),
-  );
+  // A joined string is a stable selection, so the component renders only when it changes.
+  const selected = useStore(form.store, (state) => {
+    const refusal = formRefusal(form, state);
+    const messages = errorMessages([state.errors, refusal?.message]).map((error) => error.message);
+    return messages.length === 0 ? "" : [refusal?.sequence ?? 0, ...messages].join(SEPARATOR);
+  });
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (text !== "") ref.current?.focus();
-  }, [text]);
-  if (text === "") return null;
-  const messages = text.split("\n");
+    if (selected !== "") ref.current?.focus();
+  }, [selected]);
+  if (selected === "") return null;
+  const messages = selected.split(SEPARATOR).slice(1);
   return (
     <Alert
       ref={ref}

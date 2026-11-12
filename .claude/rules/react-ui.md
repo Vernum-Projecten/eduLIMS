@@ -81,7 +81,11 @@ in a feature component.
   shows "Checking…" in a live region while it runs.
 - **Server refusals** map back with `applyServerRefusal(formApi, { fields,
   form })`: a translated message at the field it concerns, or at the top.
-  The next change clears it.
+  A field refusal stays until that field changes; a form refusal stays,
+  focused, until a field changes. A new submit clears both, so an unchanged
+  value can be sent again; a blur clears neither. `useAppForm` wraps the
+  form's validation logic in `keepServerRefusals` for this, so never call
+  TanStack's `useForm` directly.
 - **Arrays** use `form.AppField name="…" mode="array"` with `pushValue`,
   `removeValue` and `moveValue`; every row has a stable `id` as its React
   key, `ArrayRowControls` (move up, move down, remove, named after the row)

@@ -1,0 +1,1 @@
+- A refusal from the server stays on screen until you change the form or send it again: a message at the top of a form no longer disappears when you press Enter in a field, an unchanged value can be sent again after a refusal, and the first click on the send button after a refusal works (#120).
