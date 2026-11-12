@@ -62,6 +62,17 @@ describe("parseEnv", () => {
     );
   });
 
+  it.each([
+    ["an address with a zone id", "fe80::1%eth0"],
+    ["every IPv4 address", "0.0.0.0/0"],
+    ["every IPv6 address", "::/0"],
+    ["a /0 beside a valid entry", "10.0.0.5, 192.0.2.0/0"],
+  ])("refuses %s in EDULIMS_TRUSTED_PROXIES (#49)", (_case, value) => {
+    expect(() => parseEnv({ ...VALID_ENV, EDULIMS_TRUSTED_PROXIES: value })).toThrow(
+      /EDULIMS_TRUSTED_PROXIES/,
+    );
+  });
+
   it("still refuses an empty required variable", () => {
     expect(() => parseEnv({ ...VALID_ENV, BETTER_AUTH_SECRET: "" })).toThrow(/BETTER_AUTH_SECRET/);
   });

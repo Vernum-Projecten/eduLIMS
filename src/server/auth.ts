@@ -209,7 +209,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
       classOrganizationGuard(db),
       classInvitationAcceptance(db),
       // Answers 501 when SCIM cannot run here; rate limit, size cap and activity log (#45).
-      scimGate(db, scimSupport, { trustForwardedFor: env.EDULIMS_TRUSTED_PROXIES.length > 0 }),
+      scimGate(db, scimSupport, { trustedProxies: env.EDULIMS_TRUSTED_PROXIES }),
       ...scimPlugins(db, scimSupport),
       ssoLogout(db, env.BETTER_AUTH_URL, keyring),
       // The activity log (B4): sign-ins, sign-outs, sessions, users and the admin endpoints.

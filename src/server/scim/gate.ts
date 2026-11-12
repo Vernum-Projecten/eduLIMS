@@ -7,14 +7,14 @@
 // activity log of every request (audit.ts; B4, V16.3.1). It also refuses a session for a user
 // the directory deprovisioned. Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
-import { getIP } from "@better-auth/core/utils/ip";
-import type { AuthContext, BetterAuthOptions, BetterAuthPlugin } from "better-auth";
+import type { AuthContext, BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import type { Kysely } from "kysely";
 import { ACCOUNT_DEPROVISIONED_ERROR } from "../../lib/identity-providers.ts";
 import { requestIdOf } from "../audit/better-auth-hooks.ts";
 import { auditProvider } from "../audit/events.ts";
 import { recordCommittedAudit } from "../audit/record.ts";
+import { clientIpOf } from "../client-ip.ts";
 import type { DB } from "../db/schema.gen.ts";
 import {
   auditScimRequest,
@@ -119,11 +119,11 @@ async function refuseTakenAddress(db: Kysely<DB>, ctx: unknown): Promise<Respons
 /** How the guard finds the client of a request. */
 export interface ScimGateOptions {
   /**
-   * Whether `X-Forwarded-For` comes from trusted proxies (`EDULIMS_TRUSTED_PROXIES`). Without
-   * it every request lacking a working token shares one bucket, so a client cannot spoof its
-   * way into a fresh one (second review, finding 2).
+   * The trusted proxies (`EDULIMS_TRUSTED_PROXIES`) whose `X-Forwarded-For` names the client.
+   * Without any, every request lacking a working token shares one bucket, so a client cannot
+   * spoof its way into a fresh one (second review, finding 2).
    */
-  trustForwardedFor: boolean;
+  trustedProxies: readonly string[];
   limits?: ScimLimits;
   limiter?: ScimRateLimiter;
 }
@@ -136,14 +136,12 @@ export function scimGate(db: Kysely<DB>, support: ScimSupport, options: ScimGate
   const limits = options.limits ?? SCIM_LIMITS;
   const limiter = options.limiter ?? new ScimRateLimiter(limits);
   let asyncContext: Promise<boolean> | undefined;
-  let authOptions: BetterAuthOptions = {};
   const clientKeyOf = (headers: Headers) =>
-    rateKeyOf(null, options.trustForwardedFor ? getIP(headers, authOptions) : null);
+    rateKeyOf(null, clientIpOf(headers, options.trustedProxies));
   const deduper = new RefusalDeduper(limits.windowMs, limits.maxKeys);
   return {
     id: "edulims-scim-gate",
     init: (authContext: AuthContext) => {
-      authOptions = authContext.options;
       return {
         options: {
           databaseHooks: {
