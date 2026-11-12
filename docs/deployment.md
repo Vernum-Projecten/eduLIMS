@@ -17,6 +17,7 @@ same.
 |---|---|---|---|
 | `postgres` | `ghcr.io/ferrohealth/ferroehr-postgres:5.7.0` | nothing | PostgreSQL 18.6 with the `edulims` and `ferroehr` databases |
 | `ferroehr` | `ghcr.io/ferrohealth/ferroehr:5.7.0` | nothing | the CDR, reached at `http://ferroehr:8080` |
+| `ferroehr-definitions` | `ghcr.io/ferrohealth/ferroehr:5.7.0` | nothing | a one-shot: loads the operational templates into FerroEHR's store before FerroEHR starts, then exits (below, "FerroEHR's templates") |
 | `ferrobridge` | `ghcr.io/ferrohealth/ferrobridge:0.0.24` | MLLP, port 2575 | receives the Afinion 2 results |
 | `edulims-migrate` | `ghcr.io/vernum-projecten/edulims-migrate` | nothing | the tools image with `migrate`: applies the migrations, then exits |
 | `edulims-tools` (profile) | `ghcr.io/vernum-projecten/edulims-migrate` | nothing | the tools image for the operator commands (`admin`, `idp`), run by hand |
@@ -181,15 +182,61 @@ redacted. The check cannot see two things that the server checks at start.
 FerroEHR reads the issuer's metadata at start and refuses to start when it
 cannot reach it. It also refuses to start while its store lacks a template a
 system client writes, so the `eduLIMS-lab.v1` template must be in its store
-before FerroEHR starts with this file. The template and the step that loads
-it ship with #146; until then FerroEHR does not start with the
-`[[authz.system_client]]` table in place.
+before FerroEHR starts with this file. The `ferroehr-definitions` step loads
+it (below, "FerroEHR's templates").
 
 Two settings wait on product-owner decisions (#131). Who the EHR subject is
 (X1) decides `[privacy] subject_namespaces`: until it is answered, FerroEHR
 stores a subject reference as eduLIMS sends it. Whether a pilot holds
 personal data (X2) decides `[deployment] profile`, which stays at
 FerroEHR's default `sandbox`.
+
+### FerroEHR's templates
+
+FerroEHR accepts a composition only on an operational template in its
+store, and eduLIMS's system client commits on `eduLIMS-lab.v1` alone. The
+template is an OPT 1.4 file in the deploy bundle,
+`docker/ferroehr/definitions/eduLIMS-lab.v1.opt`, built from five openEHR
+CKM archetypes at pinned revisions (`docs/architecture.md`, "Template
+`eduLIMS-lab`").
+
+The one-shot service `ferroehr-definitions` runs `ferroehr definitions load`
+with the image and the configuration of `ferroehr`, stores each file it names
+and exits; `ferroehr` starts only after it exits 0 (FerroEHR book v5.7.0,
+`installation/config-cli.md`, `ferroehr definitions load`). The load
+validates a file exactly as the REST upload
+(`POST /definition/template/adl1.4`) does, and stops at the first refusal,
+naming the file. It runs on every `docker compose up`:
+
+- a template stored with the same text is left alone (`unchanged
+  eduLIMS-lab.v1` in its log);
+- a file whose id is stored with other text is refused, and FerroEHR does
+  not start, because a stored template never changes
+  (`templates-validation.md`, "Uploading an OPT 1.4 template").
+
+To see what it did:
+
+```sh
+docker compose logs ferroehr-definitions
+```
+
+A changed template is a new template with a new id: `eduLIMS-lab.v2` beside
+`eduLIMS-lab.v1`, never an edited `v1`. Compositions already stored stay on
+the version they were written with. A new version ships in a release as
+follows:
+
+1. Add the new entry to `scripts/openehr/build-opt.py` and run
+   `python3 -I scripts/openehr/build-opt.py`, which writes
+   `docker/ferroehr/definitions/eduLIMS-lab.v2.opt` beside the old file.
+2. Add the file to the `command` of `ferroehr-definitions` in `compose.yaml`
+   and `compose.dev.yaml`, after the files already there. Keep the old file:
+   FerroEHR still holds it, and the old compositions name it.
+3. Add the new id to `writes` of the eduLIMS system client
+   (`config/ferroehr.toml`, the `FERROEHR__AUTHZ__SYSTEM_CLIENT__0__WRITES`
+   value of `compose.dev.yaml`, and `config/ferroehr.toml.example`), and
+   the matching `system/composition-<id>.cr` scope at the identity provider.
+4. On the host, `docker compose up -d --wait` loads the new template before
+   FerroEHR starts.
 
 ## Database TLS
 
@@ -1048,10 +1095,11 @@ a token with the client credentials grant at
 and reads operational templates and nothing else (FerroEHR book,
 `smart-app-launch.md`, "What each route requires"). The template reaches
 FerroEHR through `ferroehr definitions load` before FerroEHR starts, never
-over REST. The system client lists no template in `writes` yet:
-FerroEHR refuses to start with a template its store does not hold, so it
-commits no composition until `eduLIMS-lab.v1` (#146) is loaded with
-`ferroehr definitions load` before FerroEHR starts.
+over REST: the `ferroehr-definitions` one-shot loads `eduLIMS-lab.v1` on
+every `pnpm dev:db`, and the system client lists it in `writes` (above,
+"FerroEHR's templates"). The client's token still carries no
+`system/composition-` scope, so it commits nothing until the composition
+write path adds one (#148).
 
 Every token carries the issuer `http://localhost:8180/realms/edulims`
 (`KC_HOSTNAME`), whichever host asks. FerroEHR accepts a plain-HTTP issuer on

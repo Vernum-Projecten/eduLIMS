@@ -138,8 +138,9 @@ jobs:
 
       # The files a host needs beside the images: compose.yaml, the optional
       # log shipping override compose.logship.yaml with its Fluent Bit
-      # configurations, the PostgreSQL init script, the environment template and
-      # the reference FerroEHR configuration (docs/deployment.md).
+      # configurations, the PostgreSQL init script, the environment template,
+      # the reference FerroEHR configuration and the operational templates
+      # FerroEHR loads (docs/deployment.md).
       - name: Pack the deploy bundle
         env:
           TAG: ${{ needs.plan.outputs.tag }}
@@ -150,7 +151,7 @@ jobs:
           tar --sort=name --owner=0 --group=0 --numeric-owner --mtime="@${epoch}" \
             --transform "s,^,edulims-deploy-${TAG}/," \
             -czf "$bundle" compose.yaml compose.logship.yaml .env.example docker/postgres/init \
-            docker/logship config/ferroehr.toml.example
+            docker/logship config/ferroehr.toml.example docker/ferroehr/definitions
           sha256sum "$bundle" > "${bundle}.sha256sum"
           tar -tzf "$bundle"
 

@@ -19,6 +19,8 @@
 #                                 [hl7v2] face also needs its [hl7v2.tls]
 #                                 PEM files here (docs/deployment.md)
 #   docker/postgres/init/20-edulims.sh   from the release's deploy bundle
+#   docker/ferroehr/definitions/  the operational templates FerroEHR loads
+#                                 before it serves, from the deploy bundle
 #   config/postgres-tls/          ca.crt, server.crt and server.key for
 #                                 PostgreSQL's TLS (docs/deployment.md,
 #                                 "Database TLS"); eduLIMS verifies the server
@@ -129,7 +131,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
+      # FerroEHR refuses to start while its store lacks a template that a
+      # system client `writes` (FerroEHR book v5.7.0,
+      # installation/config-auth.md, [[authz.system_client]]).
+      ferroehr-definitions:
+        condition: service_completed_successfully
+    environment: &ferroehr-environment
       FERROEHR_CONFIG: /etc/ferroehr/ferroehr.toml
       FERROEHR__DATABASE__URL: postgres://${FERROEHR_DB_USER:-ferroehr}:${FERROEHR_DB_PASSWORD:?set FERROEHR_DB_PASSWORD in .env}@postgres:5432/${FERROEHR_DB_NAME:-ferroehr}
       FERROEHR__TELEMETRY__FORMAT: json
@@ -153,6 +160,35 @@ services:
       timeout: 5s
       retries: 6
       start_period: 60s
+
+  # ── FerroEHR's templates, a one-shot ──────────────────────────────────────
+  # `ferroehr definitions load` stores each operational template in FerroEHR's
+  # definition store and exits, before FerroEHR serves. A template stored with
+  # the same text is left alone, so it runs on every start; one stored under
+  # the same id with other text is refused, so a changed template takes a new
+  # id (FerroEHR book v5.7.0, installation/config-cli.md; docs/deployment.md,
+  # "Templates"). It reads the same configuration as the server.
+  ferroehr-definitions:
+    image: ghcr.io/ferrohealth/ferroehr:5.7.0@sha256:44c9268cb8a154df118a10ffe84329633f22923ea2cc54261ff0cea57a2ee7e7
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+      - definitions
+      - load
+      - /etc/ferroehr/definitions/eduLIMS-lab.v1.opt
+    environment: *ferroehr-environment
+    volumes:
+      - ./config/ferroehr.toml:/etc/ferroehr/ferroehr.toml:ro
+      - ./docker/ferroehr/definitions:/etc/ferroehr/definitions:ro
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks: [backend]
 
   # ── FerroBRIDGE, HL7 v2 over MLLP into FerroEHR ────────────────────────────
   # FerroBRIDGE 0.0.24 serves MLLP over TLS only: an enabled [hl7v2] face

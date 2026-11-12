@@ -94,9 +94,10 @@ scope grammar"):
   template for a template upload, which names no template in its path
   (`smart-app-launch.md`, "What each route requires"). Whether eduLIMS
   creates or looks up EHRs at all depends on who the EHR subject is (#131,
-  X1); how the template reaches the store is #146. Each needs the bare
-  wildcard only if it runs as eduLIMS over REST, and that widening needs
-  its own decision.
+  X1). The template reaches the store through `ferroehr definitions load`
+  before FerroEHR serves (#146), never through a REST upload, so it needs
+  no scope. An EHR route needs the bare wildcard only if eduLIMS calls it
+  over REST, and that widening needs its own decision.
 - The stored-query names and their registration come with the AQL read
   path (#144).
 
