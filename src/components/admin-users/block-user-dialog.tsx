@@ -22,8 +22,10 @@ import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
 import { m } from "@/i18n/messages";
 import { dayIn } from "@/lib/app-day";
+import { applyServerRefusal } from "@/lib/forms/server-refusal";
+import { adminActionErrorMessage } from "@/lib/i18n/user-labels";
 import { blockAdminUser } from "@/server/users/functions";
-import { blockUserMutationOptions } from "@/server/users/query-options";
+import { actionErrorCode, blockUserMutationOptions } from "@/server/users/query-options";
 import {
   BLOCK_REASON_MAX_LENGTH,
   type BlockUserForm,
@@ -43,8 +45,9 @@ export type DialogControl =
 
 /**
  * The block form (owner decision on #32) in an `AlertDialog`: the reason and an optional last
- * day, confirming that the users are signed out and refused at every sign-in. `onBlock`
- * returns whether the dialog may close.
+ * day, confirming that the users are signed out and refused at every sign-in. The dialog
+ * closes when `onBlock` resolves; when it rejects, the translated refusal shows at the top of
+ * the form and takes focus (WCAG 3.3.1).
  */
 export function BlockDialog({
   title,
@@ -55,7 +58,7 @@ export function BlockDialog({
   title: string;
   description: ReactNode;
   control: DialogControl;
-  onBlock: (value: BlockUserForm) => Promise<boolean>;
+  onBlock: (value: BlockUserForm) => Promise<unknown>;
 }>) {
   const [ownOpen, setOwnOpen] = useState(false);
   const controlled = "open" in control;
@@ -66,10 +69,14 @@ export function BlockDialog({
     validationLogic: revalidateLogic(),
     validators: { onDynamic: blockUserFormSchema },
     onSubmit: async ({ value, formApi }) => {
-      if (await onBlock(value)) {
-        setOpen(false);
-        formApi.reset();
+      try {
+        await onBlock(value);
+      } catch (error) {
+        applyServerRefusal(formApi, { form: adminActionErrorMessage(actionErrorCode(error)) });
+        return;
       }
+      setOpen(false);
+      formApi.reset();
     },
   });
 
@@ -93,6 +100,7 @@ export function BlockDialog({
               <AlertDialogTitle>{title}</AlertDialogTitle>
               <AlertDialogDescription>{description}</AlertDialogDescription>
             </AlertDialogHeader>
+            <form.FormErrors />
             <FieldGroup>
               <form.AppField name="reason">
                 {(field) => (
@@ -158,12 +166,7 @@ export function BlockUserDialog({
       title={m.admin_users_block_title({ name })}
       description={m.admin_users_block_description()}
       control={control}
-      onBlock={(value) =>
-        block.mutateAsync({ userId, ...value }).then(
-          () => true,
-          () => false,
-        )
-      }
+      onBlock={(value) => block.mutateAsync({ userId, ...value })}
     />
   );
 }
