@@ -23,10 +23,10 @@ import {
 // one check timeout plus one screen refresh after it starts, about 95 s.
 export const CHECK_INTERVAL_MS = 60_000;
 
-/** What a check runs with: the database, the targets' configuration and the HTTP client. */
+/** What a check runs with: the database, FerroBRIDGE's configuration and the clients. */
 export interface CheckContext {
   db: Kysely<DB>;
-  env: Pick<Env, "FERROEHR_BASE_URL" | "FERROBRIDGE_BASE_URL">;
+  env: Pick<Env, "FERROBRIDGE_BASE_URL">;
   deps: ProbeDeps;
 }
 

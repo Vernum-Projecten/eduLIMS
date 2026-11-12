@@ -88,6 +88,14 @@ export const envFields = z.object({
   EDULIMS_IDP_PRIVATE_ORIGINS: originList().default([]),
   EDULIMS_TRUSTED_PROXIES: proxyList().default([]),
   FERROEHR_BASE_URL: httpUrl(),
+  /** The OAuth2 token endpoint eduLIMS gets its FerroEHR access token from (RFC 6749 §4.4). */
+  FERROEHR_TOKEN_URL: httpUrl(),
+  /** eduLIMS's client id at that token endpoint. */
+  FERROEHR_CLIENT_ID: z.string().trim().min(1),
+  /** eduLIMS's client secret at that token endpoint. */
+  FERROEHR_CLIENT_SECRET: z.string().min(1),
+  /** The space-separated SMART on openEHR `system/` scopes eduLIMS asks for (RFC 6749 §3.3). */
+  FERROEHR_SCOPE: z.string().trim().min(1),
   FERROBRIDGE_BASE_URL: httpUrl(),
   EDULIMS_DEV_LOGIN: z.stringbool().default(false),
 });
@@ -105,8 +113,19 @@ export function databaseTlsProblem(databaseUrl: string): string | undefined {
   return "must use sslmode=verify-full when NODE_ENV=production (TLS with a verified certificate)";
 }
 
+/** The development client secret of `.env.example`, refused in production (ASVS V13.2.3). */
+export const DEV_FERROEHR_CLIENT_SECRET = "edulims-dev-ferroehr-secret";
+
 export const envSchema = envFields.superRefine((env, ctx) => {
   const production = env.NODE_ENV === "production";
+  // NOTE: ASVS V13.2.3; a service credential must not be a default one.
+  if (production && env.FERROEHR_CLIENT_SECRET === DEV_FERROEHR_CLIENT_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["FERROEHR_CLIENT_SECRET"],
+      message: "must not be the development secret when NODE_ENV=production",
+    });
+  }
   if (production && env.EDULIMS_DATA_KEY === undefined) {
     ctx.addIssue({
       code: "custom",

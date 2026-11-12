@@ -278,6 +278,12 @@ services:
       # The reverse proxies in front of eduLIMS; empty trusts no X-Forwarded-For.
       EDULIMS_TRUSTED_PROXIES:
       FERROEHR_BASE_URL: http://ferroehr:8080/ferroehr/rest/openehr/v1
+      # eduLIMS's FerroEHR identity: a client credentials grant at the
+      # identity provider (.env.example).
+      FERROEHR_TOKEN_URL: ${FERROEHR_TOKEN_URL:?set FERROEHR_TOKEN_URL in .env}
+      FERROEHR_CLIENT_ID: ${FERROEHR_CLIENT_ID:?set FERROEHR_CLIENT_ID in .env}
+      FERROEHR_CLIENT_SECRET: ${FERROEHR_CLIENT_SECRET:?set FERROEHR_CLIENT_SECRET in .env}
+      FERROEHR_SCOPE: ${FERROEHR_SCOPE:?set FERROEHR_SCOPE in .env}
       FERROBRIDGE_BASE_URL: http://ferrobridge:8080
     volumes:
       - ./config/postgres-tls/ca.crt:/etc/edulims/postgres-ca.crt:ro

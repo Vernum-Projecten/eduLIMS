@@ -191,11 +191,24 @@ Server functions in TanStack Start hold the business rules and the access
 checks; route loaders call them. FerroEHR is called only from the server, so
 the browser never talks to the CDR.
 
+One typed openEHR client in `src/server/openehr/` makes every FerroEHR call
+(ITS-REST 1.1.0); a unit test fails when another module reads a FerroEHR
+setting or names an openEHR path. It signs in as eduLIMS's own FerroEHR
+identity: an OAuth2 client credentials grant (RFC 6749 §4.4) at
+`FERROEHR_TOKEN_URL` for the `system/` scopes in `FERROEHR_SCOPE`, with the
+token cached until 30 seconds before it expires and fetched again once when
+FerroEHR answers `401`. FerroEHR issues no tokens and holds `system/` scopes
+for no Basic user, so Basic is not used. Every call has a timeout, follows no
+redirect, reads a capped body and returns a typed result (unreachable,
+timeout, refused authentication with its reason, refused by FerroEHR with the
+status and the openEHR error code, or an unusable answer). The client logs
+nothing, and its errors carry no token, secret, URL or body.
+
 Work that has to happen on a schedule runs inside the app container as a Nitro
 runtime plugin, because operators run only the images and no host cron job.
 The integration check of B3 is the first: every 60 seconds the server sends
 `OPTIONS` to the FerroEHR openEHR base URL (the System API of ITS-REST 1.1.0)
-and `GET /health/readiness` to FerroBRIDGE, both from configuration only, and
+through the openEHR client, without a credential as FerroEHR serves it, and `GET /health/readiness` to FerroBRIDGE, both from configuration only, and
 stores the latest result per integration in the eduLIMS database
 (`integration_checks`). A PostgreSQL advisory lock and the age of the last
 result make one replica check per interval. The Admin portal reads the stored

@@ -111,7 +111,9 @@ command -v openssl >/dev/null 2>&1 || {
 while IFS= read -r name; do unset "$name"; done < <(compgen -e | grep -E '^(FERRO|COMPOSE_)' || true)
 export EDULIMS_VERSION=0.0.0 POSTGRES_PASSWORD=example EDULIMS_DB_PASSWORD=example \
   FERROEHR_DB_PASSWORD=example BETTER_AUTH_SECRET=example \
-  BETTER_AUTH_URL=https://edulims.example.test EDULIMS_DATA_KEY=example
+  BETTER_AUTH_URL=https://edulims.example.test EDULIMS_DATA_KEY=example \
+  FERROEHR_TOKEN_URL=https://idp.example.test/token FERROEHR_CLIENT_ID=example \
+  FERROEHR_CLIENT_SECRET=example FERROEHR_SCOPE=example
 
 # compose_json <compose args>: the resolved file as JSON; --env-file /dev/null
 # never reads the operator's or developer's .env.

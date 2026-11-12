@@ -35,6 +35,10 @@ const appEnv = {
   EDULIMS_IDP_PRIVATE_ORIGINS:
     process.env["EDULIMS_E2E_KEYCLOAK_ORIGIN"] ?? "http://localhost:8180",
   FERROEHR_BASE_URL: "http://localhost:4001",
+  FERROEHR_TOKEN_URL: "http://localhost:4003/token",
+  FERROEHR_CLIENT_ID: "edulims-ferroehr",
+  FERROEHR_CLIENT_SECRET: "e2e-only-ferroehr-client-secret",
+  FERROEHR_SCOPE: "system/template-*.cr",
   FERROBRIDGE_BASE_URL: "http://localhost:4002",
   EDULIMS_DEV_LOGIN: "true",
 };

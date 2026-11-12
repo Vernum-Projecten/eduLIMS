@@ -9,7 +9,7 @@ import { getDb } from "../db/index.ts";
 import { getEnv } from "../env.ts";
 import { requireRole } from "../middleware.ts";
 import { checkNow, readStatus } from "./checks.ts";
-import { DEFAULT_PROBE_DEPS } from "./probe.ts";
+import { defaultProbeDeps } from "./probe.ts";
 import { integrationStatusInput } from "./schemas.ts";
 
 /** Returns the latest check of every integration. */
@@ -23,5 +23,5 @@ export const checkIntegrationsNow = createServerFn({ method: "POST" })
   .middleware([requireRole("admin")])
   .validator(integrationStatusInput)
   .handler(({ context }) =>
-    checkNow({ db: getDb(), env: getEnv(), deps: DEFAULT_PROBE_DEPS, actor: context.user }),
+    checkNow({ db: getDb(), env: getEnv(), deps: defaultProbeDeps(), actor: context.user }),
   );

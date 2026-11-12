@@ -3,6 +3,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  DEV_FERROEHR_CLIENT_SECRET,
   databaseTlsProblem,
   EnvConfigError,
   envFields,
@@ -185,6 +186,59 @@ describe("identity-provider settings (#46, ADR 0015)", () => {
       expect(Object.keys(parseEnv({ ...VALID_ENV, [name]: "x" }))).not.toContain(name);
     },
   );
+});
+
+describe("FerroEHR client credentials (#145, RFC 6749 §4.4)", () => {
+  it.each([
+    "FERROEHR_TOKEN_URL",
+    "FERROEHR_CLIENT_ID",
+    "FERROEHR_CLIENT_SECRET",
+    "FERROEHR_SCOPE",
+  ] as const)("stops at a missing %s, naming it but not a value", (name) => {
+    const error: unknown = (() => {
+      try {
+        return parseEnv({ ...VALID_ENV, [name]: undefined });
+      } catch (caught) {
+        return caught;
+      }
+    })();
+    expect(error).toBeInstanceOf(EnvConfigError);
+    expect(error).toMatchObject({ variables: [name] });
+    expect(String(error)).not.toContain(VALID_ENV.FERROEHR_CLIENT_SECRET);
+  });
+
+  it("parses the four settings", () => {
+    const env = parseEnv(VALID_ENV);
+    expect([
+      env.FERROEHR_TOKEN_URL,
+      env.FERROEHR_CLIENT_ID,
+      env.FERROEHR_CLIENT_SECRET,
+      env.FERROEHR_SCOPE,
+    ]).toEqual([
+      VALID_ENV.FERROEHR_TOKEN_URL,
+      VALID_ENV.FERROEHR_CLIENT_ID,
+      VALID_ENV.FERROEHR_CLIENT_SECRET,
+      VALID_ENV.FERROEHR_SCOPE,
+    ]);
+  });
+
+  it("refuses a token URL that is not http(s)", () => {
+    expect(() => parseEnv({ ...VALID_ENV, FERROEHR_TOKEN_URL: "ftp://idp.test/token" })).toThrow(
+      /FERROEHR_TOKEN_URL/,
+    );
+  });
+
+  it("refuses the development client secret in production (ASVS V13.2.3)", () => {
+    const production = { ...VALID_ENV, ...PRODUCTION };
+    expect(() =>
+      parseEnv({ ...production, FERROEHR_CLIENT_SECRET: DEV_FERROEHR_CLIENT_SECRET }),
+    ).toThrow(/FERROEHR_CLIENT_SECRET/);
+    expect(parseEnv(production).FERROEHR_CLIENT_SECRET).toBe(VALID_ENV.FERROEHR_CLIENT_SECRET);
+    expect(
+      parseEnv({ ...VALID_ENV, FERROEHR_CLIENT_SECRET: DEV_FERROEHR_CLIENT_SECRET })
+        .FERROEHR_CLIENT_SECRET,
+    ).toBe(DEV_FERROEHR_CLIENT_SECRET);
+  });
 });
 
 describe("PostgreSQL TLS in production (#40, ASVS V12.3.1)", () => {

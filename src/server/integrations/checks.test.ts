@@ -9,6 +9,7 @@ import { INTEGRATION_CHECK_LOCK_KEY } from "../db/advisory-locks.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb, testDatabaseUrl } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
+import { testOpenEhrClient } from "../openehr/test-client.ts";
 import {
   CHECK_INTERVAL_MS,
   checkAndStore,
@@ -49,7 +50,8 @@ function services(ehr: number | "down", bridge: number | "down") {
 }
 
 function deps(fetch: ProbeFetch, now = NOW): ProbeDeps {
-  return { fetch, now: () => now, elapsed: () => 0 };
+  const openEhr = testOpenEhrClient(fetch, { baseUrl: ENV.FERROEHR_BASE_URL });
+  return { openEhr, fetch, now: () => now, elapsed: () => 0 };
 }
 
 async function context(fetch: ProbeFetch, now = NOW) {
