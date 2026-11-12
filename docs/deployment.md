@@ -900,7 +900,8 @@ TLS). This route is not tested here.
 
 `compose.dev.yaml` runs what `pnpm dev` needs: the same PostgreSQL image with
 the same databases, a read-only `edulims_readonly` role for the Postgres MCP
-server, and Keycloak in development mode with the `edulims` realm imported
+server (it reaches the `edulims` database only, never a test or run database;
+see [Local gates](../CONTRIBUTING.md#local-gates)), and Keycloak in development mode with the `edulims` realm imported
 from `docker/keycloak/edulims-realm.json` (an OIDC and a SAML client, and
 users with roles assigned directly, through groups, or both, each with its
 name as password; the
