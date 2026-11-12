@@ -9,7 +9,12 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  server: { port: 3000 },
+  server: {
+    port: 3000,
+    // Agent worktrees under .claude/worktrees/ are whole checkouts; watching them reloads the
+    // dev server whenever a worktree's tsconfig or source changes. Vite adds this to its defaults.
+    watch: { ignored: ["**/.claude/worktrees/**"] },
+  },
   resolve: { tsconfigPaths: true },
   plugins: [
     // Compiles messages/*.json with the options in project.inlang/paraglide.config.ts.
