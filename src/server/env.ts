@@ -28,7 +28,7 @@ const dataKey = () =>
 const originList = () =>
   z.string().transform((text, ctx) => {
     const origins: string[] = [];
-    for (const entry of text.split(",")) {
+    for (const [index, entry] of text.split(",").entries()) {
       const trimmed = entry.trim();
       if (!trimmed) continue;
       try {
@@ -38,7 +38,8 @@ const originList = () =>
         }
         origins.push(url.origin);
       } catch {
-        ctx.addIssue({ code: "custom", message: `"${trimmed}" is not an http(s) origin` });
+        // NOTE: ASVS V16.2.5; the message names the entry by position, never by its value.
+        ctx.addIssue({ code: "custom", message: `entry ${index + 1} is not an http(s) origin` });
         return z.NEVER;
       }
     }
@@ -120,6 +121,22 @@ export const envSchema = envFields.superRefine((env, ctx) => {
 
 export type Env = z.infer<typeof envSchema>;
 
+/**
+ * Thrown when the environment fails its schema. The message lists the problems for a person;
+ * {@link EnvConfigError.variables} names the variables, never their values, for a log line.
+ */
+export class EnvConfigError extends Error {
+  override readonly name = "EnvConfigError";
+  readonly kind = "env_invalid";
+  /** The names of the invalid variables, each once, in the order of the schema's issues. */
+  readonly variables: readonly string[];
+
+  constructor(variables: readonly string[], problems: string, options?: ErrorOptions) {
+    super(`Invalid environment configuration:\n${problems}`, options);
+    this.variables = [...new Set(variables.filter((name) => name !== ""))];
+  }
+}
+
 /** Parses an environment record, throwing one readable error listing every invalid variable. */
 export function parseEnv(source: Record<string, string | undefined>): Env {
   return parseWith(envSchema, source);
@@ -140,7 +157,8 @@ export function parseWith<T extends z.ZodType>(
   );
   const result = schema.safeParse(present);
   if (!result.success) {
-    throw new Error(`Invalid environment configuration:\n${z.prettifyError(result.error)}`);
+    const variables = result.error.issues.map((issue) => String(issue.path[0] ?? ""));
+    throw new EnvConfigError(variables, z.prettifyError(result.error), { cause: result.error });
   }
   return result.data;
 }

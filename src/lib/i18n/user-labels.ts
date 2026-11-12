@@ -82,6 +82,7 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   invitation_accepted: m.audit_action_invitation_accepted,
   invitation_resent: m.audit_action_invitation_resent,
   invitation_revoked: m.audit_action_invitation_revoked,
+  sys_data_key_rotated: m.audit_action_data_key_rotated,
 };
 
 /** Returns the name of an activity-log action; an action the screen does not know is "Other". */

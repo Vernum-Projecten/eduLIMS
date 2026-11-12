@@ -43,19 +43,26 @@ export function PortalOverview({
       }
     >
       {children}
-      <section aria-labelledby="overview-sections" className="flex flex-col gap-4">
-        <h2 id="overview-sections" className="text-lg font-semibold">
-          {m.overview_sections()}
-        </h2>
-        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {portal.sections.map((section) => (
-            <li key={section.to} className="flex">
-              <SectionCard section={section} />
-            </li>
-          ))}
-        </ul>
-      </section>
+      <PortalSections portal={portal} />
     </Page>
+  );
+}
+
+/** The sections of a portal's overview: one card per section, each linking to it. */
+export function PortalSections({ portal }: Readonly<{ portal: PortalNavigation }>) {
+  return (
+    <section aria-labelledby="overview-sections" className="flex flex-col gap-4">
+      <h2 id="overview-sections" className="text-lg font-semibold">
+        {m.overview_sections()}
+      </h2>
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {portal.sections.map((section) => (
+          <li key={section.to} className="flex">
+            <SectionCard section={section} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

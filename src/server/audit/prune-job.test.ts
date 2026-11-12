@@ -10,7 +10,7 @@ import { RETENTION_PRUNE_LOCK_KEY } from "../db/advisory-locks.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb, testDatabaseUrl } from "../db/test-db.ts";
 import { setSecurityLogWriter } from "../security-log.ts";
-import { describeFailure, runPrune, runScheduledPrune } from "./prune-job.ts";
+import { runPrune, runScheduledPrune } from "./prune-job.ts";
 import { recordAudit } from "./record.ts";
 
 let db: Kysely<DB> | undefined;
@@ -121,18 +121,23 @@ describe("runPrune (B4, #65)", () => {
 describe("runScheduledPrune (#65)", () => {
   it("logs a failure with its cause and a failure row, without throwing", async () => {
     const database = await setup();
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const lines: string[] = [];
     restoreLog = setSecurityLogWriter((line) => lines.push(line));
     await sql`alter table session rename to session_gone`.execute(database);
     expect(await runScheduledPrune(database, NOW)).toEqual({ kind: "failed" });
-    expect(error).toHaveBeenCalledWith(expect.stringMatching(/^retention_prune_failed cause=\S/));
     expect(await pruneRows(database)).toEqual([
       expect.objectContaining({ outcome: "failure", reason_code: "prune_failed", metadata: null }),
     ]);
     const left = await database.selectFrom("audit_event").select("actor_id").execute();
     expect(left.map((e) => e.actor_id)).toContain("old");
     expect(lines.map((line) => JSON.parse(line))).toEqual([
+      // 42P01 undefined_table: the SQLSTATE, never the message that names the table.
+      expect.objectContaining({
+        level: "error",
+        event: "retention_prune_failed",
+        actor_type: "system",
+        cause: expect.arrayContaining(["error:42P01"]),
+      }),
       expect.objectContaining({
         level: "error",
         event: "sys_retention_prune",
@@ -140,15 +145,5 @@ describe("runScheduledPrune (#65)", () => {
         reason: "prune_failed",
       }),
     ]);
-  });
-});
-
-describe("describeFailure", () => {
-  it("names the cause chain by class and code, never by message", () => {
-    const cause = Object.assign(new Error("row of Prune Person"), { code: "23505" });
-    const text = describeFailure(new TypeError("outer", { cause }));
-    expect(text).toBe("TypeError <- Error(23505)");
-    expect(describeFailure("text")).toBe("string");
-    expect(describeFailure(Object.assign(new Error("x"), { code: "a b" }))).toBe("Error");
   });
 });
