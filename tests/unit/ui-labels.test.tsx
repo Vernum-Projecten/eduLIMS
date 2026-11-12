@@ -5,7 +5,7 @@
 // The shadcn/ui primitives name their built-in controls through the i18n layer, so a Dutch
 // user never hears English (WCAG 3.1.2; #27, #55).
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   Breadcrumb,
   BreadcrumbEllipsis,
@@ -141,6 +141,19 @@ describe("the other built-in labels in Dutch", () => {
     expect(screen.getByRole("button", { name: "Ga naar volgende maand" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Ga naar vorige maand" })).toBeDefined();
     expect(screen.queryByRole("button", { name: /Go to the Next Month/i })).toBeNull();
+  });
+
+  it("marks today in the app's time zone, not the browser's", () => {
+    // 23:30 UTC on 11 November is already 12 November in Amsterdam (APP_TIME_ZONE).
+    vi.useFakeTimers({ now: new Date("2026-11-11T23:30:00Z"), toFake: ["Date"] });
+    try {
+      inLocale("en");
+      const { container } = render(<Calendar mode="single" />);
+      const today = container.querySelector("[data-today]");
+      expect(today?.textContent).toBe("12");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps the English month buttons in English", () => {

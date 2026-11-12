@@ -57,3 +57,17 @@ export function endOfDayIn(day: string, timeZone: string = APP_TIME_ZONE): Date 
   const second = midnightUtc - zoneOffset(new Date(first), timeZone);
   return new Date(second);
 }
+
+/**
+ * Returns the instant the calendar day `day` (`YYYY-MM-DD`) starts in `timeZone`: the end of the
+ * day before it.
+ *
+ * @throws RangeError when `day` is not a `YYYY-MM-DD` date.
+ */
+export function startOfDayIn(day: string, timeZone: string = APP_TIME_ZONE): Date {
+  const match = DAY.exec(day);
+  if (!match) throw new RangeError(`invalid day: ${day}`);
+  const [, year, month, date] = match;
+  const before = new Date(Date.UTC(Number(year), Number(month) - 1, Number(date) - 1));
+  return endOfDayIn(before.toISOString().slice(0, 10), timeZone);
+}

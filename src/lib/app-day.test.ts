@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { dayIn, endOfDayIn } from "./app-day.ts";
+import { dayIn, endOfDayIn, startOfDayIn } from "./app-day.ts";
 
 describe("dayIn", () => {
   it("returns the calendar date in the app's time zone, not in UTC", () => {
@@ -25,5 +25,21 @@ describe("endOfDayIn", () => {
 
   it("throws for anything but YYYY-MM-DD", () => {
     expect(() => endOfDayIn("11-11-2026")).toThrow(RangeError);
+  });
+});
+
+describe("startOfDayIn", () => {
+  it("returns midnight at the start of the day in Europe/Amsterdam", () => {
+    expect(startOfDayIn("2026-11-11").toISOString()).toBe("2026-11-10T23:00:00.000Z");
+    expect(startOfDayIn("2026-07-01").toISOString()).toBe("2026-06-30T22:00:00.000Z");
+  });
+
+  it("crosses a month, a year and a clock change", () => {
+    expect(startOfDayIn("2026-01-01").toISOString()).toBe("2025-12-31T23:00:00.000Z");
+    expect(startOfDayIn("2026-03-30").toISOString()).toBe("2026-03-29T22:00:00.000Z");
+  });
+
+  it("throws for anything but YYYY-MM-DD", () => {
+    expect(() => startOfDayIn("2026-1-1")).toThrow(RangeError);
   });
 });
