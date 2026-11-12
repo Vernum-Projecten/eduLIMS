@@ -40,7 +40,9 @@ FROM --platform=$BUILDPLATFORM docker.io/library/node:26.13.0-trixie@sha256:4386
 # registry's sha512 integrity for that version (the same pin as
 # scripts/release/install-pnpm.sh). npm runs in /tmp on purpose: in /src the
 # `devEngines` field of package.json makes npm refuse to run, because it names
-# pnpm as the package manager.
+# pnpm as the package manager. The step leaves /tmp/pnpm before removing it:
+# pnpm 12 canonicalises its working directory first and stops when that
+# directory is gone (#217).
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG PNPM_VERSION=12.18.0
 ARG PNPM_INTEGRITY=sha512-nXiC1dyCFH7PxOBiqjSDTgrQKWcQoYN6ERWuASEn02txCeMhrBWYod0KZVl2gbHpmRfhLtDXSerpEYeUM2O+sw==
@@ -49,6 +51,7 @@ RUN tarball="$(npm pack --silent "pnpm@${PNPM_VERSION}")" \
  && got="sha512-$(openssl dgst -sha512 -binary "${tarball}" | openssl base64 -A)" \
  && if [ "${got}" != "${PNPM_INTEGRITY}" ]; then echo "pnpm ${PNPM_VERSION} has integrity ${got}, not ${PNPM_INTEGRITY}" >&2; exit 1; fi \
  && npm install --global --no-audit --no-fund "./${tarball}" \
+ && cd / \
  && rm -rf /tmp/pnpm \
  && pnpm --version
 
@@ -65,14 +68,16 @@ RUN pnpm build
 
 # The production dependency tree for the tools target, with the target
 # platform's optional native binaries. pnpm names architectures as Node.js
-# does (x64, arm64), and buildx names them as Go does (amd64, arm64).
+# does (x64, arm64), and buildx names them as Go does (amd64, arm64). The
+# workspace also holds the website package, so the filter names the app:
+# pnpm deploys exactly one project (#217).
 ARG TARGETARCH
 RUN case "${TARGETARCH}" in \
       amd64) cpu=x64 ;; \
       arm64) cpu=arm64 ;; \
       *) echo "no pnpm cpu name for ${TARGETARCH}" >&2; exit 1 ;; \
     esac \
- && pnpm deploy --prod --frozen-lockfile --os=linux --cpu="${cpu}" --libc=glibc /deploy
+ && pnpm --filter=edulims deploy --prod --frozen-lockfile --os=linux --cpu="${cpu}" --libc=glibc /deploy
 
 # ── the two places `.output/` can come from ──────────────────────────────────
 FROM build AS output-source
