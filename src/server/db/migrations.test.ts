@@ -243,11 +243,11 @@ describe("migrations", () => {
     const database = await createTestDb();
     db = database;
     const migrator = createMigrator(database);
-    const down = await migrator.migrateTo("0011_audit_event_indexes");
+    // The migration below 0013 is 0012_classes; 0015 and then 0013 revert.
+    const down = await migrator.migrateTo("0012_classes");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_class_join_code", "Success"],
       ["0013_scim", "Success"],
-      ["0012_classes", "Success"],
     ]);
     const user = (id: string, roleSource: string) =>
       sql`insert into "user" (id, name, email, "emailVerified", role, role_source)

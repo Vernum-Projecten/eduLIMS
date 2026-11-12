@@ -98,13 +98,13 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
   return betterAuth({
     advanced: {
       ...authCookieOptions(env.BETTER_AUTH_URL),
+      // NOTE: owner decision on #28; every better-auth id is a UUIDv7, classes included.
+      database: { generateId: () => newId() },
       // NOTE: #45 (second review, finding 2); X-Forwarded-For is read only through the proxies
       // the operator lists, walked right to left, so a client cannot pick its own address.
       ...(env.EDULIMS_TRUSTED_PROXIES.length > 0
         ? { ipAddress: { trustedProxies: [...env.EDULIMS_TRUSTED_PROXIES] } }
         : {}),
-      // NOTE: owner decision on #28; every better-auth id is a UUIDv7, classes included.
-      database: { generateId: () => newId() },
     },
     appName: "eduLIMS",
     baseURL: env.BETTER_AUTH_URL,

@@ -442,6 +442,10 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - name: Every fragment is well formed
+        # Runs even with the no-changelog label: a fragment that is not a list
+        # item would break the release cut (docs/release.md).
+        run: bash scripts/release/changelog.sh --check
       - name: The pull request carries a changelog entry
         env:
           GH_TOKEN: ${{ github.token }}
