@@ -93,6 +93,21 @@ describe("activity log labels (#36)", () => {
     ).toEqual([expect.stringMatching(/^Blocked until Nov 21, 2026/)]);
   });
 
+  it("names the previous owner of a transferred class by id (#37)", () => {
+    expect(
+      activityDetails({
+        reason: null,
+        provider: null,
+        metadata: { user_id: "new-owner-id", previous_user_id: "old-owner-id" },
+      }),
+    ).toEqual(["Person new-owner-id", "Previous owner old-owner-id"]);
+    expect(activityReasonLabel("already_owner")).toBe("the chosen teacher already owns the class");
+    expect(activityReasonLabel("not_archived")).toBe("the class is not archived");
+    expect(activityReasonLabel("not_a_teacher")).toBe(
+      "the chosen owner does not have the teacher role",
+    );
+  });
+
   it("summarises the identity provider metadata", () => {
     expect(
       activityDetails(

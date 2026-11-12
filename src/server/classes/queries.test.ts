@@ -5,12 +5,12 @@ import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
+import { listAdminClassPage } from "./admin-queries.ts";
 import { archiveClass, createClass } from "./classes.ts";
 import { createGroups, moveStudent } from "./groups.ts";
 import { createInvitations } from "./invitations.ts";
 import {
   getTeacherClass,
-  listAdminClasses,
   listGroupSetSources,
   listStudentClasses,
   listStudentInvitations,
@@ -176,7 +176,7 @@ describe("listGroupSetSources", () => {
   });
 });
 
-describe("listAdminClasses (#28: oversight without grades or results, R-01)", () => {
+describe("listAdminClassPage (#28, #37: oversight without grades or results, R-01)", () => {
   it("lists every class with owner, co-teachers and counts, and nothing else", async () => {
     const database = await open();
     const { classId, owner, coTeacher } = await classWithPeople(database);
@@ -186,7 +186,7 @@ describe("listAdminClasses (#28: oversight without grades or results, R-01)", ()
       { classId, role: "student", emails: ["p@example.test"] },
       NOW,
     );
-    const rows = await listAdminClasses(database, NOW);
+    const { rows } = await listAdminClassPage(database, { roles: ["admin"] }, {}, NOW);
     expect(rows).toEqual([
       {
         id: classId,

@@ -82,6 +82,12 @@ export function classErrorMessage(code: string | null): string {
       return m.classes_error_group_set_empty();
     case "invitation_not_found":
       return m.classes_error_invitation_not_found();
+    case "not_a_teacher":
+      return m.classes_error_not_a_teacher();
+    case "already_owner":
+      return m.classes_error_already_owner();
+    case "owner_blocked":
+      return m.classes_error_owner_blocked();
     default:
       return m.classes_error_failed();
   }

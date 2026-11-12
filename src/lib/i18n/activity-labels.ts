@@ -96,6 +96,7 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   admin_grant: m.admin_activity_reason_admin_grant,
   admin_grant_override: m.admin_activity_reason_admin_grant_override,
   admin_revoke: m.admin_activity_reason_admin_revoke,
+  already_owner: m.admin_activity_reason_already_owner,
   archived: m.admin_activity_reason_class_archived,
   banned_user: m.admin_activity_reason_banned_user,
   cannot_change_own_roles: m.admin_activity_reason_own_roles,
@@ -104,6 +105,9 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   invalid_code: m.admin_activity_reason_invalid_code,
   invalid_email_or_password: m.admin_activity_reason_invalid_password,
   no_edulims_role: m.admin_activity_reason_no_role,
+  not_a_teacher: m.admin_activity_reason_not_a_teacher,
+  not_archived: m.admin_activity_reason_not_archived,
+  owner_blocked: m.admin_activity_reason_owner_blocked,
   owns_class: m.admin_activity_reason_owns_class,
   role_conflict: m.admin_activity_reason_role_conflict,
   roles_not_local: m.admin_activity_reason_roles_not_local,
@@ -164,6 +168,9 @@ function classParts(metadata: AuditMetadata): string[] {
     parts.push(m.admin_activity_detail_class_role({ role: classRoleLabel(metadata.class_role) }));
   }
   if (metadata.user_id) parts.push(m.admin_activity_detail_person({ id: metadata.user_id }));
+  if (metadata.previous_user_id) {
+    parts.push(m.admin_activity_detail_previous_owner({ id: metadata.previous_user_id }));
+  }
   if (metadata.group_change) {
     parts.push(
       m.admin_activity_detail_group_change({ change: groupChangeLabel(metadata.group_change) }),

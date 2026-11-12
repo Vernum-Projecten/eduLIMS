@@ -7,6 +7,7 @@ import type { Auth } from "../auth.ts";
 import { UUID_PATTERN } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { authOnTestDb, createUser, signIn } from "../users/test-helpers.ts";
+import { adminTransferOwnership } from "./admin.ts";
 import { createClass } from "./classes.ts";
 import { createInvitations } from "./invitations.ts";
 import {
@@ -173,5 +174,36 @@ describe("the organization plugin set-up (#28, ADR 0018)", () => {
     await auth.api.removeUser({ body: { userId: otherId }, headers });
     const gone = await database.selectFrom("user").select("id").where("id", "=", otherId).execute();
     expect(gone).toEqual([]);
+  });
+  it("deletes a former owner once an administrator transferred the class (#37)", async () => {
+    const { auth, db: database } = await setup();
+    const adminId = await createUser(auth, "admin@example.test", ["admin"]);
+    const ownerId = await createUser(auth, "owner@example.test", ["teacher"]);
+    const heirId = await createUser(auth, "heir@example.test", ["teacher"]);
+    const created = await createClass(
+      database,
+      { id: ownerId, roles: ["teacher"] },
+      { name: "LS-2A", academicYear: "2026-2027" },
+      NOW,
+    );
+    if (!created.ok) throw new Error(created.error);
+    const { classId } = created.value;
+    const moved = await adminTransferOwnership(
+      database,
+      { id: adminId, roles: ["admin"] },
+      { classId, userId: heirId },
+      NOW,
+    );
+    expect(moved.ok).toBe(true);
+    const headers = await signIn(auth, "admin@example.test");
+    await auth.api.removeUser({ body: { userId: ownerId }, headers });
+    const gone = await database.selectFrom("user").select("id").where("id", "=", ownerId).execute();
+    expect(gone).toEqual([]);
+    const members = await database
+      .selectFrom("member")
+      .select(["userId", "role"])
+      .where("organizationId", "=", classId)
+      .execute();
+    expect(members).toEqual([{ userId: heirId, role: "owner" }]);
   });
 });

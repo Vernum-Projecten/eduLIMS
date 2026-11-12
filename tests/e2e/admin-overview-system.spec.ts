@@ -73,10 +73,11 @@ test("the overview's links open their screens with the filter in the URL (#36)",
   await expect(page).toHaveURL(/\/admin\/users\?/);
   expect(new URL(page.url()).searchParams.get("status")).toBe('["blocked"]');
 
-  // The class tiles open the class list (#28).
+  // The class tiles open the class list (#28), the active-classes tile filtered on active (#37).
   await page.goto("/admin");
   await section(page, "Accounts").getByRole("link", { name: "Active classes" }).click();
-  await expect(page).toHaveURL(/\/admin\/classes$/);
+  await expect(page).toHaveURL(/\/admin\/classes\/?\?/);
+  expect(new URL(page.url()).searchParams.get("status")).toBe('["active"]');
   await expect(page.getByRole("heading", { level: 1, name: "Classes" })).toBeVisible();
 
   await page.goto("/admin");

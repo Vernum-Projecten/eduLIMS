@@ -69,9 +69,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn("status", "text", (col) => col.notNull().defaultTo("pending"))
     .addColumn("expiresAt", "timestamptz", (col) => col.notNull())
     .addColumn("createdAt", "timestamptz", (col) => col.notNull().defaultTo(sql`now()`))
-    .addColumn("inviterId", "text", (col) =>
-      col.notNull().references("user.id").onDelete("cascade"),
-    )
+    // NOTE: #37; deleting the inviter (a teacher or an administrator) keeps their invitations.
+    .addColumn("inviterId", "text", (col) => col.references("user.id").onDelete("set null"))
     // When the invitation stopped being pending; the 90-day retention counts from here.
     .addColumn("ended_at", "timestamptz")
     .addCheckConstraint("invitation_email", sql`email = lower(btrim(email)) and email like '%_@_%'`)

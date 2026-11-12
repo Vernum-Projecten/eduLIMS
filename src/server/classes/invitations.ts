@@ -130,53 +130,66 @@ export function previewInvitations(
 }
 
 /**
- * Creates an invitation for every `new` row of the list, in one transaction with an
+ * Creates an invitation for every `new` row of `emails` inside the caller's transaction, with an
  * `invitation_created` row each, and returns every row with its status. An expired pending
- * invitation for the same address is ended first, so the address gets a fresh one.
+ * invitation for the same address is ended first, so the address gets a fresh one. The caller
+ * has locked the class and checked the actor's right to invite.
  */
+export async function writeInvitations(
+  trx: Kysely<DB>,
+  actorId: string,
+  classId: string,
+  role: InvitationRole,
+  emails: readonly string[],
+  now: Date,
+): Promise<InviteOutcome> {
+  const rows = await classifyInvitees(trx, classId, role, emails, now);
+  const fresh = rows.filter((row) => row.status === "new").map((row) => row.email);
+  if (fresh.length > 0) {
+    await trx
+      .updateTable("invitation")
+      .set({ status: "canceled", ended_at: now })
+      .where("organizationId", "=", classId)
+      .where("status", "=", "pending")
+      .where("email", "in", fresh)
+      .execute();
+  }
+  for (const email of fresh) {
+    const id = newId();
+    await trx
+      .insertInto("invitation")
+      .values({
+        id,
+        organizationId: classId,
+        email,
+        role,
+        status: "pending",
+        inviterId: actorId,
+        createdAt: now,
+        expiresAt: invitationExpiry(now),
+      })
+      .execute();
+    await recordAudit(trx, {
+      action: "invitation_created",
+      actor: { type: "user", id: actorId },
+      outcome: "success",
+      target: { type: "invitation", id },
+      metadata: { class_id: classId, class_role: role },
+    });
+  }
+  return { created: fresh.length, rows };
+}
+
+/** Creates the invitations of a list's `new` rows in one transaction ({@link writeInvitations}). */
 export function createInvitations(
   db: Kysely<DB>,
   actor: ClassActor,
   input: { classId: string; role: InvitationRole; emails: readonly string[] },
   now: Date,
 ): Promise<ClassResult<InviteOutcome>> {
-  return withClass(db, actor, inviteCheck(input.classId, input.role), async (trx, locked) => {
-    const rows = await classifyInvitees(trx, locked.id, input.role, input.emails, now);
-    const fresh = rows.filter((row) => row.status === "new").map((row) => row.email);
-    if (fresh.length > 0) {
-      await trx
-        .updateTable("invitation")
-        .set({ status: "canceled", ended_at: now })
-        .where("organizationId", "=", locked.id)
-        .where("status", "=", "pending")
-        .where("email", "in", fresh)
-        .execute();
-    }
-    for (const email of fresh) {
-      const id = newId();
-      await trx
-        .insertInto("invitation")
-        .values({
-          id,
-          organizationId: locked.id,
-          email,
-          role: input.role,
-          status: "pending",
-          inviterId: actor.id,
-          createdAt: now,
-          expiresAt: invitationExpiry(now),
-        })
-        .execute();
-      await recordAudit(trx, {
-        action: "invitation_created",
-        actor: { type: "user", id: actor.id },
-        outcome: "success",
-        target: { type: "invitation", id },
-        metadata: { class_id: locked.id, class_role: input.role },
-      });
-    }
-    return done({ created: fresh.length, rows });
-  });
+  return withClass(db, actor, inviteCheck(input.classId, input.role), async (trx, locked) =>
+    done(await writeInvitations(trx, actor.id, locked.id, input.role, input.emails, now)),
+  );
 }
 
 async function pendingInvitationRole(

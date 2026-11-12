@@ -11,6 +11,7 @@ import {
   MailIcon,
   MonitorSmartphoneIcon,
   SchoolIcon,
+  ShieldAlertIcon,
   ShieldCheckIcon,
   UsersIcon,
 } from "lucide-react";
@@ -61,7 +62,8 @@ function Tile({
 /**
  * The account tiles of the overview (#36): users per role, active sessions, blocked users, and
  * the active classes and pending class invitations (#28). A tile with a filter of the Users
- * screen links to it with that filter in the URL; the class tiles link to the class list.
+ * screen links to it with that filter in the URL; the active-classes tile links to the class
+ * list filtered on active classes (#37), the invitations tile to the whole list.
  */
 export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
   return (
@@ -139,12 +141,26 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
           label={m.admin_overview_classes()}
           value={counts.classes}
           link={
-            <Link to="/admin/classes" className={COVER_LINK}>
+            <Link to="/admin/classes" search={{ status: ["active"] }} className={COVER_LINK}>
               {m.admin_overview_classes()}
             </Link>
           }
         />
       </li>
+      {counts.classesOwnerNotTeacher > 0 && (
+        <li className="flex">
+          <Tile
+            icon={ShieldAlertIcon}
+            label={m.admin_overview_classes_owner_not_teacher()}
+            value={counts.classesOwnerNotTeacher}
+            link={
+              <Link to="/admin/classes" search={{ ownerNotTeacher: true }} className={COVER_LINK}>
+                {m.admin_overview_classes_owner_not_teacher()}
+              </Link>
+            }
+          />
+        </li>
+      )}
       <li className="flex">
         <Tile
           icon={MailIcon}

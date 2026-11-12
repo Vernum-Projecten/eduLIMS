@@ -270,8 +270,39 @@ Teachers create their own classes and invite their students and
 co-teachers; see the teacher guide. **Classes** in the admin portal lists
 every class in eduLIMS, newest academic year first, with its owner, its
 co-teachers, the number of students, the number of pending invitations and
-whether it is archived. It shows no grades or results. The list is
-read-only.
+whether it is archived. It shows no grades or results. It shows active
+classes until you choose **Archived** under **Status**. Search by the class
+name or a teacher's name, and filter by status, academic year and owner; the
+filters stay in the address, so you can share a filtered list.
+
+You are not a member of the classes you manage, and none of the actions
+below makes you one. Each one asks you to confirm or to fill in a short
+form:
+
+- **New class:** create a class on a teacher's behalf. Choose its name, its
+  academic year and the owner: search for a teacher by name or email
+  address. Only people with the teacher role who are not blocked are
+  offered. The class opens on its own page.
+- **Class page:** open a class from the list to see its members (names and
+  class roles), its pending invitations and its counts.
+- **Import students:** on the class page, type or paste student addresses,
+  or read a CSV file with one address per line. **Check list** shows what
+  happens to each address before anything is created: not a valid address,
+  a duplicate in the list, already a member, already invited, or new.
+  **Import** then creates a pending student invitation for each new
+  address, the same invitation a teacher creates. A student joins the class
+  only when they sign in with that address.
+- **Transfer ownership:** choose any user with the teacher role who is not
+  blocked as the new owner, member of the class or not. The old owner stays as a co-teacher
+  while they have the teacher role and otherwise leaves the class.
+- **Archive** and **Reopen:** an archived class is read-only for its owner
+  and co-teachers and keeps its members, groups and history.
+
+When the owner of a class loses the teacher role, eduLIMS does not move the
+class by itself. The overview then shows **Classes whose owner is not a
+teacher** with their number; it opens the class list filtered to them (the
+**Owner is not a teacher** filter), where you transfer each class to a
+teacher.
 
 A person who signs in with an address a class invited joins that class
 without any further step. When the identity provider sends no eduLIMS role
@@ -279,12 +310,13 @@ for a person signing in for the first time, a pending invitation as a
 student gives them the student role, and only that role, if the provider's
 email addresses are marked as verified. It never gives back a role the
 identity provider took away. You cannot delete a user who owns a class:
-the owner transfers the class to a co-teacher first. Teacher and administrator roles always come from the identity
+transfer the ownership of their classes first, here or by the owner to a
+co-teacher. Teacher and administrator roles always come from the identity
 provider or from **Users and roles**.
 
-Creating, inviting, accepting, removing, archiving, copying, transferring
-ownership and every lab-group change are recorded in the activity log, with
-ids only.
+Creating, inviting, accepting, removing, archiving, reopening, copying,
+transferring ownership and every lab-group change are recorded in the
+activity log, with ids only, including the actions of administrators.
 
 ## System
 
@@ -349,5 +381,4 @@ deleted shows as **Deleted user**. Events are kept for 12 months.
 
 | Task                                                                          | Requirement                      |
 | ----------------------------------------------------------------------------- | -------------------------------- |
-| Create classes and link students to a class, by hand or by CSV import         | [B2](/development/requirements/) |
 | Read the log of uploads, HL7 messages and errors                              | [B4](/development/requirements/) |

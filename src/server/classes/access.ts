@@ -37,6 +37,9 @@ export const CLASS_ACTION_ERRORS = [
   "group_set_exists",
   "group_set_empty",
   "invitation_not_found",
+  "not_a_teacher",
+  "already_owner",
+  "owner_blocked",
 ] as const;
 export type ClassActionError = (typeof CLASS_ACTION_ERRORS)[number];
 
