@@ -40,6 +40,9 @@ Every design decision can be checked against these principles.
 
 ## Context and integrations
 
+The end-to-end workflow, from the patient to the graded lab report, with its
+diagrams and the ownership rules, is in [The LIMS workflow](lims-workflow.md).
+
 eduLIMS integrates with the systems below. An external grade-book system is
 out of scope: grading stays in eduLIMS, and teachers can take grades elsewhere
 with the CSV export (D6).
