@@ -35,9 +35,8 @@ jobs:
     env:
       COMPOSE_PROJECT: edulims-ci
       EDULIMS_IT_REQUIRE_STACK: "1"
-      # The database the Vitest global setup creates its run database beside,
-      # which the stack's init scripts create.
-      TEST_DATABASE_URL: postgres://edulims:edulims@localhost:5432/edulims_test
+      # The Vitest global setup creates its run database beside edulims_test, which the
+      # stack's init scripts create; src/server/db/test-db.ts defaults to it, so no URL here.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -37,7 +37,7 @@ is a question for the owner, never a number you pick.
 |---|---|---|---|---|
 | Unit | Core rules: final grade from the rubric (D4), the five KPIs (D5), deadline and lock after submit (S6), sample-ID generation (S3) | Vitest | `*.test.ts` next to the code, or `tests/unit/` | every change (`pnpm test`) |
 | Data | Gen5 Excel: sample IDs, well positions, empty and duplicate values (S4); Afinion HL7 to openEHR (S5) | Vitest with the fixed good and bad files | `tests/unit/` with `tests/fixtures/` | every change |
-| Integration | eduLIMS with FerroEHR (REST, AQL), FerroBRIDGE with an HL7 message, sign-in | Vitest or Playwright against the Compose test stack; the HL7 message is simulated | `tests/integration/` | every release |
+| Integration | eduLIMS with FerroEHR (REST, AQL), FerroBRIDGE with an HL7 message, sign-in | Vitest or Playwright against the Compose test stack; the HL7 message is simulated | `tests/integration/` | the `integration` lane: pull requests that touch the integration, and nightly on `main` (#150) |
 | Security | Role isolation: a student sees nothing of others, a teacher only their own classes; vulnerable libraries | role-scoped negative tests with test accounts; dependency scan in CI | next to the server function | every change and every release |
 | Accessibility | Student, Teacher and Admin portals and the dashboard | Playwright + `@axe-core/playwright`, plus a keyboard-only pass | `tests/e2e/` (`pnpm test:e2e`) | every change in CI, before every milestone review |
 | Performance | Page load and Excel upload with a full practical of test data | Playwright timings in the test stack | `tests/e2e/` | before every milestone review |
