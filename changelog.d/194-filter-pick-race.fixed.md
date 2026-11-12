@@ -1,0 +1,1 @@
+- Two quick filter, sort or page changes on the users, activity log, classes and analyser tables now both apply: a second pick made before the page caught up no longer drops the first (#194).

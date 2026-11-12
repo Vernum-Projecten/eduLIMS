@@ -5,7 +5,13 @@
 // (#58): sorting as `sort` and `dir`, pagination as a one-based `page` and `size`, and column
 // filters under their own search keys. A default is left out of the URL, so a plain link shows
 // the default view and every view has one address.
-import type { ColumnFiltersState, PaginationState, SortingState } from "@tanstack/react-table";
+import {
+  type ColumnFiltersState,
+  functionalUpdate,
+  type PaginationState,
+  type SortingState,
+  type Updater,
+} from "@tanstack/react-table";
 
 /** The sort of a table in the URL: a column and a direction; ascending when `dir` is absent. */
 export interface SortSearch<TField extends string> {
@@ -91,4 +97,56 @@ export function searchFromFilters<TKey extends string>(
     return [key, isEmpty(value) ? undefined : value] as const;
   });
   return Object.fromEntries(entries) as Record<TKey, unknown>;
+}
+
+/** The slices of a server-processed table that the URL holds; a table without sorting has none. */
+export interface UrlTableState {
+  sorting?: SortingState;
+  columnFilters: ColumnFiltersState;
+  pagination: PaginationState;
+}
+
+/** A change of one slice the URL holds. */
+export type UrlTableChange =
+  | { sorting: SortingState }
+  | { columnFilters: ColumnFiltersState }
+  | { pagination: PaginationState };
+
+/** How one table maps between its route's search and the slices the URL holds. */
+export interface UrlTableMapping<TSearch> {
+  /** Returns the table's slices for a search. */
+  state: (search: TSearch) => UrlTableState;
+  /** Returns the search after one change of a slice. */
+  next: (prev: TSearch, change: UrlTableChange) => TSearch;
+}
+
+/** The change handlers a server-processed table passes to `useTable`. */
+export interface UrlTableHandlers {
+  onSortingChange: (updater: Updater<SortingState>) => void;
+  onColumnFiltersChange: (updater: Updater<ColumnFiltersState>) => void;
+  onPaginationChange: (updater: Updater<PaginationState>) => void;
+}
+
+/**
+ * Returns a table's change handlers. Each one reads the search with `read` when it runs and
+ * applies the table's updater to that search, never to the one the page last rendered, so two
+ * changes made before a re-render both stay (#194). `write` gets the next and the read search.
+ */
+export function urlTableHandlers<TSearch>(
+  mapping: UrlTableMapping<TSearch>,
+  read: () => TSearch,
+  write: (next: TSearch, prev: TSearch) => void,
+): UrlTableHandlers {
+  function apply(change: (state: UrlTableState) => UrlTableChange) {
+    const prev = read();
+    write(mapping.next(prev, change(mapping.state(prev))), prev);
+  }
+  return {
+    onSortingChange: (updater) =>
+      apply((state) => ({ sorting: functionalUpdate(updater, state.sorting ?? []) })),
+    onColumnFiltersChange: (updater) =>
+      apply((state) => ({ columnFilters: functionalUpdate(updater, state.columnFilters) })),
+    onPaginationChange: (updater) =>
+      apply((state) => ({ pagination: functionalUpdate(updater, state.pagination) })),
+  };
 }
