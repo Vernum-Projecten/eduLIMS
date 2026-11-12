@@ -94,8 +94,6 @@ function JoinCodeSettingsForm({
       className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
-        // A refusal (another teacher changed the code) must not block a retry with the same values.
-        applyServerRefusal(form, {});
         void form.handleSubmit();
       }}
     >

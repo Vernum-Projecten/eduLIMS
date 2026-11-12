@@ -268,3 +268,115 @@ describe("server refusals", () => {
     await waitFor(() => expect(document.activeElement).toBe(alert));
   });
 });
+
+/** A form as eduLIMS builds them: `revalidateLogic`, a schema and a text field sent with Enter. */
+function KeptRefusalForm({
+  refuse,
+  onSend,
+}: Readonly<{ refuse: "form" | "field"; onSend: (email: string) => void }>) {
+  const form = useAppForm({
+    defaultValues: { email: "student@example.test", note: "" },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: z.object({ email: z.string().min(1), note: z.string() }) },
+    onSubmit: ({ value, formApi }) => {
+      onSend(value.email);
+      applyServerRefusal(
+        formApi,
+        refuse === "form"
+          ? { form: "The check failed. Try again." }
+          : { fields: { email: "This address is not linked to a provider." } },
+      );
+    },
+  });
+  return (
+    <form
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        void form.handleSubmit();
+      }}
+    >
+      <form.AppForm>
+        <form.FormErrors title={null} />
+        <form.AppField name="email">{(field) => <field.TextField label="Email" />}</form.AppField>
+        <form.AppField name="note">{(field) => <field.TextField label="Note" />}</form.AppField>
+        <form.SubmitButton>Continue</form.SubmitButton>
+      </form.AppForm>
+    </form>
+  );
+}
+
+describe("kept server refusals (#120)", () => {
+  function sendWithEnter(): HTMLElement {
+    const email = screen.getByLabelText("Email");
+    email.focus();
+    fireEvent.submit(email.closest("form") ?? email);
+    return email;
+  }
+
+  it("keeps a form refusal on screen and focused after Enter from a field", async () => {
+    render(<KeptRefusalForm refuse="form" onSend={() => undefined} />);
+    sendWithEnter();
+    const alert = await screen.findByRole("alert");
+    await waitFor(() => expect(document.activeElement).toBe(alert));
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(screen.getByRole("alert").textContent).toBe("The check failed. Try again.");
+    expect(document.activeElement).toBe(alert);
+  });
+
+  it("clears a form refusal when the user changes a field", async () => {
+    render(<KeptRefusalForm refuse="form" onSend={() => undefined} />);
+    sendWithEnter();
+    await screen.findByRole("alert");
+    fireEvent.change(screen.getByLabelText("Note"), { target: { value: "x" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("moves focus to the form refusal again when a resend is refused again", async () => {
+    render(<KeptRefusalForm refuse="form" onSend={() => undefined} />);
+    sendWithEnter();
+    const alert = await screen.findByRole("alert");
+    await waitFor(() => expect(document.activeElement).toBe(alert));
+    sendWithEnter();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("alert")));
+  });
+
+  it("keeps a field refusal when the field loses focus and another field changes", async () => {
+    render(<KeptRefusalForm refuse="field" onSend={() => undefined} />);
+    const email = sendWithEnter();
+    await screen.findByText("This address is not linked to a provider.");
+    fireEvent.blur(email);
+    fireEvent.change(screen.getByLabelText("Note"), { target: { value: "x" } });
+    expect(screen.getByText("This address is not linked to a provider.")).toBeDefined();
+    expect(email.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("clears a field refusal when that field changes", async () => {
+    render(<KeptRefusalForm refuse="field" onSend={() => undefined} />);
+    const email = sendWithEnter();
+    await screen.findByText("This address is not linked to a provider.");
+    fireEvent.change(email, { target: { value: "other@example.test" } });
+    expect(screen.queryByText("This address is not linked to a provider.")).toBeNull();
+  });
+
+  it("sends an unchanged value again after a field refusal", async () => {
+    const onSend = vi.fn();
+    render(<KeptRefusalForm refuse="field" onSend={onSend} />);
+    sendWithEnter();
+    await screen.findByText("This address is not linked to a provider.");
+    sendWithEnter();
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
+  });
+
+  it("submits on the first click after a field refusal, with the error still in place", async () => {
+    const onSend = vi.fn();
+    render(<KeptRefusalForm refuse="field" onSend={onSend} />);
+    const email = sendWithEnter();
+    await screen.findByText("This address is not linked to a provider.");
+    // A mouse press blurs the field before the click lands.
+    fireEvent.blur(email);
+    expect(screen.getByText("This address is not linked to a provider.")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(2));
+  });
+});

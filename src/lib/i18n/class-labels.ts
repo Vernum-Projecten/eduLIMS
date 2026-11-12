@@ -94,6 +94,12 @@ export function classErrorMessage(code: string | null): string {
       return m.classes_error_rate_limited({ minutes: formatNumber(JOIN_LIMIT_WINDOW_MINUTES) });
     case "not_a_student":
       return m.classes_error_not_a_student();
+    case "not_a_teacher":
+      return m.classes_error_not_a_teacher();
+    case "already_owner":
+      return m.classes_error_already_owner();
+    case "owner_blocked":
+      return m.classes_error_owner_blocked();
     default:
       return m.classes_error_failed();
   }

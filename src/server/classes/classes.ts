@@ -27,6 +27,7 @@ export interface ClassFields {
   academicYear: string;
 }
 
+/** Returns the activity-log actor of a class action: the session user, by id only (B4). */
 export function userActor(actor: ClassActor) {
   return { type: "user", id: actor.id } as const;
 }

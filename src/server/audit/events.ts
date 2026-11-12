@@ -196,6 +196,8 @@ export const auditMetadataSchema = z.strictObject({
   class_id: z.uuid().optional(),
   /** The person a `class_member_removed` or `class_owner_changed` is about: an id only. */
   user_id: z.string().min(1).max(128).optional(),
+  /** The owner a `class_owner_changed` took the class from: an id only. */
+  previous_user_id: z.string().min(1).max(128).optional(),
   /** The class role an invitation or a removed member held. */
   class_role: z.enum(["owner", "teacher", "student"]).optional(),
   /** The lab group a `class_group_changed` is about. */

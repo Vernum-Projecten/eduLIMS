@@ -59,6 +59,8 @@ export async function revokeInvitationsOfRemoved(
       actor: { type: "user", id: actorId },
       outcome: "success",
       target: { type: "invitation", id: invitation.id },
+      // NOTE: owner decision on the review of #119; the row says why it was revoked.
+      reason: "removed",
       metadata: {
         class_id: classId,
         class_role: invitation.role === "teacher" ? "teacher" : "student",

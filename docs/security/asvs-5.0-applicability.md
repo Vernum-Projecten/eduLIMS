@@ -66,12 +66,12 @@ moves a row to `met` in the same pull request.
 |---|---|
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
-| Applicable (yes or partly) | 175 |
-| Status met | 93 |
+| Applicable (yes or partly) | 177 |
+| Status met | 95 |
 | Status partial | 48 |
 | Status planned | 26 |
 | Status open | 8 |
-| Status n-a | 170 |
+| Status n-a | 168 |
 
 ### V1 Encoding and Sanitization
 
@@ -159,7 +159,7 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 | V2.3.1 | 1 | yes | the S6 lab report lock and the D4 final grade, enforced on the server | unit and e2e tests with S6 and D4 | planned |
 | V2.3.2 | 2 | yes | business limits from the draft (5-assessment floor, R-03; deadline, S6) | unit tests with D5 and S6 | planned |
 | V2.3.3 | 2 | yes | the S4 upload rejects the whole file and writes nothing on any error; Kysely transactions | unit and integration tests with S4 | planned |
-| V2.3.4 | 2 | no | no limited-quantity resource to book | none | n-a |
+| V2.3.4 | 2 | yes | one owner per class: every ownership change (the owner's transfer, the administrator's transfer, creating a class) runs in one transaction that locks the class row (`FOR UPDATE`) and reads the new owner's role under a share lock, so two concurrent transfers cannot leave two owners (`src/server/classes/access.ts`, `src/server/classes/admin.ts`, #37) | unit `src/server/classes/admin.test.ts` ("promotes a co-teacher, so the class keeps exactly one owner"), `src/server/classes/classes.test.ts` | met |
 | V2.3.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V2.4 Anti-automation
@@ -494,7 +494,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V8.4.1 | 2 | yes | classes as tenants: every class function checks the app role, then membership and class role on the session user in one locked transaction; the organization plugin's endpoints are unreachable (`src/server/classes/`, ADR 0018) | unit `src/server/classes/classes.test.ts`, `invitations.test.ts`, `groups.test.ts`, `queries.test.ts`, `plugin.test.ts` | met |
+| V8.4.1 | 2 | yes | classes as tenants: every class function checks the app role, then membership and class role on the session user in one locked transaction; the organization plugin's endpoints are unreachable (`src/server/classes/`, ADR 0018); the administrator's class actions and reads require the app role admin in the service as well as the middleware, never add the administrator as a member and return no grades or results (`src/server/classes/admin.ts`, `admin-queries.ts`, #37) | unit `src/server/classes/classes.test.ts`, `invitations.test.ts`, `groups.test.ts`, `queries.test.ts`, `plugin.test.ts`, `admin.test.ts` and `admin-queries.test.ts` (a student and a teacher get 403 on every admin action and read), `admin-functions.test.ts` (all nine server functions carry the admin guard) | met |
 | V8.4.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V9 Self-contained Tokens
@@ -834,7 +834,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`); every SCIM write too, and every refused SCIM token for any method as `scim_token_refused` with the reason (missing, unknown, revoked, expired, provider disabled): an unknown or missing one once per client and minute with the count it stands for, any other once per token and minute (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts`, `src/server/scim/gate.test.ts`; integration `tests/integration/scim-provisioning.test.ts`, `tests/integration/scim-hardening.test.ts` | met |
-| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`); so is a class the teacher does not teach, the `not_found` of the class service and the class page (`logClassNotFound`, `src/server/classes/access.ts`); class refusals by role or archive are activity-log rows, and so is every refused or failed join with a class code (`class_join_failed`, #49); a refused host command (`admin grant` or `revoke`, `idp add`, `enable` or `disable`) writes a row with outcome `refused`, actor `system` and its reason code (`src/server/admin-grant/grants.ts`, `src/server/idp/command.ts`); a SCIM 403 or 404 (another provider's resource) is a refused `scim_user_*` or `scim_group_*` row, reads included (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts`, `src/server/cli-refusals.test.ts`, `src/server/admin-grant/grants.test.ts`, `src/server/classes/classes.test.ts`, `src/server/classes/queries.test.ts`, `src/server/classes/join.test.ts`; integration `tests/integration/scim-provisioning.test.ts` | met |
+| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`); so is a class the teacher does not teach, the `not_found` of the class service and the class page (`logClassNotFound`, `src/server/classes/access.ts`); class refusals by role or archive, and an administrator's refused transfer, creation or import (`not_a_teacher`, `owner_blocked`, `already_owner`, `archived`, `not_archived`, #37), are activity-log rows, and so is every refused or failed join with a class code (`class_join_failed`, #49); a refused host command (`admin grant` or `revoke`, `idp add`, `enable` or `disable`) writes a row with outcome `refused`, actor `system` and its reason code (`src/server/admin-grant/grants.ts`, `src/server/idp/command.ts`); a SCIM 403 or 404 (another provider's resource) is a refused `scim_user_*` or `scim_group_*` row, reads included (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts`, `src/server/classes/classes.test.ts`, `src/server/classes/queries.test.ts`, `src/server/classes/admin.test.ts`, `src/server/classes/join.test.ts`, `src/server/cli-refusals.test.ts`, `src/server/admin-grant/grants.test.ts`; integration `tests/integration/scim-provisioning.test.ts` | met |
 | V16.3.3 | 2 | yes | rejected uploads (S4) and refused access belong in the B4 audit log | unit tests with S4 and B4 | planned |
 | V16.3.4 | 2 | yes | an unreachable FerroEHR or FerroBRIDGE is checked every minute, stored with its error class and shown in the Admin portal within 5 minutes (B3, `src/server/integrations/`); a failed scheduled run is logged by its class only; other unexpected errors are not logged centrally yet | unit `src/server/integrations/checks.test.ts`, e2e `tests/e2e/admin-analysers.spec.ts` | partial |
 

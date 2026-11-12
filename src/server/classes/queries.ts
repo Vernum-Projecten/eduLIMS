@@ -284,53 +284,6 @@ export interface AdminClassRow extends ClassSummary {
   pendingInvitations: number;
 }
 
-/**
- * Returns every class for the administrator's oversight (#28), not through membership: owner,
- * co-teachers, counts and archive state.
- */
-export async function listAdminClasses(db: Kysely<DB>, now: Date): Promise<AdminClassRow[]> {
-  const [classes, teachers] = await Promise.all([
-    db
-      .selectFrom("organization")
-      .select((eb) => [
-        "organization.id",
-        "organization.name",
-        "organization.academic_year",
-        "organization.archived_at",
-        memberCount(eb, ["student"]).as("students"),
-        pendingCount(eb, now).as("pending"),
-      ])
-      .orderBy("organization.academic_year", "desc")
-      .orderBy("organization.name")
-      .orderBy("organization.id")
-      .execute(),
-    db
-      .selectFrom("member")
-      .innerJoin("user", "user.id", "member.userId")
-      .select(["member.organizationId", "member.role", "user.id", "user.name"])
-      .where("member.role", "in", ["owner", "teacher"])
-      .orderBy("user.name")
-      .orderBy("user.id")
-      .execute(),
-  ]);
-  return classes.map((row) => {
-    const own = teachers.filter((teacher) => teacher.organizationId === row.id);
-    const owner = own.find((teacher) => teacher.role === "owner");
-    return {
-      id: row.id,
-      name: row.name,
-      academicYear: row.academic_year,
-      archivedAt: iso(row.archived_at),
-      owner: owner ? { id: owner.id, name: owner.name } : null,
-      coTeachers: own
-        .filter((teacher) => teacher.role === "teacher")
-        .map((teacher) => ({ id: teacher.id, name: teacher.name })),
-      students: count(row.students),
-      pendingInvitations: count(row.pending),
-    };
-  });
-}
-
 /** Returns the classes a student belongs to (S2: a membership query on the session user). */
 export async function listStudentClasses(db: Kysely<DB>, userId: string): Promise<ClassSummary[]> {
   const rows = await db

@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { acceptInvitationsOnSignIn } from "./acceptance.ts";
+import { adminArchiveClass, adminImportStudents, adminTransferOwnership } from "./admin.ts";
 import { removeMember } from "./classes.ts";
 import { createInvitations } from "./invitations.ts";
 import { joinClassWithCode } from "./join.ts";
@@ -102,6 +103,7 @@ describe("removeMember revokes the removed student's pending invitations (owner 
         outcome: "success",
         target_type: "invitation",
         target_id: invitations[0]?.id,
+        reason_code: "removed",
         metadata: { class_id: classId, class_role: "student" },
       }),
     ]);
@@ -127,5 +129,46 @@ describe("removeMember revokes the removed student's pending invitations (owner 
       .where("organizationId", "=", classId)
       .execute();
     expect(pending).toEqual([{ status: "pending" }]);
+  });
+});
+
+describe("the join code beside the administrator's class actions (#37, #49)", () => {
+  it("lets a removed student back in when an administrator imports their address", async () => {
+    const database = await open();
+    const { classId, code, owner, studentA } = await classWithCode(database);
+    const admin = await person(database, "admin", ["admin"]);
+    await removeMember(database, owner, { classId, userId: studentA.id });
+    const imported = await adminImportStudents(
+      database,
+      admin,
+      { classId, emails: [studentA.email] },
+      NOW,
+    );
+    expect(imported.ok).toBe(true);
+    expect((await joinClassWithCode(database, studentA, { code }, context())).ok).toBe(true);
+  });
+
+  it("keeps the code working when an administrator transfers the class", async () => {
+    const database = await open();
+    const { classId, code, coTeacher } = await classWithCode(database);
+    const admin = await person(database, "admin", ["admin"]);
+    expect(
+      await adminTransferOwnership(database, admin, { classId, userId: coTeacher.id }, NOW),
+    ).toEqual({ ok: true, value: null });
+    const newcomer = await person(database, "newcomer", ["student"]);
+    expect((await joinClassWithCode(database, newcomer, { code }, context())).ok).toBe(true);
+    expect(await database.selectFrom("class_removals").select("user_id").execute()).toEqual([]);
+  });
+
+  it("refuses the code once an administrator archives the class", async () => {
+    const database = await open();
+    const { classId, code } = await classWithCode(database);
+    const admin = await person(database, "admin", ["admin"]);
+    expect((await adminArchiveClass(database, admin, { classId }, NOW)).ok).toBe(true);
+    const newcomer = await person(database, "newcomer", ["student"]);
+    expect(await joinClassWithCode(database, newcomer, { code }, context())).toEqual({
+      ok: false,
+      error: "invalid_code",
+    });
   });
 });

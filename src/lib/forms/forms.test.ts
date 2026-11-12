@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { FieldApi, FormApi } from "@tanstack/react-form";
+import { FieldApi, FormApi, revalidateLogic } from "@tanstack/react-form";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { baseLocale, overwriteGetLocale } from "@/i18n/runtime";
@@ -9,7 +9,7 @@ import { controlAfterMove } from "./array-move.ts";
 import { dateToDay, dayToDate } from "./calendar-day.ts";
 import { emailListSchema, parseEmailList } from "./email-list.ts";
 import { errorMessages } from "./errors.ts";
-import { applyServerRefusal } from "./server-refusal.ts";
+import { applyServerRefusal, formRefusal, keepServerRefusals } from "./server-refusal.ts";
 
 afterEach(() => overwriteGetLocale(() => baseLocale));
 
@@ -139,7 +139,7 @@ describe("applyServerRefusal", () => {
     applyServerRefusal(form, { form: "The server refused.", fields: { reason: "Too vague." } });
     expect(reason.state.meta.errors).toEqual(["Too vague."]);
     expect(until.state.meta.errors).toEqual([]);
-    expect(form.state.errors).toEqual(["The server refused."]);
+    expect(formRefusal(form, form.state)?.message).toBe("The server refused.");
     expect(form.state.isValid).toBe(false);
   });
 
@@ -156,5 +156,119 @@ describe("applyServerRefusal", () => {
     applyServerRefusal(form, { fields: { reason: "Too vague." } });
     form.setFieldValue("reason", "restored", { dontValidate: true, dontUpdateMeta: true });
     expect(reason.state.meta.errors).toEqual(["Too vague."]);
+  });
+});
+
+describe("server refusals with the eduLIMS validation logic (#120)", () => {
+  const schema = z.object({ reason: z.string().min(1), until: z.string() });
+
+  function refusedForm() {
+    const submitted: string[] = [];
+    const refusal: { form?: string; fields?: { reason: string } } = {};
+    const form = new FormApi({
+      defaultValues: { reason: "Too short", until: "" },
+      validationLogic: keepServerRefusals(revalidateLogic()),
+      validators: { onDynamic: schema },
+      onSubmit: ({ value, formApi }) => {
+        submitted.push(value.reason);
+        applyServerRefusal(formApi, refusal);
+      },
+    });
+    form.mount();
+    const reason = new FieldApi({ form, name: "reason" });
+    const until = new FieldApi({ form, name: "until" });
+    reason.mount();
+    until.mount();
+    return { form, reason, until, submitted, refusal };
+  }
+
+  async function refuseField() {
+    const parts = refusedForm();
+    parts.refusal.fields = { reason: "Too vague." };
+    await parts.form.handleSubmit();
+    expect(parts.reason.state.meta.errors).toEqual(["Too vague."]);
+    return parts;
+  }
+
+  async function refuseForm() {
+    const parts = refusedForm();
+    parts.refusal.form = "The server refused.";
+    await parts.form.handleSubmit();
+    expect(formRefusal(parts.form, parts.form.state)?.message).toBe("The server refused.");
+    return parts;
+  }
+
+  it("keeps a field refusal when a field loses focus", async () => {
+    const { reason, until } = await refuseField();
+    reason.handleBlur();
+    until.handleBlur();
+    expect(reason.state.meta.errors).toEqual(["Too vague."]);
+  });
+
+  it("keeps a field refusal when another field changes", async () => {
+    const { reason, until } = await refuseField();
+    until.handleChange("2026-12-01");
+    expect(reason.state.meta.errors).toEqual(["Too vague."]);
+  });
+
+  it("clears a field refusal when that field changes", async () => {
+    const { form, reason } = await refuseField();
+    reason.handleChange("Account shared with another person");
+    expect(reason.state.meta.errors).toEqual([]);
+    expect(form.state.canSubmit).toBe(true);
+  });
+
+  it("keeps a field refusal through a value set without validation", async () => {
+    const { form, reason } = await refuseField();
+    form.setFieldValue("reason", "restored", { dontValidate: true, dontUpdateMeta: true });
+    reason.handleBlur();
+    expect(reason.state.meta.errors).toEqual(["Too vague."]);
+  });
+
+  it("submits an unchanged value again after a field refusal", async () => {
+    const { form, submitted } = await refuseField();
+    await form.handleSubmit();
+    expect(submitted).toEqual(["Too short", "Too short"]);
+  });
+
+  it("still holds a submit back for a schema error after a field refusal", async () => {
+    const { form, reason, submitted } = await refuseField();
+    reason.handleChange("");
+    await form.handleSubmit();
+    expect(submitted).toEqual(["Too short"]);
+  });
+
+  it("keeps a form refusal when a field loses focus", async () => {
+    const { form, reason } = await refuseForm();
+    reason.handleBlur();
+    expect(formRefusal(form, form.state)?.message).toBe("The server refused.");
+  });
+
+  it("clears a form refusal when a field changes", async () => {
+    const { form, until } = await refuseForm();
+    until.handleChange("2026-12-01");
+    expect(formRefusal(form, form.state)).toBeUndefined();
+  });
+
+  it("clears a form refusal when the form is submitted again", async () => {
+    const { form, refusal } = await refuseForm();
+    delete refusal.form;
+    await form.handleSubmit();
+    expect(formRefusal(form, form.state)).toBeUndefined();
+  });
+
+  it("numbers each form refusal, so the same message given again is a new refusal", async () => {
+    const { form } = await refuseForm();
+    const first = formRefusal(form, form.state)?.sequence;
+    await form.handleSubmit();
+    const second = formRefusal(form, form.state);
+    expect(second?.message).toBe("The server refused.");
+    expect(second?.sequence).not.toBe(first);
+  });
+
+  it("forgets a form refusal when a refusal without one is applied", async () => {
+    const { form } = await refuseForm();
+    applyServerRefusal(form, {});
+    expect(formRefusal(form, form.state)).toBeUndefined();
   });
 });

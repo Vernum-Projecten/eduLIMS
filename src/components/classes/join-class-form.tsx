@@ -40,8 +40,7 @@ export function JoinClassForm() {
         );
         formApi.reset();
       } catch (error) {
-        // Every refusal is about the code the student typed, so it shows at its field, where
-        // focus already is (a form-level alert would take focus, and the field's blur clears it).
+        // Every refusal is about the code the student typed, so it shows at its field.
         applyServerRefusal(formApi, {
           fields: { code: classErrorMessage(classErrorCode(error)) },
         });
@@ -60,9 +59,6 @@ export function JoinClassForm() {
         className="flex max-w-md flex-col gap-4"
         onSubmit={(e) => {
           e.preventDefault();
-          // NOTE: #49; the same code may work a minute later (the teacher just turned it on),
-          // so the last refusal is cleared first: an unchanged value would otherwise stay blocked.
-          applyServerRefusal(form, {});
           void form.handleSubmit();
         }}
       >

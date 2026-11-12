@@ -87,6 +87,26 @@ export const DEV_USERS = [
     roles: ["student"],
     hidden: true,
   },
+  // The administrator's class journeys (#37): an owner, and the teacher who takes over.
+  {
+    email: "admin-classes-owner@example.test",
+    name: "Admin Classes Test Owner",
+    roles: ["teacher"],
+    hidden: true,
+  },
+  {
+    email: "admin-classes-heir@example.test",
+    name: "Admin Classes Test Heir",
+    roles: ["teacher"],
+    hidden: true,
+  },
+  // Owns a class, then loses the teacher role: the overview flags the class (#37).
+  {
+    email: "admin-classes-former@example.test",
+    name: "Admin Classes Test Former",
+    roles: ["teacher"],
+    hidden: true,
+  },
   // The join-code journeys (#49): an owner who turns the code on, a student who joins with it,
   // and one who guesses until the rate limit refuses them.
   {

@@ -42,6 +42,9 @@ export const CLASS_ACTION_ERRORS = [
   "invalid_code",
   "rate_limited",
   "not_a_student",
+  "not_a_teacher",
+  "already_owner",
+  "owner_blocked",
 ] as const;
 export type ClassActionError = (typeof CLASS_ACTION_ERRORS)[number];
 

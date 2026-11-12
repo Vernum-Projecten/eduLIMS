@@ -98,15 +98,10 @@ export function UsersBulkActions({
           open: dialog === "block",
           onOpenChange: (open) => setDialog(open ? "block" : null),
         }}
-        onBlock={(value) =>
-          block.mutateAsync({ userIds: [...userIds], ...value }).then(
-            () => {
-              onDone();
-              return true;
-            },
-            () => false,
-          )
-        }
+        onBlock={async (value) => {
+          await block.mutateAsync({ userIds: [...userIds], ...value });
+          onDone();
+        }}
       />
     </>
   );

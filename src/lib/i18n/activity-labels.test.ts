@@ -58,6 +58,15 @@ describe("activity log labels (#36)", () => {
       "the administrator role was withdrawn on the host",
     );
     expect(activityReasonLabel("rate_limited")).toBe("code rate_limited");
+  });
+
+  it("puts the reasons of a refused join with a code in words (#49)", () => {
+    expect(activityReasonLabel("removed")).toBe("a teacher removed the student from the class");
+    expect(activityReasonLabel("unknown_code")).toBe("no class has this join code");
+    expect(activityReasonLabel("rate_limited_ip")).toBe(
+      "too many wrong join codes from one address",
+    );
+    expect(activityReasonLabel("class_archived")).toBe("the class is archived");
     expect(activityReasonLabel("toString")).toBe("code toString");
   });
 
@@ -91,6 +100,21 @@ describe("activity log labels (#36)", () => {
         metadata: { ban_expires_at: "2026-11-20T23:00:00.000Z" },
       }),
     ).toEqual([expect.stringMatching(/^Blocked until Nov 21, 2026/)]);
+  });
+
+  it("names the previous owner of a transferred class by id (#37)", () => {
+    expect(
+      activityDetails({
+        reason: null,
+        provider: null,
+        metadata: { user_id: "new-owner-id", previous_user_id: "old-owner-id" },
+      }),
+    ).toEqual(["Person new-owner-id", "Previous owner old-owner-id"]);
+    expect(activityReasonLabel("already_owner")).toBe("the chosen teacher already owns the class");
+    expect(activityReasonLabel("not_archived")).toBe("the class is not archived");
+    expect(activityReasonLabel("not_a_teacher")).toBe(
+      "the chosen owner does not have the teacher role",
+    );
   });
 
   it("summarises the identity provider metadata", () => {

@@ -11,11 +11,11 @@ import {
 } from "@tanstack/react-query";
 import { STALE_TIME } from "../../lib/query-config.ts";
 import type { ClassActionError, ClassResult } from "./access.ts";
+import type { ListAdminClassesInput } from "./admin-schemas.ts";
 import {
   getClassPage,
   getJoinCodeFn,
   getStudentClasses,
-  listAllClasses,
   listGroupSetSourcesFn,
   listMyClasses,
 } from "./functions.ts";
@@ -30,6 +30,10 @@ export const classesKeys = {
   sources: (classId: string) => [...classesKeys.detail(classId), "sources"] as const,
   joinCode: (classId: string) => [...classesKeys.detail(classId), "join-code"] as const,
   admin: () => [...classesKeys.all, "admin"] as const,
+  adminLists: () => [...classesKeys.admin(), "list"] as const,
+  adminList: (input: ListAdminClassesInput) => [...classesKeys.adminLists(), input] as const,
+  adminDetail: (classId: string) => [...classesKeys.admin(), "detail", classId] as const,
+  teachers: (q: string) => [...classesKeys.admin(), "teachers", q] as const,
   student: () => [...classesKeys.all, "student"] as const,
 };
 
@@ -77,15 +81,6 @@ export function joinCodeQueryOptions(classId: string) {
 /** The state {@link joinCodeQueryOptions} returns. */
 export type JoinCodeState = Awaited<ReturnType<typeof getJoinCodeFn>>;
 
-/** Every class, for the Admin portal. */
-export function adminClassesQueryOptions() {
-  return queryOptions({
-    queryKey: classesKeys.admin(),
-    queryFn: () => listAllClasses(),
-    staleTime: STALE_TIME.classes,
-  });
-}
-
 /** The student's classes and pending invitations. */
 export function studentClassesQueryOptions() {
   return queryOptions({
@@ -114,15 +109,20 @@ export function classErrorCode(error: unknown): ClassActionError | null {
 /** A server function of one class action, as `useServerFn` returns it. */
 export type ClassCall<TInput, TValue> = (options: { data: TInput }) => Promise<ClassResult<TValue>>;
 
-/** Invalidates what a write to `classId` changed: its page and every list. */
+/** Invalidates what a write to `classId` changed: its pages and every list. */
 export async function invalidateClass(
   queryClient: QueryClient,
   classId: string | null,
 ): Promise<void> {
   await Promise.all([
-    ...(classId ? [queryClient.invalidateQueries({ queryKey: classesKeys.detail(classId) })] : []),
+    ...(classId
+      ? [
+          queryClient.invalidateQueries({ queryKey: classesKeys.detail(classId) }),
+          queryClient.invalidateQueries({ queryKey: classesKeys.adminDetail(classId) }),
+        ]
+      : []),
     queryClient.invalidateQueries({ queryKey: classesKeys.lists() }),
-    queryClient.invalidateQueries({ queryKey: classesKeys.admin() }),
+    queryClient.invalidateQueries({ queryKey: classesKeys.adminLists() }),
   ]);
 }
 

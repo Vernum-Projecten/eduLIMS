@@ -49,6 +49,15 @@ Option 3, on `better-auth` 1.7.20.
   membership query on the session user, refuses an archived class, and
   writes its activity-log row (B4). A teacher of another class gets
   `not_found`, never a hint that the class exists.
+- **The administrator acts without membership (#37):** a separate set of
+  class actions (`src/server/classes/admin.ts`) requires the app role admin,
+  locks the class row without a membership filter, and creates a class on a
+  teacher's behalf, imports students as pending student invitations,
+  transfers the ownership to any user with the app role teacher who is not
+  blocked, and archives or reopens a class. None of them adds the
+  administrator as a member, and the administrator's reads return no grades
+  or results (R-01). An invitation outlives its inviter: deleting the
+  teacher or administrator who created it sets `inviterId` to null.
 - **The plugin's endpoints are unreachable:** all of them are in
   `disabledPaths`, a before-hook answers any `/organization` path with 404,
   `allowUserToCreateOrganization` is off, and the plugin's own `before*`
