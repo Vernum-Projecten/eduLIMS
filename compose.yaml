@@ -23,8 +23,8 @@
 #                                 before it serves, from the deploy bundle
 #   config/postgres-tls/          ca.crt, server.crt and server.key for
 #                                 PostgreSQL's TLS (docs/deployment.md,
-#                                 "Database TLS"); eduLIMS verifies the server
-#                                 certificate against ca.crt
+#                                 "Database TLS"); eduLIMS and FerroEHR verify
+#                                 the server certificate against ca.crt
 #
 # IMAGES are pinned by tag and digest. The digest is what Docker pulls; the tag
 # is there for the reader. A release of eduLIMS changes EDULIMS_VERSION in
@@ -138,7 +138,11 @@ services:
         condition: service_completed_successfully
     environment: &ferroehr-environment
       FERROEHR_CONFIG: /etc/ferroehr/ferroehr.toml
-      FERROEHR__DATABASE__URL: postgres://${FERROEHR_DB_USER:-ferroehr}:${FERROEHR_DB_PASSWORD:?set FERROEHR_DB_PASSWORD in .env}@postgres:5432/${FERROEHR_DB_NAME:-ferroehr}
+      # Verified TLS with the CA eduLIMS trusts (ADR 0013). FerroEHR takes the
+      # DSN as given; the book names this form (FerroEHR book v5.7.0,
+      # installation/config-server.md, [database] `url`;
+      # installation/kubernetes.md).
+      FERROEHR__DATABASE__URL: postgres://${FERROEHR_DB_USER:-ferroehr}:${FERROEHR_DB_PASSWORD:?set FERROEHR_DB_PASSWORD in .env}@postgres:5432/${FERROEHR_DB_NAME:-ferroehr}?sslmode=verify-full&sslrootcert=/etc/ferroehr/postgres-ca.crt
       FERROEHR__TELEMETRY__FORMAT: json
       FERROEHR__TELEMETRY__FILTER: ${FERROEHR_LOG_FILTER:-info}
       # FerroEHR reports its installation to FerroPULSE unless told not to.
@@ -147,6 +151,7 @@ services:
       FERROEHR__USAGE_REPORT__ENABLED: "false"
     volumes:
       - ./config/ferroehr.toml:/etc/ferroehr/ferroehr.toml:ro
+      - ./config/postgres-tls/ca.crt:/etc/ferroehr/postgres-ca.crt:ro
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
@@ -181,6 +186,7 @@ services:
     environment: *ferroehr-environment
     volumes:
       - ./config/ferroehr.toml:/etc/ferroehr/ferroehr.toml:ro
+      - ./config/postgres-tls/ca.crt:/etc/ferroehr/postgres-ca.crt:ro
       - ./docker/ferroehr/definitions:/etc/ferroehr/definitions:ro
     cap_drop: [ALL]
     security_opt:

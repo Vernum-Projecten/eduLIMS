@@ -49,6 +49,16 @@ Option 2.
   opt-out. `compose.yaml` starts PostgreSQL with `ssl=on` and the operator's
   certificate from `config/postgres-tls/`, and gives eduLIMS the CA
   (`docs/deployment.md`, "Database TLS").
+- **FerroEHR's database connection:** `ferroehr` and `ferroehr-definitions`
+  get the same CA and a database URL with
+  `sslmode=verify-full&sslrootcert=/etc/ferroehr/postgres-ca.crt` (#244).
+  FerroEHR takes the DSN as given (FerroEHR book v5.7.0,
+  `installation/config-server.md`, `[database]` `url`); the book names this
+  form for a verified database hop (`installation/kubernetes.md`;
+  `operations.md`, "TLS and database security").
+  `scripts/checks/ferro-compose.sh` refuses a `compose.yaml` whose FerroEHR
+  database URL lacks `sslmode=verify-full` or names a CA other than the one
+  eduLIMS trusts.
 - **FerroEHR and FerroBRIDGE:** eduLIMS keeps reaching them over `http` on
   the internal `backend` network.
 
@@ -62,9 +72,8 @@ Option 2.
   network (a compromised container on `backend`, or root on the host) can
   read or alter the eduLIMS to FerroEHR and FerroBRIDGE traffic. On one host
   that attacker can already read the database volume and the `.env` file, so
-  TLS on these two links would add little. The same holds for FerroEHR's and
-  Keycloak's own connections to PostgreSQL, which their configuration
-  governs.
+  TLS on these two links would add little. The same holds for Keycloak's own
+  connection to PostgreSQL, which its configuration governs.
 - **The MLLP port:** the Afinion 2 reaches FerroBRIDGE from the lab
   network, outside the host. FerroBRIDGE 0.0.24, the pinned image, serves
   its HL7 v2 face as MLLP over TLS only and requires a client certificate

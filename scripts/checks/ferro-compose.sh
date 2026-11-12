@@ -22,6 +22,23 @@
 # off, the system client removed) must be refused. FerroBRIDGE has no
 # reference file yet, so its check leaves the file out.
 #
+# compose.dev.yaml's FerroEHR has no file and runs with authentication on as
+# in production (#225). The check reads the effective configuration the image
+# prints for its environment and holds it to the same rules (#239); three
+# altered copies of that environment (authentication off, the system client
+# removed, the issuer of kind `persons`) must be refused.
+#
+# FerroEHR and `ferroehr-definitions` in compose.yaml reach PostgreSQL over
+# verified TLS with the CA eduLIMS trusts (ADR 0013, #244): every database URL
+# they get says `sslmode=verify-full` and names in `sslrootcert` a file
+# mounted from the same source as the CA of eduLIMS's DATABASE_URL. FerroEHR
+# takes the DSN as given (FerroEHR book v5.7.0, installation/config-server.md,
+# [database] `url`; installation/kubernetes.md and operations.md, "TLS and
+# database security", for the `sslmode=verify-full&sslrootcert=` form).
+# `config check` masks the query string, so the rule reads the Compose
+# environment. The development PostgreSQL runs without TLS, so the rule holds
+# compose.yaml only.
+#
 # FerroEHR refuses to start while a template a system client writes is not
 # stored (#146). In both Compose files the one-shot `ferroehr-definitions`
 # must load every template in docker/ferroehr/definitions/ with the ferroehr
@@ -39,7 +56,7 @@
 #     throwaway certificates made with openssl.
 #
 #   bash scripts/checks/ferro-compose.sh              # the checks
-#   bash scripts/checks/ferro-compose.sh --self-test  # the [hl7v2.tls] and FerroEHR rules alone, needs jq only
+#   bash scripts/checks/ferro-compose.sh --self-test  # the rules alone, without images; needs jq only
 #
 # Needs `docker compose` or `podman compose`, jq, openssl, python3 (3.11 or
 # later, for tomllib), and the two images (pulled on first use). Reads no
@@ -107,7 +124,201 @@ ferroehr_posture_gaps() {
   ' <<<"$1"
 }
 
+# ferroehr_dev_copy <copy> <compose JSON>: the Compose file with the ferroehr
+# service's environment altered: `auth-off`, `no-client` (every system client
+# key removed) or `persons-issuer` (every issuer of kind persons).
+ferroehr_dev_copy() {
+  local filter
+  case $1 in
+    auth-off) filter='.FERROEHR__AUTH__ENABLED = "false"' ;;
+    no-client) filter='with_entries(select(.key | startswith("FERROEHR__AUTHZ__SYSTEM_CLIENT__") | not))' ;;
+    persons-issuer) filter='with_entries(if .key | test("^FERROEHR__AUTH__ISSUER__[0-9]+__KIND$") then .value = "persons" else . end)' ;;
+    *) return 2 ;;
+  esac
+  jq -c ".services.ferroehr.environment |= ($filter)" <<<"$2"
+}
+
+# database_tls_gaps <compose JSON>: prints each way the database URLs of
+# ferroehr and ferroehr-definitions fall short of verified TLS with the CA of
+# eduLIMS's DATABASE_URL, one per line. Prints nothing when they hold.
+database_tls_gaps() {
+  jq -r '
+    def params: (split("?")[1] // "") | split("&") | map(select(. != "") | split("=")
+      | {key: .[0], value: (.[1:] | join("="))});
+    def values($k): params | map(select(.key == $k) | .value);
+    def mounted($svc; $target): [$svc.volumes[]? | select(.target == $target) | .source][0];
+    .services as $s
+    | ($s.edulims.environment.DATABASE_URL // "" | values("sslrootcert")) as $roots
+    | (if ($roots | length) == 1 then mounted($s.edulims; $roots[0]) else null end) as $ca
+    | if $ca == null then "edulims: its DATABASE_URL names no mounted sslrootcert to compare with" else
+        ("ferroehr", "ferroehr-definitions") as $name
+        | ($s[$name] // null) as $svc
+        | select($svc != null)
+        | [$svc.environment // {} | to_entries[]
+            | select(.key | test("^(FERROEHR__DATABASE__([A-Z0-9]+__)?(MIGRATE_)?URL(_FILE)?|DATABASE_URL)$"))] as $dsns
+        | if ($dsns | length) == 0 then "\($name): no FERROEHR__DATABASE__URL" else
+            $dsns[]
+            | if (.key | endswith("_FILE")) then "\($name): \(.key) reads its DSN from a file this check cannot read"
+              else
+                .key as $key | (.value // "" | tostring) as $url
+                | ($url | values("sslmode")) as $modes
+                | ($url | values("sslrootcert")) as $certs
+                | (if $modes == ["verify-full"] then empty
+                   else "\($name): \($key) does not say sslmode=verify-full" end),
+                  (if ($certs | length) != 1 then "\($name): \($key) names no sslrootcert"
+                   elif mounted($svc; $certs[0]) == $ca then empty
+                   else "\($name): \($key) sslrootcert \($certs[0]) is not mounted from \($ca), the CA eduLIMS trusts" end)
+              end
+          end
+      end' <<<"$1"
+}
+
+# The names the Compose files render into the Ferro services. eduLIMS's own
+# FERROEHR_ settings (FERROEHR_TOKEN_URL and the like, src/server/env.ts) are
+# not among them and keep the caller's value.
+FERRO_COMPOSE_NAMES=(
+  FERROEHR_DB_USER FERROEHR_DB_PASSWORD FERROEHR_DB_NAME FERROEHR_LOG_FILTER
+  FERROBRIDGE_LOG_FILTER FERROBRIDGE_MLLP_BIND_HOST FERROBRIDGE_MLLP_PORT
+)
+EDULIMS_FERRO_NAMES=(FERROEHR_TOKEN_URL FERROEHR_CLIENT_ID FERROEHR_CLIENT_SECRET FERROEHR_SCOPE)
+
+# ferro_service_variables: reads variable names, one per line, and prints
+# those that change what the Ferro services see: their own keys (FERROEHR__…,
+# FERROBRIDGE__…, FERROEHR_CONFIG, FERROBRIDGE_CONFIG), the Compose names in
+# FERRO_COMPOSE_NAMES, and COMPOSE_ settings.
+ferro_service_variables() {
+  local name known
+  while IFS= read -r name; do
+    if [[ $name =~ ^FERRO(EHR|BRIDGE)(__|_CONFIG$) || $name == COMPOSE_* ]]; then
+      echo "$name"
+      continue
+    fi
+    for known in "${FERRO_COMPOSE_NAMES[@]}"; do
+      [[ $name == "$known" ]] && echo "$name"
+    done
+  done
+}
+
+# ferro_name_gaps <Compose file text>: prints each FERRO name the file
+# interpolates that neither list above knows, so a new one is not missed.
+ferro_name_gaps() {
+  local name known found
+  while IFS= read -r name; do
+    found=0
+    for known in "${FERRO_COMPOSE_NAMES[@]}" "${EDULIMS_FERRO_NAMES[@]}"; do
+      [[ $name == "$known" ]] && found=1
+    done
+    ((found)) || echo "$name"
+  done < <(grep -oE '\$\{FERRO[A-Z0-9_]*' <<<"$1" | cut -c3- | sort -u)
+}
+
+# reset_environment: unsets the Ferro services' variables from the caller's
+# shell and exports the example values; none is a real secret or host.
+reset_environment() {
+  local name
+  while IFS= read -r name; do unset "$name"; done < <(compgen -e | ferro_service_variables)
+  export EDULIMS_VERSION=0.0.0 POSTGRES_PASSWORD=example EDULIMS_DB_PASSWORD=example \
+    FERROEHR_DB_PASSWORD=example BETTER_AUTH_SECRET=example \
+    BETTER_AUTH_URL=https://edulims.example.test EDULIMS_DATA_KEY=example
+  : "${FERROEHR_TOKEN_URL:=https://idp.example.test/token}" "${FERROEHR_CLIENT_ID:=example}" \
+    "${FERROEHR_CLIENT_SECRET:=example}" "${FERROEHR_SCOPE:=example}"
+  export FERROEHR_TOKEN_URL FERROEHR_CLIENT_ID FERROEHR_CLIENT_SECRET FERROEHR_SCOPE
+}
+
+# self_test_tls: the database TLS rule on a fixture shaped as
+# `compose config --format json` prints it.
+self_test_tls() {
+  local good gaps ca=/srv/edulims/config/postgres-tls/ca.crt
+  local base='postgres://ferroehr:example@postgres:5432/ferroehr'
+  good=$(jq -nc --arg ca "$ca" --arg url "$base?sslmode=verify-full&sslrootcert=/etc/ferroehr/postgres-ca.crt" '
+    {services: {
+      edulims: {environment: {DATABASE_URL: "postgres://edulims:example@postgres:5432/edulims?sslmode=verify-full&sslrootcert=/etc/edulims/postgres-ca.crt"},
+        volumes: [{type: "bind", source: $ca, target: "/etc/edulims/postgres-ca.crt", read_only: true}]},
+      ferroehr: {environment: {FERROEHR__DATABASE__URL: $url},
+        volumes: [{type: "bind", source: $ca, target: "/etc/ferroehr/postgres-ca.crt", read_only: true}]},
+      "ferroehr-definitions": {environment: {FERROEHR__DATABASE__URL: $url},
+        volumes: [{type: "bind", source: $ca, target: "/etc/ferroehr/postgres-ca.crt", read_only: true}]}}}')
+  gaps=$(database_tls_gaps "$good")
+  [[ -z $gaps ]] || { echo "self-test: verified TLS with eduLIMS's CA was refused: $gaps" >&2; return 1; }
+  local case_ want
+  for case_ in "$base|sslmode=verify-full" \
+    "$base?sslmode=require&sslrootcert=/etc/ferroehr/postgres-ca.crt|sslmode=verify-full" \
+    "$base?sslmode=verify-ca&sslrootcert=/etc/ferroehr/postgres-ca.crt|sslmode=verify-full" \
+    "$base?sslmode=disable&sslmode=verify-full&sslrootcert=/etc/ferroehr/postgres-ca.crt|sslmode=verify-full" \
+    "$base?sslmode=verify-full|names no sslrootcert" \
+    "$base?sslmode=verify-full&sslrootcert=/etc/ssl/other.crt|is not mounted from"; do
+    want=${case_#*|}
+    gaps=$(database_tls_gaps "$(jq -c --arg url "${case_%%|*}" \
+      '.services["ferroehr-definitions"].environment.FERROEHR__DATABASE__URL = $url' <<<"$good")")
+    [[ $gaps == "ferroehr-definitions: "*"$want"* ]] || {
+      echo "self-test: the database URL ${case_%%|*} was not refused ($want): $gaps" >&2
+      return 1
+    }
+  done
+  gaps=$(database_tls_gaps "$(jq -c '.services.ferroehr.volumes[0].source = "/srv/other/ca.crt"' <<<"$good")")
+  [[ $gaps == *"is not mounted from $ca"* ]] || { echo "self-test: a CA other than eduLIMS's was not refused" >&2; return 1; }
+  gaps=$(database_tls_gaps "$(jq -c '.services.ferroehr.environment += {FERROEHR__DATABASE__MIGRATE_URL: "postgres://x@postgres/ferroehr"}' <<<"$good")")
+  [[ $gaps == *"FERROEHR__DATABASE__MIGRATE_URL does not say sslmode=verify-full"* ]] || {
+    echo "self-test: a plain migrate_url was not refused" >&2
+    return 1
+  }
+  gaps=$(database_tls_gaps "$(jq -c '.services.ferroehr.environment = {FERROEHR__DATABASE__URL_FILE: "/run/dsn"}' <<<"$good")")
+  [[ $gaps == *"cannot read"* ]] || { echo "self-test: a DSN from a file was not refused" >&2; return 1; }
+  gaps=$(database_tls_gaps "$(jq -c '.services.ferroehr.environment = {}' <<<"$good")")
+  [[ $gaps == "ferroehr: no FERROEHR__DATABASE__URL" ]] || { echo "self-test: a missing database URL was not refused" >&2; return 1; }
+}
+
+# reset_and_print: runs reset_environment and prints the variables the
+# self-test asks about, `unset` for one that is gone.
+reset_and_print() {
+  reset_environment
+  echo "$FERROEHR_TOKEN_URL $FERROEHR_CLIENT_ID $FERROEHR_CLIENT_SECRET $FERROEHR_SCOPE"
+  echo "${FERROEHR__AUTH__ENABLED-unset} ${FERROBRIDGE__HL7V2__ENABLED-unset} ${FERROEHR_CONFIG-unset}"
+  echo "${FERROBRIDGE_CONFIG-unset} ${FERROEHR_DB_USER-unset} $FERROEHR_DB_PASSWORD ${FERROEHR_LOG_FILTER-unset}"
+  echo "${FERROBRIDGE_MLLP_PORT-unset} ${COMPOSE_FILE-unset}"
+}
+
+# self_test_environment: the reset keeps eduLIMS's FERROEHR_ settings and
+# clears the Ferro services' variables; the dev copies alter what they say.
+self_test_environment() {
+  local out
+  out=$(FERROEHR_TOKEN_URL=https://idp.own.test/token FERROEHR_CLIENT_ID=own FERROEHR_CLIENT_SECRET=own-secret \
+    FERROEHR_SCOPE=own-scope FERROEHR__AUTH__ENABLED=false FERROBRIDGE__HL7V2__ENABLED=true \
+    FERROEHR_CONFIG=/x FERROBRIDGE_CONFIG=/x FERROEHR_DB_USER=other FERROEHR_DB_PASSWORD=other \
+    FERROEHR_LOG_FILTER=trace FERROBRIDGE_MLLP_PORT=1 COMPOSE_FILE=other.yaml reset_and_print)
+  [[ $(sed -n 1p <<<"$out") == "https://idp.own.test/token own own-secret own-scope" ]] || {
+    echo "self-test: eduLIMS's FERROEHR_ settings did not survive: $(sed -n 1p <<<"$out")" >&2
+    return 1
+  }
+  [[ $(sed -n '2,4p' <<<"$out" | paste -sd ' ' -) == "unset unset unset unset unset example unset unset unset" ]] || {
+    echo "self-test: a Ferro service variable survived: $(sed -n '2,4p' <<<"$out" | paste -sd ' ' -)" >&2
+    return 1
+  }
+  # shellcheck disable=SC2016 # Compose text, not shell: nothing expands
+  out=$(ferro_name_gaps 'a: ${FERROEHR_DB_USER:-ferroehr} b: ${FERROEHR_SCOPE:?} c: ${FERROEHR_NEW_THING}')
+  [[ $out == FERROEHR_NEW_THING ]] || { echo "self-test: an unknown FERRO name was not reported: $out" >&2; return 1; }
+
+  local dev
+  dev='{"services":{"ferroehr":{"environment":{"FERROEHR__AUTH__ENABLED":"true",
+    "FERROEHR__AUTH__ISSUER__0__KIND":"machines","FERROEHR__AUTH__ISSUER__0__ISSUER":"http://localhost:8180/realms/edulims",
+    "FERROEHR__AUTHZ__SYSTEM_CLIENT__0__CLIENT_ID":"edulims-ferroehr","FERROEHR__AUTHZ__SYSTEM_CLIENT__0__WRITES":"eduLIMS-lab.v1"}}}}'
+  [[ $(ferroehr_dev_copy auth-off "$dev" | jq -r '.services.ferroehr.environment.FERROEHR__AUTH__ENABLED') == false ]] || {
+    echo "self-test: the dev copy with authentication off does not turn it off" >&2
+    return 1
+  }
+  [[ $(ferroehr_dev_copy no-client "$dev" | jq -r '.services.ferroehr.environment | keys | map(select(startswith("FERROEHR__AUTHZ__"))) | length') == 0 ]] || {
+    echo "self-test: the dev copy without the system client keeps a system client key" >&2
+    return 1
+  }
+  [[ $(ferroehr_dev_copy persons-issuer "$dev" | jq -r '.services.ferroehr.environment.FERROEHR__AUTH__ISSUER__0__KIND') == persons ]] || {
+    echo "self-test: the dev copy with a persons issuer keeps the machines kind" >&2
+    return 1
+  }
+}
+
 self_test() {
+  self_test_tls
+  self_test_environment
   local gaps good
   good='{"auth":{"enabled":true,"issuer":[{"issuer":"https://idp.example.test","kind":"machines"}]},
     "authz":{"system_client":[{"issuer":"https://idp.example.test","client_id":"edulims-ferroehr",
@@ -184,14 +395,9 @@ python3 -I -c 'import tomllib' >/dev/null 2>&1 || {
   exit 2
 }
 
-# The example values; none is a real secret or host. A FERRO or COMPOSE_ value
-# from the caller's shell would change what the checks see.
-while IFS= read -r name; do unset "$name"; done < <(compgen -e | grep -E '^(FERRO|COMPOSE_)' || true)
-export EDULIMS_VERSION=0.0.0 POSTGRES_PASSWORD=example EDULIMS_DB_PASSWORD=example \
-  FERROEHR_DB_PASSWORD=example BETTER_AUTH_SECRET=example \
-  BETTER_AUTH_URL=https://edulims.example.test EDULIMS_DATA_KEY=example \
-  FERROEHR_TOKEN_URL=https://idp.example.test/token FERROEHR_CLIENT_ID=example \
-  FERROEHR_CLIENT_SECRET=example FERROEHR_SCOPE=example
+# A Ferro service's variable from the caller's shell would change what the
+# checks see.
+reset_environment
 
 # compose_json <compose args>: the resolved file as JSON; --env-file /dev/null
 # never reads the operator's or developer's .env.
@@ -513,9 +719,80 @@ definitions_probe() {
   fi
 }
 
+# database_tls_rule <label> <json>: FerroEHR's database URLs ask for
+# verified TLS with eduLIMS's CA.
+database_tls_rule() {
+  local label=$1 json=$2 gaps
+  gaps=$(database_tls_gaps "$json")
+  if [[ -z $gaps ]]; then
+    pass "$label: ferroehr and ferroehr-definitions reach PostgreSQL over verified TLS with eduLIMS's CA"
+  else
+    fail "$label: $(paste -sd ';' - <<<"$gaps")"
+  fi
+}
+
+# ferro_names_rule <file>…: every FERRO name the Compose files interpolate is
+# a Ferro service's or one of eduLIMS's own settings.
+ferro_names_rule() {
+  local gaps
+  gaps=$(ferro_name_gaps "$(cat "$@")")
+  if [[ -z $gaps ]]; then
+    pass "$*: every interpolated FERRO name is known to the environment reset"
+  else
+    fail "$*: unknown FERRO names, add each to FERRO_COMPOSE_NAMES or EDULIMS_FERRO_NAMES: $(paste -sd ' ' - <<<"$gaps")"
+  fi
+}
+
+# ferroehr_dev_run <json>: runs the pinned FerroEHR's `config check` with the
+# environment of the ferroehr service in <json>. Sets CHECK_OUTPUT,
+# CHECK_STATUS and GAPS (the posture rules the effective configuration breaks).
+ferroehr_dev_run() {
+  GAPS=""
+  image_check "$1" ferroehr || return 1
+  if ((CHECK_STATUS == 0)); then
+    local effective
+    effective=$(ferroehr_effective_json) || {
+      GAPS="the effective configuration does not parse"
+      return 0
+    }
+    GAPS=$(ferroehr_posture_gaps "$effective")
+  fi
+}
+
+# ferroehr_dev <json>: the dev FerroEHR passes the image and every posture
+# rule, and three altered copies of its environment are refused.
+ferroehr_dev() {
+  local json=$1 copy
+  ferroehr_dev_run "$json" || {
+    fail "compose.dev.yaml: no ferroehr service"
+    return
+  }
+  if ((CHECK_STATUS != 0)); then
+    fail "compose.dev.yaml: ferroehr refuses the environment of ferroehr (exit $CHECK_STATUS)"
+    show_refusal
+  elif [[ -n $GAPS ]]; then
+    fail "compose.dev.yaml: ferroehr breaks a rule: $(paste -sd ';' - <<<"$GAPS")"
+  else
+    pass "compose.dev.yaml: ferroehr accepts the environment of ferroehr, and it holds every rule"
+  fi
+  for copy in auth-off no-client persons-issuer; do
+    ferroehr_dev_run "$(ferroehr_dev_copy "$copy" "$json")"
+    if ((CHECK_STATUS != 0)); then
+      pass "compose.dev.yaml: a copy with $copy is refused by ferroehr (exit $CHECK_STATUS)"
+    elif [[ -n $GAPS ]]; then
+      pass "compose.dev.yaml: a copy with $copy is refused: $(paste -sd ';' - <<<"$GAPS")"
+    else
+      fail "compose.dev.yaml: a copy with $copy is not refused"
+    fi
+  done
+}
+
+ferro_names_rule compose.yaml compose.dev.yaml
+
 if production=$(compose_json -f compose.yaml); then
   pass "compose.yaml is valid with the example values"
   definitions_rule compose.yaml "$production"
+  database_tls_rule compose.yaml "$production"
   definitions_probe "$production"
   ferroehr_reference "$production"
   config_check compose.yaml "$production" ferrobridge ferrobridge
@@ -528,7 +805,7 @@ fi
 if development=$(compose_json -f compose.dev.yaml); then
   pass "compose.dev.yaml is valid"
   definitions_rule compose.dev.yaml "$development"
-  config_check compose.dev.yaml "$development" ferroehr ferroehr
+  ferroehr_dev "$development"
   config_check compose.dev.yaml "$development" ferrobridge ferrobridge
   hl7v2_tls_rule compose.dev.yaml "$development"
 else

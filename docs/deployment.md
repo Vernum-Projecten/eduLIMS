@@ -242,13 +242,17 @@ follows:
 
 eduLIMS talks to PostgreSQL over TLS and verifies the server certificate and
 its host name (`sslmode=verify-full`); a production server refuses to start
-with any other `DATABASE_URL` (ADR 0013). `compose.yaml` turns TLS on in
-PostgreSQL and hands eduLIMS the CA, so you provide three files in
-`config/postgres-tls/`:
+with any other `DATABASE_URL` (ADR 0013). FerroEHR and the
+`ferroehr-definitions` one-shot connect the same way: `compose.yaml` gives
+them `sslmode=verify-full` with the same CA, mounted at
+`/etc/ferroehr/postgres-ca.crt`, and `scripts/checks/ferro-compose.sh`
+refuses a FerroEHR database URL without that verification. `compose.yaml`
+turns TLS on in PostgreSQL and hands eduLIMS and FerroEHR the CA, so you
+provide three files in `config/postgres-tls/`:
 
 | File | Who reads it | Mode |
 |---|---|---|
-| `ca.crt` | eduLIMS and the migrate job, to verify the server | `0644` |
+| `ca.crt` | eduLIMS, the migrate job, FerroEHR and `ferroehr-definitions` (uid 65532), to verify the server | `0644` |
 | `server.crt` | PostgreSQL; its subject alternative name is `DNS:postgres`, the service name | `0644` |
 | `server.key` | PostgreSQL only; owned by uid 999 (`postgres` in the image) | `0600` |
 
@@ -266,8 +270,8 @@ mv ca.key /root/edulims-db-ca.key   # keep the CA key off the stack, for renewal
 ```
 
 Renew `server.crt` before it expires (825 days above) with the same CA and
-restart PostgreSQL (`docker compose restart postgres`); eduLIMS keeps
-trusting it. When you run eduLIMS against another PostgreSQL server, set
+restart PostgreSQL (`docker compose restart postgres`); eduLIMS and FerroEHR
+keep trusting it. When you run eduLIMS against another PostgreSQL server, set
 `DATABASE_URL` yourself with `?sslmode=verify-full`, plus
 `&sslrootcert=<path to its CA>` unless a public CA signs its certificate.
 
