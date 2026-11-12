@@ -67,8 +67,7 @@ describe.skipIf(!reachable && !REQUIRED)(
       });
     });
 
-    // TODO(#146): FerroEHR loads eduLIMS-lab.v1 before it starts; turn this into `it` then.
-    it.fails(`lists the ${LAB_TEMPLATE_ID} template (S4, S5)`, async () => {
+    it(`lists the ${LAB_TEMPLATE_ID} template (S4, S5)`, async () => {
       const answer = await client.listTemplates();
       if (!answer.ok) expect.fail(`listTemplates failed: ${answer.error.kind}`);
       expect(answer.value.map((template) => template.template_id)).toContain(LAB_TEMPLATE_ID);
