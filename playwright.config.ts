@@ -3,6 +3,7 @@
 
 import { defineConfig, devices } from "@playwright/test";
 import { E2E_SECRETS, runDatabaseUrl, runPort } from "./tests/e2e/run-env.ts";
+import { setupThenServe } from "./tests/e2e/web-server-command.ts";
 
 // E2E runs the production build (`pnpm build` first) against a database of its own on a port
 // of its own, so two runs on one machine never meet. The database is created next to
@@ -50,8 +51,15 @@ export default defineConfig({
   globalTeardown: "./tests/e2e/global-teardown.ts",
   webServer: {
     // tests/e2e/seed-providers.ts stores the dev Keycloak providers when no Keycloak runs (CI).
-    command:
-      "node src/server/db/test-run-database-cli.ts create && pnpm db:reset && node tests/e2e/seed-providers.ts && pnpm start",
+    // The setup's stdout, the seed's summary among it, reaches the run log (#192).
+    command: setupThenServe(
+      [
+        "node src/server/db/test-run-database-cli.ts create",
+        "pnpm db:reset",
+        "node tests/e2e/seed-providers.ts",
+      ],
+      "pnpm start",
+    ),
     url: `${baseURL}/api/ready`,
     env: appEnv,
     reuseExistingServer: false,

@@ -13,18 +13,13 @@ import { keyringOf } from "../idp/crypto.ts";
 import { seedDemoAnalysers } from "./demo/analysers.ts";
 import { seedDemoData, seedSummary } from "./demo/seed-demo.ts";
 import { seedDevAccountClasses } from "./demo/seed-dev-classes.ts";
+import { formatSeedReport } from "./demo/seed-report.ts";
 import { getDb } from "./index.ts";
 import { seedDevProviders } from "./seed-providers.ts";
 
 if (!getEnv().EDULIMS_DEV_LOGIN) {
   console.error("Refusing to seed: EDULIMS_DEV_LOGIN is not enabled.");
   process.exit(1);
-}
-
-function counts(record: Record<string, number>): string {
-  return Object.entries(record)
-    .map(([key, n]) => `${key} ${n}`)
-    .join(", ");
 }
 
 const db = getDb();
@@ -74,19 +69,7 @@ try {
   const devClasses = await seedDevAccountClasses(db, now);
   const summary = await seedSummary(db, now);
   process.stdout.write(
-    `${created ? "created" : "exists "} demo data\n` +
-      `${devClasses ? "created" : "exists "} dev-account classes (LS-3A, LS-3B, LS-3A archived)\n` +
-      `  users by role:       ${counts(summary.usersByRole)}\n` +
-      `  accounts:            ${counts(summary.accountsByProvider)}\n` +
-      `  sessions:            ${summary.activeSessions} active, ${summary.expiredSessions} expired\n` +
-      `  blocked users:       ${summary.blockedUsers}\n` +
-      `  activity-log events: ${summary.auditEvents}\n` +
-      `  classes:             ${summary.classes} (${summary.archivedClasses} archived), ` +
-      `${summary.classMembers} members, ${summary.labGroups} lab groups, ` +
-      `${summary.pendingInvitations} pending invitations\n` +
-      "The demo people sign in through an identity provider only: they have no password and are " +
-      "not in the development Keycloak realm, so they cannot sign in locally. Use the dev-login " +
-      "and Keycloak demo accounts above.\n",
+    formatSeedReport({ demoCreated: created, devClassesCreated: devClasses, summary }),
   );
 } finally {
   await db.destroy();
