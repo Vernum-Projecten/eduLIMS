@@ -68,6 +68,27 @@ eduLIMS is in English and Dutch. Choose the language button in the header
 are signed in, eduLIMS saves the choice to your account, so it also applies
 the next time you sign in, on any device.
 
+## Overview
+
+The admin portal opens on its overview, which shows the state of eduLIMS at a
+glance:
+
+- **Accounts:** how many users there are in total, how many hold each role
+  (a teacher who is also an administrator counts under both), how many
+  sessions are active and how many users are blocked. Choose a tile to open
+  **Users and roles** with that filter, such as only the students or only
+  the blocked users. Two more tiles count the classes that are not archived
+  and the class invitations still pending; choose one to open **Classes**.
+- **Integrations:** the state of FerroEHR and FerroBRIDGE, as an icon with
+  text, and when eduLIMS last checked them. Choose one to open **Analysers
+  and integrations**.
+- **Latest activity:** the 10 newest events of the activity log, such as a
+  sign-in or a role change, with who did it, the outcome and when. **Full
+  activity log** opens the whole log.
+
+The counts are as they were when the page opened; open the overview again
+for new numbers.
+
 ## Users and roles
 
 **Users and roles** lists every account of eduLIMS, 25 to a page. Each row
@@ -265,10 +286,28 @@ Creating, inviting, accepting, removing, archiving, copying, transferring
 ownership and every lab-group change are recorded in the activity log, with
 ids only.
 
+## System
+
+**System** lists the settings of eduLIMS itself. Below the link to
+**Identity providers** it shows, read-only:
+
+- **Enabled identity providers:** for each provider that people can sign in
+  with now, its provider id and protocol, the URL registered at the identity
+  provider (the **Redirect URI** for OpenID Connect, the **Assertion consumer
+  service URL** for SAML), the role claim or attribute, the default role and
+  the role map. A disabled provider is not listed. Change a provider under
+  **Identity providers**.
+- **Version and build:** the eduLIMS version, the commit it was built from,
+  the build time and its SLSA provenance: the release image whose
+  attestation `gh attestation verify` checks. A server that does not run a
+  release image, such as a development server, shows **Not available**.
+
+The page never shows a secret: no client secret, no signing key and no value
+of the server's secret settings.
+
 ## Planned tasks
 
 | Task                                                                          | Requirement                      |
 | ----------------------------------------------------------------------------- | -------------------------------- |
-| Create users and assign a role                                                | [B1](/development/requirements/) |
 | Create classes and link students to a class, by hand or by CSV import         | [B2](/development/requirements/) |
 | Read the log of uploads, HL7 messages and errors                              | [B4](/development/requirements/) |

@@ -27,6 +27,17 @@ function captureSecurityLog(): { lines: string[]; restore: () => void } {
   return { lines, restore: setSecurityLogWriter((line) => lines.push(line)) };
 }
 
+/** Runs `act` and returns the security log lines it wrote. */
+async function logged(act: () => Promise<unknown>): Promise<string[]> {
+  const { lines, restore } = captureSecurityLog();
+  try {
+    await act();
+  } finally {
+    restore();
+  }
+  return lines;
+}
+
 /** The parsed security log lines of one event. */
 function events(lines: readonly string[], event: string): unknown[] {
   return lines
@@ -142,13 +153,20 @@ describe("createIdpRoleSync", () => {
   });
 
   it("revokes the live sessions of an existing user refused for conflicting roles (A07)", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
     const { sync, ctx, deleteUserSessions } = setup();
     const claims = { roles: ["edulims-student", "edulims-admin"] };
     const data = oauth("link-account", "microsoft", claims, { id: "u2" });
-    expect(await sync(data, ctx)).toMatchObject({ error: ROLE_CONFLICT_ERROR });
+    const lines = await logged(async () => {
+      expect(await sync(data, ctx)).toMatchObject({ error: ROLE_CONFLICT_ERROR });
+    });
     expect(deleteUserSessions).toHaveBeenCalledWith("u2");
-    vi.restoreAllMocks();
+    expect(events(lines, "idp_role_conflict")).toEqual([
+      expect.objectContaining({
+        level: "warn",
+        reason: ROLE_CONFLICT_ERROR,
+        provider: "microsoft",
+      }),
+    ]);
   });
 
   it("revokes nothing for a refused first sign-in, which has no sessions", async () => {
@@ -287,12 +305,15 @@ describe("createIdpRoleSync", () => {
   });
 
   it("refuses a conflicting set on a first sign-in too", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
     const { sync, ctx } = setup();
     const data = oauth("create-user", "microsoft", { roles: ["edulims-student", "edulims-admin"] });
-    expect(await sync(data, ctx)).toMatchObject({ error: ROLE_CONFLICT_ERROR });
+    const lines = await logged(async () => {
+      expect(await sync(data, ctx)).toMatchObject({ error: ROLE_CONFLICT_ERROR });
+    });
     expect(data.user["role"]).toBeUndefined();
-    vi.restoreAllMocks();
+    expect(events(lines, "idp_role_conflict")).toEqual([
+      expect.objectContaining({ reason: ROLE_CONFLICT_ERROR, provider: "microsoft" }),
+    ]);
   });
 
   it("leaves non-OAuth methods (dev login, admin) alone", async () => {
@@ -582,12 +603,15 @@ describe("hybrid role ownership (owner decision on #32, B1)", () => {
   });
 
   it("still refuses a conflicting IdP set when the user holds local roles", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
     const { sync, ctx } = setup(undefined, { u1: { role: "teacher", roleSource: "local" } });
     const claims = { roles: ["edulims-student", "edulims-teacher"] };
     const data = oauth("sign-in", "microsoft", claims, { id: "u1" });
-    expect(await sync(data, ctx)).toMatchObject({ error: ROLE_CONFLICT_ERROR });
-    vi.restoreAllMocks();
+    const lines = await logged(async () => {
+      expect(await sync(data, ctx)).toMatchObject({ error: ROLE_CONFLICT_ERROR });
+    });
+    expect(events(lines, "idp_role_conflict")).toEqual([
+      expect.objectContaining({ reason: ROLE_CONFLICT_ERROR, provider: "microsoft" }),
+    ]);
   });
 });
 
@@ -625,10 +649,14 @@ describe("the activity log of the IdP role sync (B4)", () => {
   }
 
   it("records a role_conflict refusal with the user id and the provider", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
     const { sync, ctx, rows } = await audited();
     const claims = { roles: ["edulims-student", "edulims-admin"] };
-    await sync(oauth("sign-in", "microsoft", claims, { id: "u2" }), ctx);
+    const lines = await logged(async () => {
+      await sync(oauth("sign-in", "microsoft", claims, { id: "u2" }), ctx);
+    });
+    expect(events(lines, "authn_login_fail")).toEqual([
+      expect.objectContaining({ target_id: "u2", reason: ROLE_CONFLICT_ERROR }),
+    ]);
     expect(await rows()).toEqual([
       {
         action: "authn_login_fail",

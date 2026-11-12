@@ -77,7 +77,9 @@ for (const role of ROLES) {
     for (const section of portal.sections) {
       await expect(nav.getByRole("link", { name: section, exact: true })).toBeVisible();
       // The overview links every section from a card.
-      await expect(page.getByRole("main").getByRole("link", { name: section })).toBeVisible();
+      await expect(
+        page.getByRole("main").getByRole("link", { name: section, exact: true }),
+      ).toBeVisible();
     }
     for (const other of ROLES.filter((candidate) => candidate !== role)) {
       await expect(nav).not.toContainText(PORTALS[other].heading);

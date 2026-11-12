@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { databaseTlsProblem, envFields, getEnv, parseEnv, parseWith } from "./env.ts";
+import {
+  databaseTlsProblem,
+  EnvConfigError,
+  envFields,
+  getEnv,
+  parseEnv,
+  parseWith,
+} from "./env.ts";
 import { VALID_ENV } from "./test-env.ts";
 
 const VERIFIED_DATABASE_URL =
@@ -70,6 +77,21 @@ describe("parseEnv", () => {
     ["EDULIMS_DEV_LOGIN", "maybe"],
   ])("rejects an invalid %s (%s)", (key, value) => {
     expect(() => parseEnv({ ...VALID_ENV, [key]: value })).toThrow(new RegExp(key));
+  });
+
+  it("names a bad private origin by its position, never by its value (V16.2.5)", () => {
+    const value = "http://localhost:8180, http://secret-host.internal/path";
+    let thrown: unknown;
+    try {
+      parseEnv({ ...VALID_ENV, EDULIMS_IDP_PRIVATE_ORIGINS: value });
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(EnvConfigError);
+    if (!(thrown instanceof EnvConfigError)) return;
+    expect(thrown.variables).toEqual(["EDULIMS_IDP_PRIVATE_ORIGINS"]);
+    expect(thrown.message).toMatch(/entry 2 is not an http\(s\) origin/);
+    expect(thrown.message).not.toContain("secret-host");
   });
 
   it("lists every missing variable in one error", () => {
