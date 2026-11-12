@@ -153,17 +153,51 @@ code until a new invitation or a re-add clears the record.
 
 ### Template `eduLIMS-lab`
 
-The operational template `eduLIMS-lab` is built only from existing archetypes
-from the openEHR Clinical Knowledge Manager (CKM). eduLIMS adds no archetype of
-its own.
+The operational template `eduLIMS-lab.v1` is built only from existing
+archetypes from the openEHR Clinical Knowledge Manager (CKM). eduLIMS adds no
+archetype of its own. It is an OPT 1.4 file,
+`docker/ferroehr/definitions/eduLIMS-lab.v1.opt`, that
+`scripts/openehr/build-opt.py` builds from the CKM's XML of each archetype at
+the revision it pins, and FerroEHR loads it before it serves
+([deployment](deployment.md#ferroehrs-templates)). A changed template is a
+new id (`eduLIMS-lab.v2`), because FerroEHR never replaces a stored template.
 
-| Archetype | What it records |
-|---|---|
-| `openEHR-EHR-COMPOSITION.report-result.v1` | the result as a whole: who, when, which practical |
-| `openEHR-EHR-OBSERVATION.laboratory_test_result.v1` | the test and the status of the result |
-| `openEHR-EHR-CLUSTER.laboratory_test_analyte.v1` | per analyte the value with unit: HbA1c or CRP (Afinion), absorbance per well and wavelength (Epoch) |
-| `openEHR-EHR-CLUSTER.specimen.v1` | the sample: sample ID from eduLIMS, type and well position |
-| `openEHR-EHR-CLUSTER.device.v1` | the device, for example the Afinion 2 with its serial number |
+| Archetype | CKM revision | Where it sits | What it records |
+|---|---|---|---|
+| `openEHR-EHR-COMPOSITION.report-result.v1` | 1.1.0 | the root | the result report as a whole; its context has no element for the practical |
+| `openEHR-EHR-OBSERVATION.laboratory_test_result.v1` | 1.2.8 | `content`, one or more | the test, and the order in its protocol |
+| `openEHR-EHR-CLUSTER.specimen.v1` | 1.1.3 | the observation's "Specimen detail" slot, one or more | the sample: sample ID and well position |
+| `openEHR-EHR-CLUSTER.laboratory_test_analyte.v1` | 1.2.3 | the observation's "Test result" slot, one or more | per analyte the name, the value with its unit and the result status |
+| `openEHR-EHR-CLUSTER.device.v1` | 1.1.6 | the observation's "Testing details" slot (protocol), exactly one | the analyser |
+
+The specimen, analyte and device clusters are slots inside the observation,
+not entries beside it. The template fills those three slots and closes every
+other slot of the five archetypes, so no other archetype can enter a
+composition.
+
+Where each eduLIMS field goes (decided by the maintainer on the owner's
+delegation on #146, within the CKM archetypes, W4):
+
+| eduLIMS field | Archetype | Element (at-code) | Data type | In the template |
+|---|---|---|---|---|
+| Sample ID | `specimen.v1` | Laboratory specimen identifier (`at0001`) | `DV_IDENTIFIER` | required, one |
+| Well position (Epoch 2) | `specimen.v1` | Specimen label (`at0098`) | `DV_TEXT` | optional |
+| Practical | `laboratory_test_result.v1` | Test request details (`at0094`), Requester order identifier (`at0062`) | `DV_IDENTIFIER` | optional |
+| Test name | `laboratory_test_result.v1` | Test name (`at0005`) | `DV_TEXT` | required, as in the archetype |
+| Analyte name; for the Epoch 2 it includes the wavelength | `laboratory_test_analyte.v1` | Analyte name (`at0024`) | `DV_TEXT` | required, one |
+| Value and unit | `laboratory_test_analyte.v1` | Analyte result (`at0001`) | `DV_QUANTITY` (`magnitude`, `units`; `magnitude_status` for a value outside the measuring range) | required, one |
+| Result status | `laboratory_test_analyte.v1` | Result status (`at0005`) | `DV_CODED_TEXT`, local `at0017` Preliminary or `at0018` Final | required, one |
+| Analyser | `device.v1` | Device name (`at0001`), Serial number (`at0020`), Other identifier (`at0024`) | `DV_TEXT`, `DV_TEXT`, `DV_IDENTIFIER` | Device name required, as in the archetype |
+| Lab (facility) | the reference model | `COMPOSITION.context.health_care_facility` | `PARTY_IDENTIFIED` with the identifier of the system client's facility | FerroEHR refuses a composition without it |
+| Composer | the reference model | `COMPOSITION.composer` | `PARTY_IDENTIFIED` naming the analyser, its serial number as identifier under the issuer `https://edulims.eu/id/analyser` | FerroEHR checks it for the `device` origin |
+
+An unchecked student result has the status Preliminary; the student's
+release makes it Final ([LIMS workflow](lims-workflow.md)). The Afinion 2
+analytes, HbA1c and CRP, are fixed by the device. The Epoch 2 assays stay
+generic, an analyte name and a value per well and wavelength, until the
+practical questions on #131 are answered. No element carries a name, a
+student number or an email address (Q-PRIV-1); who the EHR subject is waits
+on #131 (X1).
 
 Every composition eduLIMS writes passes openEHR validation against this
 template (Q-COMP-1).

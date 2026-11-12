@@ -22,6 +22,14 @@
 # off, the system client removed) must be refused. FerroBRIDGE has no
 # reference file yet, so its check leaves the file out.
 #
+# FerroEHR refuses to start while a template a system client writes is not
+# stored (#146). In both Compose files the one-shot `ferroehr-definitions`
+# must load every template in docker/ferroehr/definitions/ with the ferroehr
+# image and environment before ferroehr starts. The pinned image then loads
+# them with `ferroehr definitions load` on a throwaway PostgreSQL (tmpfs, an
+# internal network of its own): stored on the first load, left alone on the
+# second, and a changed copy under the same id refused.
+#
 # The HL7 v2 face of FerroBRIDGE 0.0.24 serves MLLP over TLS only (#211,
 # FerroBRIDGE book, "The HL7 v2 face"). Two checks hold that:
 #   * no Compose file turns the face on (FERROBRIDGE__HL7V2__ENABLED) without
@@ -67,6 +75,9 @@ hl7v2_tls_gaps() {
 FERROEHR_EXAMPLE=config/ferroehr.toml.example
 FERROEHR_CLIENT=edulims-ferroehr
 FERROEHR_TEMPLATE=eduLIMS-lab.v1
+# The operational templates FerroEHR loads before it serves, in load order.
+FERROEHR_DEFINITIONS=docker/ferroehr/definitions
+FERROEHR_DEFINITION_FILES=("$FERROEHR_TEMPLATE.opt")
 # The operator's <placeholders> in the example, each with a throwaway value.
 FERROEHR_FILL=(
   '<issuer>=https://idp.example.test/realms/edulims'
@@ -403,8 +414,109 @@ ferroehr_reference() {
   done
 }
 
+# definitions_rule <label> <json>: the one-shot `ferroehr-definitions` runs the
+# ferroehr image with its environment, loads every template under
+# FERROEHR_DEFINITIONS, and ferroehr starts only after it exits 0.
+definitions_rule() {
+  local label=$1 json=$2 gaps
+  gaps=$(jq -r --args '
+    .services as $s
+    | ($s["ferroehr-definitions"] // null) as $d
+    | if $d == null then "no ferroehr-definitions service" else
+        (if $d.image == $s.ferroehr.image then empty else "its image is not the ferroehr image" end),
+        (if $d.environment == $s.ferroehr.environment then empty else "its environment is not that of ferroehr" end),
+        (if ($d.command // [])[0:2] == ["definitions", "load"] then empty else "its command is not `definitions load`" end),
+        ($ARGS.positional[] | select(. as $f | ($d.command // []) | index("/etc/ferroehr/definitions/" + $f) | not)
+          | "it does not load \(.)"),
+        (if $s.ferroehr.depends_on["ferroehr-definitions"].condition == "service_completed_successfully" then empty
+         else "ferroehr does not wait for it to exit 0" end)
+      end' "${FERROEHR_DEFINITION_FILES[@]}" <<<"$json")
+  if [[ -z $gaps ]]; then
+    pass "$label: ferroehr-definitions loads ${FERROEHR_DEFINITION_FILES[*]} before ferroehr starts"
+  else
+    fail "$label: ferroehr-definitions: $(paste -sd ';' - <<<"$gaps")"
+  fi
+}
+
+# indent_tail <text>: the last lines of a refusal, indented.
+indent_tail() {
+  local line
+  tail -5 <<<"$1" | while IFS= read -r line; do echo "     $line"; done
+}
+
+# definitions_probe <json>: the pinned FerroEHR stores each template on an
+# empty throwaway database, leaves it alone on a second load, and refuses a
+# changed copy under the same id. PostgreSQL runs on a tmpfs and both
+# containers share an internal network of their own, so nothing persists and
+# nothing reaches out.
+definitions_probe() {
+  local json=$1 image pg_image net pg dir file
+  image=$(jq -r '.services.ferroehr.image // empty' <<<"$json")
+  pg_image=$(jq -r '.services.postgres.image // empty' <<<"$json")
+  [[ -n $image && -n $pg_image ]] || {
+    fail "definitions: no ferroehr or postgres service"
+    return
+  }
+  net="ferro-compose-$$"
+  pg="ferro-compose-pg-$$"
+  dir=$(mktemp -d)
+  # shellcheck disable=SC2064 # expand now: the names are fixed
+  trap "$RUNTIME rm -f '$pg' >/dev/null 2>&1; $RUNTIME network rm '$net' >/dev/null 2>&1; rm -rf '$dir'" RETURN
+  "$RUNTIME" network create --internal "$net" >/dev/null
+  "$RUNTIME" run -d --name "$pg" --network "$net" --tmpfs /var/lib/postgresql --tmpfs /var/run/postgresql \
+    -e POSTGRES_PASSWORD=example -e PG_INIT_USER=ferroehr -e PG_INIT_PASSWORD=example -e PG_INIT_DB=ferroehr \
+    "$pg_image" >/dev/null
+  local ready=0 _
+  for _ in $(seq 1 60); do
+    # The image's init scripts restart the server once; ask twice in a row.
+    if "$RUNTIME" exec "$pg" pg_isready -h 127.0.0.1 -U ferroehr -d ferroehr >/dev/null 2>&1; then
+      ready=$((ready + 1))
+      ((ready >= 2)) && break
+    else
+      ready=0
+    fi
+    sleep 2
+  done
+  if ((ready < 2)); then
+    fail "definitions: the throwaway PostgreSQL did not become ready"
+    return
+  fi
+  cp "${FERROEHR_DEFINITION_FILES[@]/#/$FERROEHR_DEFINITIONS/}" "$dir/"
+  file=${FERROEHR_DEFINITION_FILES[0]}
+  sed 's|<concept>|<concept>changed |' "$dir/$file" >"$dir/changed-$file"
+  chmod 0755 "$dir"
+  chmod 0644 "$dir"/*
+  local -a load=("$RUNTIME" run --rm --network "$net" --read-only --tmpfs /tmp -v "$dir:/etc/ferroehr/definitions:ro"
+    -e "FERROEHR__DATABASE__URL=postgres://ferroehr:example@$pg:5432/ferroehr"
+    -e FERROEHR__RECORD__SUBJECT_INDEX=local -e FERROEHR__USAGE_REPORT__ENABLED=false
+    "$image" definitions load)
+  local -a files=("${FERROEHR_DEFINITION_FILES[@]/#//etc/ferroehr/definitions/}")
+  local output status round
+  for round in first second; do
+    status=0
+    output=$("${load[@]}" "${files[@]}" 2>&1) || status=$?
+    if ((status == 0)); then
+      pass "definitions: ferroehr accepts ${FERROEHR_DEFINITION_FILES[*]} on the $round load: $(paste -sd ';' - <<<"$output")"
+    else
+      fail "definitions: ferroehr refuses ${FERROEHR_DEFINITION_FILES[*]} on the $round load (exit $status)"
+      indent_tail "$output"
+      return
+    fi
+  done
+  status=0
+  output=$("${load[@]}" "/etc/ferroehr/definitions/changed-$file" 2>&1) || status=$?
+  if ((status != 0)) && grep -q 'other content' <<<"$output"; then
+    pass "definitions: ferroehr refuses a changed $file under the same id"
+  else
+    fail "definitions: ferroehr does not refuse a changed $file under the same id (exit $status)"
+    indent_tail "$output"
+  fi
+}
+
 if production=$(compose_json -f compose.yaml); then
   pass "compose.yaml is valid with the example values"
+  definitions_rule compose.yaml "$production"
+  definitions_probe "$production"
   ferroehr_reference "$production"
   config_check compose.yaml "$production" ferrobridge ferrobridge
   hl7v2_tls_rule compose.yaml "$production"
@@ -415,6 +527,7 @@ fi
 
 if development=$(compose_json -f compose.dev.yaml); then
   pass "compose.dev.yaml is valid"
+  definitions_rule compose.dev.yaml "$development"
   config_check compose.dev.yaml "$development" ferroehr ferroehr
   config_check compose.dev.yaml "$development" ferrobridge ferrobridge
   hl7v2_tls_rule compose.dev.yaml "$development"

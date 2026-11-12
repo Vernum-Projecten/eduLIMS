@@ -61,8 +61,10 @@ provider = { issuer = "<provider-issuer>", id = "<provider-id>" }
 # (identity-providers.md, "Who the caller is").
 facilities = [{ issuer = "<facility-issuer>", id = "<facility-id>" }]
 # eduLIMS commits the `eduLIMS-lab.v1` template only. FerroEHR refuses to
-# start while its store lacks a template listed here, so the template is
-# loaded before FerroEHR starts (docs/deployment.md, "First deployment").
+# start while its store lacks a template listed here, so compose.yaml's
+# `ferroehr-definitions` step loads it before FerroEHR starts
+# (installation/config-cli.md, `ferroehr definitions load`; docs/deployment.md,
+# "FerroEHR's templates").
 writes = ["eduLIMS-lab.v1"]
 # `device`: the composer is the analyser that measured, named by its serial
 # number from the analyser register under this issuer, which is also
