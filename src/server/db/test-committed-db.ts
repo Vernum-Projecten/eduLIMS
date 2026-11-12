@@ -21,7 +21,10 @@ export interface CommittedTestDb {
 
 const SESSION_WAIT_MS = 10_000;
 
-/** Waits until the server holds no session on the database `url` names. */
+/**
+ * Waits until the server holds no session of this user on the database `url` names. An
+ * autovacuum worker there is left to the drop, which signals it (#199).
+ */
 async function waitForNoSessions(baseUrl: string, url: string): Promise<void> {
   const client = new pg.Client({ connectionString: baseUrl });
   await client.connect();
@@ -29,7 +32,7 @@ async function waitForNoSessions(baseUrl: string, url: string): Promise<void> {
     const deadline = Date.now() + SESSION_WAIT_MS;
     for (;;) {
       const { rows } = await client.query<{ n: string }>(
-        "SELECT count(*) AS n FROM pg_stat_activity WHERE datname = $1",
+        "SELECT count(*) AS n FROM pg_stat_activity WHERE datname = $1 AND usename = current_user",
         [databaseOf(url)],
       );
       if (rows[0]?.n === "0") return;
@@ -45,9 +48,9 @@ async function waitForNoSessions(baseUrl: string, url: string): Promise<void> {
  * Creates and migrates a database of its own, with a pool of `max` connections.
  *
  * `destroy()` drops the database only once every pool client has closed and the server holds no
- * session on it. `pool.end()` resolves while the last clients are still closing; dropping then
- * (`DROP DATABASE … WITH (FORCE)`) ends their backends under them, which raised unhandled
- * `57P01` errors and failed the run on CI's slower runner (#119).
+ * session of this user on it. `pool.end()` resolves while the last clients are still closing;
+ * dropping then ends their backends under them, which raised unhandled `57P01` errors and failed
+ * the run on CI's slower runner (#119).
  */
 export async function createCommittedTestDb(max = 10): Promise<CommittedTestDb> {
   const baseUrl = baseTestDatabaseUrl();
