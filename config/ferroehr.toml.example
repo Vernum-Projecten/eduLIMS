@@ -64,13 +64,13 @@ facilities = [{ issuer = "<facility-issuer>", id = "<facility-id>" }]
 # start while its store lacks a template listed here, so the template is
 # loaded before FerroEHR starts (docs/deployment.md, "First deployment").
 writes = ["eduLIMS-lab.v1"]
-# `device`: the composer is the system eduLIMS, never a student (decided on
-# #146), so no professional is named, and FerroEHR answers a `relay` commit
-# without one with `422` (identity-providers.md, "Who the caller is").
-# TODO(#146): the composer carries an identifier under this issuer that is
-# also `feeder_audit.originating_system_audit.system_id`, as a device act needs.
+# `device`: the composer is the analyser that measured, named by its serial
+# number from the analyser register under this issuer, which is also
+# `feeder_audit.originating_system_audit.system_id` (decided on #146); a
+# `relay` commit without a professional is answered `422`
+# (identity-providers.md, "Who the caller is"; security/committer.md).
 origins = ["device"]
-device_identifier_issuers = ["https://edulims.eu/id/device"]
+device_identifier_issuers = ["https://edulims.eu/id/analyser"]
 
 # FerroBRIDGE gets its own `[[authz.system_client]]` (origin `relay`, HL7 v2)
 # with the Afinion 2 route; its mapping waits on #131, X3.
