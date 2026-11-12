@@ -65,19 +65,28 @@ Option 2.
   TLS on these two links would add little. The same holds for FerroEHR's and
   Keycloak's own connections to PostgreSQL, which their configuration
   governs.
-- **Accepted residual risk, the MLLP port:** the Afinion 2 reaches
-  FerroBRIDGE from the lab network, outside the host, over plain MLLP. No
-  Afinion 2 document the repository cites describes TLS (the HL7
-  Connectivity Protocol v4.0 describes plain MLLP framing; the manual asks
-  only for a secure network; #186), and MLLP has no authentication. Anyone
-  who reaches the port can send a result under any sample ID, and anyone on
-  the path can read or alter one (Top 10:2025 A01 and A08; ASVS V12.3.1 and
-  V13.2.1 are not met on this segment). The controls are the bind address
-  (`FERROBRIDGE_MLLP_BIND_HOST` on the lab-facing address) and a host
-  firewall that admits only the analysers' fixed addresses
-  (`docs/deployment.md`, "The MLLP port"). What stays open is a device that
-  takes over an analyser's address, or a host on the path. Revisit when Abbott documents TLS for the
-  Afinion 2, or when a TLS-terminating device sits next to the analyser.
+- **Open, the MLLP port:** the Afinion 2 reaches FerroBRIDGE from the lab
+  network, outside the host. FerroBRIDGE 0.0.24, the pinned image, serves
+  its HL7 v2 face as MLLP over TLS only and requires a client certificate
+  that chains to `[hl7v2.tls] client_ca_file`; each `[[hl7v2.senders]]`
+  entry names the `certificate_subject` its certificate carries, and the
+  bridge refuses to start without the `[hl7v2.tls]` files, without a
+  sender, or with a sender that names no `certificate_subject` (FerroBRIDGE
+  book, "The HL7 v2 face"; CHANGELOG 0.0.23). No Afinion 2 document the
+  repository cites describes TLS (the HL7 Connectivity Protocol v4.0
+  describes plain MLLP framing; the manual asks only for a secure network;
+  #186; the documents are not vendored yet, #209). The analyser cannot meet
+  the bridge's requirement, so the route needs either a TLS-terminating
+  sidecar next to each analyser that presents that analyser's client
+  certificate, or a FerroBRIDGE change. Neither is tested, and the choice is
+  open on #131; until then the face stays off. Whichever is chosen, the bind
+  address (`FERROBRIDGE_MLLP_BIND_HOST` on the lab-facing address) and a
+  host firewall that admits only the analysers' fixed addresses stay as
+  extra controls (`docs/deployment.md`, "The MLLP port"). Any segment that
+  stays plain MLLP (an analyser to its sidecar, for example) can be read or
+  altered by a host on it, and MLLP itself authenticates nobody (Top
+  10:2025 A01 and A08; ASVS V12.3.1 and V13.2.1). Revisit when #131 is
+  decided, or when Abbott documents TLS for the Afinion 2.
 - **Revisit** this record when any service runs on a second host or the
   backend network spans machines; at that point option 1 applies.
 

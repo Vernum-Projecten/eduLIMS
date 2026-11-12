@@ -638,6 +638,7 @@ jobs:
 
   # FerroEHR and FerroBRIDGE accept the environment compose.yaml and
   # compose.dev.yaml give them: each pinned image's own `config check`, offline.
+  # The HL7 v2 face runs only with [hl7v2.tls] (#211).
   ferro-compose:
     name: ferro-compose
     runs-on: ubuntu-latest
@@ -649,7 +650,10 @@ jobs:
         with:
           persist-credentials: false
       - name: The Ferro services accept their Compose configuration
-        run: bash scripts/checks/ferro-compose.sh
+        run: |
+          set -euo pipefail
+          bash scripts/checks/ferro-compose.sh --self-test
+          bash scripts/checks/ferro-compose.sh
 
   # ── The single required check ───────────────────────────────────────────────
 

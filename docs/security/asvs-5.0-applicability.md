@@ -66,12 +66,12 @@ moves a row to `met` in the same pull request.
 |---|---|
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
-| Applicable (yes or partly) | 177 |
+| Applicable (yes or partly) | 178 |
 | Status met | 95 |
-| Status partial | 48 |
+| Status partial | 49 |
 | Status planned | 26 |
 | Status open | 8 |
-| Status n-a | 168 |
+| Status n-a | 167 |
 
 ### V1 Encoding and Sanitization
 
@@ -666,7 +666,7 @@ Text: [vendor/asvs/en/0x21-V12-Secure-Communication.md](vendor/asvs/en/0x21-V12-
 |---|---|---|---|---|---|
 | V12.1.1 | 1 | yes | TLS 1.2 and 1.3 at the reverse proxy; the operator configures it (`docs/deployment.md`) | manual, operator | partial |
 | V12.1.2 | 2 | yes | cipher suites at the reverse proxy; no recommended configuration is documented yet | manual, operator | partial |
-| V12.1.3 | 2 | no | no mTLS client certificates; the Afinion 2 sends plain MLLP with no client certificate (ADR 0013, #186) | none | n-a |
+| V12.1.3 | 2 | partly | FerroBRIDGE 0.0.24's MLLP face requires a client certificate that chains to `[hl7v2.tls] client_ca_file` and accepts a message only when the certificate carries the `certificate_subject` of the `[[hl7v2.senders]]` entry its MSH-4 names (FerroBRIDGE's code, ADR 0013); the Afinion 2 has no documented TLS (#186, #209), so its client certificate needs a TLS-terminating sidecar per analyser or a FerroBRIDGE change, open on #131; eduLIMS itself takes no client certificate | CI `ferro-compose` (the pinned image refuses the face without `[hl7v2.tls]` or a `certificate_subject`) | partial |
 | V12.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V12.1.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -681,7 +681,7 @@ Text: [vendor/asvs/en/0x21-V12-Secure-Communication.md](vendor/asvs/en/0x21-V12-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V12.3.1 | 2 | yes | eduLIMS to PostgreSQL uses TLS with `sslmode=verify-full`, refused otherwise in production (`src/server/env.ts`, `compose.yaml`, #40); FerroEHR and FerroBRIDGE stay plain on the internal `backend` network as the accepted residual risk of ADR 0013; the Afinion 2 sends plain MLLP from the lab network, because no Afinion 2 document the repository cites describes TLS, an accepted residual risk of ADR 0013 limited by the bind address and the firewall allow-list (`docs/deployment.md`, "The MLLP port", #186) | unit `src/server/env.test.ts` | partial |
+| V12.3.1 | 2 | yes | eduLIMS to PostgreSQL uses TLS with `sslmode=verify-full`, refused otherwise in production (`src/server/env.ts`, `compose.yaml`, #40); FerroEHR and FerroBRIDGE stay plain on the internal `backend` network as the accepted residual risk of ADR 0013; FerroBRIDGE 0.0.24 serves the MLLP face over TLS only and refuses to start without `[hl7v2.tls]`, but no Afinion 2 document the repository cites describes TLS (#186), so the Afinion 2 route needs a TLS-terminating sidecar per analyser or a FerroBRIDGE change, open on #131, and the face stays off until then; the bind address and the firewall allow-list stay as extra controls (ADR 0013, `docs/deployment.md`, "The MLLP port") | unit `src/server/env.test.ts`; CI `ferro-compose` | partial |
 | V12.3.2 | 2 | yes | Node.js `fetch` validates certificates; the Keycloak issuer must be `https` in production (`src/server/env.ts`) | unit `src/server/env.test.ts` | met |
 | V12.3.3 | 2 | yes | PostgreSQL: the certificate and host name are verified (`sslmode=verify-full`); `FERROEHR_BASE_URL` and `FERROBRIDGE_BASE_URL` stay `http` inside Compose by decision (ADR 0013, revisit on a second host) | unit `src/server/env.test.ts` | partial |
 | V12.3.4 | 2 | yes | the operator's private CA for PostgreSQL (`config/postgres-tls/ca.crt`, `docs/deployment.md`, "Database TLS"); none for FerroEHR and FerroBRIDGE (ADR 0013) | manual, operator | partial |
@@ -704,7 +704,7 @@ Text: [vendor/asvs/en/0x22-V13-Configuration.md](vendor/asvs/en/0x22-V13-Configu
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); how eduLIMS authenticates to FerroEHR and FerroBRIDGE is not built yet (S3, S4); the Afinion 2 to FerroBRIDGE MLLP link has no authentication, so only the bind address and a host-firewall allow-list of the analysers' fixed addresses limit who can send a result, the accepted residual risk of ADR 0013 (`docs/deployment.md`, "The MLLP port", #186); an identity provider authenticates to the SCIM endpoint with a bearer token per provider that expires after 180 days, hashed, rotated with a one-hour overlap and revocable at once (ADR 0017, owner decision on #45); not short-term, because the providers' SCIM clients take a static secret | review; unit `src/server/scim/tokens.test.ts` | partial |
+| V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); how eduLIMS authenticates to FerroEHR and FerroBRIDGE is not built yet (S3, S4); FerroBRIDGE 0.0.24 authenticates each MLLP sender by its client certificate, tied to its `[[hl7v2.senders]]` entry, and refuses to start without one; the Afinion 2 has no documented TLS (#186), so a TLS-terminating sidecar per analyser or a FerroBRIDGE change must present or replace that certificate, open on #131, with the bind address and a host-firewall allow-list of the analysers' fixed addresses as extra controls (ADR 0013, `docs/deployment.md`, "The MLLP port"); an identity provider authenticates to the SCIM endpoint with a bearer token per provider that expires after 180 days, hashed, rotated with a one-hour overlap and revocable at once (ADR 0017, owner decision on #45); not short-term, because the providers' SCIM clients take a static secret | review; unit `src/server/scim/tokens.test.ts` | partial |
 | V13.2.2 | 2 | yes | one database role per service (`docker/postgres/init/20-edulims.sh`); containers run non-root with `cap_drop: [ALL]` (`compose.yaml`, `docker/Dockerfile`) | review | met |
 | V13.2.3 | 2 | yes | Compose refuses to start without each password (`${VAR:?}` in `compose.yaml`) | review | met |
 | V13.2.4 | 2 | partly | outbound targets are configured URLs only (`src/server/env.ts`), the B3 health check included (`src/server/integrations/probe.ts`); no egress allowlist at the network level | unit `src/server/integrations/checks.test.ts`, review | partial |
