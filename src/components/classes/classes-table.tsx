@@ -17,7 +17,7 @@ import {
 import { m } from "@/i18n/messages";
 import { classRoleLabel } from "@/lib/i18n/class-labels";
 import { formatNumber } from "@/lib/i18n/format";
-import type { AdminClassRow, TeacherClassRow } from "@/server/classes/queries";
+import type { TeacherClassRow } from "@/server/classes/queries";
 
 const LINK_CLASS =
   "w-fit font-medium underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none";
@@ -117,81 +117,6 @@ export function ClassesTable({
       caption={archived ? m.classes_caption_archived() : m.classes_caption()}
       busy={busy}
       empty={<ClassesEmpty archived={archived} />}
-    />
-  );
-}
-
-const adminHelper = createDataTableColumnHelper<AdminClassRow>();
-
-/** The columns of the administrator's class list: read-only, no grades or results (R-01). */
-const adminColumns = adminHelper.columns([
-  adminHelper.accessor("name", {
-    id: "name",
-    meta: { label: () => m.classes_col_class() },
-    header: () => m.classes_col_class(),
-    cell: ({ row }) => (
-      <ClassName
-        name={row.original.name}
-        academicYear={row.original.academicYear}
-        archived={row.original.archivedAt !== null}
-        className="font-medium"
-      />
-    ),
-  }),
-  adminHelper.accessor((row) => row.owner?.name ?? "", {
-    id: "owner",
-    meta: { label: () => m.classes_col_owner() },
-    header: () => m.classes_col_owner(),
-    cell: ({ row }) => row.original.owner?.name ?? m.classes_no_owner(),
-  }),
-  adminHelper.accessor((row) => row.coTeachers.map((teacher) => teacher.name).join(", "), {
-    id: "coTeachers",
-    meta: { label: () => m.classes_col_co_teachers() },
-    header: () => m.classes_col_co_teachers(),
-    cell: ({ row }) =>
-      row.original.coTeachers.length === 0 ? (
-        <span className="text-muted-foreground">{m.classes_none()}</span>
-      ) : (
-        <ul className="flex flex-col">
-          {row.original.coTeachers.map((teacher) => (
-            <li key={teacher.id}>{teacher.name}</li>
-          ))}
-        </ul>
-      ),
-  }),
-  adminHelper.accessor("students", {
-    id: "students",
-    meta: { label: () => m.classes_col_students(), className: "text-right" },
-    header: () => m.classes_col_students(),
-    cell: ({ getValue }) => formatNumber(getValue()),
-  }),
-  adminHelper.accessor("pendingInvitations", {
-    id: "pendingInvitations",
-    meta: { label: () => m.classes_col_pending(), className: "text-right" },
-    header: () => m.classes_col_pending(),
-    cell: ({ getValue }) => formatNumber(getValue()),
-  }),
-]);
-
-/** Every class for the administrator (#28): owner, co-teachers, counts and archive state. */
-export function AdminClassesTable({ rows }: Readonly<{ rows: AdminClassRow[] }>) {
-  const table = useTable({
-    features: dataTableFeatures,
-    columns: adminColumns,
-    data: rows,
-    rowCount: rows.length,
-    getRowId: (row) => row.id,
-    manualSorting: true,
-    manualFiltering: true,
-    manualPagination: true,
-    enableSorting: false,
-    enableRowSelection: false,
-  });
-  return (
-    <DataTable
-      table={table}
-      caption={m.classes_admin_caption()}
-      empty={<ClassesEmpty archived={false} />}
     />
   );
 }

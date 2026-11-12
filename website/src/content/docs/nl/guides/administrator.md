@@ -263,7 +263,31 @@ mededocenten uit; zie de handleiding voor docenten. **Klassen** in het
 Beheerportaal toont elke klas in eduLIMS, het nieuwste studiejaar eerst, met
 de eigenaar, de mededocenten, het aantal studenten, het aantal openstaande
 uitnodigingen en of de klas is gearchiveerd. Cijfers en resultaten staan er
-niet in. De lijst is alleen-lezen.
+niet in. Zoek op de klasnaam of de naam van een docent, en filter op status
+(actief of gearchiveerd), studiejaar en eigenaar; de filters staan in het
+adres, dus je kunt een gefilterde lijst delen.
+
+Je bent geen lid van de klassen die je beheert, en geen van de acties
+hieronder maakt je lid. Elke actie vraagt een bevestiging of een kort
+formulier:
+
+- **Nieuwe klas:** maak een klas aan namens een docent. Kies de naam, het
+  studiejaar en de eigenaar, die de rol docent moet hebben. De klas opent op
+  een eigen pagina.
+- **Klaspagina:** open een klas uit de lijst voor de leden (namen en
+  klasrollen), de openstaande uitnodigingen en de aantallen.
+- **Studenten importeren:** typ of plak op de klaspagina adressen van
+  studenten, of lees een csv-bestand met één adres per regel. **Lijst
+  controleren** laat per adres zien wat er gebeurt voordat er iets wordt
+  aangemaakt: geen geldig adres, dubbel in de lijst, al lid, al uitgenodigd
+  of nieuw. **Importeren** maakt daarna voor elk nieuw adres een
+  openstaande studentuitnodiging aan, dezelfde uitnodiging die een docent
+  aanmaakt. Een student komt pas in de klas als die met dat adres inlogt.
+- **Eigenaarschap overdragen:** kies iemand met de rol docent als nieuwe
+  eigenaar, lid van de klas of niet. De oude eigenaar blijft mededocent
+  zolang die de rol docent heeft, en verlaat anders de klas.
+- **Archiveren** en **Heropenen:** een gearchiveerde klas is alleen-lezen
+  voor de eigenaar en mededocenten en houdt leden, groepen en geschiedenis.
 
 Wie inlogt met een adres waarop een klas heeft uitgenodigd, komt zonder
 verdere stap in die klas. Stuurt de identity provider geen eduLIMS-rol voor
@@ -271,20 +295,21 @@ iemand die voor het eerst inlogt, dan geeft een openstaande uitnodiging als
 student de rol student, en alleen die rol, als de e-mailadressen van de
 provider als geverifieerd zijn gemarkeerd. Een rol die de identity provider
 heeft ingetrokken, komt zo nooit terug. Een gebruiker die eigenaar is van een
-klas kun je niet verwijderen: de eigenaar draagt de klas eerst over aan een
-mededocent. De rollen docent en beheerder komen altijd van
-de identity provider of uit **Gebruikers en rollen**.
+klas kun je niet verwijderen: draag eerst het eigenaarschap van die klassen
+over, hier of door de eigenaar aan een mededocent. De rollen docent en
+beheerder komen altijd van de identity provider of uit **Gebruikers en
+rollen**.
 
-Aanmaken, uitnodigen, accepteren, verwijderen, archiveren, kopiëren,
-eigenaarschap overdragen en elke wijziging van practicumgroepen komen in het
-activiteitenlogboek, alleen met id's.
+Aanmaken, uitnodigen, accepteren, verwijderen, archiveren, heropenen,
+kopiëren, eigenaarschap overdragen en elke wijziging van practicumgroepen
+komen in het activiteitenlogboek, alleen met id's, ook de acties van
+beheerders.
 
 ## Geplande taken
 
 | Taak                                                                               | Requirement                      |
 | ---------------------------------------------------------------------------------- | -------------------------------- |
 | Gebruikers aanmaken en een rol toekennen                                           | [B1](/development/requirements/) |
-| Klassen aanmaken en studenten koppelen, met de hand of met een CSV-import          | [B2](/development/requirements/) |
 | Het logboek van uploads, HL7-berichten en fouten bekijken                          | [B4](/development/requirements/) |
 
 De requirements zijn in het Engels.

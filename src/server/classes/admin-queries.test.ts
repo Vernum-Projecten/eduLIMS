@@ -1,0 +1,211 @@
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+
+// The administrator's class reads (#37) against a real database: search, the archive,
+// academic-year and owner facets with their counts, server paging, the class detail without
+// grades or results (R-01), and the teachers who can own a class.
+import type { Kysely } from "kysely";
+import { afterEach, describe, expect, it } from "vitest";
+import type { DB } from "../db/schema.gen.ts";
+import { createTestDb } from "../db/test-db.ts";
+import type { ClassActor } from "./access.ts";
+import { getAdminClass, listAdminClassPage, listTeacherCandidates } from "./admin-queries.ts";
+import { archiveClass, createClass } from "./classes.ts";
+import { createGroups } from "./groups.ts";
+import { createInvitations } from "./invitations.ts";
+import { classWithPeople, join, NOW, person } from "./test-helpers.ts";
+
+let db: Kysely<DB> | undefined;
+
+afterEach(async () => {
+  await db?.destroy();
+  db = undefined;
+});
+
+async function open(): Promise<Kysely<DB>> {
+  db = await createTestDb();
+  return db;
+}
+
+const DAY = 24 * 60 * 60 * 1000;
+
+async function newClass(
+  database: Kysely<DB>,
+  owner: ClassActor,
+  name: string,
+  academicYear: string,
+): Promise<string> {
+  const created = await createClass(database, owner, { name, academicYear }, NOW);
+  if (!created.ok) throw new Error(created.error);
+  return created.value.classId;
+}
+
+/** Four classes of two owners over two years, one of them archived. */
+async function fourClasses(database: Kysely<DB>) {
+  const ada = await person(database, "ada", ["teacher"], { name: "Ada Teacher" });
+  const bo = await person(database, "bo", ["teacher"], { name: "Bo Teacher" });
+  const a1 = await newClass(database, ada, "LS-1A", "2026-2027");
+  const a2 = await newClass(database, ada, "LS-2A", "2025-2026");
+  const b1 = await newClass(database, bo, "MB-1A", "2026-2027");
+  const b2 = await newClass(database, bo, "MB-2A", "2025-2026");
+  await archiveClass(database, bo, { classId: b2 }, NOW);
+  return { ada, bo, a1, a2, b1, b2 };
+}
+
+describe("listAdminClassPage (#37)", () => {
+  it("lists every class, newest academic year first, then by name", async () => {
+    const database = await open();
+    const { a1, a2, b1, b2 } = await fourClasses(database);
+    const page = await listAdminClassPage(database, {}, NOW);
+    expect(page.rows.map((row) => row.id)).toEqual([a1, b1, a2, b2]);
+    expect(page).toEqual(expect.objectContaining({ total: 4, page: 1, size: 25 }));
+  });
+
+  it("searches the class name and the names of its teachers", async () => {
+    const database = await open();
+    const { a1, a2, b1 } = await fourClasses(database);
+    const byClass = await listAdminClassPage(database, { q: "mb-1" }, NOW);
+    expect(byClass.rows.map((row) => row.id)).toEqual([b1]);
+    const byTeacher = await listAdminClassPage(database, { q: "ada" }, NOW);
+    expect(byTeacher.rows.map((row) => row.id)).toEqual([a1, a2]);
+  });
+
+  it("treats LIKE wildcards in the search as plain text", async () => {
+    const database = await open();
+    await fourClasses(database);
+    expect((await listAdminClassPage(database, { q: "%" }, NOW)).total).toBe(0);
+  });
+
+  it("filters on the archive state, the academic year and the owner", async () => {
+    const database = await open();
+    const { ada, a1, a2, b1, b2 } = await fourClasses(database);
+    const ids = async (input: Parameters<typeof listAdminClassPage>[1]) =>
+      (await listAdminClassPage(database, input, NOW)).rows.map((row) => row.id);
+    expect(await ids({ status: ["archived"] })).toEqual([b2]);
+    expect(await ids({ status: ["active"] })).toEqual([a1, b1, a2]);
+    expect(await ids({ status: ["active", "archived"] })).toEqual([a1, b1, a2, b2]);
+    expect(await ids({ year: ["2025-2026"] })).toEqual([a2, b2]);
+    expect(await ids({ owner: [ada.id] })).toEqual([a1, a2]);
+    expect(await ids({ owner: [ada.id], year: ["2026-2027"], status: ["active"] })).toEqual([a1]);
+  });
+
+  it("counts each facet under the search and the other facets, not its own", async () => {
+    const database = await open();
+    const { ada, bo } = await fourClasses(database);
+    const page = await listAdminClassPage(database, { status: ["archived"], owner: [ada.id] }, NOW);
+    expect(page.total).toBe(0);
+    expect(page.facets.status).toEqual({ active: 2, archived: 0 });
+    expect(page.facets.owner).toEqual([
+      { value: ada.id, label: "Ada Teacher", count: 0 },
+      { value: bo.id, label: "Bo Teacher", count: 1 },
+    ]);
+    expect(page.facets.year).toEqual([
+      { value: "2026-2027", label: "2026-2027", count: 0 },
+      { value: "2025-2026", label: "2025-2026", count: 0 },
+    ]);
+    const all = await listAdminClassPage(database, {}, NOW);
+    expect(all.facets.year).toEqual([
+      { value: "2026-2027", label: "2026-2027", count: 2 },
+      { value: "2025-2026", label: "2025-2026", count: 2 },
+    ]);
+  });
+
+  it("pages on the server with the total, and counts past the last page", async () => {
+    const database = await open();
+    const { a2, b2 } = await fourClasses(database);
+    const second = await listAdminClassPage(database, { page: 2, size: 10 }, NOW);
+    expect(second.rows).toEqual([]);
+    expect(second.total).toBe(4);
+    const firstOfTwo = await listAdminClassPage(database, { size: 10 }, NOW);
+    expect(firstOfTwo.rows).toHaveLength(4);
+    expect(firstOfTwo.rows.slice(2).map((row) => row.id)).toEqual([a2, b2]);
+  });
+
+  it("returns no grades, results or e-mail addresses in a row (R-01)", async () => {
+    const database = await open();
+    await classWithPeople(database);
+    const [row] = (await listAdminClassPage(database, {}, NOW)).rows;
+    expect(Object.keys(row ?? {}).sort()).toEqual([
+      "academicYear",
+      "archivedAt",
+      "coTeachers",
+      "id",
+      "name",
+      "owner",
+      "pendingInvitations",
+      "students",
+    ]);
+  });
+});
+
+describe("getAdminClass (#37, R-01)", () => {
+  it("returns members by name and role, invitations and counts, for no member", async () => {
+    const database = await open();
+    const { classId, owner, coTeacher, studentA, studentB } = await classWithPeople(database);
+    await createInvitations(
+      database,
+      owner,
+      { classId, role: "student", emails: ["p@example.test", "q@example.test"] },
+      NOW,
+    );
+    await createGroups(database, owner, { classId, groupSet: "Pairs", names: ["P1", "P2"] }, NOW);
+    const later = new Date(NOW.getTime() + DAY);
+    const page = await getAdminClass(database, classId, later);
+    expect(page).toEqual({
+      id: classId,
+      name: "LS-2A",
+      academicYear: "2026-2027",
+      archivedAt: null,
+      owner: { id: owner.id, name: "Test owner" },
+      members: [
+        { userId: owner.id, name: "Test owner", role: "owner" },
+        { userId: coTeacher.id, name: "Test co-teacher", role: "teacher" },
+        { userId: studentA.id, name: "Ada Test", role: "student" },
+        { userId: studentB.id, name: "Bo Test", role: "student" },
+      ],
+      invitations: [
+        expect.objectContaining({ email: "p@example.test", role: "student", expired: false }),
+        expect.objectContaining({ email: "q@example.test", role: "student", expired: false }),
+      ],
+      counts: { teachers: 2, students: 2, pendingInvitations: 2, groups: 2 },
+    });
+  });
+
+  it("marks an expired invitation and leaves it out of the pending count", async () => {
+    const database = await open();
+    const { classId, owner } = await classWithPeople(database);
+    await createInvitations(
+      database,
+      owner,
+      { classId, role: "student", emails: ["p@example.test"] },
+      NOW,
+    );
+    const page = await getAdminClass(database, classId, new Date(NOW.getTime() + 31 * DAY));
+    expect(page?.invitations).toEqual([expect.objectContaining({ expired: true })]);
+    expect(page?.counts.pendingInvitations).toBe(0);
+  });
+
+  it("returns null for a class that does not exist or a malformed id", async () => {
+    const database = await open();
+    expect(await getAdminClass(database, "01960000-0000-7000-8000-00000000dead", NOW)).toBeNull();
+    expect(await getAdminClass(database, "../etc", NOW)).toBeNull();
+  });
+});
+
+describe("listTeacherCandidates (#37)", () => {
+  it("lists the users whose app role includes teacher, by name", async () => {
+    const database = await open();
+    const zed = await person(database, "zed", ["teacher"], { name: "Zed Teacher" });
+    const coordinator = await person(database, "coord", ["teacher", "admin"], {
+      name: "Coordinator Test",
+    });
+    await person(database, "student", ["student"]);
+    await person(database, "admin", ["admin"]);
+    const classId = await newClass(database, zed, "LS-1A", "2026-2027");
+    await join(database, classId, coordinator.id, "teacher");
+    expect(await listTeacherCandidates(database)).toEqual([
+      { id: coordinator.id, name: "Coordinator Test", email: coordinator.email },
+      { id: zed.id, name: "Zed Teacher", email: zed.email },
+    ]);
+  });
+});

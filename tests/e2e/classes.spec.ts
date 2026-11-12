@@ -237,17 +237,25 @@ test("archiving makes the class read-only; a copy starts a new year (#28)", asyn
   await axe(page);
 });
 
-test("the administrator sees every class, read-only (#28, R-01)", async ({ page }) => {
+test("the administrator sees every class, without grades or results (#28, #37, R-01)", async ({
+  page,
+}) => {
   await devLogin(page, "admin@example.test");
   await expect(page).toHaveURL(/\/admin$/);
-  await page.goto("/admin/classes");
+  await page.goto(`/admin/classes?q=${CLASS}`);
   const table = page.getByRole("table", {
-    name: "All classes with their owner, co-teachers and counts",
+    name: /^All classes with their owner, co-teachers and counts/,
   });
   await expect(table.getByRole("row", { name: new RegExp(`${CLASS}.*2026–2027`) })).toContainText(
     "Classes Test Owner",
   );
-  await expect(table.getByRole("button")).toHaveCount(0);
+  await expect(table.getByRole("columnheader")).toHaveText([
+    "Class",
+    "Owner",
+    "Co-teachers",
+    "Students",
+    "Pending invitations",
+  ]);
   await axe(page);
 });
 

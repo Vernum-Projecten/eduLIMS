@@ -87,6 +87,19 @@ export const DEV_USERS = [
     roles: ["student"],
     hidden: true,
   },
+  // The administrator's class journeys (#37): an owner, and the teacher who takes over.
+  {
+    email: "admin-classes-owner@example.test",
+    name: "Admin Classes Test Owner",
+    roles: ["teacher"],
+    hidden: true,
+  },
+  {
+    email: "admin-classes-heir@example.test",
+    name: "Admin Classes Test Heir",
+    roles: ["teacher"],
+    hidden: true,
+  },
 ] as const satisfies readonly DevUser[];
 
 /** The realm of the development Keycloak (compose.dev.yaml). */

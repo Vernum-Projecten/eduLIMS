@@ -1,0 +1,264 @@
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+
+// The administrator's class management (#37, B2): create a class on a teacher's behalf, import
+// students from a CSV list after a preview, transfer the ownership, archive and reopen with the
+// keyboard, search and filter the list, and the axe scan in light, dark and Dutch and at 320 px.
+// One journey: each step builds on the class the first made.
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { axe, dutch, signInAsAdmin } from "./admin-users-helpers";
+import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
+import { appUrl } from "./run-env";
+
+test.describe.configure({ mode: "serial" });
+
+/** Where the journey saves screenshots of the class pages, when the caller asks for them. */
+const SHOTS = process.env["E2E_SHOTS_DIR"]?.trim();
+
+const OWNER = "Admin Classes Test Owner";
+const HEIR = "Admin Classes Test Heir";
+const CLASS = `ADM-${Date.now().toString(36).slice(-5).toUpperCase()}`;
+const YEAR = "2031-2032";
+
+async function preferences(context: BrowserContext, theme: "light" | "dark", locale: "en" | "nl") {
+  await context.addCookies([
+    { name: "EDULIMS_THEME", value: theme, url: appUrl() },
+    { name: "EDULIMS_LOCALE", value: locale, url: appUrl() },
+  ]);
+}
+
+/** Opens the journey's class from the administrator's list through a search. */
+async function openClass(page: Page): Promise<void> {
+  await page.goto(`/admin/classes?q=${CLASS}`);
+  await page.getByRole("link", { name: new RegExp(`^${CLASS}`) }).click();
+  await expect(page.getByRole("heading", { level: 1, name: new RegExp(CLASS) })).toBeVisible();
+  await expectHydrated(page.getByRole("form", { name: "Import students" }));
+}
+
+/** Picks `option` in the Radix select labelled `label` and waits for its list to close. */
+async function choose(page: Page, label: string, option: RegExp): Promise<void> {
+  await page.getByRole("combobox", { name: label }).click();
+  await page.getByRole("option", { name: option }).click();
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+}
+
+async function screenshot(page: Page, name: string): Promise<void> {
+  if (!SHOTS) return;
+  mkdirSync(SHOTS, { recursive: true });
+  await page.screenshot({ path: join(SHOTS, `${name}.png`), fullPage: true });
+}
+
+test("the administrator creates a class on a teacher's behalf (#37, B2)", async ({ page }) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/classes");
+  await expect(page.getByRole("heading", { level: 1, name: "Classes" })).toBeVisible();
+  await axe(page);
+  const create = page.getByRole("button", { name: "New class" });
+  await expectHydrated(create);
+  await create.click();
+  const dialog = page.getByRole("dialog", { name: "New class" });
+  await dialog.getByRole("button", { name: "Create class" }).click();
+  await expect(dialog.getByText("Choose a teacher.")).toBeVisible();
+  await dialog.getByLabel("Class name").fill(CLASS);
+  await dialog.getByLabel("Academic year").fill(YEAR);
+  await axe(page);
+  await choose(page, "Owner", new RegExp(`^${OWNER}`));
+  await dialog.getByRole("button", { name: "Create class" }).click();
+  await expect(page).toHaveURL(/\/admin\/classes\/[0-9a-f-]{36}$/);
+  await expect(page.getByText(`${CLASS} is created.`)).toBeVisible();
+  const members = page.getByRole("table", { name: "Members of this class with their role" });
+  await expect(members.getByRole("row")).toHaveCount(2);
+  await expect(members.getByRole("row", { name: `${OWNER} Owner` })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Members (1)" })).toBeVisible();
+  await axe(page);
+});
+
+test("the administrator imports students from CSV after a preview (#37, B2)", async ({ page }) => {
+  await signInAsAdmin(page);
+  await openClass(page);
+  const form = page.getByRole("form", { name: "Import students" });
+  const emails = form.getByLabel("Student email addresses");
+  await emails.fill("adm-one@example.test, not-an-address");
+  await emails.press("Enter");
+  await form.getByLabel("Or read student addresses from a CSV file").setInputFiles({
+    name: "class.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("adm-two@example.test\nadm-three@example.test\nadm-one@example.test\n"),
+  });
+  await expect(page.getByText("2 addresses added from the file.")).toBeVisible();
+  await form.getByRole("button", { name: "Check list" }).click();
+  const preview = form.getByRole("region", { name: "Check before inviting" });
+  await expect(preview.getByRole("status")).toHaveText("3 to invite, 1 left out.");
+  await expect(preview.getByText("Not a valid email address")).toHaveCount(1);
+  await expect(
+    page.getByRole("table", { name: "Pending invitations" }).getByRole("row"),
+  ).toHaveCount(2);
+  await axe(page);
+  await form.getByRole("button", { name: "Import 3" }).click();
+  await expect(page.getByText("3 invitations created.")).toBeVisible();
+  const pending = page.getByRole("table", { name: "Pending invitations" });
+  await expect(pending.getByRole("row")).toHaveCount(4);
+  await expect(
+    pending.getByRole("cell", { name: "adm-two@example.test", exact: true }),
+  ).toBeVisible();
+  // Nobody joins before their own sign-in (#28): the members stay the owner alone.
+  await expect(page.getByRole("heading", { level: 2, name: "Members (1)" })).toBeVisible();
+
+  await emails.fill("adm-two@example.test");
+  await emails.press("Enter");
+  await form.getByRole("button", { name: "Check list" }).click();
+  await expect(preview.getByText("Already invited")).toBeVisible();
+  await axe(page);
+});
+
+test("the administrator transfers the ownership; the old owner stays a co-teacher (#37)", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await openClass(page);
+  await page.getByRole("button", { name: "Transfer ownership" }).click();
+  const dialog = page.getByRole("alertdialog", { name: `Transfer the ownership of ${CLASS}?` });
+  await expect(dialog).toContainText(`${OWNER} stays as a co-teacher`);
+  await dialog.getByRole("button", { name: "Transfer ownership" }).click();
+  await expect(dialog.getByText("Choose a teacher.")).toBeVisible();
+  await axe(page);
+  await choose(page, "New owner", new RegExp(`^${HEIR}`));
+  await dialog.getByRole("button", { name: "Transfer ownership" }).click();
+  await expect(page.getByText(`The ownership of ${CLASS} is transferred.`)).toBeVisible();
+  const members = page.getByRole("table", { name: "Members of this class with their role" });
+  await expect(members.getByRole("row", { name: `${HEIR} Owner` })).toBeVisible();
+  await expect(members.getByRole("row", { name: `${OWNER} Co-teacher` })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Members (2)" })).toBeVisible();
+});
+
+test("the administrator archives and reopens a class with the keyboard (#37)", async ({ page }) => {
+  await signInAsAdmin(page);
+  await openClass(page);
+  const archive = page.getByRole("button", { name: "Archive", exact: true });
+  await archive.focus();
+  await page.keyboard.press("Enter");
+  const confirm = page.getByRole("alertdialog", { name: `Archive ${CLASS}?` });
+  await expect(confirm).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(confirm).toHaveCount(0);
+  await expect(archive).toBeFocused();
+  await page.keyboard.press("Enter");
+  await pressUntilFocused(page, "Tab", confirm.getByRole("button", { name: "Archive class" }));
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(`${CLASS} is archived.`)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: new RegExp(CLASS) })).toContainText(
+    "Archived",
+  );
+  await expect(page.getByRole("form", { name: "Import students" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Transfer ownership" })).toHaveCount(0);
+  await axe(page);
+
+  const reopen = page.getByRole("button", { name: "Reopen", exact: true });
+  await reopen.focus();
+  await page.keyboard.press("Enter");
+  const again = page.getByRole("alertdialog", { name: `Reopen ${CLASS}?` });
+  await pressUntilFocused(page, "Tab", again.getByRole("button", { name: "Reopen class" }));
+  await page.keyboard.press("Space");
+  await expect(page.getByText(`${CLASS} is reopened.`)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Archive", exact: true })).toBeVisible();
+});
+
+test("the class list searches and filters on the server (#37)", async ({ page }) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/classes");
+  const search = page.getByRole("searchbox", { name: "Search by class or teacher name" });
+  await expectHydrated(search);
+  await search.fill(CLASS);
+  await expect(page).toHaveURL(new RegExp(`q=${CLASS}`));
+  const table = page.getByRole("table", { name: /^All classes with their owner/ });
+  await expect(table.getByRole("row")).toHaveCount(2);
+  await expect(table.getByRole("row", { name: new RegExp(CLASS) })).toContainText(HEIR);
+
+  await page.getByRole("button", { name: "Status", exact: true }).click();
+  await page
+    .getByRole("listbox", { name: "Status" })
+    .getByRole("option", { name: /^Archived/ })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/status=%5B%22archived%22%5D/);
+  await expect(page.getByRole("heading", { level: 2, name: "No classes match" })).toBeVisible();
+  await axe(page);
+  await page.getByRole("link", { name: "Clear search and filters" }).click();
+  await expect(page).toHaveURL(/\/admin\/classes\/?$/);
+
+  await page.getByRole("button", { name: "Academic year", exact: true }).click();
+  await page
+    .getByRole("listbox", { name: "Academic year" })
+    .getByRole("option", { name: /^2031–2032/ })
+    .click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Owner", exact: true }).click();
+  await page
+    .getByRole("listbox", { name: "Owner" })
+    .getByRole("option", { name: new RegExp(`^${HEIR}`) })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(table.getByRole("row", { name: new RegExp(CLASS) })).toBeVisible();
+  await expect(table.getByRole("row")).toHaveCount(2);
+  await axe(page);
+});
+
+test("a teacher never reaches the administrator's classes (#37, R-01)", async ({ page }) => {
+  await devLogin(page, "admin-classes-heir@example.test");
+  await expect(page).toHaveURL(/\/teacher$/);
+  await page.goto("/admin/classes");
+  await expect(page).not.toHaveURL(/\/admin\/classes/);
+  await expect(page.getByRole("heading", { level: 1, name: "Classes" })).toHaveCount(0);
+});
+
+for (const theme of ["light", "dark"] as const) {
+  for (const locale of ["en", "nl"] as const) {
+    test(`the class list and page are axe-clean in ${theme}, ${locale} (#37)`, async ({
+      page,
+      context,
+    }) => {
+      await signInAsAdmin(page);
+      await preferences(context, theme, locale);
+      await page.goto(`/admin/classes?q=${CLASS}`);
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      const link = page.getByRole("link", { name: new RegExp(`^${CLASS}`) });
+      await expect(link).toBeVisible();
+      await axe(page);
+      if (locale === "en") await screenshot(page, `admin-classes-list-${theme}`);
+      await link.click();
+      await expect(
+        page.getByRole("heading", {
+          level: 2,
+          name: locale === "nl" ? dutch("classes_admin_import_title") : "Import students",
+        }),
+      ).toBeVisible();
+      await axe(page);
+      if (locale === "en") await screenshot(page, `admin-class-page-${theme}`);
+    });
+  }
+}
+
+test.describe("at 320 CSS px wide (WCAG 1.4.10)", () => {
+  test.use({ viewport: { width: 320, height: 640 } });
+
+  test("the class list and the class page reflow without a horizontal scroll", async ({ page }) => {
+    await signInAsAdmin(page);
+    await page.goto(`/admin/classes?q=${CLASS}`);
+    await expect(page.getByRole("link", { name: new RegExp(`^${CLASS}`) })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      320,
+    );
+    await page.getByRole("link", { name: new RegExp(`^${CLASS}`) }).click();
+    await expect(page.getByRole("heading", { level: 1, name: new RegExp(CLASS) })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      320,
+    );
+    await page.getByRole("button", { name: "Transfer ownership" }).click();
+    const dialog = page.getByRole("alertdialog");
+    await expect(dialog).toBeVisible();
+    expect(await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await axe(page);
+  });
+});

@@ -26,7 +26,6 @@ import {
 vi.mock("./functions.ts", () => ({
   getClassPage: vi.fn(),
   getStudentClasses: vi.fn(),
-  listAllClasses: vi.fn(),
   listGroupSetSourcesFn: vi.fn(),
   listMyClasses: vi.fn(),
 }));
@@ -42,7 +41,10 @@ function seeded(): QueryClient {
     [classesKeys.list({ archived: true }), []],
     [classesKeys.detail(ONE), { id: ONE }],
     [classesKeys.detail(TWO), { id: TWO }],
-    [classesKeys.admin(), []],
+    [classesKeys.adminList({}), { rows: [] }],
+    [classesKeys.adminDetail(ONE), { id: ONE }],
+    [classesKeys.adminDetail(TWO), { id: TWO }],
+    [classesKeys.teachers(), []],
     [classesKeys.student(), { classes: [], invitations: [] }],
     [sessionKeys.current(), { id: "teacher" }],
   ]);
@@ -55,8 +57,11 @@ const keys = (...list: readonly (readonly unknown[])[]) =>
 const LISTS = [
   classesKeys.list({ archived: false }),
   classesKeys.list({ archived: true }),
-  classesKeys.admin(),
+  classesKeys.adminList({}),
 ];
+
+/** The teacher's and the administrator's page of one class. */
+const PAGES = (classId: string) => [classesKeys.detail(classId), classesKeys.adminDetail(classId)];
 
 let queryClient: QueryClient;
 beforeEach(() => {
@@ -68,6 +73,9 @@ describe("classesKeys", () => {
     expect(classesKeys.list({ archived: true })).toEqual(["classes", "list", { archived: true }]);
     expect(classesKeys.detail(ONE)).toEqual(["classes", "detail", ONE]);
     expect(classesKeys.sources(ONE)).toEqual(["classes", "detail", ONE, "sources"]);
+    expect(classesKeys.adminList({ q: "LS" })).toEqual(["classes", "admin", "list", { q: "LS" }]);
+    expect(classesKeys.adminDetail(ONE)).toEqual(["classes", "admin", "detail", ONE]);
+    expect(classesKeys.teachers()).toEqual(["classes", "admin", "teachers"]);
   });
 });
 
@@ -75,7 +83,7 @@ describe("classMutationOptions", () => {
   it("invalidates the class it changed and the lists, nothing else", async () => {
     const call = (): Promise<ClassResult> => Promise.resolve({ ok: true, value: null });
     await runMutation(queryClient, classMutationOptions(queryClient, call), { classId: ONE });
-    expect(invalidatedKeys(queryClient)).toEqual(keys(classesKeys.detail(ONE), ...LISTS));
+    expect(invalidatedKeys(queryClient)).toEqual(keys(...PAGES(ONE), ...LISTS));
   });
 
   it("invalidates only the lists after creating a class", async () => {
@@ -96,7 +104,7 @@ describe("classMutationOptions", () => {
     });
     expect(result.error).toBeInstanceOf(ClassActionRefused);
     expect(classErrorCode(result.error)).toBe("archived");
-    expect(invalidatedKeys(queryClient)).toEqual(keys(classesKeys.detail(ONE), ...LISTS));
+    expect(invalidatedKeys(queryClient)).toEqual(keys(...PAGES(ONE), ...LISTS));
   });
 
   it("maps a server error to no refusal code", () => {

@@ -35,7 +35,6 @@ import {
 } from "./invitations.ts";
 import {
   getTeacherClass,
-  listAdminClasses,
   listGroupSetSources,
   listStudentClasses,
   listStudentInvitations,
@@ -188,11 +187,6 @@ export const copyGroupSetFn = createServerFn({ method: "POST" })
   .middleware([teacher])
   .validator(copyGroupSetInput)
   .handler(({ data, context }) => copyGroupSet(getDb(), context.user, data, new Date()));
-
-/** Returns every class for the administrator's oversight: no grades, no results (R-01). */
-export const listAllClasses = createServerFn({ method: "GET" })
-  .middleware([requireRole("admin")])
-  .handler(() => listAdminClasses(getDb(), new Date()));
 
 /** Returns the student's classes and the pending invitations for their own address. */
 export const getStudentClasses = createServerFn({ method: "GET" })

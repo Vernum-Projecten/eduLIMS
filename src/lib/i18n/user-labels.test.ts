@@ -59,7 +59,7 @@ describe("user labels (#34)", () => {
     expect(adminActionErrorMessage("something_else")).toBe(adminActionErrorMessage("failed"));
     // Deleting a class owner is refused (security review of #28).
     expect(adminActionErrorMessage("owns_class")).toBe(
-      "This user owns a class. Transfer the ownership of their classes to another teacher first.",
+      "This user owns a class. Transfer the ownership of their classes to another teacher in Classes first.",
     );
   });
 

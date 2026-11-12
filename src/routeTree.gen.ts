@@ -23,7 +23,6 @@ import { Route as DevVirtualRouteImport } from './routes/dev/virtual'
 import { Route as DevVirtualTableRouteImport } from './routes/dev/virtual-table'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedAdminActivityRouteImport } from './routes/_authed/admin/activity'
-import { Route as AuthedAdminClassesRouteImport } from './routes/_authed/admin/classes'
 import { Route as AuthedAdminIntegrationsRouteImport } from './routes/_authed/admin/integrations'
 import { Route as AuthedAdminUsersRouteImport } from './routes/_authed/admin/users'
 import { Route as AuthedStudentIndexRouteImport } from './routes/_authed/student/index'
@@ -38,6 +37,8 @@ import { Route as AuthedTeacherKpiDashboardRouteImport } from './routes/_authed/
 import { Route as AuthedTeacherPracticalsRouteImport } from './routes/_authed/teacher/practicals'
 import { Route as AuthedTeacherResultsRouteImport } from './routes/_authed/teacher/results'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AuthedAdminClassesIndexRouteImport } from './routes/_authed/admin/classes/index'
+import { Route as AuthedAdminClassesClassIdRouteImport } from './routes/_authed/admin/classes/$classId'
 import { Route as AuthedAdminSystemIndexRouteImport } from './routes/_authed/admin/system/index'
 import { Route as AuthedAdminUsersUserIdRouteImport } from './routes/_authed/admin/users/$userId'
 import { Route as AuthedTeacherClassesIndexRouteImport } from './routes/_authed/teacher/classes/index'
@@ -116,11 +117,6 @@ const AuthedAdminActivityRoute = AuthedAdminActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AuthedAdminRoute,
 } as any)
-const AuthedAdminClassesRoute = AuthedAdminClassesRouteImport.update({
-  id: '/classes',
-  path: '/classes',
-  getParentRoute: () => AuthedAdminRoute,
-} as any)
 const AuthedAdminIntegrationsRoute = AuthedAdminIntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
@@ -193,6 +189,17 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedAdminClassesIndexRoute = AuthedAdminClassesIndexRouteImport.update({
+  id: '/classes/',
+  path: '/classes/',
+  getParentRoute: () => AuthedAdminRoute,
+} as any)
+const AuthedAdminClassesClassIdRoute =
+  AuthedAdminClassesClassIdRouteImport.update({
+    id: '/classes/$classId',
+    path: '/classes/$classId',
+    getParentRoute: () => AuthedAdminRoute,
+  } as any)
 const AuthedAdminSystemIndexRoute = AuthedAdminSystemIndexRouteImport.update({
   id: '/system/',
   path: '/system/',
@@ -253,7 +260,6 @@ export interface FileRoutesByFullPath {
   '/dev/virtual': typeof DevVirtualRoute
   '/dev/virtual-table': typeof DevVirtualTableRoute
   '/admin/activity': typeof AuthedAdminActivityRoute
-  '/admin/classes': typeof AuthedAdminClassesRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/student/grades': typeof AuthedStudentGradesRoute
@@ -269,8 +275,10 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthedAdminIndexRoute
   '/student/': typeof AuthedStudentIndexRoute
   '/teacher/': typeof AuthedTeacherIndexRoute
+  '/admin/classes/$classId': typeof AuthedAdminClassesClassIdRoute
   '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
   '/teacher/classes/$classId': typeof AuthedTeacherClassesClassIdRoute
+  '/admin/classes/': typeof AuthedAdminClassesIndexRoute
   '/admin/system/': typeof AuthedAdminSystemIndexRoute
   '/teacher/classes/': typeof AuthedTeacherClassesIndexRoute
   '/admin/system/identity-providers/new': typeof AuthedAdminSystemIdentityProvidersNewRoute
@@ -288,7 +296,6 @@ export interface FileRoutesByTo {
   '/dev/virtual': typeof DevVirtualRoute
   '/dev/virtual-table': typeof DevVirtualTableRoute
   '/admin/activity': typeof AuthedAdminActivityRoute
-  '/admin/classes': typeof AuthedAdminClassesRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/student/grades': typeof AuthedStudentGradesRoute
@@ -304,8 +311,10 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthedAdminIndexRoute
   '/student': typeof AuthedStudentIndexRoute
   '/teacher': typeof AuthedTeacherIndexRoute
+  '/admin/classes/$classId': typeof AuthedAdminClassesClassIdRoute
   '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
   '/teacher/classes/$classId': typeof AuthedTeacherClassesClassIdRoute
+  '/admin/classes': typeof AuthedAdminClassesIndexRoute
   '/admin/system': typeof AuthedAdminSystemIndexRoute
   '/teacher/classes': typeof AuthedTeacherClassesIndexRoute
   '/admin/system/identity-providers/new': typeof AuthedAdminSystemIdentityProvidersNewRoute
@@ -328,7 +337,6 @@ export interface FileRoutesById {
   '/dev/virtual': typeof DevVirtualRoute
   '/dev/virtual-table': typeof DevVirtualTableRoute
   '/_authed/admin/activity': typeof AuthedAdminActivityRoute
-  '/_authed/admin/classes': typeof AuthedAdminClassesRoute
   '/_authed/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/_authed/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/_authed/student/grades': typeof AuthedStudentGradesRoute
@@ -344,8 +352,10 @@ export interface FileRoutesById {
   '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/student/': typeof AuthedStudentIndexRoute
   '/_authed/teacher/': typeof AuthedTeacherIndexRoute
+  '/_authed/admin/classes/$classId': typeof AuthedAdminClassesClassIdRoute
   '/_authed/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
   '/_authed/teacher/classes/$classId': typeof AuthedTeacherClassesClassIdRoute
+  '/_authed/admin/classes/': typeof AuthedAdminClassesIndexRoute
   '/_authed/admin/system/': typeof AuthedAdminSystemIndexRoute
   '/_authed/teacher/classes/': typeof AuthedTeacherClassesIndexRoute
   '/_authed/admin/system/identity-providers/new': typeof AuthedAdminSystemIdentityProvidersNewRoute
@@ -368,7 +378,6 @@ export interface FileRouteTypes {
     | '/dev/virtual'
     | '/dev/virtual-table'
     | '/admin/activity'
-    | '/admin/classes'
     | '/admin/integrations'
     | '/admin/users'
     | '/student/grades'
@@ -384,8 +393,10 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/student/'
     | '/teacher/'
+    | '/admin/classes/$classId'
     | '/admin/users/$userId'
     | '/teacher/classes/$classId'
+    | '/admin/classes/'
     | '/admin/system/'
     | '/teacher/classes/'
     | '/admin/system/identity-providers/new'
@@ -403,7 +414,6 @@ export interface FileRouteTypes {
     | '/dev/virtual'
     | '/dev/virtual-table'
     | '/admin/activity'
-    | '/admin/classes'
     | '/admin/integrations'
     | '/admin/users'
     | '/student/grades'
@@ -419,8 +429,10 @@ export interface FileRouteTypes {
     | '/admin'
     | '/student'
     | '/teacher'
+    | '/admin/classes/$classId'
     | '/admin/users/$userId'
     | '/teacher/classes/$classId'
+    | '/admin/classes'
     | '/admin/system'
     | '/teacher/classes'
     | '/admin/system/identity-providers/new'
@@ -442,7 +454,6 @@ export interface FileRouteTypes {
     | '/dev/virtual'
     | '/dev/virtual-table'
     | '/_authed/admin/activity'
-    | '/_authed/admin/classes'
     | '/_authed/admin/integrations'
     | '/_authed/admin/users'
     | '/_authed/student/grades'
@@ -458,8 +469,10 @@ export interface FileRouteTypes {
     | '/_authed/admin/'
     | '/_authed/student/'
     | '/_authed/teacher/'
+    | '/_authed/admin/classes/$classId'
     | '/_authed/admin/users/$userId'
     | '/_authed/teacher/classes/$classId'
+    | '/_authed/admin/classes/'
     | '/_authed/admin/system/'
     | '/_authed/teacher/classes/'
     | '/_authed/admin/system/identity-providers/new'
@@ -581,13 +594,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAdminActivityRouteImport
       parentRoute: typeof AuthedAdminRoute
     }
-    '/_authed/admin/classes': {
-      id: '/_authed/admin/classes'
-      path: '/classes'
-      fullPath: '/admin/classes'
-      preLoaderRoute: typeof AuthedAdminClassesRouteImport
-      parentRoute: typeof AuthedAdminRoute
-    }
     '/_authed/admin/integrations': {
       id: '/_authed/admin/integrations'
       path: '/integrations'
@@ -686,6 +692,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/admin/classes/': {
+      id: '/_authed/admin/classes/'
+      path: '/classes'
+      fullPath: '/admin/classes/'
+      preLoaderRoute: typeof AuthedAdminClassesIndexRouteImport
+      parentRoute: typeof AuthedAdminRoute
+    }
+    '/_authed/admin/classes/$classId': {
+      id: '/_authed/admin/classes/$classId'
+      path: '/classes/$classId'
+      fullPath: '/admin/classes/$classId'
+      preLoaderRoute: typeof AuthedAdminClassesClassIdRouteImport
+      parentRoute: typeof AuthedAdminRoute
+    }
     '/_authed/admin/system/': {
       id: '/_authed/admin/system/'
       path: '/system'
@@ -758,10 +778,11 @@ const AuthedAdminUsersRouteWithChildren =
 
 interface AuthedAdminRouteChildren {
   AuthedAdminActivityRoute: typeof AuthedAdminActivityRoute
-  AuthedAdminClassesRoute: typeof AuthedAdminClassesRoute
   AuthedAdminIntegrationsRoute: typeof AuthedAdminIntegrationsRoute
   AuthedAdminUsersRoute: typeof AuthedAdminUsersRouteWithChildren
   AuthedAdminIndexRoute: typeof AuthedAdminIndexRoute
+  AuthedAdminClassesClassIdRoute: typeof AuthedAdminClassesClassIdRoute
+  AuthedAdminClassesIndexRoute: typeof AuthedAdminClassesIndexRoute
   AuthedAdminSystemIndexRoute: typeof AuthedAdminSystemIndexRoute
   AuthedAdminSystemIdentityProvidersNewRoute: typeof AuthedAdminSystemIdentityProvidersNewRoute
   AuthedAdminSystemIdentityProvidersIndexRoute: typeof AuthedAdminSystemIdentityProvidersIndexRoute
@@ -771,10 +792,11 @@ interface AuthedAdminRouteChildren {
 
 const AuthedAdminRouteChildren: AuthedAdminRouteChildren = {
   AuthedAdminActivityRoute: AuthedAdminActivityRoute,
-  AuthedAdminClassesRoute: AuthedAdminClassesRoute,
   AuthedAdminIntegrationsRoute: AuthedAdminIntegrationsRoute,
   AuthedAdminUsersRoute: AuthedAdminUsersRouteWithChildren,
   AuthedAdminIndexRoute: AuthedAdminIndexRoute,
+  AuthedAdminClassesClassIdRoute: AuthedAdminClassesClassIdRoute,
+  AuthedAdminClassesIndexRoute: AuthedAdminClassesIndexRoute,
   AuthedAdminSystemIndexRoute: AuthedAdminSystemIndexRoute,
   AuthedAdminSystemIdentityProvidersNewRoute:
     AuthedAdminSystemIdentityProvidersNewRoute,
