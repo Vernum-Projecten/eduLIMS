@@ -59,6 +59,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0013_scim", "Success"],
       ["0012_classes", "Success"],
       ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
@@ -82,6 +83,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0013_scim", "Success"],
       ["0012_classes", "Success"],
       ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
@@ -105,6 +107,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0013_scim", "Success"],
       ["0012_classes", "Success"],
       ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
@@ -152,6 +155,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0013_scim", "Success"],
       ["0012_classes", "Success"],
       ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
@@ -182,6 +186,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0013_scim", "Success"],
       ["0012_classes", "Success"],
       ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
@@ -215,6 +220,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0010_integration_check");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0013_scim", "Success"],
       ["0012_classes", "Success"],
       ["0011_audit_event_indexes", "Success"],
     ]);
@@ -225,5 +231,88 @@ describe("migrations", () => {
       "audit_event_target_idx: btree (target_type, target_id)",
     ]);
     expect((await migrator.migrateToLatest()).error).toBeUndefined();
+  });
+
+  it("0013_scim backfills role_channel 'claim' for a provider's role set, and reverts", async () => {
+    const database = await createTestDb();
+    db = database;
+    const migrator = createMigrator(database);
+    // The migration below 0013 is 0012_classes; only 0013 reverts.
+    const down = await migrator.migrateTo("0012_classes");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0013_scim", "Success"],
+    ]);
+    const user = (id: string, roleSource: string) =>
+      sql`insert into "user" (id, name, email, "emailVerified", role, role_source)
+          values (${id}, 'R', ${`${id}@example.test`}, true, 'teacher', ${roleSource})`.execute(
+        database,
+      );
+    await user("u-claim", "keycloak");
+    await user("u-local", "local");
+    const up = await migrator.migrateToLatest();
+    expect(up.error).toBeUndefined();
+    const rows = await db.selectFrom("user").select(["id", "role_channel"]).orderBy("id").execute();
+    expect(rows).toEqual([
+      { id: "u-claim", role_channel: "claim" },
+      { id: "u-local", role_channel: "local" },
+    ]);
+  });
+
+  it("0013_scim allows only an immutable external-id claim (finding 7)", async () => {
+    const database = await createTestDb();
+    db = database;
+    await database
+      .insertInto("ssoProvider")
+      .values({
+        id: "p-campus",
+        issuer: "https://idp.example",
+        oidcConfig: "{}",
+        providerId: "campus",
+        domain: "x.provider.invalid",
+      })
+      .execute();
+    const provider = (claim: string) =>
+      database
+        .insertInto("identity_provider")
+        .values({
+          provider_id: "campus",
+          protocol: "oidc",
+          label_en: "Campus",
+          label_nl: "Campus",
+          role_claim: "roles",
+          scim_external_id_claim: claim,
+        })
+        .execute();
+    await expect(provider("email")).rejects.toThrow(/check constraint/);
+  });
+
+  it("0013_scim keeps one account per provider and directory id (finding 8)", async () => {
+    const database = await createTestDb();
+    db = database;
+    const now = new Date();
+    await database
+      .insertInto("user")
+      .values([
+        { id: "u1", name: "A", email: "a@example.test", emailVerified: true },
+        { id: "u2", name: "B", email: "b@example.test", emailVerified: true },
+      ])
+      .execute();
+    const account = (id: string, userId: string, directoryId: string | null) =>
+      database
+        .insertInto("account")
+        .values({
+          id,
+          accountId: id,
+          providerId: "campus",
+          userId,
+          createdAt: now,
+          updatedAt: now,
+          directory_id: directoryId,
+        })
+        .execute();
+    await account("a1", "u1", null);
+    await account("a2", "u2", null);
+    await account("a3", "u1", "oid-1");
+    await expect(account("a4", "u2", "oid-1")).rejects.toThrow(/duplicate key/);
   });
 });

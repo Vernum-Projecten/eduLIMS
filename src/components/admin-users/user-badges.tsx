@@ -5,10 +5,12 @@ import {
   BanIcon,
   CircleCheckIcon,
   CircleDashedIcon,
+  FolderSyncIcon,
   KeyRoundIcon,
   type LucideIcon,
   ServerIcon,
   UserRoundIcon,
+  UserXIcon,
 } from "lucide-react";
 import { useProviderLabels } from "@/components/admin-users/provider-labels";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +20,7 @@ import { roleLabel } from "@/lib/i18n/labels";
 import { roleSourceLabel, type UserStatusValue, userStatusLabel } from "@/lib/i18n/user-labels";
 import { LOCAL_ROLE_SOURCE, type RoleSource } from "@/lib/role-source";
 import type { Role } from "@/lib/roles";
+import type { Provisioning } from "@/server/users/queries";
 
 /** The icon of a role source: eduLIMS itself, an identity provider, or unknown. */
 function sourceIcon(source: RoleSource | null): LucideIcon {
@@ -92,5 +95,29 @@ export function StatusBadge({
       <Icon aria-hidden="true" data-icon="inline-start" />
       {label}
     </Badge>
+  );
+}
+
+/**
+ * Who provisioned a user over SCIM (#45), as text with an icon, and whether the directory has
+ * deactivated them: "Provisioned by …" and, when it applies, "Deactivated by the directory".
+ */
+export function ProvisioningText({
+  provisioning,
+}: Readonly<{ provisioning: Provisioning | null }>) {
+  const labels = useProviderLabels();
+  if (!provisioning) return null;
+  const source = labels[provisioning.providerId] ?? provisioning.providerId;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5 text-muted-foreground">
+      <FolderSyncIcon aria-hidden="true" className="size-4" />
+      {m.admin_users_provisioned_by({ source })}
+      {provisioning.deprovisionedAt && (
+        <Badge variant="destructive">
+          <UserXIcon aria-hidden="true" data-icon="inline-start" />
+          {m.admin_users_deprovisioned()}
+        </Badge>
+      )}
+    </span>
   );
 }

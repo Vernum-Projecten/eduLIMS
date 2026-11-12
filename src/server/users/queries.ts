@@ -14,6 +14,7 @@ import {
   type SqlBool,
   sql,
 } from "kysely";
+import { type ProviderId, parseProviderId } from "../../lib/identity-providers.ts";
 import { parseRoleSource, type RoleSource } from "../../lib/role-source.ts";
 import { ALLOWED_ROLE_SETS, formatRoles, ROLES, type Role } from "../../lib/roles.ts";
 import { parseSignInMethod, type SignInMethod } from "../../lib/sign-in-method.ts";
@@ -66,6 +67,25 @@ export interface UserRow {
   blockedUntil: string | null;
   lastSignInAt: string | null;
   activeSessions: number;
+  /** The provisioning by an identity provider over SCIM (#45), or `null` for none. */
+  provisioning: Provisioning | null;
+}
+
+/** Who provisioned a user over SCIM (#45), and whether the directory has deactivated them. */
+export interface Provisioning {
+  providerId: ProviderId;
+  /** ISO instant the directory deactivated or deleted the user, else `null`. */
+  deprovisionedAt: string | null;
+}
+
+/** Returns the provisioning of a user row, or `null` when no identity provider provisioned it. */
+export function provisioningOf(row: {
+  provisioned_by: string | null;
+  deprovisioned_at: Date | null;
+}): Provisioning | null {
+  const providerId = parseProviderId(row.provisioned_by);
+  if (!providerId) return null;
+  return { providerId, deprovisionedAt: row.deprovisioned_at?.toISOString() ?? null };
 }
 
 /** One page of the users table. */
@@ -183,6 +203,8 @@ export async function listUsers(
       "user.banned",
       "user.banExpires",
       "user.last_sign_in_at",
+      "user.provisioned_by",
+      "user.deprovisioned_at",
       eb
         .selectFrom("account")
         .select(sql<string[]>`coalesce(array_agg(distinct "account"."providerId"), '{}')`.as("p"))
@@ -223,6 +245,7 @@ export async function listUsers(
         blockedUntil: status === "blocked" && row.banExpires ? row.banExpires.toISOString() : null,
         lastSignInAt: row.last_sign_in_at?.toISOString() ?? null,
         activeSessions: Number(row.active_sessions ?? 0),
+        provisioning: provisioningOf(row),
       };
     }),
     total,
