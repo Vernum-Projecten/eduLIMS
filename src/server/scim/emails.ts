@@ -45,23 +45,38 @@ function addresses(value: unknown): string[] {
 }
 
 /**
+ * Returns whether an attribute name or PATCH path sets an e-mail address: `userName` or any
+ * `emails` path (`emails`, `emails.value`, `emails[type eq "work"].value`), with or without the
+ * core User URN. The one predicate for keys, paths and the keys of a pathless value.
+ */
+export function setsAddress(path: string): boolean {
+  return /^(userName|emails)\b/i.test(stripCoreUserUrn(path));
+}
+
+/** Returns the addresses the keys of `value` set: each key is read as a full path. */
+function keyedAddresses(value: unknown): string[] {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return [];
+  return Object.entries(value).flatMap(([key, entry]) =>
+    setsAddress(key) ? addresses(entry) : [],
+  );
+}
+
+/**
  * Returns the e-mail addresses a SCIM User create, replace or patch body would set: `userName`
- * when it is an address, every `emails` value, and the values of PATCH operations on those.
+ * when it is an address, every `emails` value, and the values of PATCH operations on those. A
+ * PATCH path that is missing, empty or blank is pathless, as the plugin reads it, and every key
+ * of its value counts as a path of its own (third review, B1).
  */
 export function scimBodyAddresses(body: unknown): string[] {
-  const found =
-    typeof body === "object" && body !== null
-      ? ["userName", "emails"].flatMap((key) => attribute(body, key).flatMap(addresses))
-      : [];
+  const found = keyedAddresses(body);
   const operations = field(body, "Operations");
   if (Array.isArray(operations)) {
     for (const operation of operations) {
-      const path = field(operation, "path");
+      const rawPath = field(operation, "path");
       const value = field(operation, "value");
-      if (path === undefined) found.push(...addresses(value));
-      else if (typeof path === "string" && /^(userName|emails)\b/i.test(stripCoreUserUrn(path))) {
-        found.push(...addresses(value));
-      }
+      const path = typeof rawPath === "string" ? rawPath.trim() : rawPath;
+      if (path === undefined || path === "") found.push(...keyedAddresses(value));
+      else if (typeof path === "string" && setsAddress(path)) found.push(...addresses(value));
     }
   }
   return [...new Set(found.map((address) => address.trim().toLowerCase()))];

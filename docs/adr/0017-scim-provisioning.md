@@ -92,9 +92,10 @@ Option 3, with `@better-auth/scim` at exactly 1.7.20 like `better-auth` and
   not apply at that user's sign-in. SCIM gives no role the map does not name,
   so it never gives admin unless the map maps a group to it.
 - **SCIM owns the roles of its users** (security review B1, ASVS V8.2.1, and
-  the owner's decision on the second review): for a user a provider
-  provisioned, a sign-in claim never changes the roles, neither adding nor
-  removing one, and a SCIM write sets them from the role map, taking away
+  the owner's decisions on the second and third reviews): for a user any
+  provider provisioned (`provisioned_by` set), the claims of a sign-in
+  through any provider never change the roles, neither adding nor removing
+  one, so another provider's claim can never add admin; a SCIM write sets them from the role map, taking away
   any set that provider gave, a claim's from before the link included; only
   local roles an administrator gave stay. For a user SCIM did not provision,
   the claim rules of ADR 0015 hold, so a set a claim gave, admin included,

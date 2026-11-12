@@ -49,18 +49,19 @@ export type SignInRoles =
  * whose source is `local` applies; a set the IdP once sent does not survive the IdP taking it
  * away (A07). Then `defaultRole`, else `no_edulims_role`.
  *
- * For a user `providerId` provisioned over SCIM (#45, owner decision on the second review of
- * #108), SCIM is authoritative: the sign-in's claims neither add nor remove a role, and the
- * default role never applies. The stored set (SCIM's, or local roles an administrator gave)
+ * For a user any provider provisioned over SCIM (#45, owner decisions on the second and third
+ * reviews), SCIM is authoritative: the claims of a sign-in through any provider neither add nor
+ * remove a role, and the default role never applies. The stored set (SCIM's, or local roles an administrator gave)
  * stays; without one the sign-in is refused with `no_edulims_role`.
  */
 export function decideSignInRoles(
   idp: IdpRoles,
   stored: StoredRoles | null,
   defaultRole: Role | undefined,
-  providerId?: string,
 ): SignInRoles {
-  const provisioned = providerId !== undefined && stored?.provisionedBy === providerId;
+  // NOTE: owner decision on the third review of #45; provisioned by any provider is enough, so
+  // a claim from another provider never adds admin either.
+  const provisioned = stored?.provisionedBy != null;
   if (provisioned) {
     const kept = validateRoleValue(stored.role);
     if (kept.ok) return { kind: "scim", roles: kept.roles };

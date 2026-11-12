@@ -375,3 +375,78 @@ describe("spoofed client IPs get no bucket of their own (second review, finding 
     expect(await get(proxied, "203.0.113.8, 10.0.0.5")).toBe(401);
   });
 });
+
+describe("every PATCH form is checked before the plugin (third review, B1)", () => {
+  const URN = "urn:ietf:params:scim:schemas:core:2.0:User:";
+  const away = "y@elsewhere.example.test";
+  const forms: readonly [string, unknown][] = [
+    ['path ""', { op: "replace", path: "", value: { emails: [{ value: away, primary: true }] } }],
+    ['path "  "', { op: "replace", path: "  ", value: { userName: away } }],
+    ["pathless emails.value", { op: "replace", value: { "emails.value": away } }],
+    [
+      'pathless emails[type eq "work"].value',
+      { op: "replace", value: { 'emails[type eq "work"].value': away } },
+    ],
+    [
+      "pathless emails[primary eq true].value",
+      { op: "replace", value: { "emails[primary eq true].value": away } },
+    ],
+    [
+      "pathless URN-prefixed key",
+      { op: "replace", value: { [`${URN}emails[type eq "work"].value`]: away } },
+    ],
+  ];
+
+  async function provisioned() {
+    await db
+      .insertInto("identity_provider_domain")
+      .values({ domain: "campus.example.test", provider_id: "campus" })
+      .execute();
+    const created = await scim("POST", "/Users", tokenA, userBody("f-1", "y@campus.example.test"));
+    expect(created.status).toBe(201);
+    return String(created.json["id"]);
+  }
+
+  async function storedEmail(scimId: string): Promise<string> {
+    const row = await db
+      .selectFrom("scimUser")
+      .innerJoin("user", "user.id", "scimUser.userId")
+      .select(["user.email", "scimUser.primaryEmail"])
+      .where("scimUser.id", "=", scimId)
+      .executeTakeFirstOrThrow();
+    expect(row.primaryEmail).toBe(row.email);
+    return row.email;
+  }
+
+  it.each(forms)("refuses %s outside the domains, with a refused row", async (_name, operation) => {
+    const scimId = await provisioned();
+    const response = await scim("PATCH", `/Users/${scimId}`, tokenA, {
+      schemas: [PATCH_SCHEMA],
+      Operations: [operation],
+    });
+    expect(response.status).toBe(400);
+    expect(response.json["scimType"]).toBe("invalidValue");
+    expect(await storedEmail(scimId)).toBe("y@campus.example.test");
+    const refused = await db
+      .selectFrom("audit_event")
+      .select(["action", "reason_code"])
+      .where("outcome", "=", "refused")
+      .execute();
+    expect(refused).toEqual([{ action: "scim_user_updated", reason_code: "address_domain" }]);
+  });
+
+  it.each(forms)("refuses %s onto an address another provider owns", async (_name, operation) => {
+    await insertUser("u-own", away);
+    await insertAccount("u-own", "partner", "sub-own");
+    const created = await scim("POST", "/Users", tokenA, userBody("f-2", "q@campus.example.test"));
+    expect(created.status).toBe(201);
+    const scimId = String(created.json["id"]);
+    const response = await scim("PATCH", `/Users/${scimId}`, tokenA, {
+      schemas: [PATCH_SCHEMA],
+      Operations: [operation],
+    });
+    expect(response.status).toBe(409);
+    expect(response.json["scimType"]).toBe("uniqueness");
+    expect(await storedEmail(scimId)).toBe("q@campus.example.test");
+  });
+});

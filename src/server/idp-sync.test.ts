@@ -74,7 +74,9 @@ function providersWith(defaultRole?: Role): IdpRoleSyncOptions["settingsOf"] {
 }
 
 /** The stored role set per user id, as better-auth's adapter returns it. */
-type Stored = Readonly<Record<string, { role: string; roleSource: string }>>;
+type Stored = Readonly<
+  Record<string, { role: string; roleSource: string; provisionedBy?: string }>
+>;
 
 function setup(defaultRole?: "student", stored: Stored = {}) {
   const updateUser = vi.fn(async () => null);
@@ -253,6 +255,19 @@ describe("createIdpRoleSync", () => {
       roleSource: "microsoft",
       roleChannel: "claim",
     });
+  });
+
+  it("never adds admin from another provider's claim to a SCIM-provisioned user (#45, N2)", async () => {
+    const { sync, ctx, updateUser } = setup("student", {
+      u1: { role: "teacher", roleSource: "keycloak", provisionedBy: "keycloak" },
+    });
+    const claims = { roles: ["edulims-admin"] };
+    const data = oauth("sign-in", "microsoft", claims, { id: "u1", role: "teacher" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(updateUser).not.toHaveBeenCalledWith(
+      "u1",
+      expect.objectContaining({ role: expect.anything() }),
+    );
   });
 
   it("does not write an unchanged role set", async () => {

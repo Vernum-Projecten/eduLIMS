@@ -169,7 +169,7 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
     const existingId =
       source.action !== "create-user" && typeof user.id === "string" ? user.id : null;
     const stored = existingId ? await storedRolesOf(ctx, existingId) : null;
-    let decision = decideSignInRoles(fromIdp, stored, settings.defaultRole, providerId);
+    let decision = decideSignInRoles(fromIdp, stored, settings.defaultRole);
     const test = options.testOf ? await options.testOf(ctx, providerId) : null;
     if (test !== null) return endTest(test, testOutcome(decision, profile));
     if (!settings.enabled) {

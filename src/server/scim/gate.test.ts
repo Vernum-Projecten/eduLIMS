@@ -6,7 +6,7 @@
 // activity-log action of each request and the once-per-window refusal log.
 import { describe, expect, it } from "vitest";
 import { RefusalDeduper, scimResourceAction, scimResourceEvent } from "./audit.ts";
-import { scimBodyAddresses, stripCoreUserUrn } from "./emails.ts";
+import { scimBodyAddresses, setsAddress, stripCoreUserUrn } from "./emails.ts";
 import { scimErrorResponse } from "./gate.ts";
 import { bearerOf, bodyTooLarge, rateKeyOf, ScimRateLimiter } from "./limits.ts";
 
@@ -206,6 +206,44 @@ describe("scimResourceAction", () => {
       target: { type: "scim_user", id: "u1" },
     });
     expect(scimResourceEvent("scim_group_deleted", base, undefined)).not.toHaveProperty("target");
+  });
+});
+
+describe("every PATCH form that reaches the e-mail address (third review, B1)", () => {
+  const URN = "urn:ietf:params:scim:schemas:core:2.0:User:";
+  const forms: readonly [string, unknown][] = [
+    ['path ""', { op: "replace", path: "", value: { emails: [{ value: "a@x.example" }] } }],
+    ['path "  "', { op: "replace", path: "  ", value: { userName: "a@x.example" } }],
+    ["pathless emails.value", { op: "replace", value: { "emails.value": "a@x.example" } }],
+    [
+      'pathless emails[type eq "work"].value',
+      { op: "replace", value: { 'emails[type eq "work"].value': "a@x.example" } },
+    ],
+    [
+      "pathless emails[primary eq true].value",
+      { op: "replace", value: { "emails[primary eq true].value": "a@x.example" } },
+    ],
+    [
+      'pathless URN-prefixed emails[type eq "work"].value',
+      { op: "replace", value: { [`${URN}emails[type eq "work"].value`]: "a@x.example" } },
+    ],
+  ];
+
+  it.each(forms)("collects the address of %s", (_name, operation) => {
+    expect(scimBodyAddresses({ Operations: [operation] })).toEqual(["a@x.example"]);
+  });
+
+  it("uses the one predicate for keys and paths", () => {
+    expect(setsAddress(" emails.value ")).toBe(true);
+    expect(setsAddress(`${URN}userName`)).toBe(true);
+    expect(setsAddress("displayName")).toBe(false);
+    expect(setsAddress("emailsVerified")).toBe(false);
+  });
+
+  it("ignores pathless keys that set no address", () => {
+    expect(
+      scimBodyAddresses({ Operations: [{ op: "replace", value: { displayName: "a@x.example" } }] }),
+    ).toEqual([]);
   });
 });
 

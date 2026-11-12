@@ -104,8 +104,10 @@ both.
   Admin portal (`setLocalRoles`, which writes its `authz_role_change` row in
   the same transaction).
 - **SCIM owns the roles of the users it provisioned** (owner decision on
-  #45, ADR 0017). For a user a provider provisioned over SCIM, a sign-in
-  claim never changes the roles, neither adding nor removing one; SCIM's
+  #45, ADR 0017). For a user any provider provisioned over SCIM
+  (`provisioned_by` set), the claims of a sign-in through any provider never
+  change the roles, neither adding nor removing one, so another provider's
+  claim can never add admin; SCIM's
   group mapping and an administrator's local roles decide. For every other
   user the claim rules above hold unchanged: a mapped claim replaces the set,
   and a set a claim gave is gone at the next sign-in without it, admin

@@ -18,7 +18,7 @@ describe("mapScimFacts", () => {
     expect(mapScimFacts([{ keys: ["unmapped"] }], MAP)).toEqual([]);
   });
 
-  it("maps a group without an externalId on its display name", () => {
+  it("maps on the key it is given, whatever that key is", () => {
     expect(mapScimFacts([{ keys: ["Students"] }], MAP)).toEqual(["student"]);
   });
 
