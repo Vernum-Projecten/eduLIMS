@@ -64,6 +64,8 @@ adding one, and update it instead of duplicating.
 - [Env file workflow](env-file-workflow.md): never read or edit the local env
   file; update the example and end with "run `! pnpm env:sync`"; use a
   separate worktree while the owner runs `pnpm dev`
+- [Clean up worktrees](clean-up-worktrees.md): remove each worktree and its
+  branches as soon as its PR merges or its agent finishes; owner 2026-11-12
 
 ## Stack
 
