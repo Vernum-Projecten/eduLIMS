@@ -37,7 +37,8 @@ interface Person {
   name: string;
   role: string;
   source?: string;
-  banned?: boolean;
+  /** `null` leaves the column unset, as a row written outside better-auth does (#121). */
+  banned?: boolean | null;
   banExpires?: Date | null;
   lastSignInAt?: Date | null;
   providers?: string[];
@@ -57,7 +58,7 @@ async function seed(people: readonly Person[]): Promise<Kysely<DB>> {
         emailVerified: true,
         role: p.role,
         role_source: p.source ?? "local",
-        banned: p.banned ?? false,
+        banned: p.banned === undefined ? false : p.banned,
         banExpires: p.banExpires ?? null,
         last_sign_in_at: p.lastSignInAt ?? null,
         createdAt: NOW,
@@ -352,6 +353,40 @@ describe("listUsers with multi-select facets (#58)", () => {
 });
 
 const ALL_PROVIDERS: SignInMethod[] = [MICROSOFT, KEYCLOAK, CREDENTIAL];
+
+describe("users whose block is unset (#121, B1)", () => {
+  const UNSET: Person[] = [
+    ...PEOPLE,
+    {
+      id: "u7",
+      name: "Gijs Jansen",
+      role: "student",
+      banned: null,
+      lastSignInAt: new Date(NOW.getTime() - DAY),
+    },
+    { id: "u8", name: "Hanna Dekker", role: "teacher", banned: null },
+  ];
+
+  it("lists a user with banned NULL under active or never signed in, never blocked", async () => {
+    const database = await seed(UNSET);
+    expect(ids(await listUsers(database, { status: ["active"] }, NOW))).toEqual([
+      "u1",
+      "u2",
+      "u5",
+      "u7",
+    ]);
+    expect(ids(await listUsers(database, { status: ["never"] }, NOW))).toEqual(["u3", "u8"]);
+    expect(ids(await listUsers(database, { status: ["blocked"] }, NOW))).toEqual(["u4", "u6"]);
+  });
+
+  it("counts a user with banned NULL in the status facet", async () => {
+    const database = await seed(UNSET);
+    const facets = await userFacets(database, {}, NOW, ALL_PROVIDERS);
+    expect(facets.status).toEqual({ active: 4, blocked: 2, never: 2 });
+    const { total } = await listUsers(database, {}, NOW);
+    expect(facets.status.active + facets.status.blocked + facets.status.never).toBe(total);
+  });
+});
 
 describe("userFacets (#58)", () => {
   it("counts every value over all users without filters", async () => {

@@ -74,7 +74,8 @@ export async function accountCounts(db: Kysely<DB>, now: Date): Promise<AccountC
         .countAll<string>()
         .filterWhere((fb) =>
           fb.and([
-            fb("banned", "=", true),
+            // Same NULL handling as the users list's status filter (#121).
+            fb("banned", "is", true),
             fb.or([fb("banExpires", "is", null), fb("banExpires", ">", now)]),
           ]),
         )

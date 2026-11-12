@@ -34,7 +34,7 @@ async function testDb(): Promise<Kysely<DB>> {
 
 async function insertUser(
   database: Kysely<DB>,
-  input: { role: string | null; banned?: boolean; banExpires?: Date | null; name?: string },
+  input: { role: string | null; banned?: boolean | null; banExpires?: Date | null; name?: string },
 ): Promise<string> {
   const id = randomUUID();
   await database
@@ -45,7 +45,7 @@ async function insertUser(
       email: `${id}@example.test`,
       emailVerified: true,
       role: input.role,
-      banned: input.banned ?? false,
+      banned: input.banned === undefined ? false : input.banned,
       banExpires: input.banExpires ?? null,
     })
     .execute();
@@ -100,6 +100,16 @@ describe("accountCounts (#36)", () => {
     await insertUser(database, { role: "student" });
     const after = await accountCounts(database, NOW);
     expect(after.blockedUsers - before.blockedUsers).toBe(2);
+  });
+
+  it("counts a user whose block is unset (NULL) as a user, not as blocked (#121, B1)", async () => {
+    const database = await testDb();
+    const before = await accountCounts(database, NOW);
+    await insertUser(database, { role: "student", banned: null });
+    const after = await accountCounts(database, NOW);
+    expect(after.users - before.users).toBe(1);
+    expect(after.students - before.students).toBe(1);
+    expect(after.blockedUsers - before.blockedUsers).toBe(0);
   });
 
   it("counts the unexpired sessions only", async () => {

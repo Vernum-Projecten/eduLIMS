@@ -139,8 +139,10 @@ function statusCondition(
   statuses: readonly UserStatus[],
   now: Date,
 ): Expression<SqlBool> {
+  // NOTE: `user.banned` is nullable (0001_auth.ts) and rows inserted outside better-auth leave it
+  // NULL; `is true` makes `blocked` never NULL, so `not(blocked)` keeps those users (#121).
   const blocked: Expression<SqlBool> = eb.and([
-    eb("user.banned", "=", true),
+    eb("user.banned", "is", true),
     eb.or([eb("user.banExpires", "is", null), eb("user.banExpires", ">", now)]),
   ]);
   return eb.or(

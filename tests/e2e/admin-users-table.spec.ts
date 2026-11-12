@@ -274,7 +274,11 @@ test.describe("at 320 CSS px wide (WCAG 1.4.10)", () => {
     const region = page.getByRole("region", { name: /^Users, sorted by/ });
     const overflow = await region.evaluate((el) => el.scrollWidth > el.clientWidth);
     expect(overflow).toBe(true);
-    await page.getByRole("search").getByRole("button", { name: "Status", exact: true }).click();
+    const statusFacet = page
+      .getByRole("search")
+      .getByRole("button", { name: "Status", exact: true });
+    await expectHydrated(statusFacet);
+    await statusFacet.click();
     await expect(page.getByRole("listbox", { name: "Status" })).toBeVisible();
     await axe(page);
   });
