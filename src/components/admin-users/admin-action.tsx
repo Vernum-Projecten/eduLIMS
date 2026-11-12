@@ -60,12 +60,14 @@ export function ConfirmDialog({
   open,
   onOpenChange,
   confirmation,
+  destructive = false,
   onConfirm,
   onCloseAutoFocus,
 }: Readonly<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
   confirmation: Confirmation;
+  destructive?: boolean;
   onConfirm: () => void;
   onCloseAutoFocus?: (event: Event) => void;
 }>) {
@@ -79,7 +81,7 @@ export function ConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel>{m.admin_users_cancel()}</AlertDialogCancel>
           <AlertDialogAction
-            variant="default"
+            variant={destructive ? "destructive" : "default"}
             onClick={() => {
               onOpenChange(false);
               onConfirm();

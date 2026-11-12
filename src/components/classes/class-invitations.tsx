@@ -16,12 +16,12 @@ import {
 } from "lucide-react";
 import { type ChangeEvent, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ConfirmButton } from "@/components/admin-users/admin-action";
 import { ClassJoinCode } from "@/components/classes/class-join-code";
 import { classLabel } from "@/components/classes/class-name";
 import { useClassMutation } from "@/components/classes/use-class-mutation";
 import { DataTable } from "@/components/data-table/data-table";
 import { createDataTableColumnHelper, dataTableFeatures } from "@/components/data-table/features";
+import { RowActionMenu } from "@/components/data-table/row-action-menu";
 import { useAppForm } from "@/components/form/app-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -275,28 +275,33 @@ function InvitationActions({
   if (!classCan(page.myRole, memberPermission(invitation.role, "invite"))) return null;
   const input = { classId: page.id, invitationId: invitation.id };
   return (
-    <div className="flex flex-wrap justify-end gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={resend.isPending}
-        onClick={() => resend.mutate(input)}
-      >
-        <RefreshCwIcon aria-hidden="true" data-icon="inline-start" />
-        {m.classes_invitation_resend({ email: invitation.email })}
-      </Button>
-      <ConfirmButton
-        icon={XIcon}
-        label={m.classes_invitation_cancel({ email: invitation.email })}
-        title={m.classes_invitation_cancel_title()}
-        description={m.classes_invitation_cancel_description({ email: invitation.email })}
-        confirm={m.classes_invitation_cancel_confirm()}
-        destructive
-        pending={cancel.isPending}
-        onConfirm={() => cancel.mutate(input)}
-      />
-    </div>
+    <RowActionMenu
+      name={invitation.email}
+      actions={[
+        {
+          id: "resend",
+          icon: RefreshCwIcon,
+          label: m.classes_invitation_resend_short(),
+          accessibleName: m.classes_invitation_resend({ email: invitation.email }),
+          pending: resend.isPending,
+          onRun: () => resend.mutate(input),
+        },
+        {
+          id: "cancel",
+          icon: XIcon,
+          label: m.classes_invitation_cancel_confirm(),
+          accessibleName: m.classes_invitation_cancel({ email: invitation.email }),
+          destructive: true,
+          pending: cancel.isPending,
+          confirmation: {
+            title: m.classes_invitation_cancel_title(),
+            description: m.classes_invitation_cancel_description({ email: invitation.email }),
+            confirm: m.classes_invitation_cancel_confirm(),
+          },
+          onRun: () => cancel.mutate(input),
+        },
+      ]}
+    />
   );
 }
 

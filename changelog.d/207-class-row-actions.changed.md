@@ -1,0 +1,1 @@
+- On a class page a member or invitation row shows a short button for one action, and a row menu for several, in place of long buttons that repeat the name.

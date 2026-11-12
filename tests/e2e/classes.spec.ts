@@ -127,6 +127,38 @@ test("a student joins every inviting class on sign-in, without an accept step (#
   await axe(page);
 });
 
+test("one action is a short button, two sit in the row menu (#187)", async ({ page }) => {
+  await signInAsOwner(page);
+  await openClass(page);
+
+  // A student row has one action: a short "Remove" button that still names the student.
+  const students = page.getByRole("table", { name: "Students of the class" });
+  const remove = students.getByRole("button", { name: "Remove Ada Classes Test" });
+  await expect(remove).toHaveText("Remove");
+  await remove.click();
+  const confirm = page.getByRole("alertdialog", {
+    name: "Remove Ada Classes Test from the class?",
+  });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(remove).toBeFocused();
+
+  // A pending invitation has two actions, so they sit in its "⋯" menu.
+  await page.getByRole("tab", { name: /^Invitations/ }).click();
+  const pending = page.getByRole("table", { name: "Pending invitations" });
+  const menu = pending.getByRole("button", { name: "Actions for classes-bo@example.test" });
+  await menu.click();
+  await page.getByRole("menuitem", { name: "Renew" }).click();
+  await expect(
+    page.getByText("The invitation for classes-bo@example.test is valid for another 30 days."),
+  ).toBeVisible();
+  await menu.click();
+  await expect(page.getByRole("menuitem", { name: "Cancel invitation" })).toBeVisible();
+  await axe(page);
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeFocused();
+});
+
 test("lab groups are created and filled with the keyboard (#28)", async ({ page }) => {
   await signInAsOwner(page);
   await openClass(page);
