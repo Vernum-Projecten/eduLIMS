@@ -96,6 +96,7 @@ jobs:
       packages: write # push the image and its attestations to GHCR
       id-token: write # Sigstore, for the provenance and SBOM attestations
       attestations: write # store them against this repository
+      artifact-metadata: write # storage records for the linked artifacts page (https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations)
     outputs:
       digest: ${{ steps.build.outputs.digest }}
       tags: ${{ steps.meta.outputs.tags }}
@@ -150,8 +151,8 @@ jobs:
           password: ${{ github.token }}
 
       # Tags: the version, its major.minor, and latest, which the action
-      # leaves out for a pre-release. Tags on GHCR are mutable, so
-      # docs/deployment.md tells operators to pin the digest as well.
+      # leaves out for a pre-release. Tags on GHCR are mutable; the attested
+      # digest is what `gh attestation verify` checks (docs/release.md).
       - name: Image tags, labels, and annotations
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0

@@ -190,6 +190,21 @@ gh attestation verify edulims-vX.Y.Z.tar.gz \
 The platform digests are in the image job's run summary, or in
 `docker buildx imagetools inspect ghcr.io/vernum-projecten/edulims:X.Y.Z`.
 
+GHCR has no OCI referrers API (`GET /v2/<name>/referrers/<digest>` answers
+404), so each attestation the image lanes push gets the OCI fallback tag
+`sha256-<digest>`, named after the digest of its subject. GHCR's package page
+headlines the newest tag it holds as "latest", and after a release that is
+one of these attestation tags, without a description. It is a GHCR interface
+limit: pull by version tag (`ghcr.io/vernum-projecten/edulims:X.Y.Z`), and
+the version tags carry the full OCI labels and annotations.
+
+The image attestation jobs also hold `artifact-metadata: write`, so
+`actions/attest` records each pushed image on the organisation's linked
+artifacts page
+([Use artifact attestations](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations),
+"linked artifacts"). The calling jobs in `release.yml` grant it too, because
+a reusable workflow can only narrow the permissions its caller grants.
+
 ## Repository settings the pipeline relies on
 
 - **Release immutability** on (Settings, General, Releases), so a published

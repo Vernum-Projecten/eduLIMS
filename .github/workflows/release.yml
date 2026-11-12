@@ -207,6 +207,9 @@ jobs:
       packages: write # push the image and its attestations to GHCR
       id-token: write # Sigstore
       attestations: write
+      # A reusable workflow can only narrow the caller's grant; storage records
+      # for the linked artifacts page (https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations).
+      artifact-metadata: write
     uses: ./.github/workflows/release-image.yml # zizmor: ignore[self-repository]
     with:
       tag: ${{ needs.plan.outputs.tag }}
@@ -226,6 +229,9 @@ jobs:
       packages: write # push the image and its attestations to GHCR
       id-token: write # Sigstore
       attestations: write
+      # A reusable workflow can only narrow the caller's grant; storage records
+      # for the linked artifacts page (https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations).
+      artifact-metadata: write
     uses: ./.github/workflows/release-image.yml # zizmor: ignore[self-repository]
     with:
       tag: ${{ needs.plan.outputs.tag }}
