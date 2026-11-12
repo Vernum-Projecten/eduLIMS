@@ -7,7 +7,6 @@ import {
   EnvConfigError,
   envFields,
   getEnv,
-  isAddressOrRange,
   parseEnv,
   parseWith,
 } from "./env.ts";
@@ -47,6 +46,20 @@ describe("parseEnv", () => {
     });
     expect(env.EDULIMS_DATA_KEY_PREVIOUS).toBeUndefined();
     expect(env.EDULIMS_IDP_PRIVATE_ORIGINS).toEqual([]);
+  });
+
+  it("reads EDULIMS_TRUSTED_PROXIES as IP addresses and CIDR ranges, empty by default (#45)", () => {
+    expect(parseEnv(VALID_ENV).EDULIMS_TRUSTED_PROXIES).toEqual([]);
+    expect(
+      parseEnv({ ...VALID_ENV, EDULIMS_TRUSTED_PROXIES: " 10.0.0.5, 192.0.2.0/24 ,2001:db8::/32" })
+        .EDULIMS_TRUSTED_PROXIES,
+    ).toEqual(["10.0.0.5", "192.0.2.0/24", "2001:db8::/32"]);
+  });
+
+  it("refuses an EDULIMS_TRUSTED_PROXIES entry that is no IP address or range", () => {
+    expect(() => parseEnv({ ...VALID_ENV, EDULIMS_TRUSTED_PROXIES: "proxy.example" })).toThrow(
+      /EDULIMS_TRUSTED_PROXIES/,
+    );
   });
 
   it("still refuses an empty required variable", () => {
@@ -153,36 +166,6 @@ describe("identity-provider settings (#46, ADR 0015)", () => {
     expect(parseEnv({ ...VALID_ENV, ...PRODUCTION }).EDULIMS_IDP_PRIVATE_ORIGINS).toEqual([
       "https://idp.campus.internal",
     ]);
-  });
-
-  it("parses the trusted proxies and leaves them empty when unset (#49)", () => {
-    const env = parseEnv({ ...VALID_ENV, EDULIMS_TRUSTED_PROXIES: " 192.0.2.10, 10.0.0.0/24 ,," });
-    expect(env.EDULIMS_TRUSTED_PROXIES).toEqual(["192.0.2.10", "10.0.0.0/24"]);
-    expect(parseEnv(VALID_ENV).EDULIMS_TRUSTED_PROXIES).toEqual([]);
-    expect(parseEnv({ ...VALID_ENV, EDULIMS_TRUSTED_PROXIES: "" }).EDULIMS_TRUSTED_PROXIES).toEqual(
-      [],
-    );
-  });
-
-  it("refuses a trusted proxy that is no address or range (#49)", () => {
-    expect(() => parseEnv({ ...VALID_ENV, EDULIMS_TRUSTED_PROXIES: "proxy.example.test" })).toThrow(
-      /EDULIMS_TRUSTED_PROXIES/,
-    );
-  });
-
-  it.each([
-    ["192.0.2.10", true],
-    ["10.0.0.0/8", true],
-    ["2001:db8::1", true],
-    ["2001:db8::/32", true],
-    ["10.0.0.0/33", false],
-    ["2001:db8::/129", false],
-    ["10.0.0.0/x", false],
-    ["10.0.0.0/8/8", false],
-    ["localhost", false],
-    ["", false],
-  ])("isAddressOrRange(%s) is %s", (entry, expected) => {
-    expect(isAddressOrRange(entry)).toBe(expected);
   });
 
   it.each(["MICROSOFT_CLIENT_ID", "KEYCLOAK_ISSUER", "OIDC_ROLE_MAP"])(

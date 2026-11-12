@@ -17,6 +17,7 @@ export type IdpServiceError =
   | "not_found"
   | "exists"
   | "has_accounts"
+  | "has_provisioned_users"
   | "last_enabled"
   | "domain_taken"
   | "client_secret_required"

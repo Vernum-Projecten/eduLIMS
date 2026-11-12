@@ -69,8 +69,10 @@ export async function setProviderEnabled(
 }
 
 /**
- * Deletes a provider that nobody ever signed in with (`idp_deleted`). With accounts it is
- * refused: disable it instead, so their sign-in history and role source keep their meaning.
+ * Deletes a provider that nobody ever signed in with and that provisioned nobody over SCIM
+ * (`idp_deleted`). With accounts it is refused (`has_accounts`), and with provisioned users too
+ * (`has_provisioned_users`, #45): disable it instead, so their sign-in history, role source and
+ * directory records keep their meaning.
  */
 export async function deleteProvider(
   ctx: IdpServiceContext,
@@ -88,6 +90,17 @@ export async function deleteProvider(
     .where("providerId", "=", input.providerId)
     .executeTakeFirst();
   if (account) return refused("has_accounts");
+  const provisioned = await ctx.db
+    .selectFrom("user")
+    .select("id")
+    .where("provisioned_by", "=", input.providerId)
+    .executeTakeFirst();
+  const scimUser = await ctx.db
+    .selectFrom("scimUser")
+    .select("id")
+    .where("connectionId", "=", input.providerId)
+    .executeTakeFirst();
+  if (provisioned || scimUser) return refused("has_provisioned_users");
   if (row.enabled && ctx.policy.production && (await isLastEnabled(ctx.db, input.providerId))) {
     return refused("last_enabled");
   }

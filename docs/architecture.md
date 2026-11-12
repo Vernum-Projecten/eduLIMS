@@ -52,6 +52,7 @@ with the CSV export (D6).
 | eduLIMS → FerroEHR (write) | web app → CDR | openEHR REST, compositions | convert Epoch results to compositions | Must |
 | eduLIMS → FerroEHR (read) | web app → CDR | AQL 1.1 | queries per sample, student and practical | Must |
 | eduLIMS ↔ identity provider | web app → the institution's identity provider (Microsoft Entra ID or Keycloak) | OpenID Connect, authorization code flow with PKCE | an OIDC client registered by the institution; roles through app roles, groups or realm roles ([ADR 0010](adr/0010-vendor-neutral-oidc-entra-and-keycloak.md)) | Must |
+| identity provider → eduLIMS | the institution's directory → web app | SCIM 2.0 (RFC 7644), a bearer token per identity provider | provisioning and deprovisioning of users and groups, roles through the provider's role map ([ADR 0017](adr/0017-scim-provisioning.md)) | not set in the requirements (#45) |
 | GitHub → VM | development lane → platform | GitHub Actions, GHCR, Docker Compose | CI/CD with tests and openEHR conformance ([ADR 0002](adr/0002-github-instead-of-azure-devops.md)) | Must |
 | eduLIMS → CSV export | web app → teacher | CSV | export of grades (D6) | Should |
 | eduLIMS ↔ external grade-book system | | | not built (out of scope) | Won't |

@@ -101,7 +101,7 @@ export async function grantAdmin(
       const role = formatRoles(next.roles);
       await trx
         .updateTable("user")
-        .set({ role, role_source: LOCAL_ROLE_SOURCE, updatedAt: input.now })
+        .set({ role, role_source: LOCAL_ROLE_SOURCE, role_channel: "local", updatedAt: input.now })
         .where("id", "=", user.id)
         .execute();
       await recordAudit(trx, {
@@ -175,7 +175,7 @@ export async function grantAdminToUser(
     const role = formatRoles(next.roles);
     await trx
       .updateTable("user")
-      .set({ role, role_source: LOCAL_ROLE_SOURCE, updatedAt: input.now })
+      .set({ role, role_source: LOCAL_ROLE_SOURCE, role_channel: "local", updatedAt: input.now })
       .where("id", "=", user.id)
       .execute();
     await recordAudit(trx, {
@@ -249,7 +249,7 @@ export async function revokeAdmin(
     const role = rest.length > 0 ? formatRoles(rest) : null;
     await trx
       .updateTable("user")
-      .set({ role, role_source: LOCAL_ROLE_SOURCE, updatedAt: input.now })
+      .set({ role, role_source: LOCAL_ROLE_SOURCE, role_channel: "local", updatedAt: input.now })
       .where("id", "=", user.id)
       .execute();
     await trx.deleteFrom("session").where("userId", "=", user.id).execute();

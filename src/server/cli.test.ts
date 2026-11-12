@@ -13,8 +13,8 @@ async function run(...args: string[]) {
 }
 
 describe("runCli", () => {
-  it("offers migrate, prune, admin and idp", () => {
-    expect(Object.keys(CLI_COMMANDS)).toEqual(["migrate", "prune", "admin", "idp"]);
+  it("offers migrate, prune, admin, idp and scim", () => {
+    expect(Object.keys(CLI_COMMANDS)).toEqual(["migrate", "prune", "admin", "idp", "scim"]);
   });
 
   it.each([[[]], [["unknown"]], [["toString"]], [["__proto__"]]])(
@@ -31,6 +31,20 @@ describe("runCli", () => {
     expect(code).toBe(1);
     expect(lines[0]).toBe("refused: invalid email");
     expect(lines.join("\n")).not.toContain("not-an-email");
+  });
+
+  it.each([
+    [["scim"]],
+    [["scim", "token"]],
+    [["scim", "token", "create"]],
+    [["scim", "token", "print", "campus"]],
+    [["scim", "token", "create", "Bad Id"]],
+    [["scim", "external-id", "campus"]],
+    [["scim", "token", "create", "campus", "extra"]],
+  ])("refuses `%j` with the scim usage and exit code 2, before any database", async (args) => {
+    const { code, lines } = await run(...args);
+    expect(code).toBe(2);
+    expect(lines.join("\n")).toMatch(/^usage: scim token create\|rotate\|revoke/);
   });
 
   it("refuses an invalid provider id and unknown options of `admin grant`", async () => {

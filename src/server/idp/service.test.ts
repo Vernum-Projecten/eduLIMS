@@ -367,6 +367,28 @@ describe("enable, disable and delete", () => {
     expect((await listProviders(database, "en")).map((row) => row.accounts)).toEqual([1]);
   });
 
+  it("refuses to delete a provider that provisioned users over SCIM (#45)", async () => {
+    const { ctx, database } = await setup();
+    await createProvider(ctx, OIDC);
+    await database
+      .insertInto("user")
+      .values({
+        id: "u2",
+        name: "P",
+        email: "p@example.test",
+        emailVerified: false,
+        provisioned_by: "entra",
+      })
+      .execute();
+    expect(await deleteProvider(ctx, { providerId: "entra" })).toEqual({
+      ok: false,
+      error: "has_provisioned_users",
+    });
+    expect(await database.selectFrom("identity_provider").select("provider_id").execute()).toEqual([
+      { provider_id: "entra" },
+    ]);
+  });
+
   it("deletes an unused provider with its settings and domains", async () => {
     const { ctx, database } = await setup();
     await createProvider(ctx, OIDC);

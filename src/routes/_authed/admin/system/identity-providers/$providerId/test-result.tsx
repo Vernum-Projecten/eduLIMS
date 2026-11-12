@@ -52,6 +52,8 @@ function outcomeText(outcome: TestOutcome): string {
       return m.idp_test_outcome_idp({ roles });
     case "local":
       return m.idp_test_outcome_local({ roles });
+    case "scim":
+      return m.idp_test_outcome_scim({ roles });
     case "default":
       return m.idp_test_outcome_default({ roles });
     case "role_conflict":

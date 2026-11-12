@@ -27,6 +27,8 @@ export const STALE_TIME = {
   integrationStatus: 0,
   /** Classes, their members, invitations and lab groups: co-teachers change them, rarely at once. */
   classes: 30_000,
+  /** A provider's SCIM section: its token's last use moves with every directory sync. */
+  scimDetail: 15_000,
   /** The overview's counts and latest events (#36): a snapshot, refreshed on the next visit. */
   adminOverview: 30_000,
   /**

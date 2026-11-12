@@ -43,6 +43,8 @@ describe("activity log labels (#36)", () => {
       "Identity provider Keycloak (lab)",
       "An administrator grant",
       "An analyser",
+      "A provisioned user",
+      "A directory group",
     ]);
     expect(activityTargetLabel({ type: "identity_provider", id: "gone" })).toBe(
       "Identity provider gone",
@@ -136,6 +138,57 @@ describe("activity log labels (#36)", () => {
         metadata: { removed_audit_events: 1200, removed_sessions: 4, removed_admin_grants: 0 },
       }),
     ).toEqual(["Events removed: 1,200", "Sessions removed: 4", "Administrator grants removed: 0"]);
+    expect(
+      activityDetails({
+        reason: null,
+        provider: null,
+        metadata: { resealed_providers: 2, resealed_id_tokens: 31 },
+      }),
+    ).toEqual(["Identity providers re-encrypted: 2", "ID tokens re-encrypted: 31"]);
+  });
+
+  it("summarises a SCIM token's dates, a refusal's count and the SCIM reasons (#45)", () => {
+    expect(
+      activityDetails(
+        {
+          reason: "token_unknown",
+          provider: null,
+          metadata: { provider_id: "keycloak", refused_count: 600 },
+        },
+        LABELS,
+      ),
+    ).toEqual([
+      "Reason: the SCIM token is not known",
+      "Identity provider: Keycloak (lab)",
+      "Refused requests: 600",
+    ]);
+    expect(
+      activityDetails({
+        reason: null,
+        provider: null,
+        metadata: {
+          token_expires_at: "2027-05-10T09:30:00.000Z",
+          previous_token_valid_until: "2026-11-11T10:30:00.000Z",
+        },
+      }),
+    ).toEqual([
+      expect.stringMatching(/^Token expires /),
+      expect.stringMatching(/^The previous token works until /),
+    ]);
+    for (const reason of [
+      "token_missing",
+      "token_revoked",
+      "token_expired",
+      "token_refused",
+      "provider_disabled",
+      "address_domain",
+      "uniqueness",
+      "http_404",
+      "user_deprovisioned",
+      "account_deprovisioned",
+    ]) {
+      expect(activityReasonLabel(reason), reason).not.toMatch(/^code /);
+    }
   });
 
   it("summarises the class metadata (#28): ids as ids, codes in words", () => {

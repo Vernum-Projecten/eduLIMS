@@ -3,8 +3,8 @@
 
 // Server-only environment configuration. Everything under src/server/ uses relative
 // `.ts` imports so the CLI entry points (migrate, seed) run on plain Node type stripping.
+import { findInvalidTrustedProxies } from "@better-auth/core/utils/ip";
 import "@tanstack/react-start/server-only";
-import { isIP } from "node:net";
 import { z } from "zod";
 
 const httpUrl = () => z.url({ protocol: /^https?$/ });
@@ -47,33 +47,26 @@ const originList = () =>
     return origins;
   });
 
-/** Returns whether `entry` is an IP address or a CIDR range (`192.0.2.10`, `10.0.0.0/24`). */
-export function isAddressOrRange(entry: string): boolean {
-  const [address = "", prefix, ...rest] = entry.split("/");
-  const family = isIP(address);
-  if (family === 0 || rest.length > 0) return false;
-  if (prefix === undefined) return true;
-  return /^\d{1,3}$/.test(prefix) && Number(prefix) <= (family === 4 ? 32 : 128);
-}
-
 /**
- * `EDULIMS_TRUSTED_PROXIES`: comma-separated addresses or CIDR ranges of the reverse proxies in
- * front of eduLIMS. better-auth then reads the client IP from `X-Forwarded-For` from the right,
- * skipping these hops; unset, it trusts only a header with exactly one address.
+ * `EDULIMS_TRUSTED_PROXIES`: comma-separated IP addresses or CIDR ranges of the reverse proxies
+ * in front of eduLIMS. Only with it set does eduLIMS read the client IP from `X-Forwarded-For`
+ * (walking the chain right to left past these proxies); unset, no forwarded header is trusted.
  */
 const proxyList = () =>
   z.string().transform((text, ctx) => {
-    const entries = text
+    const proxies = text
       .split(",")
       .map((entry) => entry.trim())
       .filter((entry) => entry !== "");
-    for (const entry of entries) {
-      if (!isAddressOrRange(entry)) {
-        ctx.addIssue({ code: "custom", message: `"${entry}" is not an IP address or CIDR range` });
-        return z.NEVER;
-      }
+    const invalid = findInvalidTrustedProxies(proxies);
+    if (invalid.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: `not an IP address or CIDR range: ${invalid.join(", ")}`,
+      });
+      return z.NEVER;
     }
-    return entries;
+    return proxies;
   });
 
 /** Field schemas without cross-field rules, so subsets can be `.pick()`ed (e.g. by migrate). */

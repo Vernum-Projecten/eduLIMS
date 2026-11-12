@@ -69,6 +69,10 @@ export function activityTargetLabel(
       return m.admin_activity_target_admin_grant();
     case "analyser":
       return m.admin_activity_target_analyser();
+    case "scim_user":
+      return m.admin_activity_target_scim_user();
+    case "scim_group":
+      return m.admin_activity_target_scim_group();
     default: {
       const unknown: never = target.type;
       return unknown;
@@ -78,6 +82,17 @@ export function activityTargetLabel(
 
 const REASON_LABELS: Readonly<Record<string, () => string>> = {
   access_denied: m.admin_activity_reason_access_denied,
+  account_deprovisioned: m.admin_activity_reason_account_deprovisioned,
+  address_domain: m.admin_activity_reason_address_domain,
+  http_404: m.admin_activity_reason_not_found,
+  provider_disabled: m.admin_activity_reason_provider_disabled,
+  token_expired: m.admin_activity_reason_token_expired,
+  token_missing: m.admin_activity_reason_token_missing,
+  token_refused: m.admin_activity_reason_token_refused,
+  token_revoked: m.admin_activity_reason_token_revoked,
+  token_unknown: m.admin_activity_reason_token_unknown,
+  uniqueness: m.admin_activity_reason_uniqueness,
+  user_deprovisioned: m.admin_activity_reason_user_deprovisioned,
   admin_grant: m.admin_activity_reason_admin_grant,
   admin_grant_override: m.admin_activity_reason_admin_grant_override,
   admin_revoke: m.admin_activity_reason_admin_revoke,
@@ -204,11 +219,25 @@ function metadataParts(metadata: AuditMetadata, labels: ProviderLabels): string[
     parts.push(m.admin_activity_detail_analyser_status({ status }));
   }
   parts.push(...classParts(metadata));
+  if (metadata.token_expires_at) {
+    const date = formatDateTime(metadata.token_expires_at);
+    parts.push(m.admin_activity_detail_token_expires({ date }));
+  }
+  if (metadata.previous_token_valid_until) {
+    const date = formatDateTime(metadata.previous_token_valid_until);
+    parts.push(m.admin_activity_detail_previous_token_until({ date }));
+  }
+  if (metadata.refused_count !== undefined) {
+    const count = formatNumber(metadata.refused_count);
+    parts.push(m.admin_activity_detail_refused_count({ count }));
+  }
   const removed = [
     [metadata.removed_audit_events, m.admin_activity_detail_removed_events],
     [metadata.removed_sessions, m.admin_activity_detail_removed_sessions],
     [metadata.removed_invitations, m.admin_activity_detail_removed_invitations],
     [metadata.removed_admin_grants, m.admin_activity_detail_removed_grants],
+    [metadata.resealed_providers, m.admin_activity_detail_resealed_providers],
+    [metadata.resealed_id_tokens, m.admin_activity_detail_resealed_id_tokens],
   ] as const;
   for (const [value, message] of removed) {
     if (value !== undefined) parts.push(message({ count: formatNumber(value) }));
