@@ -19,6 +19,7 @@ import { DataTablePagination } from "@/components/data-table/data-table-paginati
 import { DataTableBulkBar } from "@/components/data-table/data-table-selection";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { dataTableFeatures } from "@/components/data-table/features";
+import { useUrlTable } from "@/components/data-table/use-url-table";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -46,13 +47,13 @@ import {
   USER_PAGE_SIZES,
   USER_STATUSES,
   type UserListSearch,
+  userListSearchSchema,
 } from "@/server/users/schemas";
 import {
   hasUserFilters,
   listInputFromSearch,
   nextUsersSearch,
   onlySearchTextChanged,
-  type UsersTableChange,
   usersTableState,
 } from "@/server/users/table-state";
 
@@ -136,10 +137,13 @@ export function UsersTable({
   const [selection, setSelection] = useState({ key: listKey, value: NO_SELECTION });
   const rowSelection = selection.key === listKey ? selection.value : NO_SELECTION;
 
-  function change(update: UsersTableChange) {
-    const next = nextUsersSearch(search, update);
-    void navigate({ search: next, replace: onlySearchTextChanged(search, next) });
-  }
+  const urlHandlers = useUrlTable(
+    { state: usersTableState, next: nextUsersSearch },
+    userListSearchSchema,
+    (next, prev) => {
+      void navigate({ search: next, replace: onlySearchTextChanged(prev, next) });
+    },
+  );
 
   const table = useTable({
     features: dataTableFeatures,
@@ -154,11 +158,7 @@ export function UsersTable({
     enableSortingRemoval: false,
     enableRowSelection: (row) => row.original.id !== selfId,
     state: { ...state, columnVisibility, rowSelection },
-    onSortingChange: (updater) => change({ sorting: functionalUpdate(updater, state.sorting) }),
-    onColumnFiltersChange: (updater) =>
-      change({ columnFilters: functionalUpdate(updater, state.columnFilters) }),
-    onPaginationChange: (updater) =>
-      change({ pagination: functionalUpdate(updater, state.pagination) }),
+    ...urlHandlers,
     onColumnVisibilityChange: (updater) => {
       const next = hiddenFromVisibility(functionalUpdate(updater, columnVisibility));
       setHidden(next);

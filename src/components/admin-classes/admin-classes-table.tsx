@@ -11,6 +11,7 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { createDataTableColumnHelper, dataTableFeatures } from "@/components/data-table/features";
+import { useUrlTable } from "@/components/data-table/use-url-table";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -35,9 +36,9 @@ import {
   ADMIN_CLASS_STATUSES,
   type AdminClassListSearch,
   type AdminClassStatus,
+  adminClassListSearchSchema,
 } from "@/server/classes/admin-schemas";
 import {
-  type AdminClassesTableChange,
   adminClassesTableState,
   hasAdminClassFilters,
   nextAdminClassesSearch,
@@ -213,10 +214,17 @@ export function AdminClassesTable({
     [hidden],
   );
 
-  function change(update: AdminClassesTableChange) {
-    const next = nextAdminClassesSearch(search, update);
-    void navigate({ search: next, replace: onlyClassSearchTextChanged(search, next) });
-  }
+  const urlHandlers = useUrlTable(
+    {
+      state: adminClassesTableState,
+      // The order is fixed, so a sorting change (sorting is off) leaves the search as it is.
+      next: (prev, change) => ("sorting" in change ? prev : nextAdminClassesSearch(prev, change)),
+    },
+    adminClassListSearchSchema,
+    (next, prev) => {
+      void navigate({ search: next, replace: onlyClassSearchTextChanged(prev, next) });
+    },
+  );
 
   const table = useTable({
     features: dataTableFeatures,
@@ -230,10 +238,8 @@ export function AdminClassesTable({
     enableSorting: false,
     enableRowSelection: false,
     state: { ...state, columnVisibility },
-    onColumnFiltersChange: (updater) =>
-      change({ columnFilters: functionalUpdate(updater, state.columnFilters) }),
-    onPaginationChange: (updater) =>
-      change({ pagination: functionalUpdate(updater, state.pagination) }),
+    onColumnFiltersChange: urlHandlers.onColumnFiltersChange,
+    onPaginationChange: urlHandlers.onPaginationChange,
     onColumnVisibilityChange: (updater) => {
       const visible = functionalUpdate(updater, columnVisibility);
       const next = hiddenFromVisibility(visible).filter((id) => !(id in FILTER_ONLY));
@@ -304,7 +310,9 @@ export function AdminClassesTable({
             size="sm"
             className="border-dashed"
             aria-pressed={onlyOwnerNotTeacher}
-            onClick={() => ownerNotTeacher.setFilterValue(onlyOwnerNotTeacher ? undefined : true)}
+            onClick={() =>
+              ownerNotTeacher.setFilterValue((old: unknown) => (old === true ? undefined : true))
+            }
           >
             <ShieldAlertIcon aria-hidden="true" data-icon="inline-start" />
             {m.classes_admin_filter_owner_not_teacher_count({

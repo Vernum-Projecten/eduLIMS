@@ -16,6 +16,7 @@ import {
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { dataTableFeatures } from "@/components/data-table/features";
+import { useUrlTable } from "@/components/data-table/use-url-table";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -36,9 +37,12 @@ import {
   visibilityFromHidden,
 } from "@/lib/table-columns";
 import type { AdminActivityPage } from "@/server/activity/query-options";
-import { ACTIVITY_PAGE_SIZES, type ActivityListSearch } from "@/server/activity/schemas";
 import {
-  type ActivityTableChange,
+  ACTIVITY_PAGE_SIZES,
+  type ActivityListSearch,
+  activityListSearchSchema,
+} from "@/server/activity/schemas";
+import {
   activityTableState,
   hasActivityFilters,
   nextActivitySearch,
@@ -110,9 +114,13 @@ export function ActivityTable({
   const [hidden, setHidden] = useState(() => readHiddenColumns(TABLE_ID));
   const columnVisibility = useMemo(() => visibilityFromHidden(hidden), [hidden]);
 
-  function change(update: ActivityTableChange) {
-    void navigate({ search: nextActivitySearch(search, update) });
-  }
+  const urlHandlers = useUrlTable(
+    { state: activityTableState, next: nextActivitySearch },
+    activityListSearchSchema,
+    (next) => {
+      void navigate({ search: next });
+    },
+  );
 
   const table = useTable({
     features: dataTableFeatures,
@@ -127,11 +135,7 @@ export function ActivityTable({
     enableSortingRemoval: false,
     enableRowSelection: false,
     state: { ...state, columnVisibility },
-    onSortingChange: (updater) => change({ sorting: functionalUpdate(updater, state.sorting) }),
-    onColumnFiltersChange: (updater) =>
-      change({ columnFilters: functionalUpdate(updater, state.columnFilters) }),
-    onPaginationChange: (updater) =>
-      change({ pagination: functionalUpdate(updater, state.pagination) }),
+    ...urlHandlers,
     onColumnVisibilityChange: (updater) => {
       const next = hiddenFromVisibility(functionalUpdate(updater, columnVisibility));
       setHidden(next);

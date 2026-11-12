@@ -3,7 +3,7 @@
 
 import { CalendarRangeIcon, XIcon } from "lucide-react";
 import { useId, useState } from "react";
-import type { DateRange } from "react-day-picker";
+import { addToRange, type DateRange } from "react-day-picker";
 import type { DataTableColumn } from "@/components/data-table/features";
 import { formatDay, labelDayButton } from "@/components/form/date-field";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,23 @@ import { m } from "@/i18n/messages";
 import { dateToDay, dayToDate } from "@/lib/forms/calendar-day";
 import type { ActivityRow } from "@/server/activity/queries";
 import { type ActivityPeriod, periodOf } from "@/server/activity/table-state";
+
+/** Returns the period as the calendar's range: no range without a start. */
+function rangeOf(period: ActivityPeriod): DateRange | undefined {
+  return period.from
+    ? { from: dayToDate(period.from), to: period.to ? dayToDate(period.to) : undefined }
+    : undefined;
+}
+
+/** Returns the period after a pick of `day`, as the calendar's range mode adds it to `period`. */
+function pickDay(period: ActivityPeriod, day: Date): ActivityPeriod | undefined {
+  const range = addToRange(day, rangeOf(period));
+  const next: ActivityPeriod = {
+    from: range?.from ? dateToDay(range.from) : undefined,
+    to: range?.to ? dateToDay(range.to) : undefined,
+  };
+  return next.from || next.to ? next : undefined;
+}
 
 /** Returns the period as the filter button shows it ("1 November 2026 to 10 November 2026"). */
 function periodLabel(period: ActivityPeriod): string | null {
@@ -43,17 +60,12 @@ export function PeriodFilter({
   const [open, setOpen] = useState(false);
   const period = periodOf(column.getFilterValue()) ?? {};
   const label = periodLabel(period);
-  const selected: DateRange | undefined = period.from
-    ? { from: dayToDate(period.from), to: period.to ? dayToDate(period.to) : undefined }
-    : undefined;
+  const selected = rangeOf(period);
   const month = period.from ? dayToDate(period.from) : period.to ? dayToDate(period.to) : undefined;
 
-  function apply(range: DateRange | undefined) {
-    const next: ActivityPeriod = {
-      from: range?.from ? dateToDay(range.from) : undefined,
-      to: range?.to ? dateToDay(range.to) : undefined,
-    };
-    column.setFilterValue(next.from || next.to ? next : undefined);
+  // An updater from the picked day, so a second pick before the re-render keeps the first (#194).
+  function apply(_range: DateRange | undefined, day: Date) {
+    column.setFilterValue((old: unknown) => pickDay(periodOf(old) ?? {}, day));
   }
 
   return (

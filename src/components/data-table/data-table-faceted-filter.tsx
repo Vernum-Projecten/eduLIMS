@@ -36,6 +36,20 @@ function chosenValues(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
 }
 
+/** Returns the chosen values with `value` toggled, in the options' order; none is no filter. */
+function toggledValues(
+  chosen: readonly string[],
+  value: string,
+  options: readonly FacetOption[],
+): string[] | undefined {
+  const next = chosen.includes(value)
+    ? chosen.filter((item) => item !== value)
+    : options
+        .map((option) => option.value)
+        .filter((item) => item === value || chosen.includes(item));
+  return next.length > 0 ? next : undefined;
+}
+
 /**
  * A faceted filter (#58), the shadcn data-table pattern: a button that opens a searchable
  * multi-select list (Popover and Command) of the column's values with the number of rows each
@@ -57,13 +71,9 @@ export function DataTableFacetedFilter<TData extends RowData, TValue>({
   const chosen = chosenValues(column.getFilterValue());
   const chosenOptions = options.filter((option) => chosen.includes(option.value));
 
+  // An updater, so the table applies it to the current filter, not the one last rendered (#194).
   function toggle(value: string) {
-    const next = chosen.includes(value)
-      ? chosen.filter((item) => item !== value)
-      : options
-          .map((option) => option.value)
-          .filter((item) => item === value || chosen.includes(item));
-    column.setFilterValue(next.length > 0 ? next : undefined);
+    column.setFilterValue((old: unknown) => toggledValues(chosenValues(old), value, options));
   }
 
   return (

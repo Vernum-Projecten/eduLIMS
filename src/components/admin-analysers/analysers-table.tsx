@@ -16,6 +16,7 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { dataTableFeatures } from "@/components/data-table/features";
+import { useUrlTable } from "@/components/data-table/use-url-table";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -40,9 +41,9 @@ import {
   ANALYSER_PAGE_SIZES,
   ANALYSER_SEARCH_MAX_LENGTH,
   type AnalyserListSearch,
+  analyserListSearchSchema,
 } from "@/server/analysers/schemas";
 import {
-  type AnalysersTableChange,
   analysersTableState,
   hasAnalyserFilters,
   nextAnalysersSearch,
@@ -142,14 +143,17 @@ export function AnalysersTable({
   const [hidden, setHidden] = useState(() => readHiddenColumns(TABLE_ID));
   const columnVisibility = useMemo(() => visibilityFromHidden(hidden), [hidden]);
 
-  function change(update: AnalysersTableChange) {
-    const next = nextAnalysersSearch(search, update);
-    void navigate({
-      search: next,
-      replace: onlyAnalyserSearchChanged(search, next),
-      resetScroll: false,
-    });
-  }
+  const urlHandlers = useUrlTable(
+    { state: analysersTableState, next: nextAnalysersSearch },
+    analyserListSearchSchema,
+    (next, prev) => {
+      void navigate({
+        search: next,
+        replace: onlyAnalyserSearchChanged(prev, next),
+        resetScroll: false,
+      });
+    },
+  );
 
   const table = useTable({
     features: dataTableFeatures,
@@ -164,11 +168,7 @@ export function AnalysersTable({
     enableSortingRemoval: false,
     enableRowSelection: false,
     state: { ...state, columnVisibility },
-    onSortingChange: (updater) => change({ sorting: functionalUpdate(updater, state.sorting) }),
-    onColumnFiltersChange: (updater) =>
-      change({ columnFilters: functionalUpdate(updater, state.columnFilters) }),
-    onPaginationChange: (updater) =>
-      change({ pagination: functionalUpdate(updater, state.pagination) }),
+    ...urlHandlers,
     onColumnVisibilityChange: (updater) => {
       const next = hiddenFromVisibility(functionalUpdate(updater, columnVisibility));
       setHidden(next);

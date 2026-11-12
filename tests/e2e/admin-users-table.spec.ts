@@ -25,6 +25,35 @@ async function search(page: Page, text: string): Promise<void> {
   await expectHydrated(usersTable(page));
 }
 
+test("two facet picks made before the page re-renders both stay in the URL (#194)", async ({
+  page,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/users");
+  const button = page.getByRole("search").getByRole("button", { name: "Status", exact: true });
+  await expectHydrated(button);
+  await button.click();
+  const list = page.getByRole("listbox", { name: "Status" });
+  const blocked = await list.getByRole("option", { name: /^Blocked/ }).elementHandle();
+  const never = await list.getByRole("option", { name: /^Never signed in/ }).elementHandle();
+  // Both clicks run in one task, so React cannot render the first pick before the second.
+  await page.evaluate(
+    ([first, second]) => {
+      if (!(first instanceof HTMLElement) || !(second instanceof HTMLElement)) {
+        throw new Error("the facet options are not elements");
+      }
+      first.click();
+      second.click();
+    },
+    [blocked, never],
+  );
+  await expect(page).toHaveURL(/status=%5B%22blocked%22%2C%22never%22%5D/);
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: /^Status 2 selected: Blocked Never signed in$/ }),
+  ).toBeVisible();
+});
+
 test("View hides and shows columns, and the choice survives a reload (#58)", async ({ page }) => {
   await signInAsAdmin(page);
   await page.goto("/admin/users");
