@@ -59,18 +59,20 @@ WORKDIR /src
 ENV CI=true
 
 # The manifests first, so a source-only change reuses the install layer in a
-# local build. The release lane builds with no cache at all.
+# local build. The release lane builds with no cache at all. The workspace
+# also lists the website package, which .dockerignore keeps out of the
+# context, so the filter names the app: the install covers exactly the
+# edulims project and its lockfile entries (#221).
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm --filter=edulims install --frozen-lockfile
 
 COPY . .
 RUN pnpm build
 
 # The production dependency tree for the tools target, with the target
 # platform's optional native binaries. pnpm names architectures as Node.js
-# does (x64, arm64), and buildx names them as Go does (amd64, arm64). The
-# workspace also holds the website package, so the filter names the app:
-# pnpm deploys exactly one project (#217).
+# does (x64, arm64), and buildx names them as Go does (amd64, arm64). pnpm
+# deploys exactly one project, so the filter names the app (#217).
 ARG TARGETARCH
 RUN case "${TARGETARCH}" in \
       amd64) cpu=x64 ;; \
