@@ -406,6 +406,20 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
     expect(data.user["roleSource"]).toBe("local");
   });
 
+  it("never grants an invitation's student role to a SCIM-provisioned user (#28, #45)", async () => {
+    const hasStudentInvitation = vi.fn(async () => true);
+    const { ctx } = setup(undefined, {
+      u1: { role: "", roleSource: "keycloak", provisionedBy: "keycloak" },
+    });
+    const settings = provider("keycloak", "oidc", "realm_access.roles", {
+      emailAuthoritative: true,
+    });
+    const sync = createIdpRoleSync({ settingsOf: async () => settings, hasStudentInvitation });
+    const data = oauth("sign-in", "keycloak", {}, { id: "u1", email: "scim@example.test" });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(hasStudentInvitation).not.toHaveBeenCalled();
+  });
+
   it("never restores a role the IdP took away from an existing user (#28 review)", async () => {
     const hasStudentInvitation = vi.fn(async () => true);
     const ctx = {

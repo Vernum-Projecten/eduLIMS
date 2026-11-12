@@ -237,6 +237,7 @@ describe("migrations", () => {
     const database = await createTestDb();
     db = database;
     const migrator = createMigrator(database);
+    // The migration below 0013 is 0012_classes; only 0013 reverts.
     const down = await migrator.migrateTo("0012_classes");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0013_scim", "Success"],

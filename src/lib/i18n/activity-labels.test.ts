@@ -100,7 +100,7 @@ describe("activity log labels (#36)", () => {
         provider: null,
         metadata: { user_id: "new-owner-id", previous_user_id: "old-owner-id" },
       }),
-    ).toEqual(["Previous owner: user old-owner-id"]);
+    ).toEqual(["Person new-owner-id", "Previous owner old-owner-id"]);
     expect(activityReasonLabel("not_a_teacher")).toBe(
       "the chosen owner does not have the teacher role",
     );
@@ -202,6 +202,40 @@ describe("activity log labels (#36)", () => {
     ]) {
       expect(activityReasonLabel(reason), reason).not.toMatch(/^code /);
     }
+  });
+
+  it("summarises the class metadata (#28): ids as ids, codes in words", () => {
+    expect(
+      activityDetails({
+        reason: "forbidden",
+        provider: null,
+        metadata: {
+          class_id: "01960000-0000-7000-8000-000000000001",
+          class_role: "teacher",
+          user_id: "u-1",
+          group_change: "split",
+          team_id: "01960000-0000-7000-8000-000000000002",
+          count: 3,
+          removed_invitations: 2,
+        },
+      }),
+    ).toEqual([
+      "Reason: the class role does not allow it",
+      "Class 01960000-0000-7000-8000-000000000001",
+      "Class role: Co-teacher",
+      "Person u-1",
+      "Lab groups: the class split into groups",
+      "Lab group 01960000-0000-7000-8000-000000000002",
+      "Number: 3",
+      "2 ended class invitations removed",
+    ]);
+  });
+
+  it("names the refusals of the class service and the class-owner delete guard (#28)", () => {
+    expect(activityReasonLabel("archived")).toBe("the class is archived");
+    expect(activityReasonLabel("forbidden")).toBe("the class role does not allow it");
+    expect(activityReasonLabel("has_work")).toBe("the class has practicals, submissions or grades");
+    expect(activityReasonLabel("owns_class")).toBe("the user owns a class");
   });
 
   it("says when the metadata cannot be read, and returns nothing for an event without details", () => {
