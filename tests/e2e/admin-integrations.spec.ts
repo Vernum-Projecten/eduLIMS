@@ -8,6 +8,7 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { axe, dutch, signInAsAdmin } from "./admin-users-helpers";
 import { devLogin, expectHydrated } from "./fixtures";
+import { clearIntegrationChecks } from "./integration-checks";
 import { HEALTHY, type IntegrationStub, startIntegrationStub } from "./integration-stub";
 import { appUrl } from "./run-env";
 
@@ -55,6 +56,8 @@ async function checkNow(page: Page): Promise<void> {
 test("the status screen shows each integration with an icon and text, and Check now (B3)", async ({
   page,
 }) => {
+  // No check has ever succeeded: a stub journey of an earlier attempt or repeat leaves its success.
+  await clearIntegrationChecks();
   await signInAsAdmin(page);
   await openStatus(page);
   await expect(page.getByRole("heading", { level: 2, name: "Integration status" })).toBeVisible();
@@ -202,6 +205,8 @@ test.describe("with the stub answering (#227)", () => {
         },
       });
       await devLogin(page, "admin@example.test");
+      // The sign-in lands first; a navigation before it aborts the sign-in request.
+      await expect(page).toHaveURL(/\/admin$/);
       await setPreferences(context, theme, locale);
       const t = (key: string, english: string) => (locale === "nl" ? dutch(key) : english);
       await page.goto("/admin/integrations");
@@ -211,6 +216,10 @@ test.describe("with the stub answering (#227)", () => {
       });
       await expectHydrated(check);
       await check.click();
+      // The previous variant left the same state, so the badge alone does not show this check.
+      await expect(
+        page.getByText(t("admin_integrations_checked", "Integrations checked.")),
+      ).toBeVisible();
       await expect(badge(page, "FerroEHR")).toHaveText(
         t("admin_integrations_state_not_ready", "Not ready"),
       );

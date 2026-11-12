@@ -17,6 +17,7 @@ const baseDatabaseUrl =
   process.env["E2E_DATABASE_URL"]?.trim() ||
   "postgres://edulims:edulims@127.0.0.1:5432/edulims_e2e";
 const databaseUrl = runDatabaseUrl(baseDatabaseUrl);
+const INTEGRATION_STATUS_SPEC = /admin-integrations\.spec\.ts$/;
 
 // Read by the specs (appUrl) and by global-teardown.ts, in the runner and in every worker.
 process.env["EDULIMS_E2E_BASE_URL"] = baseURL;
@@ -54,7 +55,21 @@ export default defineConfig({
   retries: process.env["CI"] ? 2 : 0,
   reporter: process.env["CI"] ? [["github"], ["html", { open: "never" }]] : "list",
   use: { baseURL, locale: "en-US", trace: "retain-on-failure" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // The integration status journeys own this run's integration port and the global check rows,
+  // so one worker runs them: a retry or a repeat of the file never overlaps another (#227).
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      testIgnore: INTEGRATION_STATUS_SPEC,
+    },
+    {
+      name: "chromium-integration-status",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: INTEGRATION_STATUS_SPEC,
+      workers: 1,
+    },
+  ],
   globalTeardown: "./tests/e2e/global-teardown.ts",
   webServer: {
     // tests/e2e/seed-providers.ts stores the dev Keycloak providers when no Keycloak runs (CI).
