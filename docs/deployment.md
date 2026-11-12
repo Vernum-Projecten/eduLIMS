@@ -79,7 +79,8 @@ shell and no package manager, so every operator command is a
    `X-Forwarded-Proto` and `X-Forwarded-Host`. The institution's proxy or
    Caddy on the host both work.
 3. A firewall that admits 443 from the users' networks, and the MLLP port
-   only from the lab network the Afinion 2 sends from.
+   only from the fixed addresses of the Afinion 2 analysers (below, "The MLLP
+   port").
 
 ## First deployment
 
@@ -99,9 +100,10 @@ cd edulims-deploy-vX.Y.Z
    valid without escaping.
 2. Write `config/ferroehr.toml` (FerroEHR's configuration, from FerroEHR's
    operator documentation) and `config/ferrobridge/ferrobridge.toml` with its
-   `[hl7v2]` section and the TLS files it names (FerroBRIDGE's
-   documentation, "HL7 v2 face"). `compose.yaml` sets the database URL, the
-   CDR URL and the listen address; the files hold the rest.
+   `[hl7v2]` section (FerroBRIDGE's documentation, "HL7 v2 face").
+   `compose.yaml` sets the database URL, the CDR URL and the listen address;
+   the files hold the rest. The listener takes plain MLLP, because the
+   Afinion 2 sends nothing else (below, "The MLLP port").
 3. Create the PostgreSQL certificates in `config/postgres-tls/` (below,
    "Database TLS").
 4. Pull, verify and start:
@@ -159,6 +161,53 @@ trusting it. When you run eduLIMS against another PostgreSQL server, set
 
 FerroEHR and FerroBRIDGE stay on plain `http` inside the internal `backend`
 network; ADR 0013 records that residual risk and when to revisit it.
+
+## The MLLP port
+
+The Afinion 2 sends its results as HL7 v2 over MLLP to FerroBRIDGE on port
+2575. No Afinion 2 document the repository cites describes TLS. The Afinion
+2 HL7 Connectivity Protocol v4.0 describes plain MLLP framing (`<VT>` before
+the message, `<FS><CR>` after it) and says nothing about TLS, and the
+Afinion 2 manual asks only that the analyser "communicates with the external
+information system over a secure network" (#186). The repository holds no
+copy of either document, so this rests on the reading recorded on #186. Read
+the current Abbott documentation before you plan TLS on this segment.
+
+The segment from the lab network to the host is therefore plain MLLP, and
+MLLP has no authentication: any host that reaches the port can send a result
+under any sample ID. Two controls limit who reaches it:
+
+1. **Bind the port to the lab-facing address.** Set
+   `FERROBRIDGE_MLLP_BIND_HOST` in `.env` to the host's address on the
+   network the analysers send from, never `0.0.0.0`. The default
+   `127.0.0.1` keeps the port closed to every other host.
+2. **Allow only the analysers' fixed addresses.** Ask the institution's IT
+   department for a fixed address per Afinion 2 (a DHCP reservation works),
+   and admit only those addresses to the port. Docker DNATs a published port
+   before the host's `INPUT` chain, so a rule there does not apply; put the
+   allow-list in the `DOCKER-USER` chain
+   (<https://docs.docker.com/engine/network/packet-filtering-firewalls/>).
+   With `eth1` as the lab-facing interface and two analysers:
+
+   ```sh
+   iptables -I DOCKER-USER -i eth1 -p tcp -m conntrack --ctorigdstport 2575 \
+     --ctdir ORIGINAL -j DROP
+   iptables -I DOCKER-USER -i eth1 -p tcp -m conntrack --ctorigdstport 2575 \
+     --ctdir ORIGINAL -s 192.0.2.21 -j RETURN
+   iptables -I DOCKER-USER -i eth1 -p tcp -m conntrack --ctorigdstport 2575 \
+     --ctdir ORIGINAL -s 192.0.2.22 -j RETURN
+   ```
+
+   `-I` inserts at the top, so the `RETURN` rules end above the `DROP`.
+   Use your own `FERROBRIDGE_MLLP_PORT` if you changed it, and make the rules
+   persistent with your distribution's tool (`iptables-persistent`,
+   `firewalld` direct rules). Check from another host on the lab network
+   that the port refuses the connection. On Podman the published port goes
+   through netavark's rules instead; this route is not tested here.
+
+What stays open: a device that takes over an analyser's address on the lab
+network, or a host on the path between them, can still send or alter a
+result. ADR 0013 records this as an accepted residual risk.
 
 ## Migrations
 

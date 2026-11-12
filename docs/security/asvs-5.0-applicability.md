@@ -666,7 +666,7 @@ Text: [vendor/asvs/en/0x21-V12-Secure-Communication.md](vendor/asvs/en/0x21-V12-
 |---|---|---|---|---|---|
 | V12.1.1 | 1 | yes | TLS 1.2 and 1.3 at the reverse proxy; the operator configures it (`docs/deployment.md`) | manual, operator | partial |
 | V12.1.2 | 2 | yes | cipher suites at the reverse proxy; no recommended configuration is documented yet | manual, operator | partial |
-| V12.1.3 | 2 | no | no mTLS client certificates; FerroBRIDGE's MLLP TLS is FerroBRIDGE's | none | n-a |
+| V12.1.3 | 2 | no | no mTLS client certificates; the Afinion 2 sends plain MLLP with no client certificate (ADR 0013, #186) | none | n-a |
 | V12.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V12.1.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -681,7 +681,7 @@ Text: [vendor/asvs/en/0x21-V12-Secure-Communication.md](vendor/asvs/en/0x21-V12-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V12.3.1 | 2 | yes | eduLIMS to PostgreSQL uses TLS with `sslmode=verify-full`, refused otherwise in production (`src/server/env.ts`, `compose.yaml`, #40); FerroEHR and FerroBRIDGE stay plain on the internal `backend` network as the accepted residual risk of ADR 0013 | unit `src/server/env.test.ts` | partial |
+| V12.3.1 | 2 | yes | eduLIMS to PostgreSQL uses TLS with `sslmode=verify-full`, refused otherwise in production (`src/server/env.ts`, `compose.yaml`, #40); FerroEHR and FerroBRIDGE stay plain on the internal `backend` network as the accepted residual risk of ADR 0013; the Afinion 2 sends plain MLLP from the lab network, because no Afinion 2 document the repository cites describes TLS, an accepted residual risk of ADR 0013 limited by the bind address and the firewall allow-list (`docs/deployment.md`, "The MLLP port", #186) | unit `src/server/env.test.ts` | partial |
 | V12.3.2 | 2 | yes | Node.js `fetch` validates certificates; the Keycloak issuer must be `https` in production (`src/server/env.ts`) | unit `src/server/env.test.ts` | met |
 | V12.3.3 | 2 | yes | PostgreSQL: the certificate and host name are verified (`sslmode=verify-full`); `FERROEHR_BASE_URL` and `FERROBRIDGE_BASE_URL` stay `http` inside Compose by decision (ADR 0013, revisit on a second host) | unit `src/server/env.test.ts` | partial |
 | V12.3.4 | 2 | yes | the operator's private CA for PostgreSQL (`config/postgres-tls/ca.crt`, `docs/deployment.md`, "Database TLS"); none for FerroEHR and FerroBRIDGE (ADR 0013) | manual, operator | partial |
@@ -704,7 +704,7 @@ Text: [vendor/asvs/en/0x22-V13-Configuration.md](vendor/asvs/en/0x22-V13-Configu
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); how eduLIMS authenticates to FerroEHR and FerroBRIDGE is not built yet (S3, S4); an identity provider authenticates to the SCIM endpoint with a bearer token per provider that expires after 180 days, hashed, rotated with a one-hour overlap and revocable at once (ADR 0017, owner decision on #45); not short-term, because the providers' SCIM clients take a static secret | review; unit `src/server/scim/tokens.test.ts` | partial |
+| V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); how eduLIMS authenticates to FerroEHR and FerroBRIDGE is not built yet (S3, S4); the Afinion 2 to FerroBRIDGE MLLP link has no authentication, so only the bind address and a host-firewall allow-list of the analysers' fixed addresses limit who can send a result, the accepted residual risk of ADR 0013 (`docs/deployment.md`, "The MLLP port", #186); an identity provider authenticates to the SCIM endpoint with a bearer token per provider that expires after 180 days, hashed, rotated with a one-hour overlap and revocable at once (ADR 0017, owner decision on #45); not short-term, because the providers' SCIM clients take a static secret | review; unit `src/server/scim/tokens.test.ts` | partial |
 | V13.2.2 | 2 | yes | one database role per service (`docker/postgres/init/20-edulims.sh`); containers run non-root with `cap_drop: [ALL]` (`compose.yaml`, `docker/Dockerfile`) | review | met |
 | V13.2.3 | 2 | yes | Compose refuses to start without each password (`${VAR:?}` in `compose.yaml`) | review | met |
 | V13.2.4 | 2 | partly | outbound targets are configured URLs only (`src/server/env.ts`), the B3 health check included (`src/server/integrations/probe.ts`); no egress allowlist at the network level | unit `src/server/integrations/checks.test.ts`, review | partial |
