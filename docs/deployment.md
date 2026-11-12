@@ -705,7 +705,8 @@ that run. Each run writes a `sys_retention_prune` event to the activity log
 with the number of events, sessions and grants it removed (counts only), and
 the same line to the security log stream ("Shipping logs off the host"). A
 run that fails, for example while the database restarts, logs
-`retention_prune_failed` with the error class and code, writes a failure
+`retention_prune_failed` to the security log stream with the error classes
+and codes (`"cause":["error:57P01"]`), writes a failure
 event when the database takes it, and tries again 24 hours later; the server
 keeps running.
 
@@ -743,14 +744,23 @@ Only the security events. A Fluent Bit forwarder drops every other line
 `time` is UTC. Besides `level`, `app`, `log` and `event`, a line carries only
 these fields: `outcome`, `actor_type`, `actor_id`, `target_type`,
 `target_id`, `reason`, `provider`, `request_id`, `roles`, `previous_roles`,
-`required_roles`, `ban_expires_at`, `kind` and `status`. They hold ids and
-codes. eduLIMS replaces any value that contains a space or an `@` with
-`redacted`, so a name, an e-mail address, a token or a grade cannot leave the
-host. The events are:
+`required_roles`, `ban_expires_at`, `provider_id`, `protocol`, `fields`,
+`attest_pkce`, `sessions_ended`, `test_outcome`, `removed_audit_events`,
+`removed_sessions`, `removed_admin_grants`, `resealed_providers`,
+`resealed_id_tokens`, `kind`, `status`, `command`, `migration`, `direction`,
+`variables` and `cause`. They hold ids, codes and counts; `fields`,
+`variables` and `cause` are lists of codes. eduLIMS replaces any value or
+list item that contains a space or an `@` with `redacted`, so a name, an
+e-mail address, a token or a grade cannot leave the host. An error line names
+its cause by error class and code (a SQLSTATE such as `42P01`, or
+`ECONNREFUSED`), never by its message. The events are:
 
 | `event` | When |
 |---|---|
-| every action of the activity log (`authn_login_success`, `authn_login_fail`, `authn_logout`, `authz_role_change`, `session_revoked`, `session_expired`, `user_created`, `user_deleted`, `user_banned`, `user_unbanned`) | the same moment the row is written to the activity log in the Admin portal |
+| every action of the activity log (`authn_login_success`, `authz_role_change`, `idp_created`, `admin_grant_created`, `sys_retention_prune`, `sys_data_key_rotated` and the others) | the same moment the row is written to the activity log in the Admin portal, also for the host commands (`admin grant` and `revoke`, `idp add`, `enable`, `disable` and `rekey`), which act as `system`; a refused host command writes its row with `"outcome":"refused"` and the reason code (`last_admin`, `role_conflict`, `exists`) |
+| `migration_failed` | `migrate` failed: the migration, the direction and the cause, or `database_tls_required` |
+| `retention_prune_failed` | a prune failed, scheduled or by hand |
+| `cli_command_failed` | a host command stopped on an error: the command, the cause, and for a configuration error the names of the invalid variables |
 | `authz_fail` | a server function refused a call: 401 without a session, 403 without the role |
 | `authz_role_write_refused` | a role set eduLIMS does not allow was refused |
 | `idp_role_conflict` | the identity provider sent a role set eduLIMS does not allow |

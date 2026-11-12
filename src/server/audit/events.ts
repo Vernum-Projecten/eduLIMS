@@ -68,8 +68,11 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "scim_group_read",
 ] as const;
 
-/** Actions eduLIMS records about itself, with no target: the scheduled retention prune (B4). */
-export const SYSTEM_AUDIT_ACTIONS = ["sys_retention_prune"] as const;
+/**
+ * Actions eduLIMS records about itself, with no target: the retention prune (B4) and the data-key
+ * rotation of `idp rekey` (ASVS V11.1.1).
+ */
+export const SYSTEM_AUDIT_ACTIONS = ["sys_retention_prune", "sys_data_key_rotated"] as const;
 
 /** Every action the activity log accepts. */
 export const AUDIT_ACTIONS = [
@@ -195,6 +198,9 @@ export const auditMetadataSchema = z.strictObject({
   refused_count: z.number().int().min(1).optional(),
   /** Until when the token a `scim_token_rotated` replaced keeps working (#45). */
   previous_token_valid_until: z.iso.datetime({ offset: true }).optional(),
+  /** How many provider configs and ID tokens a `sys_data_key_rotated` re-encrypted. */
+  resealed_providers: z.number().int().min(0).optional(),
+  resealed_id_tokens: z.number().int().min(0).optional(),
 });
 export type AuditMetadata = z.infer<typeof auditMetadataSchema>;
 

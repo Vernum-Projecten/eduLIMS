@@ -4,7 +4,8 @@
 // The schedule of the retention prune inside the app container (B4, #65): operators run only the
 // image, so no host cron job applies the retention periods.
 import { envFields, parseWith } from "../env.ts";
-import { describeFailure } from "./prune-job.ts";
+import { logFailure } from "../security-log.ts";
+import { PRUNE_FAILED_EVENT } from "./prune-job.ts";
 
 /** How often the app container prunes (#65: every 24 hours). */
 export const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -41,7 +42,7 @@ export function startPruneSchedule(
       .catch((error: unknown) => {
         // NOTE: #65; a failed run must not stop the server or the schedule, so it is logged with
         // its cause chain (class names and codes only) and the next interval tries again.
-        console.error(`retention_prune_failed cause=${describeFailure(error)}`);
+        logFailure(PRUNE_FAILED_EVENT, error, { actor_type: "system" });
       })
       .finally(() => {
         busy = false;

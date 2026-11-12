@@ -136,8 +136,11 @@ test("the users table searches while typing, filters, sorts and pages on the ser
   await pageSize.click();
   await page.getByRole("option", { name: "10", exact: true }).click();
   await expect(page).toHaveURL(/size=10/);
+  // The URL changes before the table applies the size; page on once it shows 10 rows.
+  await expect(page.getByText(/^Showing 1 to 10 of \d+ users$/)).toBeVisible();
   await page.getByRole("button", { name: "Next page" }).click();
   await expect(page).toHaveURL(/page=2/);
+  await expect(page).toHaveURL(/size=10/);
   await expect(page.getByText(/^Showing 11 to 20 of \d+ users$/)).toBeVisible();
   await page.reload();
   await expect(page.getByText(/^Showing 11 to 20 of \d+ users$/)).toBeVisible();

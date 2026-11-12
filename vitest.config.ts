@@ -11,8 +11,9 @@ export default defineConfig({
     environment: "node",
     // Creates and migrates this run's own database next to TEST_DATABASE_URL, and drops it after.
     globalSetup: ["src/server/db/test-global-setup.ts"],
-    // A pg deprecation warning (a query on a busy client) fails the test it appears in.
-    setupFiles: ["src/server/db/test-pg-warnings.ts"],
+    // A pg deprecation warning (a query on a busy client) fails the test it appears in, and the
+    // security log stream goes to a buffer, not stdout.
+    setupFiles: ["src/server/db/test-pg-warnings.ts", "src/server/test-security-log.ts"],
     // Each worker holds at most one test connection, so a run opens at most 6 plus the global
     // setup's one: 5 parallel runs stay far below the dev server's max_connections of 100.
     maxWorkers: 6,

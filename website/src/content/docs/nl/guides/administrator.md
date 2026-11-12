@@ -68,6 +68,28 @@ taalknop (daarop staat de huidige taal, bijvoorbeeld **Nederlands**) en kies
 ingelogd, dan bewaart eduLIMS je keuze bij je account. Die geldt dan ook de
 volgende keer dat je inlogt, op elk apparaat.
 
+## Overzicht
+
+Het beheerportaal opent op het overzicht, dat in één oogopslag laat zien hoe
+eduLIMS ervoor staat:
+
+- **Accounts:** hoeveel gebruikers er in totaal zijn, hoeveel elke rol hebben
+  (een docent die ook beheerder is, telt bij allebei), hoeveel sessies actief
+  zijn en hoeveel gebruikers geblokkeerd zijn. Kies een tegel om
+  **Gebruikers en rollen** met dat filter te openen, bijvoorbeeld alleen de
+  studenten of alleen de geblokkeerde gebruikers. Klassen en openstaande
+  uitnodigingen krijgen eigen tegels zodra er klassen zijn.
+- **Koppelingen:** de status van FerroEHR en FerroBRIDGE, als pictogram met
+  tekst, en wanneer eduLIMS ze het laatst controleerde. Kies er een om
+  **Analyzers en koppelingen** te openen.
+- **Recente activiteit:** de 10 nieuwste gebeurtenissen uit het
+  activiteitenlogboek, zoals een aanmelding of een rolwijziging, met wie het
+  deed, de uitkomst en wanneer. **Volledig activiteitenlogboek** opent het
+  hele logboek.
+
+De aantallen zijn die van het moment dat de pagina opende; open het
+overzicht opnieuw voor nieuwe aantallen.
+
 ## Gebruikers en rollen
 
 **Gebruikers en rollen** toont elk account van eduLIMS, 25 per pagina. Elke
@@ -256,11 +278,30 @@ studenten de export uploaden), de status (**In gebruik**, **In onderhoud** of
 Alleen beheerders wijzigen het register. Elke toevoeging, wijziging en
 buitengebruikstelling komt in het activiteitenlogboek.
 
+## Systeem
+
+**Systeem** toont de instellingen van eduLIMS zelf. Onder de link naar
+**Identiteitsproviders** zie je, alleen lezen:
+
+- **Ingeschakelde identiteitsproviders:** voor elke provider waarmee mensen nu
+  kunnen inloggen de provider-id en het protocol, de URL die bij de
+  identiteitsprovider is geregistreerd (de **Redirect-URI** voor OpenID
+  Connect, de **Assertion consumer service-URL** voor SAML), de rolclaim of
+  het rolattribuut, de standaardrol en de rollentoewijzing. Een
+  uitgeschakelde provider staat er niet bij. Wijzig een provider onder
+  **Identiteitsproviders**.
+- **Versie en build:** de eduLIMS-versie, de commit waaruit hij is gebouwd,
+  de buildtijd en de SLSA-herkomst: de release-image waarvan
+  `gh attestation verify` de attestatie controleert. Een server die geen
+  release-image draait, zoals een ontwikkelserver, toont **Niet beschikbaar**.
+
+De pagina toont nooit een geheim: geen clientgeheim, geen ondertekensleutel
+en geen waarde van de geheime instellingen van de server.
+
 ## Geplande taken
 
 | Taak                                                                               | Requirement                      |
 | ---------------------------------------------------------------------------------- | -------------------------------- |
-| Gebruikers aanmaken en een rol toekennen                                           | [B1](/development/requirements/) |
 | Klassen aanmaken en studenten koppelen, met de hand of met een CSV-import          | [B2](/development/requirements/) |
 | Het logboek van uploads, HL7-berichten en fouten bekijken                          | [B4](/development/requirements/) |
 

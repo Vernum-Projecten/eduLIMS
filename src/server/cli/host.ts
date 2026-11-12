@@ -9,7 +9,7 @@ import { type ParseArgsOptionsConfig, parseArgs } from "node:util";
 import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
 import type { DB } from "../db/schema.gen.ts";
-import { databaseTlsProblem, envFields, parseWith } from "../env.ts";
+import { databaseTlsProblem, EnvConfigError, envFields, parseWith } from "../env.ts";
 import { keyringOf } from "../idp/crypto.ts";
 import type { IdpServiceContext } from "../idp/service.ts";
 
@@ -29,9 +29,9 @@ export function hostEnvironment() {
   const production = process.env["NODE_ENV"] === "production";
   const env = { ...parseWith(hostEnv, process.env), production };
   const tls = production ? databaseTlsProblem(env.DATABASE_URL) : undefined;
-  if (tls) throw new Error(`Invalid environment configuration:\n✖ ${tls}\n  → at DATABASE_URL`);
+  if (tls) throw new EnvConfigError(["DATABASE_URL"], `✖ ${tls}\n  → at DATABASE_URL`);
   if (production && !env.EDULIMS_DATA_KEY) {
-    throw new Error("Invalid environment configuration:\n✖ is required\n  → at EDULIMS_DATA_KEY");
+    throw new EnvConfigError(["EDULIMS_DATA_KEY"], "✖ is required\n  → at EDULIMS_DATA_KEY");
   }
   return env;
 }
