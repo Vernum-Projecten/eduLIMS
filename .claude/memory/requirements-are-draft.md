@@ -40,4 +40,6 @@ open questions into code and tests.
   re-evaluation. Every issue that depends on an open product-owner question
   is `on-hold` and blocked by the one "Product-owner decisions" issue; only
   the parts no open question touches are built. An owner answer on that
-  issue unblocks its dependents.
+  issue unblocks its dependents. These issues go in milestone v0.2.0;
+  v0.1.0 first finishes the open foundation work (auth, classes, the
+  Admin portal), and nothing LIMS-core starts before that.
