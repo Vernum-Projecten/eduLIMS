@@ -8,6 +8,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
+import { ADMIN_CLASSES_FORMERS } from "../../src/server/demo-accounts.ts";
 import { axe, dutch, openUser, signInAsAdmin } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
@@ -19,8 +20,30 @@ const SHOTS = process.env["E2E_SHOTS_DIR"]?.trim();
 
 const OWNER = "Admin Classes Test Owner";
 const HEIR = "Admin Classes Test Heir";
-const CLASS = `ADM-${Date.now().toString(36).slice(-5).toUpperCase()}`;
-const YEAR = "2031-2032";
+/** Tells this worker's classes from every other worker's, in this run and the ones before. */
+const STAMP = Date.now().toString(36).slice(-5).toUpperCase();
+
+// Each `--repeat-each` repeat gets its own class, academic year and former owner (#195): the
+// year and owner filters count this repeat's class alone, and the orphan journey takes the
+// teacher role from its account. Set before every test from the repeat's index.
+let CLASS = "";
+let YEAR = "";
+let YEAR_LABEL = "";
+let FORMER = "";
+
+test.beforeEach(() => {
+  const { repeatEachIndex } = test.info();
+  if (repeatEachIndex >= ADMIN_CLASSES_FORMERS) {
+    throw new Error(
+      `--repeat-each runs at most ${ADMIN_CLASSES_FORMERS} repeats: src/server/demo-accounts.ts seeds one former owner per repeat`,
+    );
+  }
+  const start = 2031 + repeatEachIndex;
+  CLASS = `ADM-${STAMP}R${repeatEachIndex}`;
+  YEAR = `${start}-${start + 1}`;
+  YEAR_LABEL = `${start}–${start + 1}`;
+  FORMER = `Admin Classes Test Former R${repeatEachIndex}`;
+});
 
 async function preferences(context: BrowserContext, theme: "light" | "dark", locale: "en" | "nl") {
   await context.addCookies([
@@ -217,11 +240,11 @@ test("the class list searches and filters on the server (#37)", async ({ page })
   await page.getByRole("button", { name: "Academic year", exact: true }).click();
   await page
     .getByRole("listbox", { name: "Academic year" })
-    .getByRole("option", { name: /^2031–2032/ })
+    .getByRole("option", { name: new RegExp(`^${YEAR_LABEL}`) })
     .click();
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("button", { name: /^Academic year 1 selected: 2031–2032/ }),
+    page.getByRole("button", { name: new RegExp(`^Academic year 1 selected: ${YEAR_LABEL}`) }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Owner", exact: true }).click();
   await page
@@ -231,7 +254,7 @@ test("the class list searches and filters on the server (#37)", async ({ page })
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: /^Owner 1 selected/ })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /^Academic year 1 selected: 2031–2032/ }),
+    page.getByRole("button", { name: new RegExp(`^Academic year 1 selected: ${YEAR_LABEL}`) }),
   ).toBeVisible();
   await expect(table.getByRole("row", { name: new RegExp(CLASS) })).toBeVisible();
   await expect(table.getByRole("row")).toHaveCount(2);
@@ -241,7 +264,7 @@ test("the class list searches and filters on the server (#37)", async ({ page })
 test("a class whose owner is no longer a teacher is flagged on the overview (#37)", async ({
   page,
 }) => {
-  const former = "Admin Classes Test Former";
+  const former = FORMER;
   const orphan = `ORF-${CLASS.slice(4)}`;
   await signInAsAdmin(page);
   await page.goto("/admin/classes");

@@ -19,6 +19,12 @@ interface DevUser {
   hidden?: true;
 }
 
+/**
+ * How many former-owner accounts the administrator's class journeys get: the most repeats
+ * `pnpm exec playwright test tests/e2e/admin-classes.spec.ts --repeat-each <n>` can run.
+ */
+export const ADMIN_CLASSES_FORMERS = 10;
+
 export const DEV_USERS = [
   { email: "student@example.test", name: "Test Student", roles: ["student"] },
   { email: "teacher@example.test", name: "Test Teacher", roles: ["teacher"] },
@@ -100,13 +106,14 @@ export const DEV_USERS = [
     roles: ["teacher"],
     hidden: true,
   },
-  // Owns a class, then loses the teacher role: the overview flags the class (#37).
-  {
-    email: "admin-classes-former@example.test",
-    name: "Admin Classes Test Former",
-    roles: ["teacher"],
-    hidden: true,
-  },
+  // Own a class, then lose the teacher role: the overview flags the class (#37). One per
+  // `--repeat-each` repeat, since a repeat leaves its account without the teacher role (#195).
+  ...Array.from({ length: ADMIN_CLASSES_FORMERS }, (_, index) => ({
+    email: `admin-classes-former-${index}@example.test`,
+    name: `Admin Classes Test Former R${index}`,
+    roles: ["teacher"] as const,
+    hidden: true as const,
+  })),
   // The join-code journeys (#49): an owner who turns the code on, a student who joins with it,
   // and one who guesses until the rate limit refuses them.
   {
