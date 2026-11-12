@@ -50,6 +50,7 @@ export function OwnerComboboxField({
   const valueId = useId();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  const [highlighted, setHighlighted] = useState("");
   const [chosen, setChosen] = useState<{ id: string; label: string } | null>(null);
   const [query] = useDebouncedValue(text, { wait: SEARCH_DEBOUNCE_MS });
   const search = useQuery({ ...teacherCandidatesQueryOptions(query), enabled: open });
@@ -60,6 +61,11 @@ export function OwnerComboboxField({
     count: matches?.length,
   });
   const value = field.state.value;
+  // The matches arrive after the typing, so the first one is highlighted explicitly: Enter
+  // then picks it (WCAG 2.1.1).
+  const active = matches?.some((teacher) => teacher.id === highlighted)
+    ? highlighted
+    : (matches?.at(0)?.id ?? "");
   const shown = chosen !== null && chosen.id === value ? chosen.label : null;
 
   return (
@@ -96,7 +102,7 @@ export function OwnerComboboxField({
           align="start"
           aria-label={label}
         >
-          <Command shouldFilter={false} label={label}>
+          <Command shouldFilter={false} label={label} value={active} onValueChange={setHighlighted}>
             <CommandInput
               value={text}
               onValueChange={(next) => setText(next.slice(0, ADMIN_CLASS_SEARCH_MAX))}

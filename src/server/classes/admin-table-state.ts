@@ -30,6 +30,7 @@ export const ADMIN_CLASS_FILTER_COLUMNS = {
   status: "status",
   year: "year",
   owner: "owner",
+  ownerNotTeacher: "ownerNotTeacher",
 } as const satisfies FilterColumns<AdminClassFilterKey>;
 
 /** The slices of the class table the URL controls. */
@@ -73,6 +74,7 @@ const filterSchema = adminClassListSearchSchema.pick({
   status: true,
   year: true,
   owner: true,
+  ownerNotTeacher: true,
 });
 
 /**
@@ -104,7 +106,10 @@ export function onlyClassSearchTextChanged(
 ): boolean {
   const same = (key: Exclude<keyof AdminClassListSearch, "q">) =>
     JSON.stringify(prev[key]) === JSON.stringify(next[key]);
-  return prev.q !== next.q && (["status", "year", "owner", "size"] as const).every(same);
+  return (
+    prev.q !== next.q &&
+    (["status", "year", "owner", "ownerNotTeacher", "size"] as const).every(same)
+  );
 }
 
 /** Returns whether the search text, or a facet other than the default status, narrows the list. */
@@ -121,6 +126,7 @@ export function adminClassesInputFromSearch(search: AdminClassListSearch): ListA
   input.status = effectiveStatus(search);
   if (search.year) input.year = search.year;
   if (search.owner) input.owner = search.owner;
+  if (search.ownerNotTeacher) input.ownerNotTeacher = true;
   if (search.page) input.page = search.page;
   if (search.size) input.size = search.size;
   return input;

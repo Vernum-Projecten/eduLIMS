@@ -101,6 +101,8 @@ describe("activity log labels (#36)", () => {
         metadata: { user_id: "new-owner-id", previous_user_id: "old-owner-id" },
       }),
     ).toEqual(["Person new-owner-id", "Previous owner old-owner-id"]);
+    expect(activityReasonLabel("already_owner")).toBe("the chosen teacher already owns the class");
+    expect(activityReasonLabel("not_archived")).toBe("the class is not archived");
     expect(activityReasonLabel("not_a_teacher")).toBe(
       "the chosen owner does not have the teacher role",
     );

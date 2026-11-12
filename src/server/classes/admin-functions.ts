@@ -32,14 +32,14 @@ const admin = requireRole("admin");
 export const listAdminClassesFn = createServerFn({ method: "GET" })
   .middleware([admin])
   .validator(listAdminClassesInput)
-  .handler(({ data }) => listAdminClassPage(getDb(), data, new Date()));
+  .handler(({ data, context }) => listAdminClassPage(getDb(), context.user, data, new Date()));
 
 /** Returns the administrator's page of any class; throws `notFound` for no class. */
 export const getAdminClassFn = createServerFn({ method: "GET" })
   .middleware([admin])
   .validator(classIdInput)
-  .handler(async ({ data }) => {
-    const page = await getAdminClass(getDb(), data.classId, new Date());
+  .handler(async ({ data, context }) => {
+    const page = await getAdminClass(getDb(), context.user, data.classId, new Date());
     if (!page) throw notFound();
     return page;
   });
@@ -48,7 +48,7 @@ export const getAdminClassFn = createServerFn({ method: "GET" })
 export const searchTeacherCandidatesFn = createServerFn({ method: "GET" })
   .middleware([admin])
   .validator(teacherSearchInput)
-  .handler(({ data }) => searchTeacherCandidates(getDb(), data, new Date()));
+  .handler(({ data, context }) => searchTeacherCandidates(getDb(), context.user, data, new Date()));
 
 /** Creates a class on a teacher's behalf. */
 export const adminCreateClassFn = createServerFn({ method: "POST" })

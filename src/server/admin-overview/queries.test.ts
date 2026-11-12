@@ -163,6 +163,56 @@ describe("accountCounts of classes (#28)", () => {
   });
 });
 
+describe("the owner-not-teacher signal (#37)", () => {
+  it("counts the active classes whose owner is not a teacher, or that have none", async () => {
+    const database = await testDb();
+    const before = await accountCounts(database, NOW);
+    const teacher = randomUUID();
+    const former = randomUUID();
+    for (const [id, role] of [
+      [teacher, "teacher"],
+      [former, "admin"],
+    ] as const) {
+      await database
+        .insertInto("user")
+        .values({ id, name: "T", email: `${id}@example.test`, emailVerified: true, role })
+        .execute();
+    }
+    const add = async (owner: string | null, archived: boolean) => {
+      const id = randomUUID();
+      await database
+        .insertInto("organization")
+        .values({
+          id,
+          slug: id,
+          name: "LS-2A",
+          academic_year: "2026-2027",
+          createdAt: NOW,
+          archived_at: archived ? NOW : null,
+        })
+        .execute();
+      if (owner) {
+        await database
+          .insertInto("member")
+          .values({
+            id: randomUUID(),
+            organizationId: id,
+            userId: owner,
+            role: "owner",
+            createdAt: NOW,
+          })
+          .execute();
+      }
+    };
+    await add(teacher, false);
+    await add(former, false);
+    await add(null, false);
+    await add(former, true);
+    const after = await accountCounts(database, NOW);
+    expect(after.classesOwnerNotTeacher - before.classesOwnerNotTeacher).toBe(2);
+  });
+});
+
 describe("recentActivity (#36, B4)", () => {
   async function insertEvent(
     database: Kysely<DB>,

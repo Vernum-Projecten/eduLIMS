@@ -11,6 +11,7 @@ import {
   MailIcon,
   MonitorSmartphoneIcon,
   SchoolIcon,
+  ShieldAlertIcon,
   ShieldCheckIcon,
   UsersIcon,
 } from "lucide-react";
@@ -146,6 +147,20 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
           }
         />
       </li>
+      {counts.classesOwnerNotTeacher > 0 && (
+        <li className="flex">
+          <Tile
+            icon={ShieldAlertIcon}
+            label={m.admin_overview_classes_owner_not_teacher()}
+            value={counts.classesOwnerNotTeacher}
+            link={
+              <Link to="/admin/classes" search={{ ownerNotTeacher: true }} className={COVER_LINK}>
+                {m.admin_overview_classes_owner_not_teacher()}
+              </Link>
+            }
+          />
+        </li>
+      )}
       <li className="flex">
         <Tile
           icon={MailIcon}

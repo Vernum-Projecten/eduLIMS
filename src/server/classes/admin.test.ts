@@ -165,6 +165,14 @@ describe("adminArchiveClass and adminUnarchiveClass (#37)", () => {
     });
     expect(await archivedAt(database, classId)).toBeNull();
     expect(await auditRows(database, "class_unarchived")).toEqual([
+      {
+        actor_id: admin.id,
+        outcome: "refused",
+        target_type: "class",
+        target_id: classId,
+        reason_code: "not_archived",
+        metadata: null,
+      },
       expect.objectContaining({ actor_id: admin.id, target_id: classId, outcome: "success" }),
     ]);
   });
@@ -286,6 +294,16 @@ describe("adminTransferOwnership (#37)", () => {
     expect(
       await adminTransferOwnership(database, admin, { classId, userId: owner.id }, NOW),
     ).toEqual({ ok: false, error: "already_owner" });
+    expect(await auditRows(database, "class_owner_changed")).toEqual([
+      {
+        actor_id: admin.id,
+        outcome: "refused",
+        target_type: "class",
+        target_id: classId,
+        reason_code: "already_owner",
+        metadata: null,
+      },
+    ]);
   });
 
   it("refuses an archived class", async () => {
@@ -490,7 +508,7 @@ describe("adminPreviewImport and adminImportStudents (#37, B2)", () => {
     ]);
   });
 
-  it("refuses an archived class and logs the refusal under the class", async () => {
+  it("refuses an archived class; the import logs it, the read-only preview does not", async () => {
     const database = await open();
     const { classId, admin } = await setup(database);
     await adminArchiveClass(database, admin, { classId }, NOW);
@@ -503,8 +521,11 @@ describe("adminPreviewImport and adminImportStudents (#37, B2)", () => {
       error: "archived",
     });
     expect(await auditRows(database, "invitation_created")).toEqual([
-      expect.objectContaining({ outcome: "refused", metadata: { class_id: classId } }),
-      expect.objectContaining({ outcome: "refused", metadata: { class_id: classId } }),
+      expect.objectContaining({
+        outcome: "refused",
+        reason_code: "archived",
+        metadata: { class_id: classId },
+      }),
     ]);
   });
 });

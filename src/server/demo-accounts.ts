@@ -100,6 +100,13 @@ export const DEV_USERS = [
     roles: ["teacher"],
     hidden: true,
   },
+  // Owns a class, then loses the teacher role: the overview flags the class (#37).
+  {
+    email: "admin-classes-former@example.test",
+    name: "Admin Classes Test Former",
+    roles: ["teacher"],
+    hidden: true,
+  },
 ] as const satisfies readonly DevUser[];
 
 /** The realm of the development Keycloak (compose.dev.yaml). */

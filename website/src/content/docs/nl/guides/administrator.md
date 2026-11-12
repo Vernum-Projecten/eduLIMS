@@ -314,6 +314,12 @@ formulier:
 - **Archiveren** en **Heropenen:** een gearchiveerde klas is alleen-lezen
   voor de eigenaar en mededocenten en houdt leden, groepen en geschiedenis.
 
+Verliest de eigenaar van een klas de rol docent, dan verplaatst eduLIMS de
+klas niet zelf. Het overzicht toont dan **Klassen waarvan de eigenaar geen
+docent is** met hun aantal; dat opent de klassenlijst met alleen die klassen
+(het filter **Eigenaar is geen docent**), waar je elke klas overdraagt aan
+een docent.
+
 Wie inlogt met een adres waarop een klas heeft uitgenodigd, komt zonder
 verdere stap in die klas. Stuurt de identity provider geen eduLIMS-rol voor
 iemand die voor het eerst inlogt, dan geeft een openstaande uitnodiging als

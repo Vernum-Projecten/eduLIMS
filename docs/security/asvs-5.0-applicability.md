@@ -66,12 +66,12 @@ moves a row to `met` in the same pull request.
 |---|---|
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
-| Applicable (yes or partly) | 175 |
-| Status met | 93 |
+| Applicable (yes or partly) | 176 |
+| Status met | 94 |
 | Status partial | 48 |
 | Status planned | 26 |
 | Status open | 8 |
-| Status n-a | 170 |
+| Status n-a | 169 |
 
 ### V1 Encoding and Sanitization
 
@@ -159,7 +159,7 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 | V2.3.1 | 1 | yes | the S6 lab report lock and the D4 final grade, enforced on the server | unit and e2e tests with S6 and D4 | planned |
 | V2.3.2 | 2 | yes | business limits from the draft (5-assessment floor, R-03; deadline, S6) | unit tests with D5 and S6 | planned |
 | V2.3.3 | 2 | yes | the S4 upload rejects the whole file and writes nothing on any error; Kysely transactions | unit and integration tests with S4 | planned |
-| V2.3.4 | 2 | no | no limited-quantity resource to book | none | n-a |
+| V2.3.4 | 2 | yes | one owner per class: every ownership change (the owner's transfer, the administrator's transfer, creating a class) runs in one transaction that locks the class row (`FOR UPDATE`) and reads the new owner's role under a share lock, so two concurrent transfers cannot leave two owners (`src/server/classes/access.ts`, `src/server/classes/admin.ts`, #37) | unit `src/server/classes/admin.test.ts` ("promotes a co-teacher, so the class keeps exactly one owner"), `src/server/classes/classes.test.ts` | met |
 | V2.3.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V2.4 Anti-automation
@@ -494,7 +494,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V8.4.1 | 2 | yes | classes as tenants: every class function checks the app role, then membership and class role on the session user in one locked transaction; the organization plugin's endpoints are unreachable (`src/server/classes/`, ADR 0018); the administrator's class actions require the app role admin in the service as well as the middleware, never add the administrator as a member and return no grades or results (`src/server/classes/admin.ts`, #37) | unit `src/server/classes/classes.test.ts`, `invitations.test.ts`, `groups.test.ts`, `queries.test.ts`, `plugin.test.ts`, `admin.test.ts` (a student and a teacher get 403 on every admin action), `admin-queries.test.ts` | met |
+| V8.4.1 | 2 | yes | classes as tenants: every class function checks the app role, then membership and class role on the session user in one locked transaction; the organization plugin's endpoints are unreachable (`src/server/classes/`, ADR 0018); the administrator's class actions and reads require the app role admin in the service as well as the middleware, never add the administrator as a member and return no grades or results (`src/server/classes/admin.ts`, `admin-queries.ts`, #37) | unit `src/server/classes/classes.test.ts`, `invitations.test.ts`, `groups.test.ts`, `queries.test.ts`, `plugin.test.ts`, `admin.test.ts` and `admin-queries.test.ts` (a student and a teacher get 403 on every admin action and read), `admin-functions.test.ts` (all nine server functions carry the admin guard) | met |
 | V8.4.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V9 Self-contained Tokens

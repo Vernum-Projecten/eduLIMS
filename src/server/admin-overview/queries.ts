@@ -7,6 +7,7 @@ import "@tanstack/react-start/server-only";
 import type { Kysely } from "kysely";
 import type { AuditAction, AuditOutcome } from "../audit/events.ts";
 import type { SessionUser } from "../authz.ts";
+import { ownerNotTeacherCondition } from "../classes/admin-queries.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { assertAdmin } from "../users/actions.ts";
 import { roleValuesWith } from "../users/queries.ts";
@@ -30,6 +31,8 @@ export interface AccountCounts {
   classes: number;
   /** Class invitations still pending and unexpired (#28). */
   pendingInvitations: number;
+  /** Active classes whose owner is not a teacher, or that have none (#37). */
+  classesOwnerNotTeacher: number;
 }
 
 /** Who acted on an event: a user (their name, `null` once the account is gone) or eduLIMS. */
@@ -87,6 +90,12 @@ export async function accountCounts(db: Kysely<DB>, now: Date): Promise<AccountC
         .where("archived_at", "is", null)
         .as("classes"),
       eb
+        .selectFrom("organization")
+        .select((ob) => ob.fn.countAll<string>().as("n"))
+        .where("archived_at", "is", null)
+        .where((ob) => ownerNotTeacherCondition(ob))
+        .as("owner_not_teacher"),
+      eb
         .selectFrom("invitation")
         .select((ib) => ib.fn.countAll<string>().as("n"))
         .where("status", "=", "pending")
@@ -103,6 +112,7 @@ export async function accountCounts(db: Kysely<DB>, now: Date): Promise<AccountC
     blockedUsers: Number(row.blocked),
     classes: Number(row.classes ?? 0),
     pendingInvitations: Number(row.invitations ?? 0),
+    classesOwnerNotTeacher: Number(row.owner_not_teacher ?? 0),
   };
 }
 

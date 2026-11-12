@@ -79,13 +79,20 @@ export const adminClassListSearchSchema = z.object({
   status: searchList(isStatus),
   year: searchList(isYear),
   owner: searchList(isUserId),
+  /** Only the classes whose owner is not a teacher (#37); `true` or absent. */
+  ownerNotTeacher: z
+    .preprocess(
+      (value) => value === true || value === "true" || undefined,
+      z.literal(true).optional(),
+    )
+    .catch(undefined),
   page: z.coerce.number().int().min(1).max(100_000).optional().catch(undefined),
   size: pageSize.optional().catch(undefined),
 });
 export type AdminClassListSearch = z.infer<typeof adminClassListSearchSchema>;
 
 /** The search params that narrow the list. */
-export const ADMIN_CLASS_FILTER_KEYS = ["q", "status", "year", "owner"] as const;
+export const ADMIN_CLASS_FILTER_KEYS = ["q", "status", "year", "owner", "ownerNotTeacher"] as const;
 
 /** The input of the list read: the search params, strictly (a server function is an API). */
 export const listAdminClassesInput = z.strictObject({
@@ -93,6 +100,7 @@ export const listAdminClassesInput = z.strictObject({
   status: z.array(z.enum(ADMIN_CLASS_STATUSES)).min(1).max(2).optional(),
   year: z.array(z.string().refine(isAcademicYear)).min(1).max(ADMIN_CLASS_FACET_MAX).optional(),
   owner: z.array(userId).min(1).max(ADMIN_CLASS_FACET_MAX).optional(),
+  ownerNotTeacher: z.literal(true).optional(),
   page: z.number().int().min(1).max(100_000).optional(),
   size: pageSize.optional(),
 });

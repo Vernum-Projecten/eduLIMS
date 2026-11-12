@@ -120,6 +120,23 @@ describe("the class table state in the URL (#37)", () => {
     expect(nextAdminClassesSearch({}, both).status).toEqual(["active", "archived"]);
   });
 
+  it("keeps the owner-not-teacher filter in the URL and the server input (#37)", () => {
+    expect(adminClassListSearchSchema.parse({ ownerNotTeacher: "true" }).ownerNotTeacher).toBe(
+      true,
+    );
+    expect(
+      adminClassListSearchSchema.parse({ ownerNotTeacher: "no" }).ownerNotTeacher,
+    ).toBeUndefined();
+    const on = { columnFilters: [{ id: "ownerNotTeacher", value: true }] };
+    expect(nextAdminClassesSearch({ page: 2 }, on).ownerNotTeacher).toBe(true);
+    expect(hasAdminClassFilters({ ownerNotTeacher: true })).toBe(true);
+    expect(adminClassesInputFromSearch({ ownerNotTeacher: true })).toEqual({
+      status: ["active"],
+      ownerNotTeacher: true,
+    });
+    expect(listAdminClassesInput.safeParse({ ownerNotTeacher: false }).success).toBe(false);
+  });
+
   it("tells a filtered list from the default list", () => {
     expect(hasAdminClassFilters({ page: 2 })).toBe(false);
     expect(hasAdminClassFilters({ status: ["active"] })).toBe(false);

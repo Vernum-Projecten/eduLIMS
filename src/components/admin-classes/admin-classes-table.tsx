@@ -3,7 +3,7 @@
 
 import { Link, useNavigate } from "@tanstack/react-router";
 import { functionalUpdate, useTable } from "@tanstack/react-table";
-import { ArchiveIcon, CircleCheckIcon, SchoolIcon } from "lucide-react";
+import { ArchiveIcon, CircleCheckIcon, SchoolIcon, ShieldAlertIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ClassName, displayYear } from "@/components/classes/class-name";
 import { DataTable } from "@/components/data-table/data-table";
@@ -49,7 +49,7 @@ import type { AdminClassRow } from "@/server/classes/queries";
 const TABLE_ID = "admin-classes";
 
 /** Columns that exist only to carry a filter: never shown, never offered in "View". */
-const FILTER_ONLY = { status: false, year: false } as const;
+const FILTER_ONLY = { status: false, year: false, ownerNotTeacher: false } as const;
 
 const LINK_CLASS =
   "w-fit font-medium underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none";
@@ -82,6 +82,12 @@ const columns = helper.columns([
     enableHiding: false,
     meta: { label: () => m.classes_admin_filter_status() },
     header: () => m.classes_admin_filter_status(),
+  }),
+  helper.display({
+    id: "ownerNotTeacher",
+    enableHiding: false,
+    meta: { label: () => m.classes_admin_filter_owner_not_teacher() },
+    header: () => m.classes_admin_filter_owner_not_teacher(),
   }),
   helper.accessor("academicYear", {
     id: "year",
@@ -240,6 +246,8 @@ export function AdminClassesTable({
   const status = table.getColumn("status");
   const year = table.getColumn("year");
   const owner = table.getColumn("owner");
+  const ownerNotTeacher = table.getColumn("ownerNotTeacher");
+  const onlyOwnerNotTeacher = search.ownerNotTeacher === true;
   const pages = Math.max(1, table.getPageCount());
   const yearCounts = Object.fromEntries(
     page.facets.year.map((value) => [value.value, value.count]),
@@ -289,6 +297,20 @@ export function AdminClassesTable({
             options={page.facets.owner.map((value) => ({ value: value.value, label: value.label }))}
             counts={ownerCounts}
           />
+        )}
+        {ownerNotTeacher && (
+          <Button
+            variant={onlyOwnerNotTeacher ? "secondary" : "outline"}
+            size="sm"
+            className="border-dashed"
+            aria-pressed={onlyOwnerNotTeacher}
+            onClick={() => ownerNotTeacher.setFilterValue(onlyOwnerNotTeacher ? undefined : true)}
+          >
+            <ShieldAlertIcon aria-hidden="true" data-icon="inline-start" />
+            {m.classes_admin_filter_owner_not_teacher_count({
+              count: formatNumber(page.facets.ownerNotTeacher),
+            })}
+          </Button>
         )}
       </DataTableToolbar>
       <p role="status" className="sr-only">

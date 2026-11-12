@@ -8,7 +8,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
-import { axe, dutch, signInAsAdmin } from "./admin-users-helpers";
+import { axe, dutch, openUser, signInAsAdmin } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
 
@@ -198,6 +198,8 @@ test("the class list searches and filters on the server (#37)", async ({ page })
   await page.getByRole("button", { name: /^Status/ }).click();
   const statuses = page.getByRole("listbox", { name: "Status" });
   await statuses.getByRole("option", { name: /^Archived/ }).click();
+  // Each choice is a navigation; the next one starts from the URL the first one wrote.
+  await expect(page).toHaveURL(/status=%5B%22active%22%2C%22archived%22%5D/);
   await statuses.getByRole("option", { name: /^Active/ }).click();
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(/status=%5B%22archived%22%5D/);
@@ -221,6 +223,65 @@ test("the class list searches and filters on the server (#37)", async ({ page })
   await expect(table.getByRole("row", { name: new RegExp(CLASS) })).toBeVisible();
   await expect(table.getByRole("row")).toHaveCount(2);
   await axe(page);
+});
+
+test("a class whose owner is no longer a teacher is flagged on the overview (#37)", async ({
+  page,
+}) => {
+  const former = "Admin Classes Test Former";
+  const orphan = `ORF-${CLASS.slice(4)}`;
+  await signInAsAdmin(page);
+  await page.goto("/admin/classes");
+  const create = page.getByRole("button", { name: "New class" });
+  await expectHydrated(create);
+  await create.click();
+  const dialog = page.getByRole("dialog", { name: "New class" });
+  await dialog.getByLabel("Class name").fill(orphan);
+  await dialog.getByLabel("Academic year").fill(YEAR);
+  await choose(dialog, "Owner", former);
+  await dialog.getByRole("button", { name: "Create class" }).click();
+  await expect(page).toHaveURL(/\/admin\/classes\/[0-9a-f-]{36}$/);
+
+  // The owner loses the teacher role; eduLIMS does not move the class by itself.
+  const sheet = await openUser(page, former);
+  const roles = sheet.getByRole("region", { name: "Roles" });
+  const editor = roles.getByRole("group", { name: "Change roles" });
+  await editor.getByLabel("Administrator").check();
+  await editor.getByLabel("Teacher").uncheck();
+  await roles.getByRole("button", { name: "Save roles" }).click();
+  await page
+    .getByRole("alertdialog", { name: `Change the roles of ${former}?` })
+    .getByRole("button", { name: "Save roles" })
+    .click();
+  await expect(page.getByText(`The roles of ${former} are saved.`)).toBeVisible();
+
+  await page.goto("/admin");
+  const signal = page.getByRole("link", { name: "Classes whose owner is not a teacher" });
+  await expect(signal).toBeVisible();
+  await axe(page);
+  await signal.click();
+  await expect(page).toHaveURL(/ownerNotTeacher=true/);
+  const toggle = page.getByRole("button", { name: /^Owner is not a teacher/ });
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  const table = page.getByRole("table", { name: /^All classes with their owner/ });
+  await expect(table.getByRole("row", { name: new RegExp(orphan) })).toContainText(former);
+  await expect(table.getByRole("row", { name: new RegExp(`^${CLASS},`) })).toHaveCount(0);
+  await axe(page);
+
+  // An administrator moves the class to a teacher; it leaves the filtered list.
+  await table.getByRole("link", { name: new RegExp(`^${orphan}`) }).click();
+  await page.getByRole("button", { name: "Transfer ownership" }).click();
+  const transfer = page.getByRole("alertdialog", { name: `Transfer the ownership of ${orphan}?` });
+  await expect(transfer).toContainText(
+    `${former} stays as a co-teacher while they have the teacher role`,
+  );
+  await choose(transfer, "New owner", HEIR);
+  await transfer.getByRole("button", { name: "Transfer ownership" }).click();
+  await expect(page.getByText(`The ownership of ${orphan} is transferred.`)).toBeVisible();
+  const members = page.getByRole("table", { name: "Members of this class with their role" });
+  await expect(members.getByRole("row", { name: new RegExp(former) })).toHaveCount(0);
+  await page.goto(`/admin/classes?ownerNotTeacher=true&q=${orphan}`);
+  await expect(page.getByRole("heading", { level: 2, name: "No classes match" })).toBeVisible();
 });
 
 test("a teacher never reaches the administrator's classes (#37, R-01)", async ({ page }) => {

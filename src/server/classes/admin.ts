@@ -64,6 +64,8 @@ async function ownerRefusal(
     .selectFrom("user")
     .select(["role", "banned", "banExpires"])
     .where("id", "=", userId)
+    // A concurrent role change or block waits for this transaction (security review of #37).
+    .forShare()
     .executeTakeFirst();
   if (!user || !isAppTeacher(user.role)) return "not_a_teacher";
   const blocked = user.banned === true && (user.banExpires === null || user.banExpires > now);
@@ -114,6 +116,8 @@ interface AdminClassCheck {
   action: RefusalAction;
   /** Whether the action may run on an archived class (reopening one does). */
   allowArchived?: boolean;
+  /** Whether a refusal writes an activity-log row; a read-only preview records none. */
+  record?: boolean;
 }
 
 /**
@@ -133,7 +137,9 @@ async function withAdminClass<T>(
     const locked = await lockAnyClass(trx, check.classId);
     if (!locked) return refused<T>("not_found");
     if (locked.archived && !check.allowArchived) {
-      await recordAdminRefusal(trx, actor, check.action, locked.id, "archived");
+      if (check.record !== false) {
+        await recordAdminRefusal(trx, actor, check.action, locked.id, "archived");
+      }
       return refused<T>("archived");
     }
     return action(trx, locked);
@@ -176,7 +182,10 @@ export function adminUnarchiveClass(
     allowArchived: true,
   } as const;
   return withAdminClass(db, actor, check, async (trx, locked) => {
-    if (!locked.archived) return refused("not_archived");
+    if (!locked.archived) {
+      await recordAdminRefusal(trx, actor, check.action, locked.id, "not_archived");
+      return refused("not_archived");
+    }
     await trx
       .updateTable("organization")
       .set({ archived_at: null })
@@ -218,7 +227,10 @@ export function adminTransferOwnership(
       .where("member.organizationId", "=", locked.id)
       .where("member.role", "=", "owner")
       .executeTakeFirst();
-    if (owner?.userId === input.userId) return refused("already_owner");
+    if (owner?.userId === input.userId) {
+      await recordAdminRefusal(trx, actor, check.action, locked.id, "already_owner");
+      return refused("already_owner");
+    }
     if (owner) {
       if (isAppTeacher(owner.appRole)) {
         await trx
@@ -318,7 +330,12 @@ export function adminPreviewImport(
   input: { classId: string; emails: readonly string[] },
   now: Date,
 ): Promise<ClassResult<InviteRow[]>> {
-  const check = { classId: input.classId, action: "invitation_created" } as const;
+  // NOTE: security review of #37; a preview writes nothing, so it records no refusal either.
+  const check = {
+    classId: input.classId,
+    action: "invitation_created",
+    record: false,
+  } as const;
   return withAdminClass(db, actor, check, async (trx, locked) =>
     done(await classifyInvitees(trx, locked.id, "student", input.emails, now)),
   );

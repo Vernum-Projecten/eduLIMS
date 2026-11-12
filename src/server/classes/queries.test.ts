@@ -186,7 +186,7 @@ describe("listAdminClassPage (#28, #37: oversight without grades or results, R-0
       { classId, role: "student", emails: ["p@example.test"] },
       NOW,
     );
-    const { rows } = await listAdminClassPage(database, {}, NOW);
+    const { rows } = await listAdminClassPage(database, { roles: ["admin"] }, {}, NOW);
     expect(rows).toEqual([
       {
         id: classId,

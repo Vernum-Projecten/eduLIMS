@@ -298,6 +298,12 @@ form:
 - **Archive** and **Reopen:** an archived class is read-only for its owner
   and co-teachers and keeps its members, groups and history.
 
+When the owner of a class loses the teacher role, eduLIMS does not move the
+class by itself. The overview then shows **Classes whose owner is not a
+teacher** with their number; it opens the class list filtered to them (the
+**Owner is not a teacher** filter), where you transfer each class to a
+teacher.
+
 A person who signs in with an address a class invited joins that class
 without any further step. When the identity provider sends no eduLIMS role
 for a person signing in for the first time, a pending invitation as a

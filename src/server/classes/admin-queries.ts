@@ -10,6 +10,8 @@ import { type ClassRole, isClassRole } from "../../lib/classes.ts";
 import { UUID_PATTERN } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { containsPattern, roleValuesWith } from "../users/queries.ts";
+import type { ClassActor } from "./access.ts";
+import { assertAdmin } from "./admin.ts";
 import {
   ADMIN_CLASS_STATUSES,
   type AdminClassStatus,
@@ -21,7 +23,7 @@ import type { AdminClassRow } from "./queries.ts";
 type ClassExpressions = ExpressionBuilder<DB, "organization">;
 
 /** The facets of the class list: the filters that offer values with counts. */
-export type AdminClassFacet = "status" | "year" | "owner";
+export type AdminClassFacet = "status" | "year" | "owner" | "ownerNotTeacher";
 
 function iso(value: Date | null): string | null {
   return value === null ? null : value.toISOString();
@@ -66,6 +68,24 @@ function ownerCondition(eb: ClassExpressions, owners: readonly string[]): Expres
   );
 }
 
+/**
+ * The condition that a class has no owner whose app role includes teacher: the owner lost the
+ * role, or the class has no owner at all (#37). Such a class needs an administrator's transfer.
+ */
+export function ownerNotTeacherCondition(eb: ClassExpressions): Expression<SqlBool> {
+  return eb.not(
+    eb.exists(
+      eb
+        .selectFrom("member as tm")
+        .innerJoin("user as tu", "tu.id", "tm.userId")
+        .select("tm.id")
+        .whereRef("tm.organizationId", "=", "organization.id")
+        .where("tm.role", "=", "owner")
+        .where("tu.role", "in", roleValuesWith("teacher")),
+    ),
+  );
+}
+
 /** The conditions of the search and every facet, all but the facet `except`. */
 function filterConditions(
   eb: ClassExpressions,
@@ -80,6 +100,9 @@ function filterConditions(
     conditions.push(eb("organization.academic_year", "in", input.year));
   }
   if (input.owner && except !== "owner") conditions.push(ownerCondition(eb, input.owner));
+  if (input.ownerNotTeacher && except !== "ownerNotTeacher") {
+    conditions.push(ownerNotTeacherCondition(eb));
+  }
   return conditions;
 }
 
@@ -95,6 +118,8 @@ export interface AdminClassFacets {
   status: Record<AdminClassStatus, number>;
   year: FacetValue[];
   owner: FacetValue[];
+  /** The classes whose owner is not a teacher (or that have none). */
+  ownerNotTeacher: number;
 }
 
 /** One page of the administrator's class list. */
@@ -165,8 +190,8 @@ export async function adminClassFacets(
   const [statusRow, years, owners] = await Promise.all([
     db
       .selectFrom("organization")
-      .select((eb) =>
-        ADMIN_CLASS_STATUSES.map((status) =>
+      .select((eb) => [
+        ...ADMIN_CLASS_STATUSES.map((status) =>
           eb.fn
             .countAll<string>()
             .filterWhere(
@@ -174,7 +199,16 @@ export async function adminClassFacets(
             )
             .as(status),
         ),
-      )
+        eb.fn
+          .countAll<string>()
+          .filterWhere(
+            eb.and([
+              ...filterConditions(eb, input, "ownerNotTeacher"),
+              ownerNotTeacherCondition(eb),
+            ]),
+          )
+          .as("ownerNotTeacher"),
+      ])
       .executeTakeFirstOrThrow(),
     db
       .selectFrom("organization")
@@ -217,6 +251,7 @@ export async function adminClassFacets(
       count: Number(row.n),
     })),
     owner: owners.map((row) => ({ value: row.id, label: row.name, count: Number(row.n) })),
+    ownerNotTeacher: Number(Reflect.get(statusRow, "ownerNotTeacher") ?? 0),
   };
 }
 
@@ -224,12 +259,16 @@ export async function adminClassFacets(
  * Reads one page of every class for the administrator (#37): search on the class name and its
  * teachers' names, the archive, academic-year and owner facets (any of the chosen values), the
  * order academic year (newest first), name, id, and `limit`/`offset` pagination with the total.
+ *
+ * @throws AuthError 403 unless `viewer` holds the app role admin.
  */
 export async function listAdminClassPage(
   db: Kysely<DB>,
+  viewer: Pick<ClassActor, "roles">,
   input: ListAdminClassesInput,
   now: Date,
 ): Promise<AdminClassPage> {
+  assertAdmin(viewer);
   const size = input.size ?? DEFAULT_ADMIN_CLASS_PAGE_SIZE;
   const page = input.page ?? 1;
   const [rows, facets] = await Promise.all([
@@ -302,12 +341,18 @@ export interface AdminClassDetail {
   counts: { teachers: number; students: number; pendingInvitations: number; groups: number };
 }
 
-/** Returns any class for the administrator, or `null` when the id is no class. */
+/**
+ * Returns any class for the administrator, or `null` when the id is no class.
+ *
+ * @throws AuthError 403 unless `viewer` holds the app role admin.
+ */
 export async function getAdminClass(
   db: Kysely<DB>,
+  viewer: Pick<ClassActor, "roles">,
   classId: string,
   now: Date,
 ): Promise<AdminClassDetail | null> {
+  assertAdmin(viewer);
   if (!UUID_PATTERN.test(classId)) return null;
   const head = await db
     .selectFrom("organization")
@@ -401,12 +446,16 @@ export function blockedCondition(
  * Returns the users who can own a class for the owner fields (#37): the app role teacher, not
  * blocked at `now`, with a name or e-mail address that contains `q` (all of them for an empty
  * `q`), by name, at most {@link TEACHER_CANDIDATES_MAX}.
+ *
+ * @throws AuthError 403 unless `viewer` holds the app role admin.
  */
 export async function searchTeacherCandidates(
   db: Kysely<DB>,
+  viewer: Pick<ClassActor, "roles">,
   input: { q: string },
   now: Date,
 ): Promise<TeacherCandidate[]> {
+  assertAdmin(viewer);
   const text = input.q.trim();
   return db
     .selectFrom("user")
