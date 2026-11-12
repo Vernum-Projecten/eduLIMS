@@ -46,7 +46,7 @@ with the CSV export (D6).
 
 | Interface | From → to | Protocol | What is built | Priority |
 |---|---|---|---|---|
-| Afinion 2 → FerroBRIDGE | analyser → integration layer | HL7 v2 over MLLP (TCP/IP, Ethernet) | configuration only: FerroBRIDGE's IP address and port on the device; HL7 to openEHR mapping | Must |
+| Afinion 2 → FerroBRIDGE | analyser → integration layer | HL7 v2 over plain MLLP (TCP/IP, Ethernet), no TLS and no authentication | configuration: FerroBRIDGE's IP address and port on the device; HL7 to openEHR mapping; the port bound to the lab-facing address (`FERROBRIDGE_MLLP_BIND_HOST`) and a host-firewall allow-list of the analysers' fixed addresses ([deployment](deployment.md#the-mllp-port), [ADR 0013](adr/0013-internal-transport-security.md)) | Must |
 | FerroBRIDGE → FerroEHR | integration layer → CDR | openEHR REST (ITS-REST 1.1.0) | mapping to the template `eduLIMS-lab` | Must |
 | Epoch 2 / Gen5 → eduLIMS | Gen5 PC → web app | Excel file (fixed export template, sample ID per well) | upload, parser and validation in the student portal (S4) | Must |
 | eduLIMS → FerroEHR (write) | web app → CDR | openEHR REST, compositions | convert Epoch results to compositions | Must |
@@ -61,7 +61,7 @@ with the CSV export (D6).
 
 | Device | Route | What is built |
 |---|---|---|
-| Abbott Afinion 2, HbA1c and CRP | sends HL7 v2 itself over Ethernet to the MLLP listener of FerroBRIDGE | configuration only |
+| Abbott Afinion 2, HbA1c and CRP | sends HL7 v2 itself over Ethernet to the MLLP listener of FerroBRIDGE, as plain MLLP with no authentication | configuration on the device; on the host, the bind address and the analysers' address allow-list ([deployment](deployment.md#the-mllp-port), [ADR 0013](adr/0013-internal-transport-security.md)) |
 | BioTek Epoch 2 | Gen5 3.11 on its own PC exports to Excel; the student uploads the file in the student portal | an upload in eduLIMS that parses the file and writes the results through openEHR REST to FerroEHR |
 
 The Epoch 2 has no direct link and Gen5 does not speak HL7, so the upload is
