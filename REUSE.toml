@@ -115,3 +115,11 @@ path = "docs/security/vendor/*/PROVENANCE.md"
 precedence = "override"
 SPDX-FileCopyrightText = "Ruben Talstra"
 SPDX-License-Identifier = "Apache-2.0"
+
+# The Abbott Afinion 2 documents, kept unmodified for reference (#209); their
+# source and sha256 are in docs/vendor/afinion/PROVENANCE.md.
+[[annotations]]
+path = "docs/vendor/afinion/*.pdf"
+precedence = "override"
+SPDX-FileCopyrightText = "Abbott"
+SPDX-License-Identifier = "LicenseRef-Abbott-All-Rights-Reserved"

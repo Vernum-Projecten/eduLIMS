@@ -1,0 +1,6 @@
+Copyright © Abbott. All rights reserved.
+
+The Abbott documents under docs/vendor/afinion/ are not covered by this
+repository's licence. They are kept unmodified, for reference only, so the
+Afinion 2 integration can be checked against its source. Their rights stay
+with Abbott; see docs/vendor/afinion/PROVENANCE.md for each document's source.
