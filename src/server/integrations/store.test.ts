@@ -10,6 +10,8 @@ import type { CheckResult } from "./probe.ts";
 import { readIntegrationStatus, saveCheck } from "./store.ts";
 
 const NOW = new Date("2026-11-12T12:00:00Z");
+const SYSTEM = { type: "system" } as const;
+const ADMIN_ACTOR = { type: "user", id: "u-admin" } as const;
 const at = (seconds: number) => new Date(NOW.getTime() + seconds * 1000);
 
 let db: Kysely<DB> | undefined;
@@ -82,7 +84,7 @@ async function events(database: Kysely<DB>) {
 describe("saveCheck and readIntegrationStatus: the steps (#227)", () => {
   it("stores and reads FerroEHR's steps, versions and refusal code", async () => {
     const database_ = await database();
-    await saveCheck(database_, REFUSED);
+    await saveCheck(database_, REFUSED, SYSTEM);
     const [status] = (await readIntegrationStatus(database_, at(60))).integrations;
     expect(status).toMatchObject({
       state: "refused",
@@ -100,7 +102,7 @@ describe("saveCheck and readIntegrationStatus: the steps (#227)", () => {
 
   it("stores and reads FerroBRIDGE's phase and failing indicators", async () => {
     const database_ = await database();
-    await saveCheck(database_, bridge());
+    await saveCheck(database_, bridge(), SYSTEM);
     const status = (await readIntegrationStatus(database_, NOW)).integrations[1];
     expect(status).toMatchObject({
       state: "not_ready",
@@ -114,7 +116,7 @@ describe("saveCheck and readIntegrationStatus: the steps (#227)", () => {
 describe("saveCheck: the activity log (B4, #227)", () => {
   it("logs the first check as a change from not checked, by eduLIMS, codes only", async () => {
     const database_ = await database();
-    expect(await saveCheck(database_, ferroehr())).toBe(true);
+    expect(await saveCheck(database_, ferroehr(), SYSTEM)).toBe(true);
     expect(await events(database_)).toEqual([
       {
         actor_type: "system",
@@ -128,17 +130,27 @@ describe("saveCheck: the activity log (B4, #227)", () => {
     ]);
   });
 
+  it("logs a change found by Check now with the administrator as the actor (#247)", async () => {
+    const database_ = await database();
+    await saveCheck(database_, ferroehr(), SYSTEM);
+    expect(await saveCheck(database_, REFUSED, ADMIN_ACTOR)).toBe(true);
+    expect((await events(database_)).map((e) => [e.actor_type, e.actor_id])).toEqual([
+      ["system", null],
+      ["user", "u-admin"],
+    ]);
+  });
+
   it("does not log a check that keeps the state", async () => {
     const database_ = await database();
-    await saveCheck(database_, ferroehr());
-    expect(await saveCheck(database_, ferroehr({ checkedAt: at(60) }))).toBe(false);
+    await saveCheck(database_, ferroehr(), SYSTEM);
+    expect(await saveCheck(database_, ferroehr({ checkedAt: at(60) }), SYSTEM)).toBe(false);
     expect(await events(database_)).toHaveLength(1);
   });
 
   it("logs a refusal with its class, the failed step and the refusal code", async () => {
     const database_ = await database();
-    await saveCheck(database_, ferroehr());
-    await saveCheck(database_, REFUSED);
+    await saveCheck(database_, ferroehr(), SYSTEM);
+    await saveCheck(database_, REFUSED, SYSTEM);
     expect((await events(database_)).at(-1)).toEqual({
       actor_type: "system",
       actor_id: null,
@@ -163,6 +175,7 @@ describe("saveCheck: the activity log (B4, #227)", () => {
       ferroehr(unreachable, {
         steps: { reachable: "failed", signed_in: "skipped", template_loaded: "skipped" },
       }),
+      SYSTEM,
     );
     await saveCheck(
       database_,
@@ -170,6 +183,7 @@ describe("saveCheck: the activity log (B4, #227)", () => {
         { ...unreachable, checkedAt: at(60) },
         { steps: { reachable: "passed", signed_in: "failed", template_loaded: "skipped" } },
       ),
+      SYSTEM,
     );
     const steps = (await events(database_)).map((event) => event.metadata);
     expect(steps).toEqual([
@@ -186,6 +200,7 @@ describe("saveCheck: the activity log (B4, #227)", () => {
         { state: "not_ready", errorClass: "template_missing" },
         { steps: { reachable: "passed", signed_in: "passed", template_loaded: "missing" } },
       ),
+      SYSTEM,
     );
     expect((await events(database_))[0]).toMatchObject({
       outcome: "failure",
@@ -196,8 +211,8 @@ describe("saveCheck: the activity log (B4, #227)", () => {
 
   it("neither stores nor logs a result older than the stored one", async () => {
     const database_ = await database();
-    await saveCheck(database_, REFUSED);
-    expect(await saveCheck(database_, ferroehr({ checkedAt: NOW }))).toBe(false);
+    await saveCheck(database_, REFUSED, SYSTEM);
+    expect(await saveCheck(database_, ferroehr({ checkedAt: NOW }), SYSTEM)).toBe(false);
     expect((await readIntegrationStatus(database_, at(60))).integrations[0]?.state).toBe("refused");
     expect(await events(database_)).toHaveLength(1);
   });

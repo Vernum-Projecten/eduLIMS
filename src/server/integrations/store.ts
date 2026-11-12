@@ -3,7 +3,8 @@
 
 // The latest check result per integration (B3, #35, #227), in `integration_checks`: written by
 // every check, read by the Admin portal's status screen. A change of state writes an
-// `integration_state_changed` row to the activity log in the same transaction, codes only.
+// `integration_state_changed` row to the activity log in the same transaction, codes only, with
+// the actor that ran the check (#247).
 import "@tanstack/react-start/server-only";
 import { type Kysely, type Selectable, sql } from "kysely";
 import {
@@ -25,6 +26,7 @@ import {
   parseStepState,
   STALE_CHECK_MS,
 } from "../../lib/integrations.ts";
+import type { AuditActor } from "../audit/events.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 import type { CheckResult } from "./probe.ts";
@@ -73,12 +75,17 @@ function resultStep(result: CheckResult): FerroEhrStep | null {
  * checks that finish out of order leave the later one. When the state, its error class or the
  * failed FerroEHR step changes, it writes an `integration_state_changed` activity-log row.
  *
- * Pass a transaction, so the row and its log entry commit together.
+ * Pass a transaction, so the row and its log entry commit together. `actor` is who ran the
+ * check: eduLIMS for the scheduled check, the administrator for "Check now" (#247).
  *
  * @returns whether the result changed the stored state.
  * @throws AuditWriteError when the activity-log row cannot be written.
  */
-export async function saveCheck(db: Kysely<DB>, result: CheckResult): Promise<boolean> {
+export async function saveCheck(
+  db: Kysely<DB>,
+  result: CheckResult,
+  actor: AuditActor,
+): Promise<boolean> {
   const previous = await db
     .selectFrom("integration_checks")
     .select(["state", "error_class", "checked_at", "reachable", "signed_in", "template_loaded"])
@@ -130,10 +137,11 @@ export async function saveCheck(db: Kysely<DB>, result: CheckResult): Promise<bo
   if (!changed) return false;
   const previousState = previous ? parseCheckState(previous.state) : "not_checked";
   const authReason = ehr?.authReason ?? null;
-  // NOTE: B4 and ASVS V16.2.5: the row holds codes only; eduLIMS observed the change, so it acts.
+  // NOTE: B4 and ASVS V16.2.1 and V16.2.5: the row holds codes only, and names who ran the check;
+  // maintainer decision on #247: the schedule logs as the system, "Check now" as the administrator.
   await recordAudit(db, {
     action: "integration_state_changed",
-    actor: { type: "system" },
+    actor,
     outcome: available ? "success" : "failure",
     target: { type: "integration", id: result.integration },
     ...(result.errorClass ? { reason: result.errorClass } : {}),

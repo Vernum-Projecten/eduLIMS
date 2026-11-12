@@ -6,6 +6,7 @@ import { Client } from "pg";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EDULIMS_TEMPLATE_ID } from "../../lib/integrations.ts";
 import type { Role } from "../../lib/roles.ts";
+import { readActivityLog } from "../activity/queries.ts";
 import { INTEGRATION_CHECK_LOCK_KEY } from "../db/advisory-locks.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb, testDatabaseUrl } from "../db/test-db.ts";
@@ -80,12 +81,27 @@ async function context(fetch: ProbeFetch, now = NOW) {
   return { db, env: ENV, deps: deps(fetch, now) };
 }
 
-const ADMIN: { roles: Role[] } = { roles: ["admin"] };
+const ADMIN: { id: string; roles: Role[] } = { id: "u-check-admin", roles: ["admin"] };
+const SYSTEM = { type: "system" } as const;
+
+/** Adds the administrator of {@link ADMIN} as a user, with an invented name. */
+async function addAdmin(database: Kysely<DB>): Promise<void> {
+  await database
+    .insertInto("user")
+    .values({
+      id: ADMIN.id,
+      name: "Ada Admin",
+      email: "check-admin@example.test",
+      emailVerified: true,
+      role: "admin",
+    })
+    .execute();
+}
 
 describe("checkAndStore (B3)", () => {
   it("stores the state of each integration", async () => {
     const ctx = await context(services(200, "down"));
-    await checkAndStore(ctx);
+    await checkAndStore(ctx, SYSTEM);
     const page = await readIntegrationStatus(ctx.db, NOW);
     expect(page.integrations.map((i) => [i.integration, i.state, i.errorClass])).toEqual([
       ["ferroehr", "available", null],
@@ -95,9 +111,9 @@ describe("checkAndStore (B3)", () => {
 
   it("a stopped service shows Unavailable on the next check, and Available after a restart (B3)", async () => {
     const ctx = await context(services(200, 200));
-    await checkAndStore(ctx);
+    await checkAndStore(ctx, SYSTEM);
     const stopped = await context(services("down", 200), new Date(NOW.getTime() + 60_000));
-    await checkAndStore(stopped);
+    await checkAndStore(stopped, SYSTEM);
     let ferroehr = (await readIntegrationStatus(ctx.db, NOW)).integrations[0];
     expect(ferroehr).toMatchObject({
       state: "unavailable",
@@ -105,16 +121,16 @@ describe("checkAndStore (B3)", () => {
       errorClass: "unreachable",
     });
     const restarted = new Date(NOW.getTime() + 120_000);
-    await checkAndStore(await context(services(200, 200), restarted));
+    await checkAndStore(await context(services(200, 200), restarted), SYSTEM);
     ferroehr = (await readIntegrationStatus(ctx.db, restarted)).integrations[0];
     expect(ferroehr).toMatchObject({ state: "available", lastSuccessAt: restarted.toISOString() });
   });
 
   it("stores and shows a refused FerroEHR as refused, keeping its last success (#35)", async () => {
     const ctx = await context(services(200, 200));
-    await checkAndStore(ctx);
+    await checkAndStore(ctx, SYSTEM);
     const later = new Date(NOW.getTime() + 60_000);
-    await checkAndStore(await context(services(401, 200), later));
+    await checkAndStore(await context(services(401, 200), later), SYSTEM);
     const ferroehr = (await readIntegrationStatus(ctx.db, later)).integrations[0];
     expect(ferroehr).toMatchObject({
       state: "refused",
@@ -141,8 +157,8 @@ describe("checkAndStore (B3)", () => {
   it("keeps a newer result when an older one finishes last", async () => {
     const later = new Date(NOW.getTime() + 60_000);
     const ctx = await context(services(500, 500), later);
-    await checkAndStore(ctx);
-    await checkAndStore(await context(services(200, 200), NOW));
+    await checkAndStore(ctx, SYSTEM);
+    await checkAndStore(await context(services(200, 200), NOW), SYSTEM);
     const page = await readIntegrationStatus(ctx.db, later);
     expect(page.integrations.map((i) => i.state)).toEqual(["unavailable", "unavailable"]);
   });
@@ -161,7 +177,7 @@ describe("readIntegrationStatus (B3)", () => {
 
   it("shows a check older than five minutes as unknown, never as available", async () => {
     const ctx = await context(services(200, 200));
-    await checkAndStore(ctx);
+    await checkAndStore(ctx, SYSTEM);
     const page = await readIntegrationStatus(ctx.db, new Date(NOW.getTime() + 5 * 60_000 + 1));
     expect(page.integrations.map((i) => i.state)).toEqual(["unknown", "unknown"]);
   });
@@ -217,7 +233,7 @@ describe("checkNow and readStatus (B3, A01)", () => {
   ] as const)("refuses %s with 403 for the status and for Check now", async (_name, roles) => {
     const fetch = services(200, 200);
     const ctx = await context(fetch);
-    const actor = { roles: [...roles] };
+    const actor = { id: "u-not-admin", roles: [...roles] };
     for (const call of [
       () => checkNow({ ...ctx, actor }),
       () => readStatus({ db: ctx.db, actor }, NOW),
@@ -229,6 +245,29 @@ describe("checkNow and readStatus (B3, A01)", () => {
     expect(fetch).not.toHaveBeenCalled();
     const stored = await readIntegrationStatus(ctx.db, NOW);
     expect(stored.integrations.map((i) => i.state)).toEqual(["not_checked", "not_checked"]);
+  });
+});
+
+describe("who the activity log names for a change of state (B4, #247)", () => {
+  it("names the administrator who pressed Check now, with their name on the activity log", async () => {
+    const ctx = await context(services(200, 503));
+    await addAdmin(ctx.db);
+    await checkNow({ ...ctx, actor: ADMIN });
+    const log = await readActivityLog(ctx.db, ADMIN, { action: ["integration_state_changed"] });
+    expect(log.rows.map((row) => [row.target?.id, row.actor])).toEqual(
+      expect.arrayContaining([
+        ["ferroehr", { type: "user", id: ADMIN.id, name: "Ada Admin" }],
+        ["ferrobridge", { type: "user", id: ADMIN.id, name: "Ada Admin" }],
+      ]),
+    );
+    expect(log.rows).toHaveLength(2);
+  });
+
+  it("names eduLIMS (the system) for a change the scheduled check found", async () => {
+    const ctx = await context(services(200, 503));
+    expect((await runScheduledCheck(ctx)).checked).toBe(true);
+    const log = await readActivityLog(ctx.db, ADMIN, { action: ["integration_state_changed"] });
+    expect(log.rows.map((row) => row.actor)).toEqual([{ type: "system" }, { type: "system" }]);
   });
 });
 

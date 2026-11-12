@@ -185,6 +185,15 @@ test.describe("with the stub answering (#227)", () => {
       page.getByRole("table").getByText("Integration status changed").first(),
     ).toBeVisible();
     await expect(page.getByRole("table")).toContainText("Integration FerroEHR");
+    // A change Check now found names the administrator who pressed it (#247).
+    await expect(
+      page
+        .getByRole("table")
+        .getByRole("row")
+        .filter({ hasText: "Integration status changed" })
+        .filter({ hasText: "Test Administrator" })
+        .first(),
+    ).toBeVisible();
     await expect(page.getByRole("table")).not.toContainText("e2e-stub-token");
   });
 

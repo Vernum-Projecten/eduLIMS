@@ -1,0 +1,1 @@
+- The activity log names the administrator who pressed **Check now** on the integration status screen as the actor of the integration state changes that check finds; changes the scheduled check finds stay logged as eduLIMS.
