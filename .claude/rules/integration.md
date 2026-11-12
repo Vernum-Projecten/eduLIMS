@@ -63,6 +63,15 @@ specification governs a choice (retry timing, the client's caching), flag it:
 - **One typed client** in `src/server/openehr/`, created once from
   configuration (`FERROEHR_BASE_URL` and its credentials, from the
   environment). Nothing else calls FerroEHR.
+- **One identity: a SMART on openEHR backend service**
+  ([ADR 0019](../../docs/adr/0019-smart-backend-service.md)). eduLIMS is the
+  OAuth 2.0 client `edulims-ferroehr`, takes its token with the client
+  credentials grant, and holds `system/` scopes only: no user token and no
+  `user/` or `patient/` scope ever reaches FerroEHR. It asks for the narrowest
+  scopes that work (`system/composition-eduLIMS-lab.v1.cr`, one
+  `system/aql-<name>.s` per named stored query), never `system/aql-*`, so it
+  runs named stored queries, never ad-hoc AQL. eduLIMS checks session, role
+  and ownership before every call, because FerroEHR sees only the client.
 - **Only pseudonyms cross the boundary.** The EHR `subject_id` is the
   pseudonym of the test subject, with a fixed `subject_namespace`. No name,
   student number or e-mail address ever appears in a composition, an AQL
