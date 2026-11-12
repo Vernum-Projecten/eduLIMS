@@ -59,8 +59,9 @@ student, class, practical, rubric criterion and date.
 
 Because the dashboard is inside eduLIMS, eduLIMS secures it itself:
 
-- Access goes through roles from the identity provider, not per person. Only
-  the `teacher` role opens the dashboard.
+- Access goes through roles, not per person: roles come from the identity
+  provider's role mapping or are assigned in eduLIMS (ADR 0015). Only the
+  `teacher` role opens the dashboard.
 - A teacher sees only their own classes and practicals (row-level security;
   Q-SEC-2).
 - Names and data of volunteer subjects from FerroEHR never reach the
