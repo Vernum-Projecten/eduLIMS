@@ -13,7 +13,7 @@ import { type DeviceSummary, summariseUserAgent } from "../../lib/user-agent.ts"
 import type { AuditAction, AuditOutcome } from "../audit/events.ts";
 import { parseLastPortal, sessionRoles } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
-import { userStatus } from "./queries.ts";
+import { type Provisioning, provisioningOf, userStatus } from "./queries.ts";
 import type { UserStatus } from "./schemas.ts";
 
 /** How many activity-log events the sheet shows (#34). */
@@ -64,6 +64,8 @@ export interface UserDetail {
   /** Whether this is the viewer's own account. */
   self: boolean;
   status: UserStatus;
+  /** The provisioning by an identity provider over SCIM (#45), or `null` for none. */
+  provisioning: Provisioning | null;
   block: { reason: string | null; until: string | null } | null;
   accounts: LinkedAccount[];
   sessions: UserSession[];
@@ -105,6 +107,8 @@ export async function getUserDetail(
       "banned",
       "banReason",
       "banExpires",
+      "provisioned_by",
+      "deprovisioned_at",
     ])
     .where("id", "=", userId)
     .executeTakeFirst();
@@ -159,6 +163,7 @@ export async function getUserDetail(
     rolesEditable: isLocallyEditable(roleSource) && !self,
     self,
     status,
+    provisioning: provisioningOf(user),
     block:
       status === "blocked"
         ? { reason: user.banReason, until: user.banExpires?.toISOString() ?? null }

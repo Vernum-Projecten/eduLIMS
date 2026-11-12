@@ -14,6 +14,19 @@ export interface StoredRoles {
   roleSource: RoleSource | null;
   /** Whether the stored email is verified; the sign-in gate keeps it in step with the provider. */
   emailVerified?: boolean;
+  /** The provider that provisioned the user over SCIM (#45), if one did. */
+  provisionedBy?: string | null;
+  /** Which channel wrote the stored set (#45, B1): an ID-token claim, SCIM, or eduLIMS. */
+  roleChannel?: RoleChannel | null;
+}
+
+/** The channels that write a role set (#45, B1). */
+export const ROLE_CHANNELS = ["claim", "scim", "local"] as const;
+export type RoleChannel = (typeof ROLE_CHANNELS)[number];
+
+/** Returns `value` when it names a {@link RoleChannel}, else `null`. */
+export function parseRoleChannel(value: unknown): RoleChannel | null {
+  return ROLE_CHANNELS.find((channel) => channel === value) ?? null;
 }
 
 /** The outcome of {@link decideSignInRoles}. */
@@ -22,6 +35,8 @@ export type SignInRoles =
   | { kind: "idp"; roles: Role[] }
   /** The identity provider sent none: the roles an administrator assigned apply. */
   | { kind: "local"; roles: Role[] }
+  /** A user the provider provisioned over SCIM: the stored set stays, whatever the claims say (#45). */
+  | { kind: "scim"; roles: Role[] }
   /** Neither: the provider's default role (or a pending admin grant), stored as a local set. */
   | { kind: "default"; roles: Role[] }
   | { kind: "refused"; reason: typeof NO_ROLE_ERROR | typeof ROLE_CONFLICT_ERROR };
@@ -33,12 +48,25 @@ export type SignInRoles =
  * the stored set; a conflicting set is refused. Without a mapped role, an allowed stored set
  * whose source is `local` applies; a set the IdP once sent does not survive the IdP taking it
  * away (A07). Then `defaultRole`, else `no_edulims_role`.
+ *
+ * For a user any provider provisioned over SCIM (#45, owner decisions on the second and third
+ * reviews), SCIM is authoritative: the claims of a sign-in through any provider neither add nor
+ * remove a role, and the default role never applies. The stored set (SCIM's, or local roles an administrator gave)
+ * stays; without one the sign-in is refused with `no_edulims_role`.
  */
 export function decideSignInRoles(
   idp: IdpRoles,
   stored: StoredRoles | null,
   defaultRole: Role | undefined,
 ): SignInRoles {
+  // NOTE: owner decision on the third review of #45; provisioned by any provider is enough, so
+  // a claim from another provider never adds admin either.
+  const provisioned = stored?.provisionedBy != null;
+  if (provisioned) {
+    const kept = validateRoleValue(stored.role);
+    if (kept.ok) return { kind: "scim", roles: kept.roles };
+    return { kind: "refused", reason: NO_ROLE_ERROR };
+  }
   if (idp.kind === "conflict") return { kind: "refused", reason: ROLE_CONFLICT_ERROR };
   if (idp.kind === "roles") return { kind: "idp", roles: idp.roles };
   if (stored && isLocallyEditable(stored.roleSource)) {

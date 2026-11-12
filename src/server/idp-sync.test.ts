@@ -69,6 +69,7 @@ function provider(
     defaultRole: undefined,
     emailAuthoritative: false,
     endSessionEndpoint: null,
+    scimExternalIdClaim: null,
     ...extra,
   };
 }
@@ -84,7 +85,9 @@ function providersWith(defaultRole?: Role): IdpRoleSyncOptions["settingsOf"] {
 }
 
 /** The stored role set per user id, as better-auth's adapter returns it. */
-type Stored = Readonly<Record<string, { role: string; roleSource: string }>>;
+type Stored = Readonly<
+  Record<string, { role: string; roleSource: string; provisionedBy?: string }>
+>;
 
 function setup(defaultRole?: "student", stored: Stored = {}) {
   const updateUser = vi.fn(async () => null);
@@ -116,6 +119,7 @@ describe("createIdpRoleSync", () => {
     expect(await sync(data, ctx)).toBeUndefined();
     expect(data.user["role"]).toBe("teacher");
     expect(data.user["roleSource"]).toBe("microsoft");
+    expect(data.user["roleChannel"]).toBe("claim");
   });
 
   it("syncs the role of an existing user on every sign-in", async () => {
@@ -134,6 +138,7 @@ describe("createIdpRoleSync", () => {
     expect(updateUser).toHaveBeenCalledWith("u1", {
       role: "student",
       roleSource: "keycloak",
+      roleChannel: "claim",
       emailVerified: false,
     });
   });
@@ -266,7 +271,21 @@ describe("createIdpRoleSync", () => {
     expect(updateUser).toHaveBeenCalledWith("u1", {
       role: "teacher,admin",
       roleSource: "microsoft",
+      roleChannel: "claim",
     });
+  });
+
+  it("never adds admin from another provider's claim to a SCIM-provisioned user (#45, N2)", async () => {
+    const { sync, ctx, updateUser } = setup("student", {
+      u1: { role: "teacher", roleSource: "keycloak", provisionedBy: "keycloak" },
+    });
+    const claims = { roles: ["edulims-admin"] };
+    const data = oauth("sign-in", "microsoft", claims, { id: "u1", role: "teacher" });
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(updateUser).not.toHaveBeenCalledWith(
+      "u1",
+      expect.objectContaining({ role: expect.anything() }),
+    );
   });
 
   it("does not write an unchanged role set", async () => {
@@ -523,7 +542,11 @@ describe("hybrid role ownership (owner decision on #32, B1)", () => {
     });
     const data = oauth("sign-in", "microsoft", { roles: ["edulims-admin"] }, { id: "u1" });
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(updateUser).toHaveBeenCalledWith("u1", { role: "admin", roleSource: "microsoft" });
+    expect(updateUser).toHaveBeenCalledWith("u1", {
+      role: "admin",
+      roleSource: "microsoft",
+      roleChannel: "claim",
+    });
   });
 
   it("moves an unchanged set to the IdP as its source", async () => {
@@ -532,7 +555,11 @@ describe("hybrid role ownership (owner decision on #32, B1)", () => {
     });
     const data = oauth("sign-in", "microsoft", { roles: ["edulims-teacher"] }, { id: "u1" });
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(updateUser).toHaveBeenCalledWith("u1", { role: "teacher", roleSource: "microsoft" });
+    expect(updateUser).toHaveBeenCalledWith("u1", {
+      role: "teacher",
+      roleSource: "microsoft",
+      roleChannel: "claim",
+    });
   });
 
   it("gives an existing user without a local role the default role as a local set", async () => {
@@ -541,7 +568,11 @@ describe("hybrid role ownership (owner decision on #32, B1)", () => {
     });
     const data = oauth("sign-in", "keycloak", { realm_access: { roles: [] } }, { id: "u1" });
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(updateUser).toHaveBeenCalledWith("u1", { role: "student", roleSource: "local" });
+    expect(updateUser).toHaveBeenCalledWith("u1", {
+      role: "student",
+      roleSource: "local",
+      roleChannel: "local",
+    });
   });
 
   it("still refuses a conflicting IdP set when the user holds local roles", async () => {

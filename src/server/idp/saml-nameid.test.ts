@@ -55,6 +55,7 @@ describe("the sign-in gate (L8)", () => {
               defaultRole: undefined,
               emailAuthoritative: false,
               endSessionEndpoint: null,
+              scimExternalIdClaim: null,
             }
           : null,
     });

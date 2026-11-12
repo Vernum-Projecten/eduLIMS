@@ -123,6 +123,14 @@ describe("session lifetimes in better-auth (#42, ASVS V7.3.1, V7.3.2)", () => {
     expect(Math.abs(expires - Date.now() - 4 * HOUR_MS)).toBeLessThan(60_000);
   });
 
+  it("revokes and refuses the session of a user the directory deprovisioned (#45, M3)", async () => {
+    const { auth, database, headers } = await signedIn();
+    expect(await resolveSessionUser(auth, headers)).not.toBeNull();
+    await sql`update "user" set deprovisioned_at = now()`.execute(database);
+    expect(await resolveSessionUser(auth, headers)).toBeNull();
+    expect(await database.selectFrom("session").select("id").execute()).toEqual([]);
+  });
+
   it("revokes and refuses a session signed in 24 hours ago, however recently used", async () => {
     const { auth, database, headers } = await signedIn();
     await sql`update "session" set "createdAt" = now() - interval '25 hours'`.execute(database);

@@ -41,7 +41,8 @@ export function guardRoleValue(value: unknown): string {
 export const roleWriteHooks = {
   create: {
     before: async (user) => {
-      if (user["role"] === undefined) return;
+      // A user with no roles at all (a SCIM-provisioned user, #45) is stored without a set.
+      if (user["role"] === undefined || user["role"] === null) return;
       return { data: { ...user, role: guardRoleValue(user["role"]) } };
     },
   },

@@ -3,6 +3,7 @@
 
 // Server-only environment configuration. Everything under src/server/ uses relative
 // `.ts` imports so the CLI entry points (migrate, seed) run on plain Node type stripping.
+import { findInvalidTrustedProxies } from "@better-auth/core/utils/ip";
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
 
@@ -46,6 +47,28 @@ const originList = () =>
     return origins;
   });
 
+/**
+ * `EDULIMS_TRUSTED_PROXIES`: comma-separated IP addresses or CIDR ranges of the reverse proxies
+ * in front of eduLIMS. Only with it set does eduLIMS read the client IP from `X-Forwarded-For`
+ * (walking the chain right to left past these proxies); unset, no forwarded header is trusted.
+ */
+const proxyList = () =>
+  z.string().transform((text, ctx) => {
+    const proxies = text
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry !== "");
+    const invalid = findInvalidTrustedProxies(proxies);
+    if (invalid.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: `not an IP address or CIDR range: ${invalid.join(", ")}`,
+      });
+      return z.NEVER;
+    }
+    return proxies;
+  });
+
 /** Field schemas without cross-field rules, so subsets can be `.pick()`ed (e.g. by migrate). */
 export const envFields = z.object({
   // Fail safe: an unset NODE_ENV counts as production, so dev login stays off.
@@ -58,6 +81,7 @@ export const envFields = z.object({
   /** The previous data key while `pnpm idp:rekey` re-encrypts (rotation, V11.1.1). */
   EDULIMS_DATA_KEY_PREVIOUS: dataKey().optional(),
   EDULIMS_IDP_PRIVATE_ORIGINS: originList().default([]),
+  EDULIMS_TRUSTED_PROXIES: proxyList().default([]),
   FERROEHR_BASE_URL: httpUrl(),
   FERROBRIDGE_BASE_URL: httpUrl(),
   EDULIMS_DEV_LOGIN: z.stringbool().default(false),

@@ -25,6 +25,8 @@ export const STALE_TIME = {
    * screen counts it stale at once and refetches on the interval in {@link INTEGRATION_REFETCH_MS}.
    */
   integrationStatus: 0,
+  /** A provider's SCIM section: its token's last use moves with every directory sync. */
+  scimDetail: 15_000,
   /** The overview's counts and latest events (#36): a snapshot, refreshed on the next visit. */
   adminOverview: 30_000,
   /**

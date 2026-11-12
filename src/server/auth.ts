@@ -26,6 +26,10 @@ import { recordTestOutcome, testOfState } from "./idp/test-flow.ts";
 import { createIdpRoleSync } from "./idp-sync.ts";
 import { applySavedLocaleOnSignIn } from "./preferences/locale-cookie.ts";
 import { refuseOwnRoleWrites, roleWriteHooks } from "./role-guard.ts";
+import { scimGate } from "./scim/gate.ts";
+import { scimPlugins } from "./scim/provisioning.ts";
+import { scimSignInResolver } from "./scim/sign-in.ts";
+import { type ScimSessionOptions, staticScimSupport } from "./scim/support.ts";
 import { SESSION_EXPIRES_IN_SECONDS, SESSION_UPDATE_AGE_SECONDS } from "./session-policy.ts";
 import { lastSignInMethod, lastSignInTime } from "./users/sign-in-tracking.ts";
 
@@ -79,12 +83,23 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
   const kysely = kyselyOf(database);
   const db = auditDatabase(kysely);
   const keyring = keyringOf(env);
+  const adapter = encryptedKyselyAdapter(kysely, keyring);
+  // NOTE: #45; sessions stay in the database (no `secondaryStorage`), which SCIM requires.
+  const sessionOptions = {} satisfies ScimSessionOptions;
+  const scimSupport = staticScimSupport(adapter({}), sessionOptions);
   return betterAuth({
-    advanced: authCookieOptions(env.BETTER_AUTH_URL),
+    advanced: {
+      ...authCookieOptions(env.BETTER_AUTH_URL),
+      // NOTE: #45 (second review, finding 2); X-Forwarded-For is read only through the proxies
+      // the operator lists, walked right to left, so a client cannot pick its own address.
+      ...(env.EDULIMS_TRUSTED_PROXIES.length > 0
+        ? { ipAddress: { trustedProxies: [...env.EDULIMS_TRUSTED_PROXIES] } }
+        : {}),
+    },
     appName: "eduLIMS",
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
-    database: encryptedKyselyAdapter(kysely, keyring),
+    database: adapter,
     // NOTE: ADR 0015; the plugin's management endpoints let any signed-in user register an IdP.
     disabledPaths: [...SSO_DISABLED_PATHS],
     // NOTE: ASVS V1.3.6; the app origin is always trusted, and besides it only the operator's
@@ -99,6 +114,10 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
       // second provider with the email of an existing user is refused with
       // ACCOUNT_NOT_LINKED_ERROR instead of signing in as that user.
       accountLinking: { enabled: false },
+      additionalFields: {
+        // The directory id of the last sign-in (#45): SCIM links an existing user on it.
+        directoryId: { type: "string", required: false, input: false, fieldName: "directory_id" },
+      },
     },
     user: {
       additionalFields: {
@@ -109,6 +128,27 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         // Where the role set comes from (hybrid ownership, #32): `local` or a provider id; only
         // the sign-in gate, the Users screen's local role edit and `pnpm admin:grant` write it.
         roleSource: { type: "string", required: false, input: false, fieldName: "role_source" },
+        // The identity provider that provisioned the user over SCIM (#45); only SCIM writes it.
+        provisionedBy: {
+          type: "string",
+          required: false,
+          input: false,
+          fieldName: "provisioned_by",
+        },
+        // Which channel wrote the role set (#45, B1): `claim`, `scim` or `local`.
+        roleChannel: {
+          type: "string",
+          required: false,
+          input: false,
+          fieldName: "role_channel",
+        },
+        // When the directory deactivated or deleted the user (#45): no sign-in while it is set.
+        deprovisionedAt: {
+          type: "date",
+          required: false,
+          input: false,
+          fieldName: "deprovisioned_at",
+        },
       },
       validateUserInfo: createIdpRoleSync({
         // NOTE: ASVS V7.4.2 (#92 M-1); the gate reads `enabled` past the 30-second cache, so a
@@ -137,6 +177,9 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         providersLimit: 0,
         // NOTE: #28; SSO never adds anyone to a class organisation.
         organizationProvisioning: { disabled: true },
+        // NOTE: #45 (ADR 0017); a sign-in becomes the user the directory provisioned, matched
+        // on the directory's externalId, never on email.
+        resolveUser: scimSupport.ok ? scimSignInResolver(db) : undefined,
         saml: {
           requireTimestamps: true,
           algorithms: { onDeprecated: "reject" },
@@ -150,6 +193,9 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         },
       }),
       ssoGuards(db),
+      // Answers 501 when SCIM cannot run here; rate limit, size cap and activity log (#45).
+      scimGate(db, scimSupport, { trustForwardedFor: env.EDULIMS_TRUSTED_PROXIES.length > 0 }),
+      ...scimPlugins(db, scimSupport),
       ssoLogout(db, env.BETTER_AUTH_URL, keyring),
       // The activity log (B4): sign-ins, sign-outs, sessions, users and the admin endpoints.
       auditLog(db),

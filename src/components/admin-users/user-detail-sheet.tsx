@@ -9,7 +9,12 @@ import type { ReactNode } from "react";
 import { ConfirmButton, useUsersMutation } from "@/components/admin-users/admin-action";
 import { BlockUserDialog } from "@/components/admin-users/block-user-dialog";
 import { useProviderLabels } from "@/components/admin-users/provider-labels";
-import { RoleBadges, RoleSourceText, StatusBadge } from "@/components/admin-users/user-badges";
+import {
+  ProvisioningText,
+  RoleBadges,
+  RoleSourceText,
+  StatusBadge,
+} from "@/components/admin-users/user-badges";
 import { UserRolesEditor } from "@/components/admin-users/user-roles-editor";
 import { UserSessions } from "@/components/admin-users/user-sessions";
 import { UpdatingIndicator } from "@/components/shell/updating-indicator";
@@ -114,6 +119,11 @@ export function UserDetailContent({
             <Detail term={m.admin_users_status()}>
               <StatusBadge status={user.status} blockedUntil={user.block?.until ?? null} />
             </Detail>
+            {user.provisioning && (
+              <Detail term={m.admin_users_provisioning()}>
+                <ProvisioningText provisioning={user.provisioning} />
+              </Detail>
+            )}
             <Detail term={m.admin_users_created()}>{formatDateTime(user.createdAt)}</Detail>
             <Detail term={m.admin_users_col_last_sign_in()}>
               {user.lastSignInAt ? (
