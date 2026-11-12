@@ -35,8 +35,8 @@ Every workflow and composite action follows these rules, and the
 | `ci.yml` `zizmor`, `actionlint`, `shellcheck`        | Security and correctness analysis of `.github/`, and shellcheck at `--severity=style` over every tracked `*.sh`                                                                              | every change                                         |
 | `ci.yml` `install`                                   | `pnpm install --frozen-lockfile` once, so lockfile drift fails fast; reports whether the e2e scripts exist                                                                                   | every change                                         |
 | `ci.yml` `typecheck`, `lint`, `build`                | `pnpm typecheck` (native `tsc`), `biome ci .`, `pnpm build`                                                                                                                                  | every change                                         |
-| `ci.yml` `test`                                      | `pnpm test:coverage` with the 70% thresholds of `vitest.config.ts` (the coverage report is uploaded as the `coverage` artifact), on a PostgreSQL 18 service container (`TEST_DATABASE_URL`)  | every change                                         |
-| `ci.yml` `e2e`                                       | Playwright with the axe scan against a PostgreSQL 18 service container (`E2E_DATABASE_URL`), emptied, migrated and seeded by `pnpm db:reset`, with the development login; the browsers are cached by Playwright version | every change, once `test:e2e` and `db:migrate` exist |
+| `ci.yml` `test`                                      | `pnpm test:coverage` with the 70% thresholds of `vitest.config.ts` (the coverage report is uploaded as the `coverage` artifact), on a PostgreSQL 18 service container (`TEST_DATABASE_URL`) as the non-superuser `edulims` role (see [The test database role](#the-test-database-role)) | every change                                         |
+| `ci.yml` `e2e`                                       | Playwright with the axe scan against a PostgreSQL 18 service container (`E2E_DATABASE_URL`) as the same `edulims` role, emptied, migrated and seeded by `pnpm db:reset`, with the development login; the browsers are cached by Playwright version | every change, once `test:e2e` and `db:migrate` exist |
 | `ci.yml` `dependency-review`                         | Blocks a pull request that adds a dependency with a known HIGH or CRITICAL vulnerability                                                                                                     | pull requests                                        |
 | `ci.yml` `audit`                                     | `pnpm audit --prod --audit-level=high` and OSV-Scanner over `pnpm-lock.yaml`                                                                                                                 | every change                                         |
 | `ci.yml` `licenses`                                  | Every production dependency carries a license `scripts/checks/licenses.allow` names                                                                                                          | every change                                         |
@@ -62,6 +62,28 @@ Dependabot (`.github/dependabot.yml`) watches npm, the GitHub Actions, and
 the images under `docker/`, weekly with a cooldown. TanStack, `@types/*`,
 and the build tooling (Biome, Vitest, Vite, TypeScript) each move in one
 grouped pull request.
+
+## The test database role
+
+The `test` and `e2e` lanes connect as the role a developer's tests use on
+the dev stack, so a path that works only for a superuser fails in CI too
+(#202). The service container starts with the image's bootstrap superuser
+`postgres`, which no test connects as. A step after the checkout runs the
+init scripts `compose.dev.yaml` mounts, inside the container with
+`docker exec`:
+
+- `docker/postgres/init/20-edulims.sh` creates the `edulims` login role
+  (NOSUPERUSER, NOCREATEDB, NOCREATEROLE, NOREPLICATION) and the `edulims`
+  database it owns.
+- `docker/postgres/init/30-edulims-test-databases.sh` grants `edulims`
+  CREATEDB and creates `edulims_test` and `edulims_e2e`, owned by it, with
+  CONNECT revoked from PUBLIC.
+
+The step then fails when `edulims` is missing or is a superuser.
+`TEST_DATABASE_URL` and `E2E_DATABASE_URL` name `edulims`, and each run
+creates its own run database beside the base database, as on a developer
+machine. A change to the role or its grants goes into those scripts, so the
+dev stack and CI stay the same.
 
 ## The merge gate
 

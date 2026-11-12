@@ -183,9 +183,9 @@ jobs:
   # Unit tests with coverage. vitest.config.ts holds the 70% thresholds the
   # maintainability requirement sets for the core, so a drop fails here. The
   # database tests run on a PostgreSQL 18 service container (the image of the
-  # e2e lane): the Vitest global setup creates and migrates a run database
-  # beside `edulims_test`, and every test runs in a transaction that is
-  # rolled back.
+  # e2e lane) as the non-superuser `edulims` role: the Vitest global setup
+  # creates and migrates a run database beside `edulims_test`, and every test
+  # runs in a transaction that is rolled back.
   test:
     name: test
     needs: install
@@ -196,14 +196,16 @@ jobs:
     services:
       postgres:
         image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+        # The image's default bootstrap superuser `postgres`; the tests never
+        # connect as it.
         env:
-          POSTGRES_USER: edulims
-          POSTGRES_PASSWORD: edulims
-          POSTGRES_DB: edulims_test
+          POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
+        # Over TCP, so the probe stays red while the entrypoint's socket-only
+        # initialisation server runs.
         options: >-
-          --health-cmd "pg_isready -U edulims -d edulims_test"
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres -d postgres"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -213,6 +215,26 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The service starts before the checkout, so it cannot mount the init
+      # scripts. They run here instead, as the bootstrap superuser inside the
+      # container, the way docs/deployment.md runs them on a server that
+      # already holds data. The tests then connect as `edulims`: NOSUPERUSER,
+      # NOCREATEROLE, with CREATEDB and the owner of the base databases, the
+      # role the dev stack gives them (#202).
+      - name: Create the eduLIMS role and the test databases
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          for script in docker/postgres/init/20-edulims.sh docker/postgres/init/30-edulims-test-databases.sh; do
+            docker exec -i -e EDULIMS_DB_PASSWORD=edulims "$POSTGRES_CONTAINER" bash < "$script"
+          done
+          super="$(docker exec "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 --no-psqlrc -U postgres -d postgres -tAc \
+            "SELECT rolsuper FROM pg_roles WHERE rolname = 'edulims'")"
+          if [[ "$super" != "f" ]]; then
+            echo "::error::the edulims role must exist and must not be a superuser (rolsuper: '${super}')"
+            exit 1
+          fi
       - uses: ./.github/actions/setup-node-pnpm
       - run: pnpm test:coverage
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -240,7 +262,8 @@ jobs:
       - run: bash scripts/checks/no-devtools.sh
 
   # The browser journeys: Playwright with the axe accessibility scan, against
-  # the app on a PostgreSQL 18 service container. playwright.config.ts runs
+  # the app on a PostgreSQL 18 service container, as the non-superuser
+  # `edulims` role of the test lane. playwright.config.ts runs
   # `pnpm db:reset` (empty, migrate from empty, seed) before the app starts.
   # Sign-in uses the development login, so no Entra ID tenant is reached.
   e2e:
@@ -254,14 +277,16 @@ jobs:
     services:
       postgres:
         image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+        # The image's default bootstrap superuser `postgres`; the tests never
+        # connect as it.
         env:
-          POSTGRES_USER: edulims
-          POSTGRES_PASSWORD: edulims
-          POSTGRES_DB: edulims_e2e
+          POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
+        # Over TCP, so the probe stays red while the entrypoint's socket-only
+        # initialisation server runs.
         options: >-
-          --health-cmd "pg_isready -U edulims -d edulims_e2e"
+          --health-cmd "pg_isready -h 127.0.0.1 -U postgres -d postgres"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -274,6 +299,21 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # The role and databases of the test lane's step above (#202).
+      - name: Create the eduLIMS role and the test databases
+        env:
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          for script in docker/postgres/init/20-edulims.sh docker/postgres/init/30-edulims-test-databases.sh; do
+            docker exec -i -e EDULIMS_DB_PASSWORD=edulims "$POSTGRES_CONTAINER" bash < "$script"
+          done
+          super="$(docker exec "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 --no-psqlrc -U postgres -d postgres -tAc \
+            "SELECT rolsuper FROM pg_roles WHERE rolname = 'edulims'")"
+          if [[ "$super" != "f" ]]; then
+            echo "::error::the edulims role must exist and must not be a superuser (rolsuper: '${super}')"
+            exit 1
+          fi
       - uses: ./.github/actions/setup-node-pnpm
       # A fresh secret per run: nothing outside this job ever holds it.
       - name: Generate the session secret
