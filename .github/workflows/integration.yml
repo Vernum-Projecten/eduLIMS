@@ -1,0 +1,92 @@
+# SPDX-FileCopyrightText: Ruben Talstra
+# SPDX-License-Identifier: Apache-2.0
+
+# The integration lane (#150): the stack of compose.dev.yaml (PostgreSQL 18,
+# Keycloak, FerroEHR with authentication on, FerroBRIDGE) at the image digests
+# it pins, under its own Compose project, and the checks that eduLIMS reaches
+# it end to end:
+#   - scripts/dev/ferroehr-auth-check.sh: FerroEHR trusts the dev Keycloak's
+#     token, refuses no token (401) and a token without the scope (403);
+#   - FerroBRIDGE's readiness answers 200;
+#   - tests/integration/ferro-stack.test.ts: eduLIMS's openEHR client gets a
+#     token and lists the templates, and the B3 check reports both services
+#     available.
+# ci.yml calls it for a change to its path filter, so it reports under
+# `conclusion`; the schedule runs it nightly on main. The credentials are the
+# public development values of compose.dev.yaml and the realm file.
+name: Integration
+
+on:
+  workflow_call:
+  schedule:
+    # Nightly, 03:17 UTC, off the hour when scheduled runs queue up.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  stack:
+    name: stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      COMPOSE_PROJECT: edulims-ci
+      EDULIMS_IT_REQUIRE_STACK: "1"
+      # The database the Vitest global setup creates its run database beside,
+      # which the stack's init scripts create.
+      TEST_DATABASE_URL: postgres://edulims:edulims@localhost:5432/edulims_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node-pnpm # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the $/ form
+      # -p names the project, so the file's `name: edulims-dev` never applies
+      # here. --wait returns once every service is healthy, FerroEHR after
+      # Keycloak and FerroBRIDGE after FerroEHR.
+      - name: Start the stack
+        run: |
+          set -euo pipefail
+          docker compose -p "$COMPOSE_PROJECT" -f compose.dev.yaml up -d --wait --wait-timeout 600
+          docker compose -p "$COMPOSE_PROJECT" -f compose.dev.yaml ps
+      - name: FerroEHR accepts the dev Keycloak's token
+        run: bash scripts/dev/ferroehr-auth-check.sh
+      - name: FerroBRIDGE is ready
+        run: |
+          set -euo pipefail
+          status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://localhost:8081/health/readiness)"
+          echo "FerroBRIDGE readiness: ${status}"
+          if [ "$status" != 200 ]; then
+            echo "::error::FerroBRIDGE readiness answered ${status}, expected 200"
+            exit 1
+          fi
+      - name: The openEHR client and the B3 check against the stack
+        run: |
+          set -euo pipefail
+          pnpm i18n
+          pnpm exec vitest run tests/integration/ferro-stack.test.ts
+      - name: Container logs
+        if: failure()
+        run: |
+          set -euo pipefail
+          mkdir -p compose-logs
+          for service in $(docker compose -p "$COMPOSE_PROJECT" -f compose.dev.yaml config --services); do
+            docker compose -p "$COMPOSE_PROJECT" -f compose.dev.yaml logs --no-color --timestamps "$service" \
+              > "compose-logs/${service}.log" 2>&1 || true
+            echo "::group::${service}"
+            cat "compose-logs/${service}.log"
+            echo "::endgroup::"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: integration-compose-logs
+          path: compose-logs/
+          if-no-files-found: ignore
+          retention-days: 14
+      # The runner is discarded after the job, volumes included.
+      - name: Stop the stack
+        if: always()
+        run: docker compose -p "$COMPOSE_PROJECT" -f compose.dev.yaml down --remove-orphans
