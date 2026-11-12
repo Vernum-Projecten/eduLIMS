@@ -28,3 +28,5 @@ src/components/ui/** linguist-generated=true
 # Vendored OWASP trees: stored byte for byte, so the sha256 sums in each
 # PROVENANCE.md hold on every checkout (scripts/vendor/owasp-*.sh --check).
 docs/security/vendor/** -text
+# Vendored third-party documents stay byte for byte (docs/vendor/*/PROVENANCE.md).
+docs/vendor/** -text

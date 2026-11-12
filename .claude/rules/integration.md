@@ -50,7 +50,9 @@ specification, never from memory or from what one server happens to accept:
 4. **HL7 Version 2** for the Afinion message
    (<https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185>),
    at the version and message profile the Afinion 2 connectivity manual
-   specifies.
+   specifies. The Afinion 2 User Manual (1117346 Rev. A, 2023/02) is vendored
+   in `docs/vendor/afinion/` (HL7 "based on HL7 version 2.4", no TLS); the HL7
+   protocol data sheet is not yet (#209). Cite the vendored copy, never memory.
 
 Cite the section in the PR for every conformance decision. Where no
 specification governs a choice (retry timing, the client's caching), flag it:
