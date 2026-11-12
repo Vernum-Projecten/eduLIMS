@@ -27,6 +27,8 @@
   "admin_activity_detail_removed_events": "Verwijderde gebeurtenissen: {count}",
   "admin_activity_detail_removed_grants": "Verwijderde beheerderstoekenningen: {count}",
   "admin_activity_detail_removed_sessions": "Verwijderde sessies: {count}",
+  "admin_activity_detail_resealed_id_tokens": "Opnieuw versleutelde ID-tokens: {count}",
+  "admin_activity_detail_resealed_providers": "Opnieuw versleutelde identiteitsproviders: {count}",
   "admin_activity_detail_roles": "Rollen: {roles}",
   "admin_activity_detail_sessions_ended": "Beëindigde sessies: {count}",
   "admin_activity_detail_test_outcome": "Testresultaat: {result}",

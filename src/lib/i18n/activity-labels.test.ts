@@ -138,6 +138,13 @@ describe("activity log labels (#36)", () => {
         metadata: { removed_audit_events: 1200, removed_sessions: 4, removed_admin_grants: 0 },
       }),
     ).toEqual(["Events removed: 1,200", "Sessions removed: 4", "Administrator grants removed: 0"]);
+    expect(
+      activityDetails({
+        reason: null,
+        provider: null,
+        metadata: { resealed_providers: 2, resealed_id_tokens: 31 },
+      }),
+    ).toEqual(["Identity providers re-encrypted: 2", "ID tokens re-encrypted: 31"]);
   });
 
   it("summarises a SCIM token's dates, a refusal's count and the SCIM reasons (#45)", () => {
