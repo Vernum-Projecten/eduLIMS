@@ -11,6 +11,10 @@ export const VALID_ENV = {
   EDULIMS_DATA_KEY: "ZWR1bGltcy10ZXN0LWRhdGEta2V5LTAxMjM0NTY3ODk=",
   EDULIMS_IDP_PRIVATE_ORIGINS: "http://localhost:8180",
   FERROEHR_BASE_URL: "http://localhost:4001",
+  FERROEHR_TOKEN_URL: "http://localhost:4003/token",
+  FERROEHR_CLIENT_ID: "edulims-ferroehr",
+  FERROEHR_CLIENT_SECRET: "test-only-ferroehr-client-secret",
+  FERROEHR_SCOPE: "system/template-*.r",
   FERROBRIDGE_BASE_URL: "http://localhost:4002",
   EDULIMS_DEV_LOGIN: "true",
 } as const satisfies Record<string, string>;

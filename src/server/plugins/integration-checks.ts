@@ -8,12 +8,12 @@ import { definePlugin } from "nitro";
 import { getDb } from "../db/index.ts";
 import { getEnv } from "../env.ts";
 import { runScheduledCheck, startCheckSchedule } from "../integrations/checks.ts";
-import { DEFAULT_PROBE_DEPS } from "../integrations/probe.ts";
+import { defaultProbeDeps } from "../integrations/probe.ts";
 
 // Nitro loads a runtime plugin from its default export.
 export default definePlugin((nitroApp) => {
   const stop = startCheckSchedule(() =>
-    runScheduledCheck({ db: getDb(), env: getEnv(), deps: DEFAULT_PROBE_DEPS }),
+    runScheduledCheck({ db: getDb(), env: getEnv(), deps: defaultProbeDeps() }),
   );
   nitroApp.hooks.hook("close", stop);
 });

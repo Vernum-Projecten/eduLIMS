@@ -36,7 +36,8 @@ fi
 while IFS= read -r name; do unset "$name"; done < <(compgen -e | grep -E '^(LOGSHIP_|COMPOSE_)' || true)
 export EDULIMS_VERSION=0.0.0 POSTGRES_PASSWORD=example EDULIMS_DB_PASSWORD=example \
   FERROEHR_DB_PASSWORD=example BETTER_AUTH_SECRET=example EDULIMS_DATA_KEY=example \
-  BETTER_AUTH_URL=https://edulims.example.test
+  BETTER_AUTH_URL=https://edulims.example.test FERROEHR_TOKEN_URL=https://idp.example.test/token \
+  FERROEHR_CLIENT_ID=example FERROEHR_CLIENT_SECRET=example FERROEHR_SCOPE=example
 
 # compose [NAME=value…] <compose args>: Compose with those extra variables.
 compose() {
