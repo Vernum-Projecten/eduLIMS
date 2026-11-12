@@ -14,6 +14,7 @@ import type { ClassActionError, ClassResult } from "./access.ts";
 import type { ListAdminClassesInput } from "./admin-schemas.ts";
 import {
   getClassPage,
+  getJoinCodeFn,
   getStudentClasses,
   listGroupSetSourcesFn,
   listMyClasses,
@@ -27,6 +28,7 @@ export const classesKeys = {
   details: () => [...classesKeys.all, "detail"] as const,
   detail: (classId: string) => [...classesKeys.details(), classId] as const,
   sources: (classId: string) => [...classesKeys.detail(classId), "sources"] as const,
+  joinCode: (classId: string) => [...classesKeys.detail(classId), "join-code"] as const,
   admin: () => [...classesKeys.all, "admin"] as const,
   adminLists: () => [...classesKeys.admin(), "list"] as const,
   adminList: (input: ListAdminClassesInput) => [...classesKeys.adminLists(), input] as const,
@@ -66,6 +68,18 @@ export function groupSetSourcesQueryOptions(classId: string) {
     staleTime: STALE_TIME.classes,
   });
 }
+
+/** The join-code state of one class (#49); never the code itself. */
+export function joinCodeQueryOptions(classId: string) {
+  return queryOptions({
+    queryKey: classesKeys.joinCode(classId),
+    queryFn: () => getJoinCodeFn({ data: { classId } }),
+    staleTime: STALE_TIME.classes,
+  });
+}
+
+/** The state {@link joinCodeQueryOptions} returns. */
+export type JoinCodeState = Awaited<ReturnType<typeof getJoinCodeFn>>;
 
 /** The student's classes and pending invitations. */
 export function studentClassesQueryOptions() {
@@ -170,5 +184,23 @@ export function classReadMutationOptions<TInput, TValue>(call: ClassCall<TInput,
       if (!result.ok) throw new ClassActionRefused(result.error);
       return result.value;
     },
+  });
+}
+
+/**
+ * The mutation options of joining a class with a code (#49): the call throws its refusal, and
+ * the student's classes are invalidated once it settles.
+ */
+export function joinClassMutationOptions<TValue>(
+  queryClient: QueryClient,
+  call: ClassCall<{ code: string }, TValue>,
+) {
+  return mutationOptions({
+    mutationFn: async (data: { code: string }): Promise<TValue> => {
+      const result = await call({ data });
+      if (!result.ok) throw new ClassActionRefused(result.error);
+      return result.value;
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: classesKeys.student() }),
   });
 }

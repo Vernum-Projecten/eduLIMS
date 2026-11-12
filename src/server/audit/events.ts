@@ -26,8 +26,8 @@ export const AUTH_AUDIT_ACTIONS = [
 ] as const;
 
 /**
- * Actions of eduLIMS's own flows: classes and invitations (#28), uploads (S4), and the analyser
- * register (B3, #35).
+ * Actions of eduLIMS's own flows: classes and invitations (#28), the class join code (#49),
+ * uploads (S4), and the analyser register (B3, #35).
  */
 export const EDULIMS_AUDIT_ACTIONS = [
   "class_created",
@@ -39,6 +39,11 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "class_copied",
   "class_member_removed",
   "class_group_changed",
+  "class_join_code_enabled",
+  "class_join_code_regenerated",
+  "class_join_code_disabled",
+  "class_joined",
+  "class_join_failed",
   "invitation_created",
   "invitation_accepted",
   "invitation_resent",
@@ -199,6 +204,9 @@ export const auditMetadataSchema = z.strictObject({
   team_id: z.uuid().optional(),
   /** What a `class_group_changed` did. */
   group_change: z.enum(["created", "renamed", "deleted", "members", "split", "copied"]).optional(),
+  /** The term in days and the most joins of a `class_join_code_enabled` or `_regenerated`. */
+  valid_days: z.number().int().min(1).max(366).optional(),
+  max_uses: z.number().int().min(1).max(10_000).optional(),
   /** How many rows a bulk class action touched (groups created, students moved). */
   count: z.number().int().min(0).optional(),
   /** The outcome code of an `idp_tested` sign-in. */

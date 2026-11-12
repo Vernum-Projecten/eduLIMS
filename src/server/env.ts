@@ -58,7 +58,12 @@ const proxyList = () =>
       .split(",")
       .map((entry) => entry.trim())
       .filter((entry) => entry !== "");
-    const invalid = findInvalidTrustedProxies(proxies);
+    // NOTE: #49 (security review of #119); a `/0` range trusts every hop, so a client could
+    // name any address in X-Forwarded-For and dodge the per-IP limits.
+    const invalid = [
+      ...findInvalidTrustedProxies(proxies),
+      ...proxies.filter((entry) => /\/0+$/.test(entry)),
+    ];
     if (invalid.length > 0) {
       ctx.addIssue({
         code: "custom",

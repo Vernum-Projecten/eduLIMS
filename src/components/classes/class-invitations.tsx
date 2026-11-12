@@ -17,6 +17,7 @@ import {
 import { type ChangeEvent, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmButton } from "@/components/admin-users/admin-action";
+import { ClassJoinCode } from "@/components/classes/class-join-code";
 import { classLabel } from "@/components/classes/class-name";
 import { useClassMutation } from "@/components/classes/use-class-mutation";
 import { DataTable } from "@/components/data-table/data-table";
@@ -374,7 +375,10 @@ function PendingInvitations({ page }: Readonly<{ page: ClassPage }>) {
   );
 }
 
-/** The invitations tab: the form (not on an archived class) and the pending invitations. */
+/**
+ * The invitations tab: the form (not on an archived class), the join code (#49) and the pending
+ * invitations.
+ */
 export function ClassInvitations({ page }: Readonly<{ page: ClassPage }>) {
   const canInvite = page.archivedAt === null && classCan(page.myRole, { student: ["invite"] });
   return (
@@ -390,6 +394,7 @@ export function ClassInvitations({ page }: Readonly<{ page: ClassPage }>) {
       ) : (
         <p className="text-muted-foreground">{m.classes_archived_read_only()}</p>
       )}
+      <ClassJoinCode page={page} />
       <section aria-labelledby="pending-heading" className="flex flex-col gap-4">
         <h3 id="pending-heading" className="text-lg font-semibold">
           {m.classes_invitations_title()}

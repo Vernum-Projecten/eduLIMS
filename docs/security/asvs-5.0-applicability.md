@@ -66,12 +66,12 @@ moves a row to `met` in the same pull request.
 |---|---|
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
-| Applicable (yes or partly) | 176 |
-| Status met | 94 |
+| Applicable (yes or partly) | 177 |
+| Status met | 95 |
 | Status partial | 48 |
 | Status planned | 26 |
 | Status open | 8 |
-| Status n-a | 169 |
+| Status n-a | 168 |
 
 ### V1 Encoding and Sanitization
 
@@ -166,7 +166,7 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V2.4.1 | 2 | partly | better-auth's built-in rate limit on `/api/auth/*` in production; the SCIM endpoint has its own limit in every environment: 600 requests a minute per identity provider for a working token, in a table client keys cannot evict, and 600 a minute per client for every other request (no token, or an unknown, revoked or expired one), in a bounded table that answers 429 when full; the token is looked up first (one indexed digest lookup per request, accepted as Low by the review, owner decision on #45), so a working token is never limited by a shared egress IP; the client is the X-Forwarded-For address only through the proxies in `EDULIMS_TRUSTED_PROXIES`, else one shared bucket; a 1 MiB body cap (`src/server/scim/limits.ts`, `src/server/scim/gate.ts`, #45); none on server functions or uploads yet | unit `src/server/scim/gate.test.ts`, `src/server/env.test.ts`; integration `tests/integration/scim-provisioning.test.ts` (413), `tests/integration/scim-hardening.test.ts` (601 random tokens get 429; spoofed X-Forwarded-For gets no bucket) | partial |
+| V2.4.1 | 2 | partly | better-auth's built-in rate limit on `/api/auth/*` in production; the SCIM endpoint has its own limit in every environment: 600 requests a minute per identity provider for a working token, in a table client keys cannot evict, and 600 a minute per client for every other request (no token, or an unknown, revoked or expired one), in a bounded table that answers 429 when full; the token is looked up first (one indexed digest lookup per request, accepted as Low by the review, owner decision on #45), so a working token is never limited by a shared egress IP; the client is the X-Forwarded-For address only through the proxies in `EDULIMS_TRUSTED_PROXIES`, else one shared bucket; a 1 MiB body cap (`src/server/scim/limits.ts`, `src/server/scim/gate.ts`, #45); wrong class join codes are counted in PostgreSQL per student and per client IP (the IP only through the same proxies, `src/server/client-ip.ts`) with one atomic upsert per key before the code lookup, so concurrent tries and replicas share the count; an address over its limit still joins with a valid code (`src/server/classes/join-limits.ts`, #49); none on other server functions or uploads yet | unit `src/server/scim/gate.test.ts`, `src/server/env.test.ts`, `src/server/client-ip.test.ts`, `src/server/classes/join-limits.test.ts`, `src/server/classes/join.test.ts` (50 parallel wrong codes give exactly 10 `invalid_code`); integration `tests/integration/scim-provisioning.test.ts` (413), `tests/integration/scim-hardening.test.ts` (601 random tokens get 429; spoofed X-Forwarded-For gets no bucket); e2e `tests/e2e/join-code.spec.ts` | partial |
 | V2.4.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V3 Web Frontend Security
@@ -349,7 +349,7 @@ Text: [vendor/asvs/en/0x15-V6-Authentication.md](vendor/asvs/en/0x15-V6-Authenti
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V6.3.1 | 1 | partly | better-auth rate limits `/api/auth/*`; brute force against the IdP is the IdP's | review | partial |
+| V6.3.1 | 1 | partly | better-auth rate limits `/api/auth/*`; brute force against the IdP is the IdP's; guessing a class join code is limited per student and per client IP, counted in PostgreSQL before the lookup (#49) | unit `src/server/classes/join.test.ts`, `src/server/classes/join-concurrency.test.ts` | partial |
 | V6.3.2 | 1 | yes | no default account in production: the seed users exist only with the dev login (`src/server/db/seed.ts`, `src/server/env.ts`) | unit `src/server/env.test.ts`, `src/server/auth.test.ts` | met |
 | V6.3.3 | 2 | partly | MFA is enforced at the institution's IdP (Entra ID Conditional Access or Keycloak); eduLIMS does not check it (see V6.8.4) | manual, operator | open |
 | V6.3.4 | 2 | yes | sign-up is off, the dev login is refused in production, and only the configured OIDC providers exist (`src/server/auth.ts`, `src/server/env.ts`) | unit `src/server/auth.test.ts`, `src/server/env.test.ts` | met |
@@ -362,7 +362,7 @@ Text: [vendor/asvs/en/0x15-V6-Authentication.md](vendor/asvs/en/0x15-V6-Authenti
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V6.4.1 | 1 | no | eduLIMS generates no initial passwords or activation codes; invitations (#28) carry no credential | none | n-a |
+| V6.4.1 | 1 | yes | the class join code (#49) works like an activation code: 10 symbols from a 31-symbol alphabet (about 49.5 bits) drawn with `crypto.randomInt`, stored only as an HMAC-SHA-256, ending by date (at most 30 days) and by number of joins (`src/lib/join-code.ts`, `src/server/classes/join-code.ts`); invitations (#28) carry no credential | unit `src/lib/join-code.test.ts`, `src/server/classes/join-code.test.ts`, `src/server/classes/join.test.ts` | met |
 | V6.4.2 | 1 | no | no password hints or secret questions exist | none | n-a |
 | V6.4.3 | 2 | no | no password reset: SSO only (ADR 0010) | none | n-a |
 | V6.4.4 | 2 | no | MFA recovery is the IdP's | none | n-a |
@@ -601,8 +601,8 @@ Text: [vendor/asvs/en/0x20-V11-Cryptography.md](vendor/asvs/en/0x20-V11-Cryptogr
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V11.1.1 | 2 | yes | `EDULIMS_DATA_KEY` (provider secrets and the accounts' sealed ID tokens) is documented with its generation, storage, rotation (`EDULIMS_DATA_KEY_PREVIOUS`, `idp rekey`, `src/server/idp/rekey.test.ts`) and loss (`docs/deployment.md`, "Data key"); no policy yet for `BETTER_AUTH_SECRET` and the database passwords | review | partial |
-| V11.1.2 | 2 | yes | the AES-256-GCM data key is recorded in ADR 0015; no full cryptographic inventory yet (TLS at the proxy, HMAC cookies, IdP signatures, Sigstore) | review | partial |
+| V11.1.1 | 2 | yes | `EDULIMS_DATA_KEY` (provider secrets and the accounts' sealed ID tokens) is documented with its generation, storage, rotation (`EDULIMS_DATA_KEY_PREVIOUS`, `idp rekey`, `src/server/idp/rekey.test.ts`) and loss (`docs/deployment.md`, "Data key"); the class join code's HMAC key and the key of its attempt counters are derived from `BETTER_AUTH_SECRET` with HKDF under separate info strings (`edulims class join code`, `edulims class join attempts`), so neither key serves both uses, and every code stores the code key's fingerprint, so after a rotation the teacher sees "make a new code" and old codes stop working (#49); no policy yet for rotating `BETTER_AUTH_SECRET` itself or the database passwords | unit `src/server/classes/join-code.test.ts` (stale after a rotation), `src/server/classes/join.test.ts` | partial |
+| V11.1.2 | 2 | yes | the AES-256-GCM data key is recorded in ADR 0015; the class join code (#49) uses HMAC-SHA-256 under two HKDF-SHA-256 keys from `BETTER_AUTH_SECRET`, one for the code and one for the rate-limit keys (never an address at rest), with a 16-digit SHA-256 key fingerprint (`src/server/classes/join-code.ts`); no full cryptographic inventory yet (TLS at the proxy, HMAC cookies, IdP signatures, Sigstore) | review | partial |
 | V11.1.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V11.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -639,7 +639,7 @@ Text: [vendor/asvs/en/0x20-V11-Cryptography.md](vendor/asvs/en/0x20-V11-Cryptogr
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V11.5.1 | 2 | yes | `crypto.getRandomValues` for the CSP nonce; better-auth's CSPRNG for ids and tokens | unit `src/server/security-headers.test.ts` | met |
+| V11.5.1 | 2 | yes | `crypto.getRandomValues` for the CSP nonce; better-auth's CSPRNG for ids and tokens; `crypto.randomInt` for class join codes (#49) | unit `src/server/security-headers.test.ts`, `src/lib/join-code.test.ts` | met |
 | V11.5.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V11.6 Public Key Cryptography
@@ -834,7 +834,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`); every SCIM write too, and every refused SCIM token for any method as `scim_token_refused` with the reason (missing, unknown, revoked, expired, provider disabled): an unknown or missing one once per client and minute with the count it stands for, any other once per token and minute (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts`, `src/server/scim/gate.test.ts`; integration `tests/integration/scim-provisioning.test.ts`, `tests/integration/scim-hardening.test.ts` | met |
-| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`); so is a class the teacher does not teach, the `not_found` of the class service and the class page (`logClassNotFound`, `src/server/classes/access.ts`); class refusals by role or archive, and an administrator's refused transfer, creation or import (`not_a_teacher`, `owner_blocked`, `already_owner`, `archived`, `not_archived`, #37), are activity-log rows; a refused host command (`admin grant` or `revoke`, `idp add`, `enable` or `disable`) writes a row with outcome `refused`, actor `system` and its reason code (`src/server/admin-grant/grants.ts`, `src/server/idp/command.ts`); a SCIM 403 or 404 (another provider's resource) is a refused `scim_user_*` or `scim_group_*` row, reads included (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts`, `src/server/classes/classes.test.ts`, `src/server/classes/queries.test.ts`, `src/server/classes/admin.test.ts`, `src/server/cli-refusals.test.ts`, `src/server/admin-grant/grants.test.ts`; integration `tests/integration/scim-provisioning.test.ts` | met |
+| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`); so is a class the teacher does not teach, the `not_found` of the class service and the class page (`logClassNotFound`, `src/server/classes/access.ts`); class refusals by role or archive, and an administrator's refused transfer, creation or import (`not_a_teacher`, `owner_blocked`, `already_owner`, `archived`, `not_archived`, #37), are activity-log rows, and so is every refused or failed join with a class code (`class_join_failed`, #49); a refused host command (`admin grant` or `revoke`, `idp add`, `enable` or `disable`) writes a row with outcome `refused`, actor `system` and its reason code (`src/server/admin-grant/grants.ts`, `src/server/idp/command.ts`); a SCIM 403 or 404 (another provider's resource) is a refused `scim_user_*` or `scim_group_*` row, reads included (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts`, `src/server/classes/classes.test.ts`, `src/server/classes/queries.test.ts`, `src/server/classes/admin.test.ts`, `src/server/classes/join.test.ts`, `src/server/cli-refusals.test.ts`, `src/server/admin-grant/grants.test.ts`; integration `tests/integration/scim-provisioning.test.ts` | met |
 | V16.3.3 | 2 | yes | rejected uploads (S4) and refused access belong in the B4 audit log | unit tests with S4 and B4 | planned |
 | V16.3.4 | 2 | yes | an unreachable FerroEHR or FerroBRIDGE is checked every minute, stored with its error class and shown in the Admin portal within 5 minutes (B3, `src/server/integrations/`); a failed scheduled run is logged by its class only; other unexpected errors are not logged centrally yet | unit `src/server/integrations/checks.test.ts`, e2e `tests/e2e/admin-analysers.spec.ts` | partial |
 

@@ -62,6 +62,22 @@ describe("pruneRetention (owner decision on #32)", () => {
     expect(sessions.map((s) => s.id).sort()).toEqual(["s-edge", "s-live"]);
   });
 
+  it("drops join-code counters older than a day and keeps a live one (#49)", async () => {
+    const database = await createTestDb();
+    db = database;
+    const day = 86_400_000;
+    await database
+      .insertInto("class_join_attempts")
+      .values([
+        { key_hash: "a".repeat(64), window_start: new Date(NOW.getTime() - day - 1), failures: 3 },
+        { key_hash: "b".repeat(64), window_start: new Date(NOW.getTime() - 60_000), failures: 1 },
+      ])
+      .execute();
+    await pruneRetention(database, NOW);
+    const rows = await database.selectFrom("class_join_attempts").select("key_hash").execute();
+    expect(rows).toEqual([{ key_hash: "b".repeat(64) }]);
+  });
+
   it("removes nothing on a second run with the same clock", async () => {
     const database = await createTestDb();
     db = database;

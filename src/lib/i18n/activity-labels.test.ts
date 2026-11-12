@@ -58,6 +58,15 @@ describe("activity log labels (#36)", () => {
       "the administrator role was withdrawn on the host",
     );
     expect(activityReasonLabel("rate_limited")).toBe("code rate_limited");
+  });
+
+  it("puts the reasons of a refused join with a code in words (#49)", () => {
+    expect(activityReasonLabel("removed")).toBe("a teacher removed the student from the class");
+    expect(activityReasonLabel("unknown_code")).toBe("no class has this join code");
+    expect(activityReasonLabel("rate_limited_ip")).toBe(
+      "too many wrong join codes from one address",
+    );
+    expect(activityReasonLabel("class_archived")).toBe("the class is archived");
     expect(activityReasonLabel("toString")).toBe("code toString");
   });
 

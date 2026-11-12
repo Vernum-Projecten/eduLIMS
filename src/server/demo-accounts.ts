@@ -107,6 +107,26 @@ export const DEV_USERS = [
     roles: ["teacher"],
     hidden: true,
   },
+  // The join-code journeys (#49): an owner who turns the code on, a student who joins with it,
+  // and one who guesses until the rate limit refuses them.
+  {
+    email: "joincode-owner@example.test",
+    name: "Join Code Test Owner",
+    roles: ["teacher"],
+    hidden: true,
+  },
+  {
+    email: "joincode-student@example.test",
+    name: "Join Code Test Student",
+    roles: ["student"],
+    hidden: true,
+  },
+  {
+    email: "joincode-guesser@example.test",
+    name: "Join Code Test Guesser",
+    roles: ["student"],
+    hidden: true,
+  },
 ] as const satisfies readonly DevUser[];
 
 /** The realm of the development Keycloak (compose.dev.yaml). */
