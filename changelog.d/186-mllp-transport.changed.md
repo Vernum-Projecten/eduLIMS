@@ -1,1 +1,0 @@
-- Set `FERROBRIDGE_MLLP_BIND_HOST` to the host's lab-facing address and admit only the analysers' fixed addresses to the MLLP port in the host firewall (`DOCKER-USER` chain), as `docs/deployment.md`, "The MLLP port", describes.

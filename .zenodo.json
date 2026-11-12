@@ -4,7 +4,8 @@
   "language": "eng",
   "title": "eduLIMS",
   "description": "<p>An open-source laboratory information management system (LIMS) for practical laboratory education. Students register samples, upload and check measurements and submit lab reports; teachers grade with a rubric and follow a KPI dashboard. Measurement data is stored as openEHR compositions in FerroEHR.</p>",
-  "version": "0.0.0",
+  "publication_date": "2026-11-12",
+  "version": "0.1.0",
   "creators": [
     {
       "name": "Talstra, Ruben",
@@ -38,6 +39,11 @@
       "identifier": "https://edulims.eu/",
       "relation": "isDocumentedBy",
       "resource_type": "publication-softwaredocumentation"
+    },
+    {
+      "identifier": "https://github.com/Vernum-Projecten/eduLIMS/tree/v0.1.0",
+      "relation": "isSupplementTo",
+      "resource_type": "software"
     },
     {
       "identifier": "10.5281/zenodo.21940279",

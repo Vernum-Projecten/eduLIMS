@@ -1,1 +1,0 @@
-- `NODE_ENV` is no longer set in the environment file: with `NODE_ENV=development` there, `pnpm build` produced a server that failed every page. `pnpm db:seed` and `pnpm db:reset` set development themselves. Remove a `NODE_ENV` line from your own environment file (#19).

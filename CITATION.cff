@@ -38,7 +38,8 @@ keywords:
   - TypeScript
   - TanStack Start
   - PostgreSQL
-version: "0.0.0"
+version: "0.1.0"
+date-released: "2026-11-12"
 references:
   - type: standard
     title: "openEHR REST API (ITS-REST)"
