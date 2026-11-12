@@ -109,7 +109,7 @@ export interface Invitation {
   ended_at: Timestamp | null;
   expiresAt: Timestamp;
   id: string;
-  inviterId: string;
+  inviterId: string | null;
   organizationId: string;
   role: string;
   status: Generated<string>;
