@@ -68,14 +68,28 @@ export interface AuditEvent {
   target_type: string | null;
 }
 
+export interface ClassJoinAttempts {
+  failures: number;
+  key_hash: string;
+  window_start: Timestamp;
+}
+
 export interface ClassJoinCodes {
   code_hash: string;
   created_at: Timestamp;
   created_by: string | null;
   expires_at: Timestamp;
+  key_fingerprint: string;
   max_uses: number;
   organization_id: string;
   uses: Generated<number>;
+}
+
+export interface ClassRemovals {
+  organization_id: string;
+  removed_at: Generated<Timestamp>;
+  removed_by: string | null;
+  user_id: string;
 }
 
 export interface IdentityProvider {
@@ -347,7 +361,9 @@ export interface DB {
   account: Account;
   analysers: Analysers;
   audit_event: AuditEvent;
+  class_join_attempts: ClassJoinAttempts;
   class_join_codes: ClassJoinCodes;
+  class_removals: ClassRemovals;
   identity_provider: IdentityProvider;
   identity_provider_domain: IdentityProviderDomain;
   integration_checks: IntegrationChecks;

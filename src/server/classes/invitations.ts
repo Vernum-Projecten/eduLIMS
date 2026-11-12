@@ -16,6 +16,7 @@ import type { DB } from "../db/schema.gen.ts";
 import { appRoleFits } from "./acceptance.ts";
 import { type ClassActor, type ClassResult, done, refused, withClass } from "./access.ts";
 import { INVITATION_LIFETIME_SECONDS } from "./plugin.ts";
+import { clearRemovalsOfAddresses } from "./removals.ts";
 
 /** How one address of a list fares; only `new` rows become invitations. */
 export const INVITE_ROW_STATUSES = [
@@ -152,6 +153,8 @@ export function createInvitations(
         .where("email", "in", fresh)
         .execute();
     }
+    // NOTE: #49 (security review of #119); a new invitation lets a removed student back in.
+    if (input.role === "student") await clearRemovalsOfAddresses(trx, locked.id, fresh);
     for (const email of fresh) {
       const id = newId();
       await trx

@@ -139,8 +139,13 @@ check on the session user, with the plugin's own endpoints unreachable. A
 person joins every class that invited their verified email when they sign
 in; eduLIMS sends no email. A student who signs in with another address joins
 with the class's join code (#49) instead: eduLIMS's own `class_join_codes`
-table keeps one HMAC of the code per class with its term and number of joins,
-and wrong codes are limited per student and per client IP in the app process.
+table keeps one HMAC of the code per class with its term, its number of joins
+and the fingerprint of its key. Every attempt is counted per student and per
+client IP (only through `EDULIMS_TRUSTED_PROXIES`) in `class_join_attempts`,
+one atomic upsert per key before the lookup, so parallel requests, restarts
+and replicas share the count; a join takes its count back. A student a
+teacher removes is recorded in `class_removals` and cannot rejoin with the
+code until a new invitation or a re-add clears the record.
 
 ### Template `eduLIMS-lab`
 

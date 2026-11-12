@@ -137,7 +137,10 @@ The panel shows until when the code works and how many students joined with
 it. **New code** makes a new code with new settings; the old code stops
 working at once. **Turn off** stops the code; the students who joined stay in
 the class. A code never works while the class is archived, and too many wrong
-codes in a row lock a student out for 15 minutes.
+codes in a row lock a student out for 15 minutes. A student you remove from
+the class cannot rejoin with the code; invite their address again to let them
+back in. If the panel says the code no longer works because the server's
+secret changed, make a new code.
 
 ### Lab groups
 

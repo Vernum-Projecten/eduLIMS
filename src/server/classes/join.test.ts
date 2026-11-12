@@ -5,10 +5,11 @@ import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
-import { archiveClass } from "./classes.ts";
+import { archiveClass, removeMember } from "./classes.ts";
+import { createInvitations } from "./invitations.ts";
 import { type JoinContext, joinClassWithCode } from "./join.ts";
-import { enableJoinCode, joinCodeHasher, regenerateJoinCode } from "./join-code.ts";
-import { JoinFailureLimiter, type JoinLimits } from "./join-limits.ts";
+import { enableJoinCode, joinCodeKey, regenerateJoinCode } from "./join-code.ts";
+import type { JoinLimits } from "./join-limits.ts";
 import { auditRows, classWithPeople, NOW, person, securityLines } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
@@ -23,22 +24,13 @@ async function open(): Promise<Kysely<DB>> {
   return db;
 }
 
-const hash = joinCodeHasher("join-test-secret-that-is-long-enough-to-use");
+const key = joinCodeKey("join-test-secret-that-is-long-enough-to-use");
 const DAY = 86_400_000;
-const LIMITS: JoinLimits = {
-  user: { maxFailures: 3, windowMs: 60_000 },
-  ip: { maxFailures: 5, windowMs: 60_000 },
-  maxKeys: 100,
-};
+const LIMITS: JoinLimits = { user: 3, ip: 5, windowMs: 60_000 };
+const WRONG = "AAAAA-AAAA2";
 
 function context(overrides: Partial<JoinContext> = {}): JoinContext {
-  return {
-    now: NOW,
-    clientIp: "192.0.2.10",
-    hash,
-    limiter: new JoinFailureLimiter(LIMITS),
-    ...overrides,
-  };
+  return { now: NOW, clientIp: "192.0.2.10", key, limits: LIMITS, ...overrides };
 }
 
 /** A class with a join code that is on; returns the people and the code. */
@@ -49,7 +41,7 @@ async function classWithCode(database: Kysely<DB>, settings = { validDays: 7, ma
     people.owner,
     { classId: people.classId, ...settings },
     NOW,
-    hash,
+    key,
   );
   if (!enabled.ok) throw new Error(enabled.error);
   return { ...people, code: enabled.value.code };
@@ -101,8 +93,7 @@ describe("joinClassWithCode: joining (#49, S2)", () => {
     const database = await open();
     const { classId, code } = await classWithCode(database);
     const other = await person(database, "other-address", ["student"], { verified: false });
-    const result = await joinClassWithCode(database, other, { code }, context());
-    expect(result.ok).toBe(true);
+    expect((await joinClassWithCode(database, other, { code }, context())).ok).toBe(true);
     expect(await memberRole(database, classId, other.id)).toBe("student");
   });
 
@@ -117,13 +108,22 @@ describe("joinClassWithCode: joining (#49, S2)", () => {
   it("tells a member they are in the class already and costs no use", async () => {
     const database = await open();
     const { classId, code, studentA } = await classWithCode(database);
-    const result = await joinClassWithCode(database, studentA, { code }, context());
-    expect(result).toEqual({
+    expect(await joinClassWithCode(database, studentA, { code }, context())).toEqual({
       ok: true,
       value: { status: "already_member", className: "LS-2A", academicYear: "2026-2027" },
     });
     expect(await usesOf(database, classId)).toBe(0);
     expect(await auditRows(database, "class_joined")).toEqual([]);
+  });
+
+  it("refunds the attempt a join charged, so joins never count against the limit", async () => {
+    const database = await open();
+    const { code } = await classWithCode(database, { validDays: 7, maxUses: 100 });
+    const ctx = context();
+    for (let i = 0; i < LIMITS.ip + 2; i += 1) {
+      const student = await person(database, `lab-${i}`, ["student"]);
+      expect((await joinClassWithCode(database, student, { code }, ctx)).ok).toBe(true);
+    }
   });
 });
 
@@ -136,27 +136,27 @@ describe("joinClassWithCode: refusals (#49)", () => {
     const database = await open();
     const { classId, code } = await classWithCode(database);
     const staff = await person(database, "staff", roles);
-    const result = await joinClassWithCode(database, staff, { code }, context());
-    expect(result).toEqual({ ok: false, error: "not_a_student" });
+    expect(await joinClassWithCode(database, staff, { code }, context())).toEqual({
+      ok: false,
+      error: "not_a_student",
+    });
     expect(await memberRole(database, classId, staff.id)).toBeNull();
     expect(await auditRows(database, "class_join_failed")).toEqual([
       expect.objectContaining({
         actor_id: staff.id,
         outcome: "refused",
         reason_code: "not_a_student",
-        target_type: null,
       }),
     ]);
   });
 
-  it("answers a wrong code as invalid_code without naming a class", async () => {
+  it("answers a wrong code as invalid_code without naming a class or the address", async () => {
     const database = await open();
-    const { code } = await classWithCode(database);
+    await classWithCode(database);
     const guesser = await person(database, "guesser", ["student"]);
-    const wrong = code.startsWith("A") ? "BBBBB-BBBBB" : "AAAAA-AAAAA";
     let result: Awaited<ReturnType<typeof joinClassWithCode>> | undefined;
     const lines = await securityLines(async () => {
-      result = await joinClassWithCode(database, guesser, { code: wrong }, context());
+      result = await joinClassWithCode(database, guesser, { code: WRONG }, context());
     });
     expect(result).toEqual({ ok: false, error: "invalid_code" });
     expect(await auditRows(database, "class_join_failed")).toEqual([
@@ -164,29 +164,29 @@ describe("joinClassWithCode: refusals (#49)", () => {
         actor_id: guesser.id,
         outcome: "failure",
         reason_code: "unknown_code",
-        target_type: null,
         target_id: null,
       }),
     ]);
     expect(lines).toContainEqual(
-      expect.objectContaining({
-        event: "class_join_failed",
-        actor_id: guesser.id,
-        reason: "unknown_code",
-      }),
+      expect.objectContaining({ event: "class_join_failed", reason: "unknown_code" }),
     );
     expect(JSON.stringify(lines)).not.toContain(guesser.email);
     expect(JSON.stringify(lines)).not.toContain("192.0.2.10");
   });
 
-  it("answers a malformed code as invalid_code and counts it", async () => {
+  it.each([
+    ["malformed", "nope", "malformed_code"],
+    ["of the wrong shape but long", "ZZZZZ-ZZZZZ-ZZ", "malformed_code"],
+  ])("answers a %s code as invalid_code and counts it", async (_case, typed, reason) => {
     const database = await open();
     await classWithCode(database);
     const guesser = await person(database, "guesser", ["student"]);
-    const result = await joinClassWithCode(database, guesser, { code: "nope" }, context());
-    expect(result).toEqual({ ok: false, error: "invalid_code" });
+    expect(await joinClassWithCode(database, guesser, { code: typed }, context())).toEqual({
+      ok: false,
+      error: "invalid_code",
+    });
     expect(await auditRows(database, "class_join_failed")).toEqual([
-      expect.objectContaining({ reason_code: "malformed_code" }),
+      expect.objectContaining({ reason_code: reason }),
     ]);
   });
 
@@ -199,7 +199,6 @@ describe("joinClassWithCode: refusals (#49)", () => {
       ok: false,
       error: "invalid_code",
     });
-    expect(await memberRole(database, classId, late.id)).toBeNull();
     expect(await auditRows(database, "class_join_failed")).toEqual([
       expect.objectContaining({ reason_code: "code_expired", target_id: classId }),
     ]);
@@ -244,7 +243,7 @@ describe("joinClassWithCode: refusals (#49)", () => {
       owner,
       { classId, validDays: 7, maxUses: 30 },
       NOW,
-      hash,
+      key,
     );
     if (!fresh.ok) throw new Error(fresh.error);
     const newcomer = await person(database, "newcomer", ["student"]);
@@ -257,78 +256,142 @@ describe("joinClassWithCode: refusals (#49)", () => {
     );
     expect(joined.ok).toBe(true);
   });
+
+  it("does not work under a rotated secret (review L2)", async () => {
+    const database = await open();
+    const { code } = await classWithCode(database);
+    const newcomer = await person(database, "newcomer", ["student"]);
+    const rotated = context({ key: joinCodeKey("a-rotated-better-auth-secret-of-enough-length") });
+    expect(await joinClassWithCode(database, newcomer, { code }, rotated)).toEqual({
+      ok: false,
+      error: "invalid_code",
+    });
+  });
+});
+
+describe("joinClassWithCode: a removed student (owner decision on the review of #119)", () => {
+  it("cannot rejoin with the live code, and the log says why", async () => {
+    const database = await open();
+    const { classId, code, owner, studentA } = await classWithCode(database);
+    await removeMember(database, owner, { classId, userId: studentA.id });
+    expect(await joinClassWithCode(database, studentA, { code }, context())).toEqual({
+      ok: false,
+      error: "invalid_code",
+    });
+    expect(await memberRole(database, classId, studentA.id)).toBeNull();
+    expect(await auditRows(database, "class_join_failed")).toEqual([
+      expect.objectContaining({ reason_code: "removed", target_id: classId }),
+    ]);
+  });
+
+  it("can join again once a teacher invites their address anew", async () => {
+    const database = await open();
+    const { classId, code, owner, studentA } = await classWithCode(database);
+    await removeMember(database, owner, { classId, userId: studentA.id });
+    await createInvitations(
+      database,
+      owner,
+      { classId, role: "student", emails: [studentA.email] },
+      NOW,
+    );
+    expect((await joinClassWithCode(database, studentA, { code }, context())).ok).toBe(true);
+  });
+
+  it("does not block another student or another class", async () => {
+    const database = await open();
+    const { classId, code, owner, studentA } = await classWithCode(database);
+    await removeMember(database, owner, { classId, userId: studentA.id });
+    const newcomer = await person(database, "newcomer", ["student"]);
+    expect((await joinClassWithCode(database, newcomer, { code }, context())).ok).toBe(true);
+    const removals = await database.selectFrom("class_removals").select("user_id").execute();
+    expect(removals).toEqual([{ user_id: studentA.id }]);
+  });
+
+  it("records no removal for a co-teacher", async () => {
+    const database = await open();
+    const { classId, owner, coTeacher } = await classWithCode(database);
+    await removeMember(database, owner, { classId, userId: coTeacher.id });
+    expect(await database.selectFrom("class_removals").select("user_id").execute()).toEqual([]);
+  });
 });
 
 describe("joinClassWithCode: the brute-force limit (#49, ASVS V2.4.1)", () => {
-  it("refuses a student after their limit, even with the right code, and logs the moment once", async () => {
+  it("refuses a student over their limit, even with the right code, and logs it once", async () => {
     const database = await open();
     const { classId, code } = await classWithCode(database);
     const guesser = await person(database, "guesser", ["student"]);
-    const ctx = context();
-    for (let i = 0; i < LIMITS.user.maxFailures; i += 1) {
-      const wrong = await joinClassWithCode(database, guesser, { code: "AAAAA-AAAA2" }, ctx);
-      expect(wrong).toEqual({ ok: false, error: "invalid_code" });
+    const ctx = context({ clientIp: null });
+    for (let i = 0; i < LIMITS.user; i += 1) {
+      expect(await joinClassWithCode(database, guesser, { code: WRONG }, ctx)).toEqual({
+        ok: false,
+        error: "invalid_code",
+      });
     }
-    let blocked: Awaited<ReturnType<typeof joinClassWithCode>> | undefined;
     const lines = await securityLines(async () => {
-      blocked = await joinClassWithCode(database, guesser, { code }, ctx);
+      for (const typed of [code, WRONG, code]) {
+        expect(await joinClassWithCode(database, guesser, { code: typed }, ctx)).toEqual({
+          ok: false,
+          error: "rate_limited",
+        });
+      }
     });
-    expect(blocked).toEqual({ ok: false, error: "rate_limited" });
     expect(await memberRole(database, classId, guesser.id)).toBeNull();
+    // One stream line for the moment the limit was reached, none for the later tries (L3).
     expect(lines).toEqual([
       expect.objectContaining({
         event: "class_join_failed",
         outcome: "refused",
-        actor_id: guesser.id,
-        reason: "rate_limited",
+        reason: "rate_limited_user",
       }),
     ]);
     const rows = await auditRows(database, "class_join_failed");
-    expect(rows.filter((row) => row.reason_code === "rate_limited")).toHaveLength(1);
-    expect(rows.filter((row) => row.reason_code === "unknown_code")).toHaveLength(3);
+    expect(rows.filter((row) => row.reason_code === "rate_limited_user")).toHaveLength(1);
+    expect(rows.filter((row) => row.reason_code === "unknown_code")).toHaveLength(LIMITS.user);
   });
 
-  it("refuses every student behind an address after the address's limit", async () => {
+  it("lets a student behind a limited address join with a valid code (owner decision, M3)", async () => {
     const database = await open();
-    const { code } = await classWithCode(database);
+    const { classId, code } = await classWithCode(database);
     const ctx = context();
-    for (let i = 0; i < LIMITS.ip.maxFailures; i += 1) {
+    for (let i = 0; i < LIMITS.ip + 1; i += 1) {
       const student = await person(database, `guesser-${i}`, ["student"]);
-      await joinClassWithCode(database, student, { code: "AAAAA-AAAA2" }, ctx);
+      await joinClassWithCode(database, student, { code: WRONG }, ctx);
     }
     const honest = await person(database, "honest", ["student"]);
-    expect(await joinClassWithCode(database, honest, { code }, ctx)).toEqual({
+    expect(await joinClassWithCode(database, honest, { code: WRONG }, ctx)).toEqual({
       ok: false,
       error: "rate_limited",
     });
-    const elsewhere = await joinClassWithCode(
-      database,
-      honest,
-      { code },
-      { ...ctx, clientIp: "192.0.2.99" },
-    );
-    expect(elsewhere.ok).toBe(true);
+    expect((await joinClassWithCode(database, honest, { code }, ctx)).ok).toBe(true);
+    expect(await memberRole(database, classId, honest.id)).toBe("student");
+    const rows = await auditRows(database, "class_join_failed");
+    expect(rows.filter((row) => row.reason_code === "rate_limited_ip")).toHaveLength(1);
   });
 
-  it("does not count successful joins against the address", async () => {
-    const database = await open();
-    const { code } = await classWithCode(database);
-    const ctx = context();
-    for (let i = 0; i < LIMITS.ip.maxFailures + 1; i += 1) {
-      const student = await person(database, `lab-${i}`, ["student"]);
-      expect((await joinClassWithCode(database, student, { code }, ctx)).ok).toBe(true);
-    }
-  });
-
-  it("limits per student only when no client IP can be trusted", async () => {
+  it("limits per student only when no proxy is trusted", async () => {
     const database = await open();
     const { code } = await classWithCode(database);
     const ctx = context({ clientIp: null });
-    for (let i = 0; i < LIMITS.ip.maxFailures; i += 1) {
+    for (let i = 0; i < LIMITS.ip + 1; i += 1) {
       const student = await person(database, `anon-${i}`, ["student"]);
-      await joinClassWithCode(database, student, { code: "AAAAA-AAAA2" }, ctx);
+      await joinClassWithCode(database, student, { code: WRONG }, ctx);
     }
     const honest = await person(database, "honest", ["student"]);
+    expect(await joinClassWithCode(database, honest, { code: WRONG }, ctx)).toEqual({
+      ok: false,
+      error: "invalid_code",
+    });
     expect((await joinClassWithCode(database, honest, { code }, ctx)).ok).toBe(true);
+  });
+
+  it("forgets the count once the window has passed", async () => {
+    const database = await open();
+    const { code } = await classWithCode(database);
+    const guesser = await person(database, "guesser", ["student"]);
+    for (let i = 0; i <= LIMITS.user; i += 1) {
+      await joinClassWithCode(database, guesser, { code: WRONG }, context());
+    }
+    const later = context({ now: new Date(NOW.getTime() + LIMITS.windowMs) });
+    expect((await joinClassWithCode(database, guesser, { code }, later)).ok).toBe(true);
   });
 });

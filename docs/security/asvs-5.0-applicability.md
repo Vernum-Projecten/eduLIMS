@@ -349,7 +349,7 @@ Text: [vendor/asvs/en/0x15-V6-Authentication.md](vendor/asvs/en/0x15-V6-Authenti
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V6.3.1 | 1 | partly | better-auth rate limits `/api/auth/*`; brute force against the IdP is the IdP's; guessing a class join code is limited per student and per client IP (#49) | unit `src/server/classes/join.test.ts` | partial |
+| V6.3.1 | 1 | partly | better-auth rate limits `/api/auth/*`; brute force against the IdP is the IdP's; guessing a class join code is limited per student and per client IP, counted in PostgreSQL before the lookup (#49) | unit `src/server/classes/join.test.ts`, `src/server/classes/join-concurrency.test.ts` | partial |
 | V6.3.2 | 1 | yes | no default account in production: the seed users exist only with the dev login (`src/server/db/seed.ts`, `src/server/env.ts`) | unit `src/server/env.test.ts`, `src/server/auth.test.ts` | met |
 | V6.3.3 | 2 | partly | MFA is enforced at the institution's IdP (Entra ID Conditional Access or Keycloak); eduLIMS does not check it (see V6.8.4) | manual, operator | open |
 | V6.3.4 | 2 | yes | sign-up is off, the dev login is refused in production, and only the configured OIDC providers exist (`src/server/auth.ts`, `src/server/env.ts`) | unit `src/server/auth.test.ts`, `src/server/env.test.ts` | met |
@@ -601,8 +601,8 @@ Text: [vendor/asvs/en/0x20-V11-Cryptography.md](vendor/asvs/en/0x20-V11-Cryptogr
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V11.1.1 | 2 | yes | `EDULIMS_DATA_KEY` (provider secrets and the accounts' sealed ID tokens) is documented with its generation, storage, rotation (`EDULIMS_DATA_KEY_PREVIOUS`, `idp rekey`, `src/server/idp/rekey.test.ts`) and loss (`docs/deployment.md`, "Data key"); no policy yet for `BETTER_AUTH_SECRET` and the database passwords | review | partial |
-| V11.1.2 | 2 | yes | the AES-256-GCM data key is recorded in ADR 0015; no full cryptographic inventory yet (TLS at the proxy, HMAC cookies, IdP signatures, Sigstore) | review | partial |
+| V11.1.1 | 2 | yes | `EDULIMS_DATA_KEY` (provider secrets and the accounts' sealed ID tokens) is documented with its generation, storage, rotation (`EDULIMS_DATA_KEY_PREVIOUS`, `idp rekey`, `src/server/idp/rekey.test.ts`) and loss (`docs/deployment.md`, "Data key"); the class join code's HMAC key is derived from `BETTER_AUTH_SECRET` with HKDF, and every code stores the key's fingerprint, so after a rotation the teacher sees "make a new code" and old codes stop working (#49); no policy yet for rotating `BETTER_AUTH_SECRET` itself or the database passwords | unit `src/server/classes/join-code.test.ts` (stale after a rotation), `src/server/classes/join.test.ts` | partial |
+| V11.1.2 | 2 | yes | the AES-256-GCM data key is recorded in ADR 0015; the class join code (#49) uses HMAC-SHA-256 under an HKDF-SHA-256 key from `BETTER_AUTH_SECRET` for the code and the rate-limit keys (never an address at rest), with a 16-digit SHA-256 key fingerprint (`src/server/classes/join-code.ts`); no full cryptographic inventory yet (TLS at the proxy, HMAC cookies, IdP signatures, Sigstore) | review | partial |
 | V11.1.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V11.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 

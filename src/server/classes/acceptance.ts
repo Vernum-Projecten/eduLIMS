@@ -10,6 +10,7 @@ import { type Role, validateRoleValue } from "../../lib/roles.ts";
 import { recordAudit } from "../audit/record.ts";
 import { newId } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { clearRemoval } from "./removals.ts";
 
 /** Returns whether a person with app roles `roles` may hold the class role `role` (#28). */
 export function appRoleFits(role: InvitationRole, roles: readonly Role[]): boolean {
@@ -110,6 +111,7 @@ export async function acceptInvitationsOnSignIn(
         })
         .onConflict((oc) => oc.columns(["organizationId", "userId"]).doNothing())
         .execute();
+      await clearRemoval(trx, invitation.organizationId, userId);
       await trx
         .updateTable("invitation")
         .set({ status: "accepted", ended_at: now })

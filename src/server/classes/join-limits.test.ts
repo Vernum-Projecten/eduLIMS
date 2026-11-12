@@ -1,69 +1,102 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, expect, it } from "vitest";
-import { JOIN_LIMITS, JoinFailureLimiter, type JoinLimits, type LimitKey } from "./join-limits.ts";
+import type { Kysely } from "kysely";
+import { afterEach, describe, expect, it } from "vitest";
+import type { DB } from "../db/schema.gen.ts";
+import { createTestDb } from "../db/test-db.ts";
+import {
+  chargeAttempt,
+  JOIN_LIMITS,
+  type JoinLimits,
+  justOverLimit,
+  limitKeyText,
+  overLimit,
+  refundAttempt,
+} from "./join-limits.ts";
 
-const LIMITS: JoinLimits = {
-  user: { maxFailures: 3, windowMs: 1_000 },
-  ip: { maxFailures: 5, windowMs: 2_000 },
-  maxKeys: 10,
-};
+let db: Kysely<DB> | undefined;
 
-const user = (id: string): LimitKey => ({ kind: "user", id });
-const ip = (address: string): LimitKey => ({ kind: "ip", address });
+afterEach(async () => {
+  await db?.destroy();
+  db = undefined;
+});
 
-describe("JoinFailureLimiter (#49, ASVS V2.4.1)", () => {
-  it("blocks a user after their limit of wrong codes and reports the moment once", () => {
-    const limiter = new JoinFailureLimiter(LIMITS);
-    expect(limiter.fail([user("a")], 0)).toBe(false);
-    expect(limiter.fail([user("a")], 1)).toBe(false);
-    expect(limiter.blocked([user("a")], 2)).toBe(false);
-    expect(limiter.fail([user("a")], 2)).toBe(true);
-    expect(limiter.blocked([user("a")], 3)).toBe(true);
-    expect(limiter.fail([user("a")], 3)).toBe(false);
+async function open(): Promise<Kysely<DB>> {
+  db = await createTestDb();
+  return db;
+}
+
+const KEY = "a".repeat(64);
+const OTHER = "b".repeat(64);
+const WINDOW = 60_000;
+const T0 = new Date("2026-11-11T09:00:00Z");
+const at = (ms: number) => new Date(T0.getTime() + ms);
+const LIMITS: JoinLimits = { user: 3, ip: 5, windowMs: WINDOW };
+
+describe("chargeAttempt (#49, ASVS V2.4.1)", () => {
+  it("counts the attempts of one key in its window", async () => {
+    const database = await open();
+    expect(await chargeAttempt(database, KEY, at(0), WINDOW)).toBe(1);
+    expect(await chargeAttempt(database, KEY, at(1), WINDOW)).toBe(2);
+    expect(await chargeAttempt(database, OTHER, at(2), WINDOW)).toBe(1);
+    expect(await chargeAttempt(database, KEY, at(3), WINDOW)).toBe(3);
   });
 
-  it("forgets a window once it has passed", () => {
-    const limiter = new JoinFailureLimiter(LIMITS);
-    for (const at of [0, 1, 2]) limiter.fail([user("a")], at);
-    expect(limiter.blocked([user("a")], 999)).toBe(true);
-    expect(limiter.blocked([user("a")], 1_000)).toBe(false);
-    expect(limiter.fail([user("a")], 1_000)).toBe(false);
-    expect(limiter.blocked([user("a")], 1_001)).toBe(false);
+  it("starts a new window once the old one has passed", async () => {
+    const database = await open();
+    await chargeAttempt(database, KEY, at(0), WINDOW);
+    await chargeAttempt(database, KEY, at(1), WINDOW);
+    expect(await chargeAttempt(database, KEY, at(WINDOW), WINDOW)).toBe(1);
+    expect(await chargeAttempt(database, KEY, at(WINDOW + 1), WINDOW)).toBe(2);
   });
 
-  it("blocks an address across users, and leaves another user and address alone", () => {
-    const limiter = new JoinFailureLimiter(LIMITS);
-    for (const [at, id] of ["a", "b", "c", "a", "b"].entries()) {
-      limiter.fail([user(id), ip("192.0.2.1")], at);
-    }
-    expect(limiter.blocked([user("d"), ip("192.0.2.1")], 10)).toBe(true);
-    expect(limiter.blocked([user("d"), ip("192.0.2.2")], 10)).toBe(false);
-    expect(limiter.blocked([user("c")], 10)).toBe(false);
+  it("stores the keyed hash only, never the address", async () => {
+    const database = await open();
+    await chargeAttempt(database, KEY, at(0), WINDOW);
+    const rows = await database.selectFrom("class_join_attempts").select("key_hash").execute();
+    expect(rows).toEqual([{ key_hash: KEY }]);
+    await expect(chargeAttempt(database, "ip:192.0.2.10", at(0), WINDOW)).rejects.toThrow();
+  });
+});
+
+describe("refundAttempt", () => {
+  it("takes back one attempt, never below zero, and only in the current window", async () => {
+    const database = await open();
+    await chargeAttempt(database, KEY, at(0), WINDOW);
+    await refundAttempt(database, KEY, at(1), WINDOW);
+    await refundAttempt(database, KEY, at(2), WINDOW);
+    expect(await chargeAttempt(database, KEY, at(3), WINDOW)).toBe(1);
+    await refundAttempt(database, KEY, at(WINDOW + 10), WINDOW);
+    expect(await chargeAttempt(database, KEY, at(4), WINDOW)).toBe(2);
+  });
+});
+
+describe("the limit of a charge", () => {
+  const user = { kind: "user", id: "u1" } as const;
+  const ip = { kind: "ip", address: "192.0.2.10" } as const;
+
+  it("is over once the count passes the key's limit, and just over exactly once", () => {
+    const charge = (key: typeof user | typeof ip, attempts: number) => ({
+      key,
+      keyHash: KEY,
+      attempts,
+    });
+    expect(overLimit(charge(user, 3), LIMITS)).toBe(false);
+    expect(overLimit(charge(user, 4), LIMITS)).toBe(true);
+    expect(justOverLimit(charge(user, 4), LIMITS)).toBe(true);
+    expect(justOverLimit(charge(user, 5), LIMITS)).toBe(false);
+    expect(overLimit(charge(ip, 5), LIMITS)).toBe(false);
+    expect(overLimit(charge(ip, 6), LIMITS)).toBe(true);
   });
 
-  it("keeps the user and the address apart even when the strings match", () => {
-    const limiter = new JoinFailureLimiter(LIMITS);
-    for (const at of [0, 1, 2]) limiter.fail([user("x")], at);
-    expect(limiter.blocked([ip("x")], 3)).toBe(false);
-  });
-
-  it("fails closed when it tracks as many live keys as it may", () => {
-    const limiter = new JoinFailureLimiter({ ...LIMITS, maxKeys: 4 });
-    for (const id of ["a", "b", "c", "d"]) limiter.fail([user(id)], 0);
-    expect(limiter.blocked([user("e")], 10)).toBe(true);
-    expect(limiter.fail([user("e")], 10)).toBe(false);
-    // Once the windows have passed they are pruned and a new key gets in.
-    expect(limiter.blocked([user("e")], 5_000)).toBe(false);
-  });
-
-  it("reaches the limit on the first failure when the limit is one", () => {
-    const limiter = new JoinFailureLimiter({ ...LIMITS, user: { maxFailures: 1, windowMs: 10 } });
-    expect(limiter.fail([user("a")], 0)).toBe(true);
+  it("keeps a student and an address with the same text apart", () => {
+    expect(limitKeyText({ kind: "user", id: "x" })).not.toBe(
+      limitKeyText({ kind: "ip", address: "x" }),
+    );
   });
 
   it("allows a lab of students behind one address more wrong codes than one student", () => {
-    expect(JOIN_LIMITS.ip.maxFailures).toBeGreaterThan(JOIN_LIMITS.user.maxFailures);
+    expect(JOIN_LIMITS.ip).toBeGreaterThan(JOIN_LIMITS.user);
   });
 });

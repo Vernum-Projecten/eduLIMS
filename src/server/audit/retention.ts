@@ -66,6 +66,12 @@ export async function deleteExpired(db: Kysely<DB>, now: Date): Promise<PruneRes
       ]),
     )
     .executeTakeFirst();
+  // NOTE: #49; the join-code counters only matter within their 15-minute window, so a day-old
+  // row is dropped here and not counted: it is neither an event nor a person's record.
+  await db
+    .deleteFrom("class_join_attempts")
+    .where("window_start", "<", sql<Date>`${now}::timestamptz - make_interval(days => 1)`)
+    .execute();
   return {
     auditEvents: Number(events.numDeletedRows),
     sessions: Number(sessions.numDeletedRows),

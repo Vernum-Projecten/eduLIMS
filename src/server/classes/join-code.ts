@@ -5,7 +5,7 @@
 // read its state. The code itself leaves the server once, in the answer that made it; the
 // database keeps only its keyed hash, and the code ends by date and by uses (ASVS V6.4.1).
 import "@tanstack/react-start/server-only";
-import { createHmac, hkdfSync, randomInt } from "node:crypto";
+import { createHash, createHmac, hkdfSync, randomInt } from "node:crypto";
 import type { Kysely } from "kysely";
 import { formatJoinCode, generateJoinCode } from "../../lib/join-code.ts";
 import { recordAudit } from "../audit/record.ts";
@@ -21,17 +21,26 @@ import {
 } from "./access.ts";
 import { userActor } from "./classes.ts";
 
-/** Turns a normalised join code into its stored hash (hex). */
-export type JoinCodeHasher = (code: string) => string;
+/**
+ * The key of join codes: `hash` turns a normalised code (or a rate-limit key) into its stored
+ * HMAC (hex); `fingerprint` names the key, so a code made under another key shows as stale.
+ */
+export interface JoinCodeKey {
+  hash: (value: string) => string;
+  fingerprint: string;
+}
 
 /**
- * Returns the hasher of join codes: HMAC-SHA-256 under a key derived from `secret` (the
- * better-auth secret) with HKDF, so the stored hashes alone cannot be guessed offline.
+ * Returns the key of join codes: HMAC-SHA-256 under a key derived from `secret` (the better-auth
+ * secret) with HKDF, so the stored hashes alone cannot be guessed offline.
  */
-export function joinCodeHasher(secret: string): JoinCodeHasher {
+export function joinCodeKey(secret: string): JoinCodeKey {
   // NOTE: #49; a rotated BETTER_AUTH_SECRET makes every join code stop working, as it should.
   const key = Buffer.from(hkdfSync("sha256", secret, "", "edulims class join code", 32));
-  return (code) => createHmac("sha256", key).update(code, "utf8").digest("hex");
+  return {
+    hash: (value) => createHmac("sha256", key).update(value, "utf8").digest("hex"),
+    fingerprint: createHash("sha256").update(key).digest("hex").slice(0, 16),
+  };
 }
 
 /** The settings a teacher chooses for a code: how many days it works and how many joins. */
@@ -55,6 +64,8 @@ export type JoinCodeView =
       createdAt: string;
       expiresAt: string;
       expired: boolean;
+      /** Made under another `BETTER_AUTH_SECRET`: it no longer works, and a new code is due. */
+      stale: boolean;
       uses: number;
       maxUses: number;
     };
@@ -75,7 +86,7 @@ async function writeCode(
   actor: ClassActor,
   input: JoinCodeSettings & { classId: string },
   now: Date,
-  hash: JoinCodeHasher,
+  key: JoinCodeKey,
   mode: "enabled" | "regenerated",
 ): Promise<ClassResult<NewJoinCode>> {
   return withClass(db, actor, codeCheck(input.classId, mode), async (trx, locked) => {
@@ -83,13 +94,15 @@ async function writeCode(
       .selectFrom("class_join_codes")
       .select("organization_id")
       .where("organization_id", "=", locked.id)
+      .forUpdate()
       .executeTakeFirst();
     if (mode === "enabled" && existing) return refused("join_code_exists");
     if (mode === "regenerated" && !existing) return refused("join_code_off");
     const code = generateJoinCode(randomInt);
     const expiresAt = new Date(now.getTime() + input.validDays * DAY_MS);
     const row = {
-      code_hash: hash(code),
+      code_hash: key.hash(code),
+      key_fingerprint: key.fingerprint,
       created_by: actor.id,
       created_at: now,
       expires_at: expiresAt,
@@ -125,9 +138,9 @@ export function enableJoinCode(
   actor: ClassActor,
   input: JoinCodeSettings & { classId: string },
   now: Date,
-  hash: JoinCodeHasher,
+  key: JoinCodeKey,
 ): Promise<ClassResult<NewJoinCode>> {
-  return writeCode(db, actor, input, now, hash, "enabled");
+  return writeCode(db, actor, input, now, key, "enabled");
 }
 
 /**
@@ -139,9 +152,9 @@ export function regenerateJoinCode(
   actor: ClassActor,
   input: JoinCodeSettings & { classId: string },
   now: Date,
-  hash: JoinCodeHasher,
+  key: JoinCodeKey,
 ): Promise<ClassResult<NewJoinCode>> {
-  return writeCode(db, actor, input, now, hash, "regenerated");
+  return writeCode(db, actor, input, now, key, "regenerated");
 }
 
 /** Turns the join code of a class off; a class whose code is off is `join_code_off`. */
@@ -168,13 +181,15 @@ export function disableJoinCode(
 
 /**
  * Returns the join-code state of a class for a teacher of it, or `null` when the user does not
- * teach the class (D3): the membership is the filter of the one query.
+ * teach the class (D3): the membership is the filter of the one query. `fingerprint` is the
+ * current key's, so a code made under a rotated secret shows as stale.
  */
 export async function getJoinCode(
   db: Kysely<DB>,
   userId: string,
   classId: string,
   now: Date,
+  fingerprint: string,
 ): Promise<JoinCodeView | null> {
   if (!UUID_PATTERN.test(classId)) {
     logClassNotFound(userId, classId);
@@ -190,6 +205,7 @@ export async function getJoinCode(
       "class_join_codes.expires_at",
       "class_join_codes.uses",
       "class_join_codes.max_uses",
+      "class_join_codes.key_fingerprint",
     ])
     .where("organization.id", "=", classId)
     .where("member.userId", "=", userId)
@@ -208,6 +224,7 @@ export async function getJoinCode(
     createdAt: createdAt.toISOString(),
     expiresAt: expiresAt.toISOString(),
     expired: expiresAt <= now,
+    stale: row.key_fingerprint !== fingerprint,
     uses,
     maxUses,
   };

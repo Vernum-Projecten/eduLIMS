@@ -35,7 +35,7 @@ import {
 } from "./invitations.ts";
 import { joinClassWithCode } from "./join.ts";
 import { disableJoinCode, enableJoinCode, getJoinCode, regenerateJoinCode } from "./join-code.ts";
-import { requestJoinContext, serverJoinCodeHasher } from "./join-context.ts";
+import { requestJoinContext, serverJoinCodeKey } from "./join-context.ts";
 import {
   getTeacherClass,
   listAdminClasses,
@@ -216,7 +216,8 @@ export const getJoinCodeFn = createServerFn({ method: "GET" })
   .middleware([teacher])
   .validator(classIdInput)
   .handler(async ({ data, context }) => {
-    const view = await getJoinCode(getDb(), context.user.id, data.classId, new Date());
+    const { fingerprint } = serverJoinCodeKey();
+    const view = await getJoinCode(getDb(), context.user.id, data.classId, new Date(), fingerprint);
     if (!view) throw notFound();
     return view;
   });
@@ -226,7 +227,7 @@ export const enableJoinCodeFn = createServerFn({ method: "POST" })
   .middleware([teacher])
   .validator(joinCodeInput)
   .handler(({ data, context }) =>
-    enableJoinCode(getDb(), context.user, data, new Date(), serverJoinCodeHasher()),
+    enableJoinCode(getDb(), context.user, data, new Date(), serverJoinCodeKey()),
   );
 
 /** Replaces the join code of a class and returns the new code, once (#49). */
@@ -234,7 +235,7 @@ export const regenerateJoinCodeFn = createServerFn({ method: "POST" })
   .middleware([teacher])
   .validator(joinCodeInput)
   .handler(({ data, context }) =>
-    regenerateJoinCode(getDb(), context.user, data, new Date(), serverJoinCodeHasher()),
+    regenerateJoinCode(getDb(), context.user, data, new Date(), serverJoinCodeKey()),
   );
 
 /** Turns the join code of a class off (#49). */

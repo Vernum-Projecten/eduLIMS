@@ -174,11 +174,12 @@ function CodeStatus({ state }: Readonly<{ state: JoinCodeState }>) {
     );
   }
   const usedUp = state.uses >= state.maxUses;
-  const working = !state.expired && !usedUp;
+  const working = !state.stale && !state.expired && !usedUp;
   const Icon = working ? CircleCheckIcon : CircleAlertIcon;
   const date = formatDateTime(state.expiresAt);
   let text = m.classes_join_status_on({ date });
-  if (state.expired) text = m.classes_join_status_expired({ date });
+  if (state.stale) text = m.classes_join_status_stale();
+  else if (state.expired) text = m.classes_join_status_expired({ date });
   else if (usedUp) text = m.classes_join_status_used_up();
   return (
     <div className="flex flex-col gap-1">
