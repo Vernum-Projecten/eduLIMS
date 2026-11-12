@@ -120,6 +120,17 @@ describe("listTemplates (Definition API, List templates)", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it("times the list out after the caller's timeout (#227)", async () => {
+    const hang = stack(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+        }),
+    );
+    const result = await testOpenEhrClient(hang).listTemplates({ timeoutMs: 20 });
+    expect(result).toMatchObject({ ok: false, error: { kind: "timeout", target: "ferroehr" } });
+  });
+
   it("reuses the cached token for the next call", async () => {
     const fetch = stack(() => json(LIST));
     const client = testOpenEhrClient(fetch);

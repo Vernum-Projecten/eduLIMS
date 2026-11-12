@@ -6,11 +6,17 @@
 // is the one place they become words.
 import { m } from "@/i18n/messages";
 import { isClassRole } from "@/lib/classes";
-import { analyserStatusLabel } from "@/lib/i18n/analyser-labels";
+import {
+  analyserStatusLabel,
+  ferroEhrStepLabel,
+  integrationLabel,
+  integrationStateLabel,
+} from "@/lib/i18n/analyser-labels";
 import { classRoleLabel } from "@/lib/i18n/class-labels";
 import { formatDateTime, formatNumber } from "@/lib/i18n/format";
 import { rolesLabel } from "@/lib/i18n/labels";
 import { type ProviderLabels, signInMethodLabel } from "@/lib/i18n/user-labels";
+import { parseIntegration } from "@/lib/integrations";
 import { isRole, type Role } from "@/lib/roles";
 import type {
   AuditMetadata,
@@ -73,6 +79,11 @@ export function activityTargetLabel(
       return m.admin_activity_target_scim_user();
     case "scim_group":
       return m.admin_activity_target_scim_group();
+    case "integration": {
+      const integration = parseIntegration(target.id);
+      const name = integration ? integrationLabel(integration) : target.id;
+      return m.admin_activity_target_integration({ name });
+    }
     default: {
       const unknown: never = target.type;
       return unknown;
@@ -124,6 +135,14 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   state_not_found: m.admin_activity_reason_state_not_found,
   user_banned: m.admin_activity_reason_user_banned,
   user_deleted: m.admin_activity_reason_user_deleted,
+  timeout: m.admin_activity_reason_check_timeout,
+  unreachable: m.admin_activity_reason_check_unreachable,
+  auth_refused: m.admin_activity_reason_check_auth_refused,
+  http_client_error: m.admin_activity_reason_check_http_client,
+  http_server_error: m.admin_activity_reason_check_http_server,
+  unexpected_response: m.admin_activity_reason_check_unexpected,
+  template_missing: m.admin_activity_reason_check_template_missing,
+  readiness_down: m.admin_activity_reason_check_readiness_down,
 };
 
 /**
@@ -192,6 +211,29 @@ function classParts(metadata: AuditMetadata): string[] {
   return parts;
 }
 
+/** The integration parts of an event's metadata (B3, #227): states and steps in words. */
+function integrationParts(metadata: AuditMetadata): string[] {
+  const parts: string[] = [];
+  if (metadata.check_state) {
+    parts.push(
+      m.admin_activity_detail_check_state({ state: integrationStateLabel(metadata.check_state) }),
+    );
+  }
+  if (metadata.previous_check_state) {
+    const state = integrationStateLabel(metadata.previous_check_state);
+    parts.push(m.admin_activity_detail_previous_check_state({ state }));
+  }
+  if (metadata.check_step) {
+    parts.push(
+      m.admin_activity_detail_check_step({ step: ferroEhrStepLabel(metadata.check_step) }),
+    );
+  }
+  if (metadata.auth_reason) {
+    parts.push(m.admin_activity_detail_auth_reason({ code: metadata.auth_reason }));
+  }
+  return parts;
+}
+
 function metadataParts(metadata: AuditMetadata, labels: ProviderLabels): string[] {
   const parts: string[] = [];
   if (metadata.provider_id) {
@@ -234,7 +276,7 @@ function metadataParts(metadata: AuditMetadata, labels: ProviderLabels): string[
     const status = analyserStatusLabel(metadata.analyser_status);
     parts.push(m.admin_activity_detail_analyser_status({ status }));
   }
-  parts.push(...classParts(metadata));
+  parts.push(...classParts(metadata), ...integrationParts(metadata));
   if (metadata.token_expires_at) {
     const date = formatDateTime(metadata.token_expires_at);
     parts.push(m.admin_activity_detail_token_expires({ date }));

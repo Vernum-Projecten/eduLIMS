@@ -12,6 +12,7 @@ import { setupThenServe } from "./tests/e2e/web-server-command.ts";
 // `pnpm db:reset` refuses anything but localhost.
 const PORT = await runPort("EDULIMS_E2E_PORT");
 const baseURL = `http://localhost:${PORT}`;
+const INTEGRATIONS = `http://127.0.0.1:${await runPort("EDULIMS_E2E_INTEGRATIONS_PORT")}`;
 const baseDatabaseUrl =
   process.env["E2E_DATABASE_URL"]?.trim() ||
   "postgres://edulims:edulims@127.0.0.1:5432/edulims_e2e";
@@ -34,12 +35,14 @@ const appEnv = {
   EDULIMS_DATA_KEY: E2E_SECRETS.EDULIMS_DATA_KEY,
   EDULIMS_IDP_PRIVATE_ORIGINS:
     process.env["EDULIMS_E2E_KEYCLOAK_ORIGIN"] ?? "http://localhost:8180",
-  FERROEHR_BASE_URL: "http://localhost:4001",
-  FERROEHR_TOKEN_URL: "http://localhost:4003/token",
+  // Nothing listens on this run's integration port, except while the integration status journey
+  // runs its stub there (tests/e2e/integration-stub.ts, #227).
+  FERROEHR_BASE_URL: `${INTEGRATIONS}/ferroehr/rest/openehr/v1`,
+  FERROEHR_TOKEN_URL: `${INTEGRATIONS}/token`,
   FERROEHR_CLIENT_ID: "edulims-ferroehr",
   FERROEHR_CLIENT_SECRET: "e2e-only-ferroehr-client-secret",
   FERROEHR_SCOPE: "system/template-*.r",
-  FERROBRIDGE_BASE_URL: "http://localhost:4002",
+  FERROBRIDGE_BASE_URL: `${INTEGRATIONS}/ferrobridge`,
   EDULIMS_DEV_LOGIN: "true",
 };
 

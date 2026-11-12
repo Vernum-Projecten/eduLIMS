@@ -243,11 +243,18 @@ nothing, and its errors carry no token, secret, URL or body.
 
 Work that has to happen on a schedule runs inside the app container as a Nitro
 runtime plugin, because operators run only the images and no host cron job.
-The integration check of B3 is the first: every 60 seconds the server sends
-`OPTIONS` to the FerroEHR openEHR base URL (the System API of ITS-REST 1.1.0)
-through the openEHR client, without a credential as FerroEHR serves it, and `GET /health/readiness` to FerroBRIDGE, both from configuration only, and
-stores the latest result per integration in the eduLIMS database
-(`integration_checks`). A PostgreSQL advisory lock and the age of the last
+The integration check of B3 is the first: every 60 seconds the server checks
+FerroEHR in three steps through the openEHR client, and FerroBRIDGE with
+`GET /health/readiness`, both from configuration only. FerroEHR is reachable
+when `OPTIONS` on its base URL (the System API of ITS-REST 1.1.0, without a
+credential) answers its manifest, signed in when eduLIMS obtains a token and
+lists the templates with it (Definition API), and ready when `eduLIMS-lab.v1`
+is in that list; a later step is skipped after a failed one. A FerroBRIDGE
+`503` with its readiness document names the indicators that are not up. The
+server stores the latest result per integration, with each step, the version
+codes and a refusal's reason code (`integration_checks`), and writes an
+`integration_state_changed` row to the activity log when the state, its class
+or the failed step changes. A PostgreSQL advisory lock and the age of the last
 result make one replica check per interval. The Admin portal reads the stored
 result and refetches it every 30 seconds, so an unreachable service shows
 within the 5 minutes of B3.

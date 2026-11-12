@@ -69,6 +69,7 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   analyser_created: m.audit_action_analyser_created,
   analyser_updated: m.audit_action_analyser_updated,
   analyser_retired: m.audit_action_analyser_retired,
+  integration_state_changed: m.audit_action_integration_state_changed,
   user_deprovisioned: m.audit_action_user_deprovisioned,
   user_reprovisioned: m.audit_action_user_reprovisioned,
   scim_token_created: m.audit_action_scim_token_created,

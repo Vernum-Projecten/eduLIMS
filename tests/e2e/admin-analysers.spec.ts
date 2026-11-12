@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The analyser register and the integration status of the Admin portal (B3, #35): create, edit
-// and retire, a refusal at its field, the keyboard-only path, the status screen with Check now,
-// the error state with its retry, and axe in light, dark and Dutch.
+// The analyser register of the Admin portal (B3, #35): create, edit and retire, a refusal at its
+// field, the keyboard-only path, the error state with its retry, and axe in light, dark and
+// Dutch. The integration status journeys are in admin-integrations.spec.ts.
 import { randomBytes } from "node:crypto";
 import { type BrowserContext, expect, type Page, type Route, test } from "@playwright/test";
 import { axe, dutch, signInAsAdmin } from "./admin-users-helpers";
@@ -172,32 +172,6 @@ test("the register works with the keyboard alone (B3, WCAG 2.1.1)", async ({ pag
   await page.keyboard.press("Tab");
   await page.keyboard.press("Enter");
   await expect(rowOf(page, sn)).toContainText("Retired");
-});
-
-test("the status screen shows each integration with an icon and text, and Check now (B3)", async ({
-  page,
-}) => {
-  await signInAsAdmin(page);
-  await openRegister(page);
-  await expect(page.getByRole("heading", { level: 2, name: "Integration status" })).toBeVisible();
-  const checkNow = page.getByRole("button", { name: "Check now" });
-  await expectHydrated(checkNow);
-  await checkNow.click();
-  await expect(page.getByText("Integrations checked.")).toBeVisible();
-  // The e2e stack configures FerroEHR and FerroBRIDGE on ports nothing listens on.
-  for (const name of ["FerroEHR", "FerroBRIDGE"]) {
-    const card = page.locator('[data-slot="card"]', {
-      has: page.getByRole("heading", { level: 3, name }),
-    });
-    await expect(card).toContainText("Unavailable");
-    await expect(card).toContainText("No connection to the service.");
-    await expect(card).toContainText("Last check");
-    await expect(card).toContainText("Never");
-  }
-  await expect(page.getByRole("status").filter({ hasText: "FerroEHR: Unavailable." })).toHaveCount(
-    1,
-  );
-  await axe(page);
 });
 
 /** Makes every server function read whose payload names the register fail with a 500. */

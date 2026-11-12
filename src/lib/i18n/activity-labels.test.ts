@@ -45,7 +45,11 @@ describe("activity log labels (#36)", () => {
       "An analyser",
       "A provisioned user",
       "A directory group",
+      "Integration keycloak",
     ]);
+    expect(activityTargetLabel({ type: "integration", id: "ferroehr" })).toBe(
+      "Integration FerroEHR",
+    );
     expect(activityTargetLabel({ type: "identity_provider", id: "gone" })).toBe(
       "Identity provider gone",
     );
@@ -145,6 +149,29 @@ describe("activity log labels (#36)", () => {
     expect(
       activityDetails({ reason: null, provider: null, metadata: { attest_pkce: false } }),
     ).toEqual(["PKCE confirmation withdrawn"]);
+  });
+
+  it("summarises an integration's change of state in words (B3, #227)", () => {
+    expect(
+      activityDetails({
+        reason: "auth_refused",
+        provider: null,
+        metadata: {
+          check_state: "refused",
+          previous_check_state: "available",
+          check_step: "signed_in",
+          auth_reason: "invalid_client",
+        },
+      }),
+    ).toEqual([
+      "Reason: credentials refused",
+      "State: Refused (authentication)",
+      "Previous state: Available",
+      "Failed check: Signed in",
+      "Refusal code: invalid_client",
+    ]);
+    expect(activityReasonLabel("template_missing")).toBe("template not in FerroEHR");
+    expect(activityReasonLabel("readiness_down")).toBe("FerroBRIDGE not ready");
   });
 
   it("summarises an analyser's status and the counts of a retention run", () => {

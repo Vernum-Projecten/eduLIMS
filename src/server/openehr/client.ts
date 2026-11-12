@@ -60,7 +60,7 @@ export interface OpenEhrClient {
    */
   options(call?: { timeoutMs?: number }): Promise<OpenEhrResult<ConformanceManifest>>;
   /** Returns the ADL 1.4 templates, ordered by `template_id` (Definition API, "List templates"). */
-  listTemplates(): Promise<OpenEhrResult<readonly TemplateMetadata[]>>;
+  listTemplates(call?: { timeoutMs?: number }): Promise<OpenEhrResult<readonly TemplateMetadata[]>>;
   /**
    * Returns one ADL 1.4 template as the canonical OPT XML or as the WebTemplate (Definition API,
    * "Get a template"). A missing template is `refused` with status 404.
@@ -169,13 +169,14 @@ export function createOpenEhrClient(
       return sent.ok ? parseBody(sent.value, conformanceManifest) : sent;
     },
 
-    async listTemplates() {
+    async listTemplates(call) {
       const sent = await send({
         method: "GET",
         path: ADL14_TEMPLATES,
         accept: "application/json",
         authenticated: true,
         bodyLimit: LIST_BODY_LIMIT_BYTES,
+        timeoutMs: call?.timeoutMs,
       });
       if (!sent.ok) return sent;
       const parsed = parseBody(sent.value, templateList);

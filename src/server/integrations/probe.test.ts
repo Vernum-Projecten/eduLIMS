@@ -60,15 +60,17 @@ describe("probeTargets (B3, ASVS V1.3.6)", () => {
 });
 
 describe("probe (B3)", () => {
-  it("reports a JSON answer as available with its response time", async () => {
-    const fetch = vi.fn<ProbeFetch>(answer('{"solution":"FerroEHR"}'));
-    const result = await probe(target().ferroehr, deps(fetch));
+  it("reports a FerroBRIDGE JSON answer as available with its response time", async () => {
+    const fetch = vi.fn<ProbeFetch>(answer('{"state":"up"}'));
+    const result = await probe(target().ferrobridge, deps(fetch));
     expect(result).toEqual({
-      integration: "ferroehr",
+      integration: "ferrobridge",
       state: "available",
       checkedAt: NOW,
       responseTimeMs: 42,
       errorClass: null,
+      ferroehr: null,
+      ferrobridge: { phase: null, failingIndicators: [] },
     });
   });
 
@@ -82,12 +84,20 @@ describe("probe (B3)", () => {
     expect(CHECK_TIMEOUT_MS).toBe(5_000);
   });
 
-  it("sends the FerroEHR OPTIONS without a credential, so no token is fetched (#94)", async () => {
+  it("sends the FerroEHR OPTIONS without a credential (#94); the token is for the sign-in step (#227)", async () => {
     const fetch = vi.fn<ProbeFetch>(answer("{}"));
     await probe(target().ferroehr, deps(fetch));
+    const [optionsUrl, optionsInit] = fetch.mock.calls[0] ?? [];
+    expect(optionsUrl?.href).toBe(CONFIG.FERROEHR_BASE_URL);
+    expect(new Headers(optionsInit?.headers).has("Authorization")).toBe(false);
+    // The second call is the token request of the sign-in step, never FerroEHR with a credential.
+    expect(fetch.mock.calls.slice(1).map(([url]) => url.hostname)).toEqual(["idp.test"]);
+  });
+
+  it("does not sign in when FerroEHR is not reachable (#227)", async () => {
+    const fetch = vi.fn<ProbeFetch>(() => Promise.reject(new TypeError("fetch failed")));
+    await probe(target().ferroehr, deps(fetch));
     expect(fetch).toHaveBeenCalledTimes(1);
-    const headers = new Headers(fetch.mock.calls[0]?.[1].headers);
-    expect(headers.has("Authorization")).toBe(false);
   });
 
   it.each([
