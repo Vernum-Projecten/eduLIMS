@@ -29,6 +29,8 @@ export interface FieldOption<T extends string> {
   readonly label: string;
   /** Help text under the choice. */
   readonly description?: string;
+  /** Greys the choice out and refuses it, for a choice the current value rules out. */
+  readonly disabled?: boolean;
 }
 
 /** A select for one of `options`; `""` is no choice yet and shows `placeholder`. */
@@ -155,11 +157,17 @@ export function CheckboxGroupField<T extends string>({
         {options.map((option) => {
           const id = `${base}${option.value}`;
           return (
-            <Field key={option.value} orientation="horizontal" data-invalid={a11y.isInvalid}>
+            <Field
+              key={option.value}
+              orientation="horizontal"
+              data-invalid={a11y.isInvalid}
+              data-disabled={option.disabled ? "true" : undefined}
+            >
               <Checkbox
                 id={id}
                 name={field.name}
                 value={option.value}
+                disabled={option.disabled}
                 checked={field.state.value.includes(option.value)}
                 onCheckedChange={(checked) =>
                   field.handleChange(next(option.value, checked === true))

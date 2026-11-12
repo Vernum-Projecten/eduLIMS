@@ -5,20 +5,18 @@ import { Link } from "@tanstack/react-router";
 import {
   ArrowRightIcon,
   BanIcon,
-  FlaskConicalIcon,
-  GraduationCapIcon,
   type LucideIcon,
   MailIcon,
   MonitorSmartphoneIcon,
   SchoolIcon,
   ShieldAlertIcon,
-  ShieldCheckIcon,
   UsersIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { m } from "@/i18n/messages";
 import { formatNumber } from "@/lib/i18n/format";
+import { ROLE_ICONS } from "@/lib/role-icons";
 import type { AccountCounts } from "@/server/admin-overview/queries";
 
 /** The classes of a tile's link that covers the card, so the card is one target. */
@@ -33,10 +31,11 @@ function Tile({
 }: Readonly<{ icon: LucideIcon; label: string; value: number; link?: ReactNode }>) {
   return (
     <Card
+      size="sm"
       className={
         link
-          ? "relative w-full gap-2 transition-colors focus-within:ring-3 focus-within:ring-ring/50 hover:bg-accent/50"
-          : "w-full gap-2"
+          ? "relative w-full gap-1 transition-colors focus-within:ring-3 focus-within:ring-ring/50 hover:bg-accent/50"
+          : "w-full gap-1"
       }
     >
       <CardHeader>
@@ -53,7 +52,7 @@ function Tile({
         )}
       </CardHeader>
       <CardContent>
-        <p className="text-3xl font-semibold tabular-nums">{formatNumber(value)}</p>
+        <p className="text-2xl font-semibold tabular-nums">{formatNumber(value)}</p>
       </CardContent>
     </Card>
   );
@@ -67,8 +66,8 @@ function Tile({
  */
 export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
   return (
-    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <li className="flex">
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <li className="flex min-w-0">
         <Tile
           icon={UsersIcon}
           label={m.admin_overview_users()}
@@ -80,9 +79,9 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
           }
         />
       </li>
-      <li className="flex">
+      <li className="flex min-w-0">
         <Tile
-          icon={GraduationCapIcon}
+          icon={ROLE_ICONS.student}
           label={m.admin_overview_students()}
           value={counts.students}
           link={
@@ -92,9 +91,9 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
           }
         />
       </li>
-      <li className="flex">
+      <li className="flex min-w-0">
         <Tile
-          icon={FlaskConicalIcon}
+          icon={ROLE_ICONS.teacher}
           label={m.admin_overview_teachers()}
           value={counts.teachers}
           link={
@@ -104,9 +103,9 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
           }
         />
       </li>
-      <li className="flex">
+      <li className="flex min-w-0">
         <Tile
-          icon={ShieldCheckIcon}
+          icon={ROLE_ICONS.admin}
           label={m.admin_overview_admins()}
           value={counts.admins}
           link={
@@ -116,14 +115,14 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
           }
         />
       </li>
-      <li className="flex">
+      <li className="flex min-w-0">
         <Tile
           icon={MonitorSmartphoneIcon}
           label={m.admin_overview_active_sessions()}
           value={counts.activeSessions}
         />
       </li>
-      <li className="flex">
+      <li className="flex min-w-0">
         <Tile
           icon={BanIcon}
           label={m.admin_overview_blocked_users()}
@@ -135,7 +134,7 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
           }
         />
       </li>
-      <li className="flex">
+      <li className="flex min-w-0">
         <Tile
           icon={SchoolIcon}
           label={m.admin_overview_classes()}
@@ -148,7 +147,7 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
         />
       </li>
       {counts.classesOwnerNotTeacher > 0 && (
-        <li className="flex">
+        <li className="flex min-w-0">
           <Tile
             icon={ShieldAlertIcon}
             label={m.admin_overview_classes_owner_not_teacher()}
@@ -161,7 +160,7 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
           />
         </li>
       )}
-      <li className="flex">
+      <li className="flex min-w-0">
         <Tile
           icon={MailIcon}
           label={m.admin_overview_pending_invitations()}

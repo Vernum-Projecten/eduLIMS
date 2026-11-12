@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/empty";
 import { m } from "@/i18n/messages";
 import { classRoleLabel } from "@/lib/i18n/class-labels";
-import { formatDate } from "@/lib/i18n/format";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
 import type { AdminClassInvitation, AdminClassMember } from "@/server/classes/admin-queries";
 
 function EmptyList({
@@ -53,8 +53,12 @@ const memberColumns = memberHelper.columns([
   }),
 ]);
 
-/** The members of a class for the administrator: names and class roles only (R-01). */
-export function AdminClassMembers({ members }: Readonly<{ members: AdminClassMember[] }>) {
+/** One list of a class's members for the administrator: names and class roles only (R-01). */
+function MembersTable({
+  members,
+  caption,
+  empty,
+}: Readonly<{ members: AdminClassMember[]; caption: string; empty: ReactNode }>) {
   const table = useTable({
     features: dataTableFeatures,
     columns: memberColumns,
@@ -67,18 +71,51 @@ export function AdminClassMembers({ members }: Readonly<{ members: AdminClassMem
     enableSorting: false,
     enableRowSelection: false,
   });
+  return <DataTable table={table} caption={caption} empty={empty} />;
+}
+
+/**
+ * The members of a class for the administrator in two lists, each under its own `h2`: the
+ * teachers (owner and co-teachers, with their class role) and the students (R-01).
+ */
+export function AdminClassMembers({ members }: Readonly<{ members: AdminClassMember[] }>) {
+  const teachers = members.filter((member) => member.role !== "student");
+  const students = members.filter((member) => member.role === "student");
   return (
-    <DataTable
-      table={table}
-      caption={m.classes_admin_members_caption()}
-      empty={
-        <EmptyList
-          icon={<UsersIcon aria-hidden="true" />}
-          title={m.classes_admin_members_empty()}
-          body={m.classes_admin_members_empty_body()}
+    <>
+      <section aria-labelledby="admin-class-teachers-heading" className="flex flex-col gap-4">
+        <h2 id="admin-class-teachers-heading" className="text-lg font-semibold">
+          {m.classes_members_teachers_title({ count: formatNumber(teachers.length) })}
+        </h2>
+        <MembersTable
+          members={teachers}
+          caption={m.classes_members_teachers_caption()}
+          empty={
+            <EmptyList
+              icon={<UsersIcon aria-hidden="true" />}
+              title={m.classes_admin_members_empty()}
+              body={m.classes_admin_members_empty_body()}
+            />
+          }
         />
-      }
-    />
+      </section>
+      <section aria-labelledby="admin-class-students-heading" className="flex flex-col gap-4">
+        <h2 id="admin-class-students-heading" className="text-lg font-semibold">
+          {m.classes_members_students_title({ count: formatNumber(students.length) })}
+        </h2>
+        <MembersTable
+          members={students}
+          caption={m.classes_members_students_caption()}
+          empty={
+            <EmptyList
+              icon={<UsersIcon aria-hidden="true" />}
+              title={m.classes_members_students_empty()}
+              body={m.classes_admin_students_empty_body()}
+            />
+          }
+        />
+      </section>
+    </>
   );
 }
 

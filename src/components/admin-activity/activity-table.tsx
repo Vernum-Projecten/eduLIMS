@@ -148,7 +148,7 @@ export function ActivityTable({
   const pages = Math.max(1, table.getPageCount());
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <DataTableToolbar table={table}>
         {actor && (
           <UserFilter
@@ -189,6 +189,7 @@ export function ActivityTable({
         table={table}
         caption={caption(search, state.pagination.pageIndex + 1, pages)}
         busy={fetching}
+        fill
         empty={<ActivityEmpty filtered={hasActivityFilters(search)} />}
       />
       <DataTablePagination

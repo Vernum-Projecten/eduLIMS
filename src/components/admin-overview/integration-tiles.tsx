@@ -24,7 +24,7 @@ export function IntegrationTiles({
   fetching,
 }: Readonly<{ page: IntegrationStatusPage; fetching: boolean }>) {
   return (
-    <div className="relative" aria-busy={fetching || undefined}>
+    <div className="relative flex-1" aria-busy={fetching || undefined}>
       <UpdatingIndicator active={fetching} />
       <p role="status" className="sr-only">
         {page.integrations
@@ -36,14 +36,17 @@ export function IntegrationTiles({
           )
           .join(" ")}
       </p>
-      <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <ul className="grid h-full grid-cols-1 gap-3 sm:grid-cols-2 lg:auto-rows-fr lg:grid-cols-1">
         {page.integrations.map((status) => {
           const Icon = INTEGRATION_ICONS[status.integration];
           return (
             <li key={status.integration} className="flex">
-              <Card className="relative w-full gap-3 transition-colors focus-within:ring-3 focus-within:ring-ring/50 hover:bg-accent/50">
+              <Card
+                size="sm"
+                className="relative w-full gap-2 transition-colors focus-within:ring-3 focus-within:ring-ring/50 hover:bg-accent/50"
+              >
                 <CardHeader>
-                  <CardTitle>
+                  <CardTitle className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <h3 className="flex items-center gap-2 text-base font-semibold">
                       <Icon aria-hidden="true" className="size-5 text-muted-foreground" />
                       <Link
@@ -53,13 +56,13 @@ export function IntegrationTiles({
                         {integrationLabel(status.integration)}
                       </Link>
                     </h3>
+                    <IntegrationStateText state={status.state} className="py-0.5 text-xs" />
                   </CardTitle>
                   <CardAction>
                     <ArrowRightIcon aria-hidden="true" className="size-4 text-muted-foreground" />
                   </CardAction>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-2">
-                  <IntegrationStateText state={status.state} />
+                <CardContent className="flex flex-col gap-1">
                   {status.checkedAt && (
                     <p className="text-sm text-muted-foreground">
                       {m.admin_integrations_last_check()}:{" "}

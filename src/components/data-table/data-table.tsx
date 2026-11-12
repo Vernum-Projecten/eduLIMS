@@ -33,6 +33,9 @@ function ariaSort(sorted: false | "asc" | "desc") {
 const SCROLL_CONTAINER =
   "relative max-h-[70vh] overflow-auto rounded-lg border outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&>[data-slot=table-container]]:overflow-visible";
 
+/** On a `fill` page the table takes the height left over instead of 70% of the window. */
+const FILL_SCROLL = "lg:max-h-none lg:min-h-0 lg:flex-1";
+
 /**
  * A data table (#58): the shadcn `Table` rendered from a TanStack Table v9 instance, with a
  * caption, `aria-sort` on the sorted header, a sticky header, and `empty` in place of the rows
@@ -42,7 +45,8 @@ const SCROLL_CONTAINER =
  * anything.
  *
  * With `virtual`, a long list that is not paginated renders only the rows in view
- * ({@link DataTableVirtualBody}); a server-paginated table leaves it out.
+ * ({@link DataTableVirtualBody}); a server-paginated table leaves it out. With `fill`, on a
+ * `fill` page, the table takes the height its toolbar and pager leave on large screens.
  */
 export function DataTable<TData extends RowData>({
   table,
@@ -50,12 +54,14 @@ export function DataTable<TData extends RowData>({
   empty,
   busy = false,
   virtual,
+  fill = false,
 }: Readonly<{
   table: DataTableInstance<TData>;
   caption: string;
   empty: ReactNode;
   busy?: boolean;
   virtual?: DataTableVirtualOptions;
+  fill?: boolean;
 }>) {
   const captionId = useId();
   if (virtual !== undefined) {
@@ -72,10 +78,14 @@ export function DataTable<TData extends RowData>({
   const rows = table.getRowModel().rows;
   const columnCount = table.getVisibleLeafColumns().length;
   return (
-    <div className="relative">
+    <div className={cn("relative", fill && "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col")}>
       <UpdatingIndicator active={busy} />
-      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region must be reachable by keyboard (WCAG 2.1.1). */}
-      <section aria-labelledby={captionId} tabIndex={0} className={SCROLL_CONTAINER}>
+      <section
+        aria-labelledby={captionId}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region must be reachable by keyboard (WCAG 2.1.1).
+        tabIndex={0}
+        className={cn(SCROLL_CONTAINER, fill && FILL_SCROLL)}
+      >
         <Table aria-busy={busy || undefined} className={cn(busy && "opacity-70")}>
           <TableCaption id={captionId} className="sr-only">
             {caption}

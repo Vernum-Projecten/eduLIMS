@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 import { AccountTiles } from "@/components/admin-overview/account-tiles";
 import { IntegrationTiles } from "@/components/admin-overview/integration-tiles";
 import { RecentActivity } from "@/components/admin-overview/recent-activity";
-import { PortalSections, portalPageTitle } from "@/components/portal/portal-pages";
+import { portalPageTitle } from "@/components/portal/portal-pages";
 import { Page } from "@/components/shell/page-header";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { UpdatingIndicator } from "@/components/shell/updating-indicator";
@@ -56,13 +56,15 @@ function OverviewHeader({ children }: Readonly<{ children: ReactNode }>) {
 function OverviewPendingPage() {
   return (
     <OverviewHeader>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-hidden="true">
-        {["a", "b", "c", "d", "e", "f"].map((key) => (
-          <Skeleton key={key} className="h-28 w-full" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-hidden="true">
+        {["a", "b", "c", "d", "e", "f", "g", "h"].map((key) => (
+          <Skeleton key={key} className="h-20 w-full" />
         ))}
       </div>
-      <Skeleton className="h-36 w-full" aria-hidden="true" />
-      <Skeleton className="h-64 w-full" aria-hidden="true" />
+      <div className="grid gap-6 lg:grid-cols-3" aria-hidden="true">
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-72 w-full lg:col-span-2" />
+      </div>
     </OverviewHeader>
   );
 }
@@ -75,7 +77,7 @@ function OverviewPage() {
 
   return (
     <OverviewHeader>
-      <section aria-labelledby="overview-accounts" className="flex flex-col gap-4">
+      <section aria-labelledby="overview-accounts" className="flex flex-col gap-3">
         <h2 id="overview-accounts" className="text-lg font-semibold">
           {m.admin_overview_accounts_heading()}
         </h2>
@@ -84,27 +86,28 @@ function OverviewPage() {
           <AccountTiles counts={counts} />
         </div>
       </section>
-      <section aria-labelledby="overview-integrations" className="flex flex-col gap-4">
-        <h2 id="overview-integrations" className="text-lg font-semibold">
-          {m.admin_overview_integrations_heading()}
-        </h2>
-        <IntegrationTiles page={status.data} fetching={status.isFetching} />
-      </section>
-      <section aria-labelledby="overview-activity" className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="overview-activity" className="text-lg font-semibold">
-            {m.admin_overview_activity_heading()}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section aria-labelledby="overview-integrations" className="flex flex-col gap-3">
+          <h2 id="overview-integrations" className="text-lg font-semibold">
+            {m.admin_overview_integrations_heading()}
           </h2>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/admin/activity">
-              {m.admin_overview_activity_all()}
-              <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
-            </Link>
-          </Button>
-        </div>
-        <RecentActivity events={activity} readAt={readAt} />
-      </section>
-      <PortalSections portal={portalNavigation("admin")} />
+          <IntegrationTiles page={status.data} fetching={status.isFetching} />
+        </section>
+        <section aria-labelledby="overview-activity" className="flex flex-col gap-3 lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="overview-activity" className="text-lg font-semibold">
+              {m.admin_overview_activity_heading()}
+            </h2>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/admin/activity">
+                {m.admin_overview_activity_all()}
+                <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
+              </Link>
+            </Button>
+          </div>
+          <RecentActivity events={activity} readAt={readAt} />
+        </section>
+      </div>
     </OverviewHeader>
   );
 }

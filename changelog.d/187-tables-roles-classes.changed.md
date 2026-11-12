@@ -1,0 +1,1 @@
+- List pages keep their search and pager in view and scroll only the rows, every role has one icon everywhere, the roles editor greys out roles that do not go together, a class lists its teachers and students apart, and a new join code comes with a ready invitation text to copy.

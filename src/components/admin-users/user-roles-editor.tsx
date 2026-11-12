@@ -28,6 +28,15 @@ import { actionErrorCode, setRolesMutationOptions } from "@/server/users/query-o
 import { userRolesFormSchema } from "@/server/users/schemas";
 
 /**
+ * Says whether `role` is ruled out by the roles already checked (ADR 0012): student goes with
+ * no other role, so with student checked the others are greyed out, and the other way round.
+ */
+export function roleRuledOut(current: readonly Role[], role: Role): boolean {
+  if (current.includes(role)) return false;
+  return role === "student" ? current.length > 0 : current.includes("student");
+}
+
+/**
  * Returns the role set after `role` is checked or unchecked, kept inside the allowed sets
  * (ADR 0012): student excludes the other roles, so checking one clears the other side.
  */
@@ -99,7 +108,11 @@ export function UserRolesEditor({
               <field.CheckboxGroupField
                 label={m.admin_users_roles_edit()}
                 description={m.admin_users_roles_edit_help()}
-                options={ROLES.map((role) => ({ value: role, label: roleLabel(role) }))}
+                options={ROLES.map((role) => ({
+                  value: role,
+                  label: roleLabel(role),
+                  disabled: roleRuledOut(field.state.value, role),
+                }))}
                 toggle={toggleRole}
               />
             )}

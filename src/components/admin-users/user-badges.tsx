@@ -18,6 +18,7 @@ import { m } from "@/i18n/messages";
 import { formatDateTime } from "@/lib/i18n/format";
 import { roleLabel } from "@/lib/i18n/labels";
 import { roleSourceLabel, type UserStatusValue, userStatusLabel } from "@/lib/i18n/user-labels";
+import { ROLE_ICONS } from "@/lib/role-icons";
 import { LOCAL_ROLE_SOURCE, type RoleSource } from "@/lib/role-source";
 import type { Role } from "@/lib/roles";
 import type { Provisioning } from "@/server/users/queries";
@@ -29,8 +30,9 @@ function sourceIcon(source: RoleSource | null): LucideIcon {
 }
 
 /**
- * The role badges of a user, each with the icon and the name of where the set comes from
- * (owner decision on #32), so the source never depends on the icon alone (WCAG 1.4.1).
+ * The role badges of a user, each with its role's icon from {@link ROLE_ICONS}, as in the role
+ * filter. Where the set comes from (owner decision on #32) is the list's accessible name and each
+ * badge's tooltip; the detail sheet shows it as text with {@link RoleSourceText}.
  */
 export function RoleBadges({
   roles,
@@ -40,21 +42,23 @@ export function RoleBadges({
   if (roles.length === 0) {
     return <span className="text-muted-foreground">{m.admin_users_no_roles()}</span>;
   }
-  const Icon = sourceIcon(source);
   const from = m.admin_users_role_from({ source: roleSourceLabel(source, labels) });
   return (
     <ul
       className="flex flex-wrap gap-1"
       aria-label={m.admin_users_roles_list({ source: roleSourceLabel(source, labels) })}
     >
-      {roles.map((role) => (
-        <li key={role}>
-          <Badge variant="secondary" title={from}>
-            <Icon aria-hidden="true" data-icon="inline-start" />
-            {roleLabel(role)}
-          </Badge>
-        </li>
-      ))}
+      {roles.map((role) => {
+        const Icon = ROLE_ICONS[role];
+        return (
+          <li key={role}>
+            <Badge variant="secondary" title={from}>
+              <Icon aria-hidden="true" data-icon="inline-start" />
+              {roleLabel(role)}
+            </Badge>
+          </li>
+        );
+      })}
     </ul>
   );
 }

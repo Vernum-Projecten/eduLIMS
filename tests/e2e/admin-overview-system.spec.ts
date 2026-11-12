@@ -52,7 +52,7 @@ test("the overview shows the counts, the integrations and the latest activity (#
   await expect(integrations.getByRole("link", { name: "FerroBRIDGE" })).toBeVisible();
 
   const activity = section(page, "Latest activity");
-  await expect(activity.getByRole("listitem")).toHaveCount(10);
+  await expect(activity.getByRole("listitem")).toHaveCount(6);
   await expect(activity.getByRole("link", { name: "Full activity log" })).toBeVisible();
   await axe(page);
 });
@@ -114,7 +114,7 @@ test("the overview loads within 2 seconds with the seeded data (#36)", async ({ 
   await signInAsAdmin(page);
   const start = Date.now();
   await page.goto("/admin", { waitUntil: "load" });
-  await expect(section(page, "Latest activity").getByRole("listitem")).toHaveCount(10);
+  await expect(section(page, "Latest activity").getByRole("listitem")).toHaveCount(6);
   const elapsed = Date.now() - start;
   test.info().annotations.push({ type: "overview load ms", description: String(elapsed) });
   expect(elapsed).toBeLessThan(2_000);

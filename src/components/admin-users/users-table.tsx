@@ -3,7 +3,7 @@
 
 import { Link, useNavigate } from "@tanstack/react-router";
 import { functionalUpdate, type RowSelectionState, useTable } from "@tanstack/react-table";
-import { GraduationCapIcon, PresentationIcon, ShieldCheckIcon, UsersIcon } from "lucide-react";
+import { UsersIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useProviderLabels } from "@/components/admin-users/provider-labels";
 import { STATUS_ICONS } from "@/components/admin-users/user-badges";
@@ -33,7 +33,8 @@ import { formatNumber } from "@/lib/i18n/format";
 import { roleLabel } from "@/lib/i18n/labels";
 import { signInMethodLabel, userStatusLabel } from "@/lib/i18n/user-labels";
 import { readHiddenColumns } from "@/lib/preferences";
-import { ROLES, type Role } from "@/lib/roles";
+import { ROLE_ICONS } from "@/lib/role-icons";
+import { ROLES } from "@/lib/roles";
 import {
   hiddenColumnsCookie,
   hiddenFromVisibility,
@@ -57,12 +58,6 @@ import {
 
 /** The id of the users table's hidden-columns preference cookie. */
 const TABLE_ID = "admin-users";
-
-const ROLE_ICONS = {
-  student: GraduationCapIcon,
-  teacher: PresentationIcon,
-  admin: ShieldCheckIcon,
-} as const satisfies Record<Role, unknown>;
 
 const NO_SELECTION: RowSelectionState = {};
 
@@ -183,7 +178,7 @@ export function UsersTable({
 
   return (
     <UsersTableContext value={context}>
-      <div className="flex flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         <DataTableToolbar
           table={table}
           search={{
@@ -234,6 +229,7 @@ export function UsersTable({
           table={table}
           caption={caption(search, state.pagination.pageIndex + 1, pages)}
           busy={fetching}
+          fill
           empty={<UsersEmpty filtered={hasUserFilters(search)} />}
         />
         <DataTablePagination

@@ -1,0 +1,1 @@
+- The Admin portal overview fits one screen: compact account tiles, the integrations beside the latest activity, and each integration's state next to its name.

@@ -56,13 +56,17 @@ const STATE_CLASSES: Record<IntegrationDisplayState, string> = {
 };
 
 /** The state of an integration as an icon and text, never colour alone (WCAG 1.4.1). */
-export function IntegrationStateText({ state }: Readonly<{ state: IntegrationDisplayState }>) {
+export function IntegrationStateText({
+  state,
+  className,
+}: Readonly<{ state: IntegrationDisplayState; className?: string }>) {
   const Icon = STATE_ICONS[state];
   return (
     <span
       className={cn(
         "inline-flex w-fit items-center gap-1.5 rounded-md border px-2 py-1 font-medium",
         STATE_CLASSES[state],
+        className,
       )}
     >
       <Icon aria-hidden="true" className="size-4" />

@@ -65,24 +65,25 @@ export function RecentActivity({
         return (
           <li
             key={event.id}
-            className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+            className="flex flex-col gap-0.5 px-4 py-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
           >
-            <div className="flex min-w-0 flex-col">
+            <p className="min-w-0 break-words">
               <span className="font-medium">{auditActionLabel(event.action)}</span>
-              <span className="text-sm break-words text-muted-foreground">
-                {actorText(event.actor)}
-              </span>
-            </div>
-            <div className="flex flex-col gap-0.5 text-sm sm:items-end sm:text-right">
+              <span className="text-muted-foreground"> · {actorText(event.actor)}</span>
+            </p>
+            <p className="flex shrink-0 items-center gap-3">
               <span className="inline-flex items-center gap-1.5">
                 <Icon aria-hidden="true" className="size-4" />
                 {auditOutcomeLabel(event.outcome)}
               </span>
-              <time dateTime={event.occurredAt} className="text-muted-foreground">
+              <time
+                dateTime={event.occurredAt}
+                title={formatDateTime(event.occurredAt)}
+                className="text-muted-foreground tabular-nums"
+              >
                 {formatRelativeTime(event.occurredAt, readAt)}
-                <span className="block">{formatDateTime(event.occurredAt)}</span>
               </time>
-            </div>
+            </p>
           </li>
         );
       })}

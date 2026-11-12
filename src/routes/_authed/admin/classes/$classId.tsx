@@ -107,12 +107,7 @@ function AdminClassView() {
         </div>
       </div>
       <ClassFacts page={page} />
-      <section aria-labelledby="members-heading" className="flex flex-col gap-4">
-        <h2 id="members-heading" className="text-lg font-semibold">
-          {m.classes_admin_members_title({ count: formatNumber(page.members.length) })}
-        </h2>
-        <AdminClassMembers members={page.members} />
-      </section>
+      <AdminClassMembers members={page.members} />
       <section aria-labelledby="pending-heading" className="flex flex-col gap-4">
         <h2 id="pending-heading" className="text-lg font-semibold">
           {m.classes_invitations_title()}

@@ -51,7 +51,7 @@ function ActivityPage() {
     adminActivityQueryOptions(listInputFromSearch(search)),
   );
   return (
-    <Page title={section.label()} description={<p>{m.admin_activity_description()}</p>}>
+    <Page fill title={section.label()} description={<p>{m.admin_activity_description()}</p>}>
       {data ? (
         <ActivityTable page={data} search={search} fetching={isFetching && isPlaceholderData} />
       ) : (

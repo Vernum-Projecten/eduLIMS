@@ -13,7 +13,7 @@ import { assertAdmin } from "../users/actions.ts";
 import { roleValuesWith } from "../users/queries.ts";
 
 /** How many activity-log events the overview shows (#36). */
-export const RECENT_EVENTS_LIMIT = 10;
+export const RECENT_EVENTS_LIMIT = 6;
 
 /** The account counts of the overview's tiles. */
 export interface AccountCounts {

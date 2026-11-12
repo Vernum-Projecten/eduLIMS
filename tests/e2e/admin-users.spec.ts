@@ -246,10 +246,16 @@ test("an administrator changes a local role set after confirming it (owner decis
   const editor = roles.getByRole("group", { name: "Change roles" });
   await expect(editor.getByLabel("Teacher")).toBeChecked();
 
+  // Student goes with no other role (ADR 0012), so the choices that clash are greyed out.
+  await expect(editor.getByLabel("Student")).toBeDisabled();
+  await editor.getByLabel("Teacher").uncheck();
+  await expect(editor.getByLabel("Student")).toBeEnabled();
   await editor.getByLabel("Student").check();
-  await expect(editor.getByLabel("Teacher")).not.toBeChecked();
+  await expect(editor.getByLabel("Teacher")).toBeDisabled();
+  await expect(editor.getByLabel("Administrator")).toBeDisabled();
+  await editor.getByLabel("Student").uncheck();
   await editor.getByLabel("Teacher").check();
-  await expect(editor.getByLabel("Student")).not.toBeChecked();
+  await expect(editor.getByLabel("Student")).toBeDisabled();
   await editor.getByLabel("Administrator").check();
   await roles.getByRole("button", { name: "Save roles" }).click();
   const confirm = page.getByRole("alertdialog", {
