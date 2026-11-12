@@ -6,6 +6,7 @@
 // write the latest result per integration; the targets come from configuration only.
 import "@tanstack/react-start/server-only";
 import { type Kysely, sql } from "kysely";
+import type { AuditActor } from "../audit/events.ts";
 import type { SessionUser } from "../authz.ts";
 import { INTEGRATION_CHECK_LOCK_KEY } from "../db/advisory-locks.ts";
 import type { DB } from "../db/schema.gen.ts";
@@ -30,11 +31,17 @@ export interface CheckContext {
   deps: ProbeDeps;
 }
 
-/** Checks every integration and stores the results in one transaction. */
-export async function checkAndStore(ctx: CheckContext): Promise<CheckResult[]> {
+/** The actor of the scheduled check: eduLIMS itself (#247). */
+const SYSTEM_ACTOR: AuditActor = { type: "system" };
+
+/**
+ * Checks every integration and stores the results in one transaction; a change of state is
+ * logged with `actor` as the one who ran the check.
+ */
+export async function checkAndStore(ctx: CheckContext, actor: AuditActor): Promise<CheckResult[]> {
   const results = await probeAll(probeTargets(ctx.env), ctx.deps);
   await ctx.db.transaction().execute(async (trx) => {
-    for (const result of results) await saveCheck(trx, result);
+    for (const result of results) await saveCheck(trx, result, actor);
   });
   return results;
 }
@@ -61,7 +68,7 @@ export async function runScheduledCheck(ctx: CheckContext): Promise<ScheduledOut
       return { checked: false, reason: "recent" };
     }
     const results = await probeAll(probeTargets(ctx.env), ctx.deps);
-    for (const result of results) await saveCheck(trx, result);
+    for (const result of results) await saveCheck(trx, result, SYSTEM_ACTOR);
     return { checked: true, results };
   });
 }
@@ -100,18 +107,19 @@ export function startCheckSchedule(
 
 /** What the on-demand check runs with: a check context and the caller. */
 export interface CheckNowContext extends CheckContext {
-  actor: Pick<SessionUser, "roles">;
+  actor: Pick<SessionUser, "id" | "roles">;
 }
 
 /**
  * Checks every integration now, for an administrator's "Check now", and returns the screen's
- * data. The targets are the configured ones: the caller has no say in them (ASVS V1.3.6).
+ * data. The targets are the configured ones: the caller has no say in them (ASVS V1.3.6). A
+ * change of state is logged with the administrator as the actor (#247).
  *
  * @throws AuthError 403 without the admin role.
  */
 export async function checkNow(ctx: CheckNowContext): Promise<IntegrationStatusPage> {
   assertAdmin(ctx.actor);
-  await checkAndStore(ctx);
+  await checkAndStore(ctx, { type: "user", id: ctx.actor.id });
   return readIntegrationStatus(ctx.db, ctx.deps.now());
 }
 

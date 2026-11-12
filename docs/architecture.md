@@ -254,7 +254,8 @@ is in that list; a later step is skipped after a failed one. A FerroBRIDGE
 server stores the latest result per integration, with each step, the version
 codes and a refusal's reason code (`integration_checks`), and writes an
 `integration_state_changed` row to the activity log when the state, its class
-or the failed step changes. A PostgreSQL advisory lock and the age of the last
+or the failed step changes. The scheduled check logs that row as eduLIMS (the
+system); **Check now** logs it as the administrator who pressed it. A PostgreSQL advisory lock and the age of the last
 result make one replica check per interval. The Admin portal reads the stored
 result and refetches it every 30 seconds, so an unreachable service shows
 within the 5 minutes of B3.
