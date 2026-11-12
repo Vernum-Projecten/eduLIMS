@@ -4,7 +4,13 @@
 import { describe, expect, it } from "vitest";
 import { type IdentityProviderOption, providerIdOf } from "../lib/identity-providers.ts";
 import { validateRoleSet } from "../lib/roles.ts";
-import { DEV_PASSWORD, DEV_USERS, demoAccountsFor } from "./demo-accounts";
+import {
+  ADMIN_CLASSES_FORMERS,
+  adminClassesSlot,
+  DEV_PASSWORD,
+  DEV_USERS,
+  demoAccountsFor,
+} from "./demo-accounts";
 
 function option(id: string): IdentityProviderOption {
   return { id: providerIdOf(id), label: id, icon: "key-round", protocol: "oidc" };
@@ -51,5 +57,22 @@ describe("demoAccountsFor", () => {
 
   it("seeds only allowed role sets (ADR 0012)", () => {
     for (const user of DEV_USERS) expect(validateRoleSet(user.roles).ok).toBe(true);
+  });
+});
+
+describe("the class journeys' former owners (#195, #200)", () => {
+  const names = DEV_USERS.filter((user) => user.email.startsWith("admin-classes-former-")).map(
+    (user) => user.name,
+  );
+
+  it("seeds one hidden teacher per slot", () => {
+    expect(names).toHaveLength(ADMIN_CLASSES_FORMERS);
+    expect(names.at(0)).toBe(`Admin Classes Test Former S${adminClassesSlot(0)}`);
+  });
+
+  it("gives no slot a name that another slot's name contains", () => {
+    for (const name of names) {
+      expect(names.filter((other) => other.includes(name))).toEqual([name]);
+    }
   });
 });

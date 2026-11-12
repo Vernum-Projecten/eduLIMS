@@ -20,10 +20,18 @@ interface DevUser {
 }
 
 /**
- * How many former-owner accounts the administrator's class journeys get: the most repeats
- * `pnpm exec playwright test tests/e2e/admin-classes.spec.ts --repeat-each <n>` can run.
+ * How many former-owner accounts the administrator's class journeys get: one per try, so
+ * `--repeat-each` times (`--retries` + 1) may not pass it. CI's two retries leave 10 repeats.
  */
-export const ADMIN_CLASSES_FORMERS = 10;
+export const ADMIN_CLASSES_FORMERS = 30;
+
+/**
+ * Returns the label of former-owner slot `slot`, padded so no slot's label is a prefix of
+ * another's: the class journeys find an account and a class by a prefix or substring match.
+ */
+export function adminClassesSlot(slot: number): string {
+  return String(slot).padStart(String(ADMIN_CLASSES_FORMERS - 1).length, "0");
+}
 
 export const DEV_USERS = [
   { email: "student@example.test", name: "Test Student", roles: ["student"] },
@@ -106,11 +114,12 @@ export const DEV_USERS = [
     roles: ["teacher"],
     hidden: true,
   },
-  // Own a class, then lose the teacher role: the overview flags the class (#37). One per
-  // `--repeat-each` repeat, since a repeat leaves its account without the teacher role (#195).
+  // Own a class, then lose the teacher role: the overview flags the class (#37). One per try
+  // of a `--repeat-each` repeat, since a try leaves its account without the teacher role
+  // (#195, #200).
   ...Array.from({ length: ADMIN_CLASSES_FORMERS }, (_, index) => ({
     email: `admin-classes-former-${index}@example.test`,
-    name: `Admin Classes Test Former R${index}`,
+    name: `Admin Classes Test Former S${adminClassesSlot(index)}`,
     roles: ["teacher"] as const,
     hidden: true as const,
   })),
