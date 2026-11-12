@@ -8,7 +8,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { type BrowserContext, expect, type Locator, type Page, test } from "@playwright/test";
-import { ADMIN_CLASSES_FORMERS } from "../../src/server/demo-accounts.ts";
+import { ADMIN_CLASSES_FORMERS, adminClassesSlot } from "../../src/server/demo-accounts.ts";
 import { axe, dutch, openUser, signInAsAdmin } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
@@ -23,26 +23,30 @@ const HEIR = "Admin Classes Test Heir";
 /** Tells this worker's classes from every other worker's, in this run and the ones before. */
 const STAMP = Date.now().toString(36).slice(-5).toUpperCase();
 
-// Each `--repeat-each` repeat gets its own class, academic year and former owner (#195): the
-// year and owner filters count this repeat's class alone, and the orphan journey takes the
-// teacher role from its account. Set before every test from the repeat's index.
+// Each try of each `--repeat-each` repeat gets its own slot: a class, an academic year and a
+// former owner (#195, #200). The year and owner filters count this try's class alone, the
+// orphan journey takes the teacher role from its account, and a retry, which keeps the repeat
+// index, starts on fresh data. Serial mode retries the whole file, so the tests of one try
+// share its slot.
 let CLASS = "";
 let YEAR = "";
 let YEAR_LABEL = "";
 let FORMER = "";
 
 test.beforeEach(() => {
-  const { repeatEachIndex } = test.info();
-  if (repeatEachIndex >= ADMIN_CLASSES_FORMERS) {
+  const { repeatEachIndex, retry, project } = test.info();
+  const slot = repeatEachIndex * (project.retries + 1) + retry;
+  if (slot >= ADMIN_CLASSES_FORMERS) {
     throw new Error(
-      `--repeat-each runs at most ${ADMIN_CLASSES_FORMERS} repeats: src/server/demo-accounts.ts seeds one former owner per repeat`,
+      `--repeat-each times (--retries + 1) runs at most ${ADMIN_CLASSES_FORMERS} tries: src/server/demo-accounts.ts seeds one former owner per try`,
     );
   }
-  const start = 2031 + repeatEachIndex;
-  CLASS = `ADM-${STAMP}R${repeatEachIndex}`;
+  const label = adminClassesSlot(slot);
+  const start = 2031 + slot;
+  CLASS = `ADM-${STAMP}S${label}`;
   YEAR = `${start}-${start + 1}`;
   YEAR_LABEL = `${start}–${start + 1}`;
-  FORMER = `Admin Classes Test Former R${repeatEachIndex}`;
+  FORMER = `Admin Classes Test Former S${label}`;
 });
 
 async function preferences(context: BrowserContext, theme: "light" | "dark", locale: "en" | "nl") {
