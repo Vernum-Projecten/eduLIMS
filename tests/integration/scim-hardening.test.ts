@@ -286,9 +286,9 @@ describe("H3: unverified tokens share one bucket per client IP", () => {
     }
     const limited = await scim("GET", "/Users", generateScimToken());
     expect(limited.status).toBe(429);
-    // The exhausted client bucket is checked before any token lookup (finding 9 of the second
-    // review), so the same client waits whatever token it sends.
-    expect((await scim("GET", "/Users", tokenA)).status).toBe(429);
+    // A working token counts only against its provider: a directory on a shared egress IP is
+    // never held up by others' bad tokens (owner decision on #45, V7.4.2).
+    expect((await scim("GET", "/Users", tokenA)).status).toBe(200);
     // 600 random tokens from one client are one activity-log row (finding 3).
     const rows = await db
       .selectFrom("audit_event")

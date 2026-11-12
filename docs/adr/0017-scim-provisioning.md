@@ -114,8 +114,10 @@ Option 3, with `@better-auth/scim` at exactly 1.7.20 like `better-auth` and
 - **Guards:** a fixed-window rate limit of 600 requests per minute, in two
   tables: one per provider for a working token, never evicted by client
   keys, and one per client IP for every other request, bounded and answering
-  429 when full. The client's bucket is checked before the token's database
-  lookup. The client IP comes from `X-Forwarded-For` only through the
+  429 when full. The token is looked up first (one indexed digest lookup
+  per request), so a working token counts only against its provider and a
+  directory on shared egress addresses, such as Entra ID's, is never held up
+  by others' bad tokens; deprovisioning must not stall (V7.4.2). The client IP comes from `X-Forwarded-For` only through the
   proxies in `EDULIMS_TRUSTED_PROXIES` (better-auth's `advanced.ipAddress`,
   the chain walked right to left); without them every client shares one
   bucket, so a spoofed header buys nothing. A 1 MiB body cap. An

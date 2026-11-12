@@ -189,18 +189,12 @@ export function scimGate(db: Kysely<DB>, support: ScimSupport, options: ScimGate
       if (!(await asyncContext)) {
         return { response: scimErrorResponse(501, "SCIM is not available") };
       }
-      // The client's bucket is checked before the token's database lookup (finding 9).
-      const clientKey = clientKeyOf(request.headers);
-      const exhausted = limiter.wait(clientKey);
-      if (exhausted !== null) {
-        return {
-          response: scimErrorResponse(429, "Too many requests", {
-            "retry-after": String(exhausted),
-          }),
-        };
-      }
+      // NOTE: owner decision on #45 (V7.4.2); token first, so a provider on a shared egress IP
+      // is never limited by others' bad tokens. The cost is one indexed digest lookup per request.
       const inspected = await inspectScimToken(db, bearerOf(request.headers));
-      const key = inspected.ok ? rateKeyOf(inspected.providerId, null) : clientKey;
+      const key = inspected.ok
+        ? rateKeyOf(inspected.providerId, null)
+        : clientKeyOf(request.headers);
       const wait = limiter.hit(key);
       if (wait !== null) {
         return {
