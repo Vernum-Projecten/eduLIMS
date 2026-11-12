@@ -244,7 +244,7 @@ test("the class list searches and filters on the server (#37)", async ({ page })
     .click();
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("button", { name: /^Academic year 1 selected: 2031–2032/ }),
+    page.getByRole("button", { name: new RegExp(`^Academic year 1 selected: ${YEAR_LABEL}`) }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Owner", exact: true }).click();
   await page
@@ -254,7 +254,7 @@ test("the class list searches and filters on the server (#37)", async ({ page })
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: /^Owner 1 selected/ })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /^Academic year 1 selected: 2031–2032/ }),
+    page.getByRole("button", { name: new RegExp(`^Academic year 1 selected: ${YEAR_LABEL}`) }),
   ).toBeVisible();
   await expect(table.getByRole("row", { name: new RegExp(CLASS) })).toBeVisible();
   await expect(table.getByRole("row")).toHaveCount(2);
