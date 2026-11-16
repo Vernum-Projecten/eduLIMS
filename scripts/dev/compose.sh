@@ -2,8 +2,9 @@
 # SPDX-FileCopyrightText: Ruben Talstra
 # SPDX-License-Identifier: Apache-2.0
 # The development stack of compose.dev.yaml (PostgreSQL 18 with the eduLIMS,
-# test and e2e databases, and Keycloak), through `podman compose` when podman
-# is on PATH and `docker compose` otherwise. Every argument goes to compose.
+# test and e2e databases, and Keycloak), through `podman compose` or
+# `docker compose`, whichever engine answers first (Podman is tried first).
+# Every argument goes to compose.
 #
 # The stack runs from the main checkout only. A linked git worktree has the
 # same Compose project name but other bind-mount paths, so `up` there
@@ -117,12 +118,24 @@ fi
 
 engine="${EDULIMS_CONTAINER_ENGINE:-}"
 if [[ -z "$engine" ]]; then
-  if command -v podman >/dev/null 2>&1; then
-    engine=podman
-  elif command -v docker >/dev/null 2>&1; then
-    engine=docker
-  else
-    echo "error: neither podman nor docker is on PATH; install Podman (or Docker) with Compose." >&2
+  # The first engine whose daemon answers wins, so an installed but stopped
+  # Podman machine does not hide a running Docker (or the other way round).
+  installed=()
+  for candidate in podman docker; do
+    command -v "$candidate" >/dev/null 2>&1 || continue
+    installed+=("$candidate")
+    if "$candidate" info >/dev/null 2>&1; then
+      engine=$candidate
+      break
+    fi
+  done
+  if [[ -z "$engine" ]]; then
+    if [[ ${#installed[@]} -eq 0 ]]; then
+      echo "error: neither podman nor docker is on PATH; install Podman (or Docker) with Compose." >&2
+    else
+      echo "error: ${installed[*]} is installed, but no engine answers. Start Docker Desktop or" >&2
+      echo "run 'podman machine start', or set EDULIMS_CONTAINER_ENGINE=docker (or podman)." >&2
+    fi
     exit 1
   fi
 fi

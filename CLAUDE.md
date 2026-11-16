@@ -85,7 +85,7 @@ the npm registry at the moment you add it, never from memory.
 
 ```bash
 pnpm install              # exact lockfile; CI uses --frozen-lockfile
-pnpm dev:db               # PostgreSQL 18 + Keycloak (podman compose, else docker compose) -f compose.dev.yaml up -d --wait
+pnpm dev:db               # PostgreSQL 18 + Keycloak (podman or docker compose, whichever engine runs) -f compose.dev.yaml up -d --wait
 pnpm dev:db:stop          # stop the dev stack, keep its data (dev:db:logs follows the logs)
 pnpm dev                  # dev server on :3000, regenerates the route tree
 pnpm build && pnpm start  # production SSR build and server
