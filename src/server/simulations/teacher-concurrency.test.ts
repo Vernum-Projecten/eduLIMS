@@ -50,7 +50,36 @@ describe("the last-teacher trigger (D10, S2)", () => {
     expect(rows).toEqual([{ user_id: teacher.id }]);
   });
 
-  it("refuses at commit when the only teacher row left belongs to a former teacher (#311)", async () => {
+  it("lets a former teacher's account go even when its row is the last one (#311)", async () => {
+    const db = await open();
+    const former = await person(db, "former", ["teacher"]);
+    const created = await createSimulation(db, former, { name: "Trigger run" }, NOW);
+    if (!created.ok) throw new Error(created.error);
+    await db.updateTable("user").set({ role: "admin" }).where("id", "=", former.id).execute();
+    await db.deleteFrom("user").where("id", "=", former.id).execute();
+    const rows = await db
+      .selectFrom("simulation_teachers")
+      .select("user_id")
+      .where("simulation_id", "=", created.value.simulationId)
+      .execute();
+    expect(rows).toEqual([]);
+  });
+
+  it("lets the last teacher row of a former teacher go at commit (#311)", async () => {
+    const db = await open();
+    const former = await person(db, "former", ["teacher"]);
+    const created = await createSimulation(db, former, { name: "Trigger run" }, NOW);
+    if (!created.ok) throw new Error(created.error);
+    await db.updateTable("user").set({ role: "student" }).where("id", "=", former.id).execute();
+    await db
+      .deleteFrom("simulation_teachers")
+      .where("simulation_id", "=", created.value.simulationId)
+      .execute();
+    const rows = await db.selectFrom("simulation_teachers").select("user_id").execute();
+    expect(rows).toEqual([]);
+  });
+
+  it("refuses the deletion of an active teacher whose co-teacher row is a former teacher's (#311)", async () => {
     const db = await open();
     const teacher = await person(db, "only", ["teacher"]);
     const former = await person(db, "former", ["teacher"]);

@@ -161,6 +161,27 @@ describe("simulationTeacherGuard (D10: never the last teacher)", () => {
     expect(still).toHaveLength(1);
   });
 
+  it("deletes a former teacher whose row is the last of a simulation (#311)", async () => {
+    const { auth, db: database } = await setup();
+    await createUser(auth, "admin@example.test", ["admin"]);
+    const formerId = await createUser(auth, "former@example.test", ["teacher"]);
+    await simulationWithLab(database, formerId);
+    await database
+      .updateTable("user")
+      .set({ role: "student" })
+      .where("id", "=", formerId)
+      .execute();
+    expect(await isOnlyTeacherOfASimulation(database, formerId)).toBe(false);
+    const headers = await signIn(auth, "admin@example.test");
+    await auth.api.removeUser({ body: { userId: formerId }, headers });
+    const gone = await database
+      .selectFrom("user")
+      .select("id")
+      .where("id", "=", formerId)
+      .execute();
+    expect(gone).toEqual([]);
+  });
+
   it("counts a co-teacher who holds teacher and admin (#311 finding 1)", async () => {
     const { auth, db: database } = await setup();
     await createUser(auth, "admin@example.test", ["admin"]);

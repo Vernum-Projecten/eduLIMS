@@ -57,13 +57,20 @@ function field(value: unknown, key: string): unknown {
 const TEACHER_ROLE_VALUES = storedRoleSetsWith("teacher");
 
 /**
- * Returns whether `userId` teaches a simulation in which no other teacher row belongs to a user
- * who holds the app role teacher, so deleting the account would leave it without a teacher
- * (D10). It applies the rule of `removeTeacher`; the other teachers' user rows are read
- * `FOR SHARE`.
+ * Returns whether `userId` holds the app role teacher and teaches a simulation in which no other
+ * teacher row belongs to a user who holds that role, so deleting the account would leave it
+ * without an active teacher (D10). A user without the role is never refused (maintainer,
+ * 2026-11-19, #311). The other teachers' rows are read `FOR SHARE`.
  */
 export async function isOnlyTeacherOfASimulation(db: Kysely<DB>, userId: string): Promise<boolean> {
   return db.transaction().execute(async (trx) => {
+    const target = await trx
+      .selectFrom("user")
+      .select("role")
+      .where("id", "=", userId)
+      .where("role", "in", TEACHER_ROLE_VALUES)
+      .executeTakeFirst();
+    if (!target) return false;
     const mine = await trx
       .selectFrom("simulation_teachers")
       .select("simulation_id")

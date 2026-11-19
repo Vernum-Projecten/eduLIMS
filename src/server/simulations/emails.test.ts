@@ -176,6 +176,27 @@ describe("addEmails (D10)", () => {
     expect(removals).toEqual([]);
   });
 
+  it("keeps the removal record of an account whose stored address is a KELVIN SIGN look-alike (#311)", async () => {
+    const { database, w } = await open();
+    const kelvin = await person(database, "kelvin-student", ["student"]);
+    await database
+      .updateTable("user")
+      .set({ email: "Kim@example.test" })
+      .where("id", "=", kelvin.id)
+      .execute();
+    await database
+      .insertInto("simulation_removals")
+      .values({ simulation_id: w.simulationId, user_id: kelvin.id, removed_by: w.teacher.id })
+      .execute();
+    await addEmails(database, w.teacher, { labId: w.labId, emails: ["kim@example.test"] }, NOW);
+    const removals = await database
+      .selectFrom("simulation_removals")
+      .select("user_id")
+      .where("simulation_id", "=", w.simulationId)
+      .execute();
+    expect(removals).toEqual([{ user_id: kelvin.id }]);
+  });
+
   it("holds one waiting place per address per simulation in the database too", async () => {
     const { database, w } = await open();
     await addEmails(database, w.teacher, { labId: w.labId, emails: ["x@example.test"] }, NOW);
