@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { AccountTiles } from "@/components/admin-overview/account-tiles";
 import { IntegrationTiles } from "@/components/admin-overview/integration-tiles";
 import { RecentActivity } from "@/components/admin-overview/recent-activity";
+import { SimulationTiles } from "@/components/admin-overview/simulation-tiles";
 import { portalPageTitle } from "@/components/portal/portal-pages";
 import { Page } from "@/components/shell/page-header";
 import { RouteErrorState } from "@/components/shell/route-error";
@@ -73,7 +74,7 @@ function OverviewPendingPage() {
 function OverviewPage() {
   const overview = useSuspenseQuery(adminOverviewQueryOptions());
   const status = useSuspenseQuery(integrationStatusQueryOptions());
-  const { counts, activity, readAt } = overview.data;
+  const { counts, simulations, activity, readAt } = overview.data;
 
   return (
     <OverviewHeader>
@@ -85,6 +86,12 @@ function OverviewPage() {
           <UpdatingIndicator active={overview.isFetching} />
           <AccountTiles counts={counts} />
         </div>
+      </section>
+      <section aria-labelledby="overview-simulations" className="flex flex-col gap-3">
+        <h2 id="overview-simulations" className="text-lg font-semibold">
+          {m.admin_overview_simulations_heading()}
+        </h2>
+        <SimulationTiles count={simulations} />
       </section>
       <div className="grid gap-6 lg:grid-cols-3">
         <section aria-labelledby="overview-integrations" className="flex flex-col gap-3">

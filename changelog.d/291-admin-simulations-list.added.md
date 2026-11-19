@@ -1,0 +1,1 @@
+Administrators see every simulation in Admin → Simulations, read-only: a paged list searched by name, a detail page with its teachers and its labs with their number of students, a "No active teacher" marker when no teacher of a simulation still holds the teacher role, and a tile with the number of simulations on the overview (B5).
