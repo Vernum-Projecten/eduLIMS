@@ -3,99 +3,51 @@
 
 // The changes to the test catalogue (D9, S4, #266) on a real database: the rules of a test, the
 // activity-log rows with ids only (B4), and the refusal of every role but teacher (A01).
-import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CatalogueTestId } from "../../lib/catalogue.ts";
-import type { Role } from "../../lib/roles.ts";
-import type { DB } from "../db/schema.gen.ts";
-import { createTestDb } from "../db/test-db.ts";
+import type { TestUsage } from "../../lib/catalogue.ts";
 import { AuthError } from "../middleware.ts";
-import { person } from "../simulations/test-helpers.ts";
 import {
   createTest,
+  isAnalyteTaken,
   isNameTaken,
   restoreTest,
   retireTest,
-  type TestActionContext,
   updateTest,
 } from "./actions.ts";
 import { readTestPage } from "./reads.ts";
-import type { TestDefinition } from "./schemas.ts";
+import {
+  CRP,
+  catalogueTestDb,
+  created,
+  events,
+  GLUCOSE,
+  LATER,
+  NOW,
+  stored,
+  UNKNOWN,
+} from "./test-helpers.ts";
 
-const used = vi.hoisted(() => new Set<string>());
+// NOTE: #266; no table refers to a test yet, so the use of a test is mocked until #267 makes it real.
+const usages = vi.hoisted(() => new Map<string, TestUsage>());
 vi.mock("./in-use.ts", () => ({
-  isTestInUse: (_db: unknown, id: string) => Promise.resolve(used.has(id)),
-  testsInUse: (_db: unknown, ids: readonly string[]) =>
-    Promise.resolve(new Set(ids.filter((id) => used.has(id)))),
+  usageOf: (_db: unknown, id: string) => Promise.resolve(usages.get(id) ?? "unused"),
+  testUsage: (_db: unknown, ids: readonly string[]) =>
+    Promise.resolve(
+      new Map(
+        ids.flatMap((id) => {
+          const usage = usages.get(id);
+          return usage ? [[id, usage] as const] : [];
+        }),
+      ),
+    ),
 }));
 
-const NOW = new Date("2026-11-19T09:00:00Z");
-const LATER = new Date("2026-11-19T10:00:00Z");
-const UNKNOWN = "01900000-0000-7000-8000-000000000000";
+const setup = catalogueTestDb();
+const teacher = setup.teacher;
 
-let db: Kysely<DB> | undefined;
+beforeEach(() => usages.clear());
 
-beforeEach(() => used.clear());
-
-afterEach(async () => {
-  await db?.destroy();
-  db = undefined;
-});
-
-async function teacher(key = "teacher", roles: readonly Role[] = ["teacher"], now = NOW) {
-  db ??= await createTestDb();
-  // The user table refuses an empty role set, so a caller without a role is a session user only.
-  const actor = roles.length === 0 ? { id: key, roles } : await person(db, key, roles);
-  return { db, actor, now } satisfies TestActionContext;
-}
-
-const CRP: TestDefinition = {
-  name: "CRP",
-  unit: "mg/L",
-  material: "blood",
-  source: { kind: "afinion", analyte: "CRP" },
-};
-
-const GLUCOSE: TestDefinition = {
-  name: "Glucose",
-  unit: "mmol/L",
-  material: "plasma",
-  source: { kind: "epoch_upload", calculatedBy: "team" },
-};
-
-function events(database: Kysely<DB>) {
-  return database
-    .selectFrom("audit_event")
-    .select(["action", "actor_id", "target_type", "target_id", "outcome", "metadata"])
-    .where("action", "like", "test_%")
-    .orderBy("occurred_at")
-    .orderBy("id")
-    .execute();
-}
-
-function stored(database: Kysely<DB>, id: string) {
-  return database
-    .selectFrom("catalogue_tests")
-    .select([
-      "name",
-      "unit",
-      "material",
-      "source",
-      "afinion_analyte",
-      "epoch_calculated_by",
-      "created_by",
-      "updated_at",
-      "retired_at",
-    ])
-    .where("id", "=", id)
-    .executeTakeFirstOrThrow();
-}
-
-async function created(ctx: TestActionContext, input = CRP): Promise<CatalogueTestId> {
-  const result = await createTest(ctx, input);
-  if (!result.ok) throw new Error(`create refused: ${result.error}`);
-  return result.testId;
-}
+afterEach(() => setup.destroy());
 
 describe("createTest (D9)", () => {
   it("adds a test with its name, unit and material and logs test_created with ids only", async () => {
@@ -119,6 +71,7 @@ describe("createTest (D9)", () => {
         target_type: "test",
         target_id: id,
         outcome: "success",
+        reason_code: null,
         metadata: null,
       },
     ]);
@@ -156,7 +109,16 @@ describe("createTest (D9)", () => {
       ok: false,
       error: "name_taken",
     });
-    expect(await events(ctx.db)).toHaveLength(1);
+    // ASVS V16.3.3: the refusal leaves its own row, with the code and no test of its own.
+    expect((await events(ctx.db)).at(-1)).toEqual({
+      action: "test_created",
+      actor_id: ctx.actor.id,
+      target_type: null,
+      target_id: null,
+      outcome: "refused",
+      reason_code: "name_taken",
+      metadata: null,
+    });
   });
 
   it("accepts the name of a retired test", async () => {
@@ -193,6 +155,7 @@ describe("updateTest (D9)", () => {
       target_type: "test",
       target_id: id,
       outcome: "success",
+      reason_code: null,
       metadata: { fields: ["material", "calculated_by"] },
     });
   });
@@ -250,65 +213,6 @@ describe("updateTest (D9)", () => {
       ok: false,
       error: "retired",
     });
-  });
-});
-
-describe("a test a simulation uses (D9, #266 acceptance criterion)", () => {
-  it("cannot have its unit changed", async () => {
-    const ctx = await teacher();
-    const id = await created(ctx);
-    used.add(id);
-    expect(await updateTest(ctx, { testId: id, test: { ...CRP, unit: "mg/dL" } })).toEqual({
-      ok: false,
-      error: "in_use",
-    });
-    expect((await stored(ctx.db, id)).unit).toBe("mg/L");
-  });
-
-  it("cannot have its source or its analyte changed", async () => {
-    const ctx = await teacher();
-    const id = await created(ctx);
-    used.add(id);
-    for (const source of [
-      { kind: "manual" } as const,
-      { kind: "afinion", analyte: "hsCRP" } as const,
-    ]) {
-      expect(await updateTest(ctx, { testId: id, test: { ...CRP, source } })).toEqual({
-        ok: false,
-        error: "in_use",
-      });
-    }
-  });
-
-  it("can still switch who calculates and change its name and material (D9)", async () => {
-    const ctx = await teacher();
-    const id = await created(ctx, GLUCOSE);
-    used.add(id);
-    const result = await updateTest(ctx, {
-      testId: id,
-      test: {
-        ...GLUCOSE,
-        name: "Glucose (fasting)",
-        material: "serum",
-        source: { kind: "epoch_upload", calculatedBy: "edulims" },
-      },
-    });
-    expect(result).toEqual({ ok: true, testId: id });
-  });
-
-  it("can be retired", async () => {
-    const ctx = await teacher();
-    const id = await created(ctx);
-    used.add(id);
-    expect(await retireTest(ctx, { testId: id })).toEqual({ ok: true, testId: id });
-  });
-
-  it("shows as in use in the list", async () => {
-    const ctx = await teacher();
-    const id = await created(ctx);
-    used.add(id);
-    const page = await readTestPage(ctx, {});
-    expect(page.rows.map((row) => [row.id, row.inUse])).toEqual([[id, true]]);
   });
 });
 
@@ -398,7 +302,7 @@ describe("only teachers read or change the catalogue (D9, A01)", () => {
 describe("the database holds the catalogue's rules (D9)", () => {
   /** Inserts a raw row in a savepoint, so a refused insert leaves the test's transaction usable. */
   async function insert(values: Record<string, string | null>) {
-    db ??= await createTestDb();
+    const db = await setup.database();
     return db.transaction().execute((trx) =>
       trx
         .insertInto("catalogue_tests")
@@ -435,6 +339,16 @@ describe("the database holds the catalogue's rules (D9)", () => {
   it("refuses an unknown source and untrimmed text", async () => {
     await expect(insert({ source: "usb" })).rejects.toThrow(/catalogue_tests_source/);
     await expect(insert({ unit: " mg/L" })).rejects.toThrow(/catalogue_tests_unit/);
+  });
+});
+
+describe("isAnalyteTaken", () => {
+  it("recognises only the unique violation of an active analyte", () => {
+    const violation = { code: "23505", constraint: "catalogue_tests_active_analyte_key" };
+    expect(isAnalyteTaken(violation)).toBe(true);
+    expect(isAnalyteTaken({ ...violation, constraint: "catalogue_tests_active_name_key" })).toBe(
+      false,
+    );
   });
 });
 

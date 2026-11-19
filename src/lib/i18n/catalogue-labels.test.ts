@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { sameSource } from "@/lib/catalogue";
+import { isAfinionAnalyte, lockedTestFields, sameSource } from "@/lib/catalogue";
 import {
   catalogueErrorMessage,
   testSourceDetail,
@@ -22,7 +22,7 @@ describe("test catalogue labels (D9, #266)", () => {
   it("puts a source's setting in words", () => {
     expect(testSourceDetail({ kind: "afinion", analyte: "CRP" })).toBe("Analyte CRP");
     expect(testSourceDetail({ kind: "epoch_upload", calculatedBy: "team" })).toBe(
-      "The team calculates",
+      "The lab calculates",
     );
     expect(testSourceDetail({ kind: "epoch_upload", calculatedBy: "edulims" })).toBe(
       "eduLIMS calculates",
@@ -31,7 +31,15 @@ describe("test catalogue labels (D9, #266)", () => {
   });
 
   it("names every refusal, and anything else as a failure", () => {
-    for (const code of ["not_found", "name_taken", "retired", "not_retired", "in_use"]) {
+    for (const code of [
+      "not_found",
+      "name_taken",
+      "retired",
+      "not_retired",
+      "in_use",
+      "in_running_simulation",
+      "analyte_taken",
+    ]) {
       expect(catalogueErrorMessage(code)).not.toBe(catalogueErrorMessage("failed"));
     }
     expect(catalogueErrorMessage("anything")).toBe("The change could not be saved. Try again.");
@@ -54,5 +62,30 @@ describe("sameSource (D9)", () => {
     ).toBe(false);
     expect(sameSource({ kind: "manual" }, { kind: "afinion", analyte: "CRP" })).toBe(false);
     expect(sameSource({ kind: "manual" }, { kind: "manual" })).toBe(true);
+  });
+});
+
+describe("lockedTestFields (D9; maintainer 2026-11-19)", () => {
+  it("fixes nothing, then the unit, source and analyte, then the material and calculator too", () => {
+    expect([...lockedTestFields("unused")]).toEqual([]);
+    expect([...lockedTestFields("used")]).toEqual(["unit", "source", "analyte"]);
+    expect([...lockedTestFields("running")]).toEqual([
+      "unit",
+      "source",
+      "analyte",
+      "material",
+      "calculatedBy",
+    ]);
+  });
+});
+
+describe("isAfinionAnalyte (security review F3)", () => {
+  it("takes printable ASCII without the HL7 delimiters only", () => {
+    for (const analyte of ["CRP", "HbA1c", "Chol/HDL", "non-HDL", "A B"]) {
+      expect(isAfinionAnalyte(analyte), analyte).toBe(true);
+    }
+    for (const analyte of ["CR|P", "A^B", "A~B", "A\\B", "A&B", "Créat", "A\tB", ""]) {
+      expect(isAfinionAnalyte(analyte), analyte).toBe(false);
+    }
   });
 });

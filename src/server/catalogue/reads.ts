@@ -9,7 +9,7 @@ import type { Kysely } from "kysely";
 import type { SessionUser } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { assertTeacher } from "../simulations/access.ts";
-import { testsInUse } from "./in-use.ts";
+import { testUsage } from "./in-use.ts";
 import {
   type CatalogueTestFacets,
   type CatalogueTestPage,
@@ -38,7 +38,7 @@ export async function readTestPage(
 ): Promise<CatalogueRegisterPage> {
   assertTeacher(ctx.actor);
   const [page, facets] = await Promise.all([
-    listTests(ctx.db, input, (ids) => testsInUse(ctx.db, ids)),
+    listTests(ctx.db, input, (ids) => testUsage(ctx.db, ids)),
     testFacets(ctx.db, input),
   ]);
   return { ...page, facets };

@@ -16,6 +16,7 @@ import {
   type TestSource,
   type TestSourceKind,
   type TestStatus,
+  type TestUsage,
 } from "../../lib/catalogue.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { containsPattern } from "../users/queries.ts";
@@ -25,14 +26,15 @@ import { DEFAULT_TEST_PAGE_SIZE, type ListTestsInput, type TestSortField } from 
 export interface CatalogueTestRow {
   id: CatalogueTestId;
   name: string;
-  unit: string;
+  /** `null` for a dimensionless result (maintainer, 2026-11-19). */
+  unit: string | null;
   material: string;
   source: TestSource;
   status: TestStatus;
   /** ISO instant of the last change. */
   updatedAt: string;
-  /** Whether a simulation uses the test, so its unit and source are fixed (D9). */
-  inUse: boolean;
+  /** How simulations use the test, which fixes some of its settings (D9). */
+  usage: TestUsage;
 }
 
 /** One page of the catalogue. */
@@ -105,7 +107,7 @@ function filterConditions(
 export interface StoredTest {
   id: string;
   name: string;
-  unit: string;
+  unit: string | null;
   material: string;
   source: string;
   afinion_analyte: string | null;
@@ -148,7 +150,7 @@ export function storedSource(row: StoredTest): TestSource {
  *
  * @throws CatalogueTestRowInvalidError on a value the CHECKs should refuse.
  */
-export function toCatalogueTestRow(row: StoredTest, inUse: boolean): CatalogueTestRow {
+export function toCatalogueTestRow(row: StoredTest, usage: TestUsage): CatalogueTestRow {
   const id = parseCatalogueTestId(row.id);
   if (id === null) throw new CatalogueTestRowInvalidError(`catalogue test ${row.id} is invalid`);
   return {
@@ -159,7 +161,7 @@ export function toCatalogueTestRow(row: StoredTest, inUse: boolean): CatalogueTe
     source: storedSource(row),
     status: row.retired_at === null ? "active" : "retired",
     updatedAt: row.updated_at.toISOString(),
-    inUse,
+    usage,
   };
 }
 
@@ -171,7 +173,7 @@ export function toCatalogueTestRow(row: StoredTest, inUse: boolean): CatalogueTe
 export async function listTests(
   db: Kysely<DB>,
   input: ListTestsInput,
-  inUse: (ids: readonly CatalogueTestId[]) => Promise<ReadonlySet<CatalogueTestId>>,
+  usage: (ids: readonly CatalogueTestId[]) => Promise<ReadonlyMap<CatalogueTestId, TestUsage>>,
 ): Promise<CatalogueTestPage> {
   const size = input.size ?? DEFAULT_TEST_PAGE_SIZE;
   const page = input.page ?? 1;
@@ -189,11 +191,11 @@ export async function listTests(
     base.select((eb) => eb.fn.countAll<string>().as("n")).executeTakeFirstOrThrow(),
   ]);
   const ids = rows.flatMap((row) => parseCatalogueTestId(row.id) ?? []);
-  const used = await inUse(ids);
+  const usages = await usage(ids);
   return {
     rows: rows.map((row) => {
       const id = parseCatalogueTestId(row.id);
-      return toCatalogueTestRow(row, id !== null && used.has(id));
+      return toCatalogueTestRow(row, (id === null ? undefined : usages.get(id)) ?? "unused");
     }),
     total: Number(count.n),
     page,
