@@ -44,7 +44,14 @@ time and on accuracy at once".
 - Never add a feature that hints at the answer to a student (a flag against
   the correct value, a suggested range, an automatic calculation the team is
   meant to do), unless the owner asks for it.
-- The teachers' source material (request forms, the game script, the Epoch
-  export) stays outside the repository: one file holds real student names,
-  and a fixture is a cleaned or invented copy
-  ([[neutral-project-context]]).
+- **The teachers' material never becomes public** (owner, 2026-11-19: "the
+  teachers' data must not land in the repo; we may use it locally, but not
+  publicly, because then the students can find the right answers"). The
+  repository and the tracker are public. Use the request forms, the game
+  script, the kick-off deck and the Epoch export locally only: no scenario,
+  patient, sample number, requested test per patient, trap, intervention or
+  correct value in a file, a fixture, a seed, an issue, a comment, a PR or a
+  commit message. Describe a format (the form's fields, the export's
+  layout) without its content, and invent fixtures and demo data from
+  scratch ([[neutral-project-context]]). One of the files also holds real
+  student names.

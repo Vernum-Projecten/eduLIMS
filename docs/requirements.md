@@ -4,19 +4,25 @@
 # Requirements
 
 > **Status: working draft.** These requirements are not final. Priorities,
-> acceptance criteria, KPIs and even the requirements themselves are still
-> under discussion with the product owner, teachers and students, and will
-> change. Treat every row as the current proposal, not a commitment: when a
-> requirement is unclear, missing, or conflicts with what is being built,
-> raise it with the owner instead of implementing it as settled.
+> acceptance criteria, the dashboard measures and even the requirements
+> themselves are still under discussion with the product owner, teachers and
+> students, and will change. Treat every row as the current proposal, not a
+> commitment: when a requirement is unclear, missing, or conflicts with what
+> is being built, raise it with the owner instead of implementing it as
+> settled.
 
-This document lists the current draft requirements of eduLIMS, each with a stable ID. Code,
-tests, issues and pull requests cite these IDs (for example `S4`, `Q-SEC-1`,
-`R-06`, `K-03`). An ID is never reused: a dropped requirement keeps its row
-with the status "Dropped".
+eduLIMS is the LIMS of a workplace simulation. Teams of students run a
+simulated clinical laboratory: requests arrive on paper, the team registers
+the patients and their samples, measures, and releases each result to the
+patient's record. The teams compete on turnaround time and on accuracy, and
+teachers follow every team live. The owner set this direction on 2026-11-19
+([ADR 0020](adr/0020-workplace-simulation.md)); it replaces the earlier model
+of practicals with a lab report, a rubric and a grade.
 
-The requirements are being re-evaluated with the product owner. Until that is
-done, the rows below are the starting point, not the outcome.
+This document lists the current draft requirements, each with a stable ID.
+Code, tests, issues and pull requests cite these IDs (for example `S15`,
+`Q-SEC-1`, `R-11`, `G-02`). An ID is never reused: a dropped requirement
+keeps its row with the status "Dropped".
 
 ## How to read this
 
@@ -27,18 +33,32 @@ done, the rows below are the starting point, not the outcome.
   holds.
 - Criteria marked *(proposed)* have not yet been reviewed with the product
   owner; the product owner confirms them in a milestone review.
+- **Open** in a row names a question in [Open questions](#open-questions).
+  The row states what the owner said; the open part is never filled in with
+  a guess, and nothing is built on it until the owner answers.
 - **Risk** refers to the risk table below.
 
-The acceptance criteria and risk scores were proposed by the maintainer and are
-validated with the product owner in the milestone reviews and with teachers
-and students in interviews and user tests.
+## Terms
+
+| Term | Meaning |
+|---|---|
+| Game | One run of the simulation, with its teams, its samples and its correct values. |
+| Team | The group of students that runs one laboratory in a game. Students always work in a team. |
+| Patient | A fictional person a request is for. The team registers the patient from the paper form. |
+| Request | The tests a requester asks for one patient, on a paper request form. A request is routine or urgent. |
+| Sample | The material of a request (blood, urine), identified by the sample number printed on the form. |
+| Test | One determination from the test catalogue (for example glucose), with its unit and material. |
+| Measurement | One measured value for a test on a sample, from an analyser or an upload. A team can measure several times. |
+| Result | The measurement the team releases to the patient's record. Releasing is final for the clock. |
+| Tolerance | The limits a team sets for a test before measuring: its measurements must fall between them. |
+| Correct value | The value a teacher enters beforehand for a test on a sample. Students never see it. |
 
 ## Roles
 
 | Role | May | Sees |
 |---|---|---|
-| Student | register samples, upload Excel, submit the lab report | own practicals, own measurements, own grade next to the class and practical average |
-| Teacher | set up a practical, protocol and rubric, link classes, check results, grade, record feedback and grade | all students, submissions and measurements of their own practicals; KPI dashboard per class |
+| Student | with the team: register patients, record requests and samples, set tolerances, upload the Epoch export, measure again, release results | the work of their own team only; never a correct value or another team's work |
+| Teacher | manage the test catalogue, prepare a game and its correct values, follow the teams | every team of their own games: times, measurements, released results and accuracy |
 | Administrator | manage users, classes and roles; manage analysers and integrations | logs, integration status, analyser usage |
 
 ## Functional requirements
@@ -48,27 +68,39 @@ and students in interviews and user tests.
 | ID | Requirement | Priority | Acceptance criterion | Risk |
 |---|---|---|---|---|
 | S1 | Sign in with the institution account through OIDC (Microsoft Entra ID or Keycloak). | Must | A student signs in through the institution's identity provider and lands in the student portal; without a valid account there is no access. | R-01 |
-| S2 | View the practical assignment and measurement protocol. | Must | *(proposed)* A student linked to a practical sees its assignment, protocol and deadline; a student not linked to it gets no access. | R-01 |
-| S3 | Register samples; eduLIMS creates a unique sample ID for each sample. | Must | With 50 registered samples, all 50 sample IDs are unique. | |
-| S4 | Upload a Gen5 export (Excel); the system validates sample IDs and well positions. | Must | An Excel file with an unknown sample ID or an invalid well position is rejected with a clear error message; a correct Excel file reaches FerroEHR within 10 seconds. | R-06 |
-| S5 | Check the measurement results per sample (Afinion and Epoch). | Must | An Afinion measurement appears with the right sample in the student portal within 1 minute of measuring. | |
-| S6 | Submit the lab report before a deadline. | Must | After sending, the submission is locked and the student can no longer change it. After the deadline the student can no longer submit; a submission gets a timestamp. | |
-| S7 | View feedback and grade, with the own grade next to the practical average. | Must | The student sees their grade and feedback as soon as the teacher records the assessment, and sees only their own grade. | R-01, R-03 |
-| S8 | See the status of a submission (draft, submitted, graded). | Should | *(proposed)* Every submission shows one of the three statuses; the status changes to submitted when the student sends it and to graded when the teacher records the assessment. | |
-| S9 | Submit a resit or a new version. | Could | *(proposed)* When the teacher opens a resit, the student submits a new version; the earlier version stays readable and locked. | |
+| S4 | Upload the Gen5 export of the Epoch 2 (Excel) by drag and drop; eduLIMS reads the measured values from it. Revised 2026-11-19. | Must | *(proposed)* A file in the supplied export layout (a header block and a 96-well grid of absorbance values at one wavelength) is read and its values are shown to the team within 10 seconds; a file in another layout is rejected with a clear error message. Open: how a well is linked to a sample, and who calculates a concentration (O5). | R-06 |
+| S5 | See the measurements per sample (Afinion 2 and Epoch 2). Revised 2026-11-19. | Must | An Afinion measurement appears with the right sample in the team's work within 1 minute of measuring. Open: how a result finds the right team (O13). | R-11 |
+| S10 | Work in a team: every member works in the team's shared patients, requests, samples and results. | Must | *(proposed)* Two members of one team see the same work; a student of another team sees none of it. Open: team roles (O10). | R-01 |
+| S11 | Register a patient from the paper request form. | Must | *(proposed)* The team registers a patient with the details on the form (name, date of birth, sex, patient ID); eduLIMS fills in or corrects nothing for them. The patient's record in FerroEHR carries those fictional details (owner, 2026-11-19). | |
+| S12 | Record a request for a patient as it stands on the form: the requester, the requested tests, routine or urgent, whether the result must be phoned through, the remarks, and the samples with the sample number and material. | Must | *(proposed)* The team records a request with its tests and links each sample by its sample number; eduLIMS records the time of entry on the server. Open: a request for a control sample, which has no patient (O14). | R-12 |
+| S13 | Set the team's own tolerances per test before measuring. | Must | *(proposed)* The team enters a lower and an upper limit per test; the limits are the team's own and no other team sees them. Open: O6. | |
+| S14 | Measure a sample again: a requested test can have several measurements before a result is released. | Must | *(proposed)* A second measurement for the same test and sample is kept beside the first, and the team sees both. Open: O7. | |
+| S15 | Release a result to the patient's record. Before the release, eduLIMS warns when the value is outside the team's own tolerance. | Must | *(proposed)* The team picks one measurement and releases it; eduLIMS records the time of release on the server, and the result is in the patient's record in FerroEHR. A value outside the team's tolerance shows a warning with an icon and text before the release is confirmed. Open: corrections after a release (O7). | R-12 |
+| S2 | View the practical assignment and measurement protocol. | Dropped | Dropped 2026-11-19 with the practical model. | |
+| S3 | Register samples; eduLIMS creates a unique sample ID for each sample. | Dropped | Dropped 2026-11-19: the sample number comes from the request form (S12). | |
+| S6 | Submit the lab report before a deadline. | Dropped | Dropped 2026-11-19: no lab report. | |
+| S7 | View feedback and grade, with the own grade next to the practical average. | Dropped | Dropped 2026-11-19: no grading (W6). | |
+| S8 | See the status of a submission (draft, submitted, graded). | Dropped | Dropped 2026-11-19: no lab report. | |
+| S9 | Submit a resit or a new version. | Dropped | Dropped 2026-11-19: no lab report. | |
 
 ### Teacher portal
 
 | ID | Requirement | Priority | Acceptance criterion | Risk |
 |---|---|---|---|---|
-| D1 | Create a practical with assignment, protocol, deadline and rubric. | Must | A teacher creates a practical with assignment, protocol, deadline and rubric in less than 10 minutes. | |
-| D2 | Link classes or individual students to a practical. | Must | *(proposed)* A teacher links a class and one individual student to a practical; exactly those students see it in the student portal. | R-01 |
-| D3 | View the measurement results of all students of a practical. | Must | A teacher sees the results of all their students, and not those of practicals of other teachers. | R-01 |
-| D4 | Grade a submission per rubric criterion, with feedback and final grade. | Must | A score is recorded per rubric criterion; the final grade is calculated from the scores and cannot stay empty. | |
-| D5 | KPI dashboard per class and per practical (see [KPIs](#kpis)). | Must | The dashboard shows the five KPIs with their norm on one page and loads within 2 seconds. | R-03, R-09 |
-| D6 | Export grades (CSV) for use in an external grade-book system. | Should | *(proposed)* The export holds one row per student per practical with the final grade, opens correctly in Excel, and covers only the teacher's own practicals. The export is logged. | |
-| D7 | See deviating measured values flagged (plausibility check). | Could | *(proposed)* A value outside the expected range for its analyte is flagged with an icon and text, not colour alone. | R-09 |
-| D8 | Reuse a rubric between practicals. | Could | *(proposed)* A teacher copies a rubric from an earlier practical; changing the copy does not change the original. | |
+| D9 | Manage the test catalogue, so a test can be added without a change to the code. | Must | *(proposed)* A teacher adds a test with its name, unit and material, and teams can request it in the next game. Open: which test runs on which analyser (O4). | |
+| D10 | Prepare a game: its teams and, beforehand, the correct value per test and sample. | Must | *(proposed)* A teacher enters the correct value for each test of each sample before the game starts; no student account can read one. Open: how much of the scenario a teacher prepares in eduLIMS (O11). | R-01 |
+| D11 | Follow every team live on a dashboard: per request the time of entry, the time of release and the time between them, and per released result the accuracy as green, yellow or red. | Must | *(proposed)* A released result shows on the dashboard without a manual reload, with its times and its accuracy status as a colour with an icon and text. A teacher sees only their own games. | R-01, R-09 |
+| D12 | Set a time target for urgent requests; the dashboard shows whether a team met it. | Must | *(proposed)* An urgent request shows as within or past its target. Open: the targets and when the clock starts (O1). | |
+| D13 | Set, per test, how far a result may be from the correct value for green, yellow and red. | Must | *(proposed)* A teacher sets the limits; the dashboard colours a result by them. Open: whether a limit is a percentage, an absolute distance or either (O2). | |
+| D14 | See the ranking of the teams on time and accuracy. | Must | Open: the ranking rule and who sees it (O3). No criterion is proposed until the owner answers. | |
+| D1 | Create a practical with assignment, protocol, deadline and rubric. | Dropped | Dropped 2026-11-19 with the practical model; a game is prepared with D10. | |
+| D2 | Link classes or individual students to a practical. | Dropped | Dropped 2026-11-19 with the practical model. | |
+| D3 | View the measurement results of all students of a practical. | Dropped | Dropped 2026-11-19; replaced by D11. | |
+| D4 | Grade a submission per rubric criterion, with feedback and final grade. | Dropped | Dropped 2026-11-19: no grading (W6). | |
+| D5 | KPI dashboard per class and per practical. | Dropped | Dropped 2026-11-19; replaced by D11. | |
+| D6 | Export grades (CSV) for use in an external grade-book system. | Dropped | Dropped 2026-11-19: no grading (W6). | |
+| D7 | See deviating measured values flagged (plausibility check). | Dropped | Dropped 2026-11-19; the accuracy status of D11 and D13 replaces it. | |
+| D8 | Reuse a rubric between practicals. | Dropped | Dropped 2026-11-19: no rubric. | |
 
 ### Admin portal
 
@@ -84,15 +116,21 @@ administrator together and switches between the two portals; student is
 never combined with another role. Each role keeps only its own access
 ([ADR 0012](adr/0012-multiple-roles-and-portal-switcher.md)).
 
+*Note on B2:* the lab groups of a class
+([ADR 0018](adr/0018-classes-as-organizations.md)) are the natural home of a
+team. Whether a game takes its teams from them is part of O11.
+
 ### Won't
 
 | ID | Requirement | Priority | Reason |
 |---|---|---|---|
-| W1 | Integration with a learning management system. | Won't | Out of scope: grading stays in eduLIMS. |
-| W2 | Integration with an external grade-book system. | Won't | Out of scope; the CSV export (D6) covers the need. |
+| W1 | Integration with a learning management system. | Won't | Out of scope. |
+| W2 | Integration with an external grade-book system. | Won't | eduLIMS holds no grades (W6). |
 | W3 | Direct device link with the Epoch 2. | Won't | Gen5 does not speak HL7; the Excel upload (S4) is the route. |
 | W4 | New, custom openEHR archetypes. | Won't | Only existing CKM archetypes are used. |
-| W5 | Real patient data. | Won't | Only test data of volunteer subjects under a pseudonym. |
+| W5 | Real patient data. | Won't | The patients of a game are fictional. |
+| W6 | Grading: a rubric, a grade, feedback on a submission, a lab report, a grade export. | Won't | Owner decision 2026-11-19: there is no grading of any kind. The teacher side is a dashboard of the progress and the process of the games. |
+| W7 | Hints for students: a flag against the correct value, a suggested limit, an interpretation of a result. | Won't | Owner decision 2026-11-19: the students are the analysts. The one check they get is the warning against their own tolerance (S15). |
 
 ## Quality requirements
 
@@ -101,17 +139,20 @@ Classified by the ISO/IEC 25010 quality characteristics.
 | ID | Characteristic | Requirement | Acceptance criterion |
 |---|---|---|---|
 | Q-SEC-1 | Security | Sign-in only through SSO; access per role. | A penetration test with the OWASP Top 10 checklist finds no endpoint that is open without sign-in. |
-| Q-SEC-2 | Security | Every user sees only the data their role allows; the API filters on own data. | Tests with one account per role show no access outside the role: a student sees no data of others, a teacher only their own classes and practicals. |
+| Q-SEC-2 | Security | Every user sees only the data their role allows; the API filters on own data. | Tests with one account per role show no access outside the role: a student sees no data of another team and no correct value, a teacher only their own classes and games. |
 | Q-SEC-3 | Security | HTTPS for all traffic; no measurement data outside the institution's network. | All traffic is served over HTTPS; measurement data is stored only inside the institution's network, or, if hosting moves to Azure, only in an EU region with GDPR agreements. |
 | Q-SEC-4 | Security | No known critical vulnerabilities in dependencies or images. | The dependency and image scan in CI reports no known critical vulnerability; images are rebuilt at least monthly. |
 | Q-SEC-5 | Security | No merge without green tests; every change is reviewed by a person. | Branch rules require green CI and the merge queue. Review by a person is a convention, not a branch rule: the rules require no approval, so a pull request can auto-merge on green CI (see GOVERNANCE.md). |
-| Q-PRIV-1 | Privacy | Only pseudonyms in FerroEHR. | The CDR holds no name or student number; the GDPR check with the institution's privacy officer is approved. |
-| Q-PRIV-2 | Privacy | An average never reveals an individual grade. | An average is shown only from 5 assessments on. |
+| Q-PRIV-1 | Privacy | No personal data of a real person in FerroEHR. | The CDR holds the fictional patients of a game and no name, student number or email address of a student or a teacher; the GDPR check with the institution's privacy officer is approved. |
+| Q-PRIV-2 | Privacy | An average never reveals an individual grade. | Dropped 2026-11-19: no grading (W6). |
 | Q-PRIV-3 | Privacy | AI tools and test environments never see real personal data. | The repository and the development and test databases hold only the pseudonymised test set. |
-| Q-TRACE-1 | Traceability | Every measurement links through its sample ID to device, sample and student. | For any measurement in FerroEHR, eduLIMS shows the device, the sample and the student. |
-| Q-REL-1 | Reliability | Available during practical hours. | During a practical week eduLIMS is reachable 99% of the practical hours; recovery within one working day. |
+| Q-PRIV-4 | Privacy | The teachers' game material stays out of everything public. | The repository, the tracker and the documentation hold no scenario, patient list, request form or correct value of a real game; fixtures and demo data are invented for the purpose. |
+| Q-TRACE-1 | Traceability | Every measurement links through its sample number to device, sample, patient and team. | For any measurement in FerroEHR, eduLIMS shows the device, the sample, the patient and the team. |
+| Q-REL-1 | Reliability | Available during a game. | On a game day eduLIMS is reachable 99% of the game hours; recovery within one working day. |
 | Q-PERF-1 | Performance | Fast pages. | Pages load within 2 seconds. |
 | Q-PERF-2 | Performance | Fast upload. | An Excel upload is processed within 10 seconds. |
+| Q-SIM-1 | Simulation | Students get no hint from eduLIMS (W7). | With a student account, no screen and no server response holds a correct value, an accuracy status or another team's work. |
+| Q-SIM-2 | Simulation | The server keeps the time. | Every time the dashboard uses (entry of a request, release of a result) is taken on the server; a client clock that is wrong changes nothing. |
 | Q-ACC-1 | Accessibility | WCAG 2.1 level AA. | An axe check and a keyboard-only walkthrough find no errors at level A and AA. |
 | Q-ACC-2 | Accessibility | Signals do not rely on colour alone. | Every status and deviation has an icon and text next to its colour. |
 | Q-ACC-3 | Accessibility | Forms work with a screen reader. | Every form field has a label; axe and a keyboard test pass. |
@@ -130,19 +171,23 @@ requirement.
 
 | ID | Risk | Aspect | L | I | Score | Measure (requirement) |
 |---|---|---|---|---|---|---|
-| R-01 | A student sees grades or results of others. | Security | 2 | 3 | 6 | Access per role and a filter on own data in the API (S7, D3, Q-SEC-2). |
-| R-02 | Real personal data ends up in FerroEHR. | Privacy | 1 | 3 | 3 | Pseudonyms only; GDPR check before use (Q-PRIV-1). |
-| R-03 | An average reveals an individual grade. | Privacy | 2 | 2 | 4 | Show averages only from 5 assessments on (Q-PRIV-2). |
+| R-01 | A student sees the work of another team or a correct value. | Security | 2 | 3 | 6 | Access per role and a filter on the own team in the API (S10, D10, Q-SEC-2, Q-SIM-1). |
+| R-02 | Real personal data ends up in FerroEHR. | Privacy | 1 | 3 | 3 | Fictional patients only; GDPR check before use (Q-PRIV-1). |
+| R-03 | Dropped 2026-11-19 (an average reveals an individual grade): no grading. | | | | | |
 | R-04 | Measurement data ends up somewhere without proper agreements (for example a cloud region outside the EU). | Security | 1 | 3 | 3 | Local inside the institution's network, or in Azure only in an EU region with GDPR agreements (Q-SEC-3). |
 | R-05 | A vulnerable library in a container. | Security | 2 | 2 | 4 | Scan dependencies in the pipeline; update images monthly (Q-SEC-4). |
-| R-06 | Unknown sample ID in an Excel upload. | Data quality | 3 | 2 | 6 | The upload validates sample ID and well position (S4). |
+| R-06 | A value from an Excel upload is attached to the wrong sample. | Data quality | 3 | 2 | 6 | The upload validates the file layout; the link from well to sample is open (S4, O5). |
 | R-07 | The AI coding assistant writes insecure code. | Security | 2 | 2 | 4 | No merge without green tests; review by a person by convention (Q-SEC-5). |
 | R-08 | Unnecessary energy use from separate services. | Sustainability | 2 | 1 | 2 | One environment; unused containers off (Q-SUST-1). |
 | R-09 | A colour-blind or visually impaired user cannot read the dashboard. | Accessibility | 2 | 2 | 4 | Signals with icon and text, not colour alone; WCAG 2.1 AA (Q-ACC-2). |
 | R-10 | A screen reader cannot use the forms. | Accessibility | 2 | 2 | 4 | Labels on all fields; test with axe and keyboard (Q-ACC-3). |
+| R-11 | An analyser result reaches the wrong team, because every team works the same sample numbers. | Data quality | 3 | 3 | 9 | *(proposed score)* Open: how a result finds its team (S5, O13). |
+| R-12 | A time on the dashboard is wrong or can be changed by a team. | Fairness | 2 | 3 | 6 | *(proposed score)* Times are taken on the server (Q-SIM-2). |
+| R-13 | Students find the scenario or the correct values of a game. | Fairness | 2 | 3 | 6 | *(proposed score)* The teachers' material stays out of the repository and the tracker (Q-PRIV-4); correct values are readable by teachers only (D10). |
 
-The highest risks are R-01 and R-06. Access per role and upload validation are
-therefore Must requirements.
+The highest risks are R-11, R-01, R-06, R-12 and R-13. Access per role and
+per team, upload validation and the server clock are therefore Must
+requirements.
 
 ### Project risks
 
@@ -152,39 +197,57 @@ therefore Must requirements.
 | P-02 | The lab network does not route to the server network (the Afinion cannot reach FerroBRIDGE). | Medium | High | Test early with the institution's IT department; simulate HL7 messages. |
 | P-03 | The Gen5 export template cannot be pinned down unambiguously. | Medium | Medium | Fix the template together with a teacher; the parser validates strictly. |
 | P-04 | Limited availability of teachers and students for interviews and tests. | Medium | Medium | Plan interviews and tests early; arrange through the product owner. |
-| P-05 | Real personal data enters the system after all. | Low | High | Pseudonyms only; GDPR check with the institution's privacy officer. |
+| P-05 | Real personal data enters the system after all. | Low | High | Fictional patients only; no student or teacher data in FerroEHR; GDPR check with the institution's privacy officer. |
 | P-06 | Single maintainer: no replacement in case of absence. | Medium | Medium | Guard the scope with MoSCoW; drop Could items when time runs short. |
 | P-07 | Dropped. | | | No longer applies. |
 
-## KPIs
+## Dashboard measures
 
-There are nine KPIs: three decided, six proposed. The KPI dashboard design ([kpi-dashboard.md](kpi-dashboard.md),
-iteration 2) then narrowed the teacher dashboard to five KPIs, each with a
-norm, using the Balanced Scorecard. The norms are proposals to be set with the
-teachers.
+The teacher dashboard (D11) shows the progress and the process of a game.
+It holds no grade and no norm for a grade. The measures below come from the
+owner's input of 2026-11-19; their limits are open questions. The design is
+in [game-dashboard.md](game-dashboard.md).
 
-| ID | KPI | Calculation | Level | Seen by | Status | On the dashboard (iteration 2) |
-|---|---|---|---|---|---|---|
-| K-01 | Average grade | Mean of the final grades | per class and per practical | Teacher | Decided | Yes, norm ≥ 6.0 |
-| K-02 | Progress | Number submitted, graded and not yet submitted | per class and per practical | Teacher | Decided | Chart "Progress per class" |
-| K-03 | Own grade against average | Student's grade next to the class and practical average | per student | Student | Decided | Student portal only |
-| K-04 | Grade distribution and pass rate | Spread and percentage of passing grades | per class and per practical | Teacher | Proposal | Yes, pass rate norm ≥ 70% |
-| K-05 | Late submissions | Submissions after the deadline | per class | Teacher | Proposal | Yes, as "Submitted before deadline", norm 100% at the deadline |
-| K-06 | Open grading work and grading time | Submissions waiting for grading, and working days between submitting and grading | per teacher | Teacher | Proposal | Yes, grading time norm ≤ 5 working days |
-| K-07 | Score per rubric criterion | Mean score per criterion, so weak parts stand out | per class and per practical | Teacher | Proposal | Chart "Score per rubric criterion" |
-| K-08 | Measurement quality | Share of measurements outside the expected range or remeasured | per class and per practical | Teacher | Proposal | Yes, norm ≤ 15% |
-| K-09 | Analyser usage | Measurements per device per week | per device | Administrator | Proposal | No; admin portal |
+| ID | Measure | Calculation | Level | Seen by | Status |
+|---|---|---|---|---|---|
+| G-01 | Turnaround time | Time between the entry of a request and the release of its result, on the server clock | per request and per team | Teacher | Decided; start of the clock open (O1) |
+| G-02 | Urgent within target | Whether an urgent request was released within its time target | per urgent request and per team | Teacher | Decided; target open (O1) |
+| G-03 | Accuracy | Distance between a released result and the correct value, shown as green, yellow or red by the limits the teacher set (D13) | per released result and per team | Teacher | Decided |
+| G-04 | Ranking | The teams ordered on time and accuracy | per game | Teacher; teams open | Rule open (O3) |
+| K-09 | Analyser usage | Measurements per device per week | per device | Administrator | Proposal |
 
-K-01 to K-07 are calculated with SQL on the assessment records in the eduLIMS
-database. K-08 and K-09 read measurement data from FerroEHR with AQL. No other
-data source is needed.
+K-01 to K-08, the KPIs of the grading model, are dropped (2026-11-19). G-01,
+G-02 and G-04 are calculated with SQL on the eduLIMS database; G-03 compares
+a released result with the correct value, which only eduLIMS holds.
+
+## Open questions
+
+The owner answers these on #264. An answer there is newer than this
+document.
+
+| ID | Question | Status |
+|---|---|---|
+| O1 | What is the time target for an urgent and for a routine request, and when does the clock start and stop? | Open. The owner named "within 30 minutes or so" for urgent as an example. |
+| O2 | How far from the correct value is yellow, and how far is red? | Answered 2026-11-19: the teacher sets it (D13). Still open: whether a limit is a percentage, an absolute distance or either. |
+| O3 | How do time and accuracy combine into a ranking, and do teams see it during a game? | Open |
+| O4 | Which test runs on which analyser, and which results are entered by hand? | Open in part: the Afinion 2 is used (owner, 2026-11-19). |
+| O5 | How is a well of the Epoch export linked to a sample, and who calculates the concentration? | Open. Proposal of the maintainer: the team records the plate layout in eduLIMS; per test the teacher chooses whether eduLIMS calculates the concentration from the team's own standards and shows the calibration line for the team to judge, or the team enters the calculated result. |
+| O6 | Is a team's tolerance a reference range, a quality-control limit or both; can it change during a game; does the teacher see it? | Open |
+| O7 | Does the teacher see every measurement or only the released result, and can a team correct a released result? | Open |
+| O8 | Is a result that is calculated from other results entered by the team, with a correct value like any other test? | Open |
+| O9 | May the fictional patient details go into FerroEHR, or does a pseudonym go there? | Answered 2026-11-19: the fictional name and date of birth go into FerroEHR. |
+| O10 | Does every student sign in with their own account, and are there team roles with different rights? | Open |
+| O11 | How much of a game does a teacher prepare in eduLIMS (teams, samples, requests, release times), and can a game be reused? | Open |
+| O12 | Is grading in scope? | Answered 2026-11-19: no (W6). Still open: whether eduLIMS records anything else a teacher does during a game. |
+| O13 | How does an analyser result find the right team, when every team works the same sample numbers? | Open |
+| O14 | Can a request be for a quality-control sample with no patient, and where does its result go when no patient record exists? | Open |
 
 ## Traceability
 
 | Requirement | Architecture | Test level ([test-strategy.md](test-strategy.md)) |
 |---|---|---|
 | S1, B1, Q-SEC-1, Q-SEC-2 | [Portals and roles](architecture.md#portals-and-roles), [ADR 0005](adr/0005-better-auth-entra-id.md), [ADR 0010](adr/0010-vendor-neutral-oidc-entra-and-keycloak.md) | security, integration |
-| S3, S4, S5, Q-TRACE-1 | [Integrations](architecture.md#context-and-integrations), [Data](architecture.md#data) | data, integration |
-| S6, S7, D1 to D4 | [Data](architecture.md#data) | unit, acceptance |
-| D5, K-01 to K-09 | [kpi-dashboard.md](kpi-dashboard.md) | unit, performance, user test |
+| S4, S5, S14, S15, Q-TRACE-1 | [Integrations](architecture.md#context-and-integrations), [Data](architecture.md#data), [The LIMS workflow](lims-workflow.md) | data, integration |
+| S10 to S13, D9, D10, Q-SIM-1 | [Data](architecture.md#data), [ADR 0020](adr/0020-workplace-simulation.md) | unit, security, acceptance |
+| D11 to D14, G-01 to G-04, Q-SIM-2 | [game-dashboard.md](game-dashboard.md) | unit, performance, user test |
 | Q-ACC-* | [Quality](architecture.md#quality-requirements) | accessibility |

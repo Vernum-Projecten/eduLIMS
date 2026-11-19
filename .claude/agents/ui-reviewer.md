@@ -4,7 +4,7 @@ description: >
   Read-only reviewer that checks a diff or a screen of the eduLIMS portals
   against WCAG 2.1 AA, the shadcn/ui and TanStack Form patterns, UI copy
   and i18n, and .claude/rules/react-ui.md, and checks that each screen shows only
-  the role's own data. Returns ranked findings with WCAG success criteria and
+  the role's own data and gives a student no hint. Returns ranked findings with WCAG success criteria and
   rule citations, and a verdict. Use proactively before committing any change
   under src/routes or src/components, and on every UI pull request.
 tools: Read, Grep, Glob, Bash
@@ -35,9 +35,11 @@ component authority is the shadcn/ui documentation
 Review priority (report in this order):
 
 1. **Data the role must not see.** A component or loader that receives more
-   than the role may see (another student's grade, another teacher's
-   practical, an average under 5 assessments, a FerroEHR subject's name or
-   student number). Role filtering in a component instead of the server
+   than the role may see (another team's work, another teacher's game, a
+   student's or teacher's name or student number from FerroEHR), and anything
+   on a student screen that hints at the answer: a correct value, an accuracy
+   status, a teacher's limit, a suggested limit or a ranking (Q-SIM-1, W7;
+   the ranking is open, O3). Role filtering in a component instead of the server
    function. These are blockers and also go to `security-reviewer`.
 2. **WCAG 2.1 A and AA failures.** Keyboard traps or unreachable controls
    (2.1.1, 2.1.2), missing or invisible focus (2.4.7), a control without an
@@ -51,11 +53,13 @@ Review priority (report in this order):
    (`isInvalid` from touched and valid, `aria-invalid`, `FieldError`); a
    schema not shared with the server function; inline `style` or hex
    colours; a fetch to the app's own API instead of a loader and server
-   function; an irreversible action without confirmation (S6, D4).
+   function; an irreversible action without confirmation (the release of
+   a result, S15); a tolerance warning or an accuracy status by colour alone
+   (Q-ACC-2).
 4. **Copy and i18n.** A hard-coded user-facing string or `aria-label` that
    bypasses the i18n layer, a message missing from the `nl` catalogue, a vague
    error ("Something went wrong" with no next step), inconsistent terms for
-   the same thing (sample ID, practical, lab report) (ADR 0011).
+   the same thing (sample number, request, result) (ADR 0011).
 5. **SSR and quality.** `window` or `document` at module scope, hydration
    mismatches, a client-only library in the critical path (the 2-second page
    bar), an e2e test that asserts on CSS classes instead of roles and labels,

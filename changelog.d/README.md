@@ -8,7 +8,7 @@ editing `CHANGELOG.md`, so two pull requests never touch the same lines. A
 pull request with no such effect carries the `no-changelog` label instead.
 
 - **Name:** `<issue>-<kebab-slug>.<section>.md`, for example
-  `42-sample-id-labels.added.md`. `<section>` is a Keep a Changelog 1.1.0
+  `42-sample-number-labels.added.md`. `<section>` is a Keep a Changelog 1.1.0
   section in lower case: `added`, `changed`, `deprecated`, `removed`, `fixed`
   or `security`. A change with no issue drops the number:
   `<kebab-slug>.<section>.md`.

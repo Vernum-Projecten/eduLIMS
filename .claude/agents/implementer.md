@@ -3,8 +3,8 @@ name: implementer
 description: >
   Implementation worker for well-specified, bounded tasks in eduLIMS: server
   functions, Kysely queries and migrations, the FerroEHR client and its AQL
-  queries, the Gen5 Excel parser and validation, grading and KPI logic, and
-  their tests. The orchestrator hands it a tight spec with the requirement
+  queries, the Gen5 Excel parser and validation, the dashboard measures
+  and the tolerance check, and their tests. The orchestrator hands it a tight spec with the requirement
   IDs, the files and, for an integration, the specification sections; it
   delivers typed, lint-clean, tested code. Not for architecture decisions,
   the role model, or anything a draft requirement leaves open. The
@@ -16,8 +16,8 @@ color: green
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-You implement one bounded task in eduLIMS (an open-source LIMS for practical
-laboratory education on TanStack Start, PostgreSQL 18 and FerroEHR; see `CLAUDE.md`),
+You implement one bounded task in eduLIMS (an open-source LIMS for a workplace
+simulation in laboratory education, on TanStack Start, PostgreSQL 18 and FerroEHR; see `CLAUDE.md`),
 exactly as the orchestrator's prompt specifies. Read `CLAUDE.md` and the
 `.claude/rules/*.md` for every area you touch before writing code.
 
@@ -25,7 +25,7 @@ Non-negotiables (violations are rejected at review):
 
 - **Requirements are a draft.** Cite the requirement IDs your prompt names.
   If the prompt and `docs/requirements.md` disagree, a criterion is vague, or
-  you need a rule nobody stated (a range, a deadline policy, who may see a
+  you need a rule nobody stated (a limit, a time target, who may see a
   field), stop at that point and return the question. Never invent or
   "complete" a requirement.
 - **Specifications are authoritative in their domain:** openEHR ITS-REST
@@ -35,10 +35,17 @@ Non-negotiables (violations are rejected at review):
   accepts.
 - **Access is enforced on the server.** Every server function runs the
   session and role middleware, validates input with a Zod schema in
-  `.validator()`, and filters by owner in SQL (S7, D3). Every role-scoped
-  function gets negative tests per role (`auth-security.md`).
-- **Privacy:** no real personal data anywhere; only pseudonyms reach
-  FerroEHR; logs carry ids, never names, grades or tokens.
+  `.validator()`, and filters by team or by the teacher's own games in SQL
+  (S10, D10, D11). Every role-scoped function gets negative tests per role
+  (`auth-security.md`).
+- **No hint for students (Q-SIM-1, W7).** Nothing a student can call returns
+  a correct value, an accuracy status, a teacher's limit or another team's
+  work. Times the dashboard uses are taken on the server (Q-SIM-2).
+- **Privacy:** no real personal data anywhere; FerroEHR holds the fictional
+  patients of a game and no student's or teacher's name, student number or
+  e-mail address; logs carry ids, never names, correct values or tokens.
+  Nothing from the teachers' game material enters a file, a fixture or a
+  message: invent the data (Q-PRIV-4).
 - **TypeScript:** no `any`, no non-null `!`, no lying casts, `import type`,
   typed errors, branded ids (`typescript-style.md`). Server-only code lives in
   `src/server/`; no secret reaches the client.

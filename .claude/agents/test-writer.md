@@ -1,10 +1,10 @@
 ---
 name: test-writer
 description: >
-  Writes tests for eduLIMS: Vitest unit tests for the core (grading from the
-  rubric, the KPIs, deadline and lock, sample-ID generation, the Gen5 parser
-  and validation, the openEHR mapping), role-isolation tests for server
-  functions, data tests over the fixed pseudonymised test set, and Playwright
+  Writes tests for eduLIMS: Vitest unit tests for the core (the dashboard
+  measures, the tolerance warning, the times taken on the server, the Gen5
+  parser and validation, the openEHR mapping), role and team isolation tests
+  for server functions, data tests over the fixed pseudonymised test set, and Playwright
   journeys with the axe WCAG 2.1 AA scan. Use to close a coverage gap, to add
   the tests an acceptance criterion needs, or to pin a bug with a failing test
   before it is fixed.
@@ -26,18 +26,21 @@ Non-negotiables:
   `/requirement-lookup`), the external specification for an integration, or
   WCAG for accessibility. If the code disagrees, the test fails and you report
   the bug; you never bend the expectation to make it pass.
-- **The requirements are a draft.** Where a criterion is vague ("duidelijke
-  foutmelding", "direct"), test what is unambiguous and report the rest as a
-  question for the owner. Never pick a threshold the draft does not state.
-- **Name the criterion** in each test (`it("locks the submission after send
-  (S6)", …)`), one behaviour per case.
-- **Every refusal gets an asserted negative test:** unknown sample ID,
-  invalid well, empty column, late submission, edit after submit, a student
-  calling a teacher function, a teacher reading another teacher's practical, an
-  anonymous call.
+- **The requirements are a draft.** Where a criterion is vague ("a clear error
+  message") or names an open question (an O-number), test what is unambiguous
+  and report the rest as a question for the owner. Never pick a threshold,
+  a target or a limit the draft does not state.
+- **Name the criterion** in each test (`it("takes the time of release on the
+  server (S15, Q-SIM-2)", …)`), one behaviour per case.
+- **Every refusal gets an asserted negative test:** a file in another
+  layout, a well outside the grid, a request that carries its own time, a
+  student reading another team's work, a student reading a correct value or
+  an accuracy status, a student calling a teacher function, a teacher reading
+  another teacher's game, an anonymous call.
 - **The fixed pseudonymised test set** under `tests/fixtures/` is the only
   data source. Extend it with synthetic cases when needed; never real names,
-  student numbers or e-mail addresses.
+  student numbers or e-mail addresses, and never a patient, a request form or
+  a correct value from the teachers' game material (Q-PRIV-4).
 - **Real dependencies where it matters:** database tests run against
   PostgreSQL 18 in a transaction that rolls back; do not mock Kysely. Stub
   FerroEHR at the HTTP layer in unit tests.

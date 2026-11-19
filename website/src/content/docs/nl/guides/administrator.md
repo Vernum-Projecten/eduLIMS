@@ -45,8 +45,8 @@ dan het portaal waarin je werkt, bijvoorbeeld **Docentportaal**. Kies het om
 de lijst met je portalen te openen en kies het andere, of druk op **Alt+1** of
 **Alt+2** (**Option+1** of **Option+2** op een Mac). eduLIMS onthoudt het
 portaal dat je kiest en opent het de volgende keer dat je inlogt. Elk portaal
-toont alleen wat die rol mag zien: als beheerder zie je geen cijfers of
-resultaten. Het gebruikersmenu onderaan de zijbalk toont al je rollen.
+toont alleen wat die rol mag zien: als beheerder zie je geen resultaten. Het
+gebruikersmenu onderaan de zijbalk toont al je rollen.
 
 ## Sneltoetsen
 
@@ -97,8 +97,7 @@ overzicht opnieuw voor nieuwe aantallen.
 rij toont de naam en het e-mailadres, de rollen en waar ze vandaan komen
 (een identity provider of eduLIMS), de aanmeldmethoden, de status
 (**Actief**, **Geblokkeerd** of **Nooit aangemeld**), de laatste aanmelding
-en het aantal actieve sessies. Het scherm toont geen cijfers, resultaten of
-inleveringen.
+en het aantal actieve sessies. Het scherm toont geen resultaten.
 
 - **Zoek** op een deel van een naam of e-mailadres: de lijst volgt terwijl
   je typt.
@@ -285,7 +284,7 @@ Docenten maken hun eigen klassen aan en nodigen hun studenten en
 mededocenten uit; zie de handleiding voor docenten. **Klassen** in het
 Beheerportaal toont elke klas in eduLIMS, het nieuwste studiejaar eerst, met
 de eigenaar, de mededocenten, het aantal studenten, het aantal openstaande
-uitnodigingen en of de klas is gearchiveerd. Cijfers en resultaten staan er
+uitnodigingen en of de klas is gearchiveerd. Resultaten staan er
 niet in. De lijst toont actieve klassen, tot je **Gearchiveerd** kiest onder
 **Status**. Zoek op de klasnaam of de naam van een docent, en filter op
 status, studiejaar en eigenaar; de filters staan in het adres, dus je kunt

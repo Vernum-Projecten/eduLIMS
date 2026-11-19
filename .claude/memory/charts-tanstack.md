@@ -35,3 +35,7 @@ metadata:
 **How to apply:** a new chart composes `EduChart`; never import `Chart`
 elsewhere or add another chart dependency; check the installed docs in
 `node_modules/@tanstack/charts/docs/` before using an API.
+
+2026-11-19: superseded in part by [[workplace-simulation-direction]]: the
+KPI dashboard (D5) is dropped; the dashboard that uses these charts is the
+teacher dashboard of the games (D11 to D14). The chart rules stand.

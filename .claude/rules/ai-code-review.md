@@ -47,7 +47,8 @@ never weaken a test because a finding suggested it.
 
 ## Review agents in this repository
 
-- `security-reviewer`: OWASP Top 10 and role leakage (S7, D3) on a diff.
+- `security-reviewer`: OWASP Top 10 and role or team leakage (S10, D10, Q-SEC-2,
+  Q-SIM-1) on a diff.
 - `ui-reviewer`: WCAG 2.1 AA and shadcn/ui use on a diff.
 
 Both are read-only and return ranked findings with citations. The author

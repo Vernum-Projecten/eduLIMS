@@ -37,8 +37,8 @@ decide. In the pinned Start version the server-function input API is
   function checks the session and role again**, because a server function is
   an HTTP endpoint anyone can call (`auth-security.md`).
 - **Search params are typed:** `validateSearch` with a Zod schema for every
-  route that reads them (filters on the KPI dashboard: class, practical,
-  period).
+  route that reads them (the filters on the teacher dashboard, such as the
+  game and the team).
 - **Every route sets `head()`** with a translated title (WCAG 2.4.2) and has an
   `errorComponent` or inherits one, plus `notFoundComponent` where an id in
   the URL can miss.
@@ -55,7 +55,7 @@ client with the HTML.
    holds the Kysely queries): keys from the factory, a `queryFn` that calls
    the server function, and the domain's `staleTime`.
 2. The route **loader** calls
-   `context.queryClient.ensureQueryData(samplesQueryOptions(practicalId))`.
+   `context.queryClient.ensureQueryData(requestsQueryOptions(gameId))`.
    It returns nothing the component needs directly; the cache is the channel.
 3. The component reads with `useSuspenseQuery(samplesQueryOptions(id))`,
    which never shows an empty first paint after SSR.

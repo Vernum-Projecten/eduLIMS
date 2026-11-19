@@ -13,12 +13,13 @@ paths:
 
 # Authentication, authorisation and security
 
-The highest-scored risk in the requirements is R-01, "a student sees grades
-or results of others" (score 6), answered by "access per role and a filter on
-own data in the API (S7, D3)". The quality requirement Q-SEC-1 is "sign-in
-only through SSO; access per role", accepted when an OWASP Top 10
-check finds no open endpoint without login. This file is how the code meets
-both.
+Two of the highest-scored risks in the requirements are about access: R-01,
+a student sees what belongs to another team or what only a teacher may see,
+and R-13, students find the correct values of a game. The measures are access
+per role and per team in the API (S10, D10, Q-SEC-2) and no hint for students
+(Q-SIM-1). The quality requirement Q-SEC-1 is "sign-in only through SSO;
+access per role", accepted when an OWASP Top 10 check finds no open endpoint
+without login. This file is how the code meets them.
 
 ## Sign-in: runtime identity providers through better-auth (S1, ADR 0015)
 
@@ -128,8 +129,8 @@ both.
   refuses the same. A sign-in refused for no role or a role conflict also revokes
   that user's live sessions (A07). No role implies another: check the specific role a
   function needs (`requireRole("teacher")`), never "admin or higher". An
-  administrator who is also a teacher reaches results only as a teacher, of
-  their own practicals.
+  administrator who is also a teacher reaches the teams' work only as a
+  teacher, in their own games.
 - **The portal is in the URL** (`/teacher/…`); there is no active-role
   state. The saved `last_portal` picks only the landing page and grants
   nothing.
@@ -137,34 +138,50 @@ both.
   server route, before any data is read.** Use the shared middleware
   (`requireSession`, `requireRole("teacher")`) from `src/server/auth/`. A
   route `beforeLoad` guard is navigation UX and never the security boundary.
-- **Ownership is checked, not just role.** A teacher reads only the
-  practicals they own or are linked to (D3: "not those of practicals of other
-  teachers"). A student reads only their own samples, submissions and grades
-  (S7: "sees only their own grade"). An id from the client (a practical id,
-  a sample id) is checked against the session user in the same query
-  (`where practical.owner_id = :userId`), never fetched first and filtered
-  after.
-- **Aggregates leak too.** An average is shown only from 5 assessments up
-  (R-03), and the KPI queries apply the same ownership filter as the
-  detail queries.
+- **Ownership is checked, not just role.** The work belongs to the team:
+  every patient, request, sample, tolerance, measurement and result hangs
+  under a team within a game (S10, `docs/lims-workflow.md`). A student reads
+  and writes only the work of their own team. A teacher reads only the games
+  that are their own (D10, D11: "a teacher sees only their own games"). An id
+  from the client (a game id, a request id, a sample number) is checked
+  against the session user in the same query (a join on the team's members
+  or on the game's teacher), never fetched first and filtered after. Whether
+  team members hold different rights is open (O10): build no team role until
+  the owner answers.
+- **Correct values and accuracy are for teachers only (Q-SIM-1, D10).** No
+  server function a student can call selects a correct value, an accuracy
+  status, the teacher's limits for green, yellow and red (D13) or anything
+  computed from them, and no response to a student carries one, a field the
+  screen does not show included. The tolerance check of S15 uses only the
+  limits the team entered itself. A team's tolerances are its own: no other
+  team reads them (S13).
+- **Derived data leaks too.** The dashboard queries (G-01 to G-04) apply the
+  same ownership filter as the detail queries. Whether teams see the ranking
+  is open (O3): no student reads it until the owner answers.
 - Every role-scoped server function has a **negative test** per role that
-  proves the refusal (a student calling a teacher function gets 403, a teacher
-  reading another teacher's practical gets 404 or 403), using the fixed
-  pseudonymised test accounts (`testing.md`).
+  proves the refusal (a student calling a teacher function gets 403, a student
+  reading another team's request gets 404 or 403, a teacher reading another
+  teacher's game gets 404 or 403), using the fixed pseudonymised test accounts
+  (`testing.md`). Every function that touches a correct value has a test that
+  a student account cannot read one (ADR 0020).
 
 ## Privacy (GDPR)
 
 - **Never real personal data** in code, fixtures, seeds, logs, screenshots,
-  issues or PRs. The test set uses invented students with pseudonyms.
-- **Only pseudonyms in FerroEHR.** The EHR subject is a pseudonym per test
-  subject; no name, student number or e-mail address is ever written into a
-  composition or an AQL query (requirements, "Privacy": "In de CDR staat geen
-  naam of studentnummer"). The mapping from student to pseudonym lives only
-  in the eduLIMS database.
-- **Logs carry ids, not people:** a user id, a sample id, a request id. Never
-  a name, an e-mail, a grade, a token or a request body.
-- The audit log (B4, and the KPI dashboard's "opening the dashboard and
-  every export are logged") records who did what, with the user id.
+  issues or PRs. The test set uses invented students and invented patients.
+- **No real person in FerroEHR (Q-PRIV-1).** FerroEHR holds the fictional
+  patients of a game, with the details the team registers from the form
+  (S11). No student's or teacher's name, student number or e-mail address is
+  ever written into a composition, an EHR subject or an AQL query. Which team
+  a result belongs to lives only in the eduLIMS database.
+- **The teachers' game material stays out of everything public (Q-PRIV-4,
+  R-13).** The repository and the tracker are public. No scenario, patient
+  list, request form or correct value of a real game enters a file, a
+  fixture, a seed, a log, an issue, a PR or a commit message; fixtures and
+  demo data are invented for the purpose.
+- **Logs carry ids, not people:** a user id, a team id, a request id. Never
+  a name, an e-mail, a correct value, a token or a request body.
+- The audit log (B4) records who did what, with the user id.
 
 ## The OWASP baseline for every change
 
@@ -201,9 +218,11 @@ each point answers:
   REST API, never interpolated (`integration.md`); React escapes output, and
   `dangerouslySetInnerHTML` is banned. Sheets: Query_Parameterization,
   Cross_Site_Scripting_Prevention, XML_External_Entity_Prevention.
-- **A06 Insecure Design (V2.3):** irreversible actions (submitting a lab
-  report, S6; finalising a grade, D4) are explicit, confirmed, and enforced on
-  the server (a submitted report rejects edits even from a crafted request).
+- **A06 Insecure Design (V2.3):** the release of a result (S15) is explicit,
+  confirmed, and enforced on the server: the server takes the time of release
+  (Q-SIM-2), and a crafted request cannot move it or release a second result
+  for the same requested test. Whether a team can correct a released result
+  is open (O7).
   Sheets: Threat_Modeling, Abuse_Case.
 - **A07 Authentication Failures (V6.3, V6.8, V7.2, V7.4, V10.5):** SSO only,
   a new session on sign-in, sign-out invalidates the server session. Two IdPs
@@ -218,7 +237,7 @@ each point answers:
   personal data); B3 shows an unreachable FerroEHR or FerroBRIDGE within 5
   minutes. Sheets: Logging, Logging_Vocabulary.
 - **A10 Mishandling of Exceptional Conditions (V16.5):** a failure fails
-  closed (an unreachable FerroEHR never shows another student's cached data,
+  closed (an unreachable FerroEHR never shows another team's cached data,
   a failed role lookup denies); no stack trace or SQL text reaches the client.
   Sheet: Error_Handling.
 
@@ -232,6 +251,8 @@ Server functions are an API: hold them to the API Security Top 10 2023 too
   in a server function. Never trust the file name or the MIME type alone.
   Check the unpacked size and the entry count before unzipping (V5.2.3), and
   parse the workbook XML with external entities off (V1.5.1).
-- Reject the whole file with translated, row-level messages when any sample ID is
-  unknown or any well position is invalid (S4 acceptance criterion); write
-  nothing to FerroEHR from a rejected file.
+- Reject the whole file with a translated message that names the reason when
+  it is not in the supplied export layout (S4 acceptance criterion); write
+  nothing to FerroEHR from a rejected file. The export holds no sample
+  number, so the upload validates the layout only; how a well is linked to a
+  sample is open (O5, `integration.md`).

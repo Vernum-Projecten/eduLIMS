@@ -28,6 +28,7 @@ Each significant architecture or technology decision is recorded here in the
 | [0017](0017-scim-provisioning.md) | Provisioning users with SCIM 2.0 | Proposed |
 | [0018](0018-classes-as-organizations.md) | A class is a better-auth organization, a lab group a team | Proposed |
 | [0019](0019-smart-backend-service.md) | eduLIMS calls FerroEHR as a SMART on openEHR backend service | Proposed |
+| [0020](0020-workplace-simulation.md) | A workplace simulation replaces the practical model | Proposed |
 
 ## Adding a record
 

@@ -32,8 +32,9 @@ Relationships between issues live in `issue-relationships.md`; the board is
    ```
 2. **Read the contract.** The issue body opens with a plain summary (no
    heading: what and why), then a `Requirement:` line naming the requirement
-   IDs it serves (S1 to S9, D1 to D8, B1 to B4, or a quality requirement such as
-   `Q-ACC-1`), then `## Acceptance criteria` as a checklist. A Must
+   IDs it serves, as `docs/requirements.md` lists them (an S, D or B
+   requirement, or a quality requirement such as `Q-ACC-1`; never a row
+   marked Dropped), then `## Acceptance criteria` as a checklist. A Must
    issue quotes the current draft acceptance criterion of its requirement from
    `docs/requirements.md` and adds the engineering criteria under
    it. **The requirements are a working draft under discussion with the
@@ -72,7 +73,7 @@ when it is missing.
 |---|---|---|---|
 | Type | the native issue type | `Bug`, `Feature`, `Task` | `scripts/gh/fields.sh type <n> bug\|feature\|task` |
 | Priority | the organisation's `Priority` issue field | `Urgent`, `High`, `Medium`, `Low` | `scripts/gh/fields.sh priority <n> urgent\|high\|medium\|low` |
-| Requirement | the `Requirement:` line of the body | `S1` to `S9`, `D1` to `D8`, `B1` to `B4`, a quality requirement | `gh issue edit <n> --body-file` |
+| Requirement | the `Requirement:` line of the body | the live IDs of `docs/requirements.md`: an `S`, `D` or `B` requirement, a quality requirement (`Q-`) | `gh issue edit <n> --body-file` |
 
 File every issue with `scripts/gh/fields.sh new <type> <priority> <gh issue
 create args…>`, which sets the type (and priority, when the field exists) at
@@ -93,7 +94,8 @@ bootstrap it with `scripts/gh/labels.sh`:
 - **Portal:** `portal:student`, `portal:teacher`, `portal:admin`.
 - **Area:** `auth`, `database`, `upload` (Gen5/Epoch Excel),
   `integration:ferroehr` (FerroEHR REST and AQL), `integration:ferrobridge`
-  (Afinion HL7 v2 via FerroBRIDGE), `kpi-dashboard`, `ui`, `infra`.
+  (Afinion HL7 v2 via FerroBRIDGE), `kpi-dashboard` (the teacher dashboard of the
+  games, D11 to D14), `ui`, `infra`.
 - **MoSCoW:** `moscow:must`, `moscow:should`, `moscow:could`, `moscow:wont`,
   the priority of the requirement the issue serves.
 - **Workflow:** `security`, `privacy`, `accessibility`, `dependencies`
@@ -123,7 +125,7 @@ program advances.
 
 `<type>/<kebab-case-slug>` with `type` in `feat` | `fix` | `chore` | `docs` |
 `refactor` | `perf` | `test` | `ci` | `build` | `release`: for example
-`feat/sample-registration`, `fix/upload-well-validation`. Branch from
+`feat/request-registration`, `fix/upload-layout-validation`. Branch from
 `origin/HEAD` (`git fetch origin && git switch -c <type>/<slug> origin/HEAD`),
 stage named paths (`git add <files>`, never `git add -A` from the root), and
 never force-push `main`.

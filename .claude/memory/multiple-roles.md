@@ -31,3 +31,8 @@ Owner decisions of 2026-11-11, recorded in ADR 0012:
 - **Dev data:** `teacher-admin@example.test` (dev login) and the Keycloak
   realm users with roles from groups, direct roles, both, a conflict and no
   role. The realm is imported only when the Keycloak container is created.
+
+2026-11-19: superseded in part by [[workplace-simulation-direction]]: there
+are no grades. "No access to grades or results" now reads: an administrator
+has no access to the teams' work, the correct values or the dashboard of a
+game. The role sets stand.

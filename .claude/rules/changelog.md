@@ -36,8 +36,8 @@ and the release cut assembles the fragments into the new version's section
   uses or runs eduLIMS (a teacher, an administrator, the person who deploys the
   Compose stack): what changed for them, and the upgrade step when a change
   breaks something (a new environment variable, a migration). Name the
-  requirement ID when the change delivers one ("Students can upload a Gen5
-  export and see each rejected well (S4).").
+  requirement ID when the change delivers one ("Teams can upload a Gen5
+  export and see the absorbance per well (S4).").
 - **A change with no user-visible effect** (a refactor, a test, CI, the
   `.claude/` setup) carries the `no-changelog` label on the PR instead of a
   fragment. The changelog guard in CI fails a PR with neither.

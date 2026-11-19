@@ -4,22 +4,29 @@
 # CLAUDE.md
 
 **eduLIMS** is an open-source laboratory information management system (LIMS)
-for practical laboratory education. Students register samples, measure on the
-Abbott Afinion 2 and the BioTek Epoch 2, upload the Gen5 Excel export, check
-their results and hand in a lab report; teachers set up practicals with a
-protocol, a deadline and a rubric, assess with the rubric, and read a KPI
+for a workplace simulation in laboratory education (ADR 0020). Teams of
+students run a simulated clinical laboratory in a game: they register
+patients and requests from paper request forms, link each sample by the
+sample number on the form, set their own tolerances, measure on the Abbott
+Afinion 2 and the BioTek Epoch 2 (several times when they want), upload the
+Gen5 Excel export, and release each result to the patient's record. The teams
+compete on turnaround time and accuracy. Teachers manage the test catalogue,
+prepare a game with its correct values, and follow every team on a live
 dashboard; administrators manage users, roles, classes, analysers and the
-integrations. One web app serves three portals: the **Student portal**
-(`/student`), the **Teacher portal** (`/teacher`) and the **Admin portal**
-(`/admin`), for the roles `student`, `teacher` and `admin`.
+integrations. There is no grading of any kind. One web app serves three
+portals: the **Student portal** (`/student`), the **Teacher portal**
+(`/teacher`) and the **Admin portal** (`/admin`), for the roles `student`,
+`teacher` and `admin`.
 
 Two databases hold the data, on one PostgreSQL 18 server: the **eduLIMS
-database** for everything educational (users, practicals, sample IDs, lab
-reports, assessments, logs) and **FerroEHR**, an openEHR CDR, for the
-measurements as compositions on the `eduLIMS-lab` template. Afinion results
-arrive as HL7 v2 through **FerroBRIDGE**; Epoch results arrive through the
-Excel upload, which eduLIMS writes to FerroEHR over openEHR REST. eduLIMS
-reads them back with AQL. Sign-in goes through identity providers (OIDC and SAML 2.0) that administrators manage at runtime with the better-auth SSO plugin (ADR 0015).
+database** for the simulation (users, classes, games, teams, the test
+catalogue, correct values, tolerances, patients, requests, samples, the times
+of entry and release, logs) and **FerroEHR**, an openEHR CDR, for the results
+as compositions on the `eduLIMS-lab` template. Afinion results arrive as HL7
+v2 through **FerroBRIDGE**; Epoch values arrive through the Excel upload, and
+eduLIMS writes to FerroEHR over openEHR REST and reads back with AQL. The
+chain is drawn in `docs/lims-workflow.md`.
+Sign-in goes through identity providers (OIDC and SAML 2.0) that administrators manage at runtime with the better-auth SSO plugin (ADR 0015).
 Everything runs as containers with Docker Compose.
 
 This file is the working discipline. The design is `docs/architecture.md`;
@@ -39,7 +46,8 @@ the current requirements draft is `docs/requirements.md`. Write all prose to
   the generated types), auth (`auth/`: better-auth and the session and role
   middleware), the FerroEHR client (`openehr/`), the Gen5 parser (`upload/`).
 - `src/lib/`: isomorphic helpers (`utils.ts` with `cn`), pure domain logic
-  that both sides import (grading, KPIs, well positions).
+  that both sides import (turnaround time, the accuracy status, the tolerance
+  check, well positions).
 - `src/styles/app.css`: Tailwind 4 and the shadcn theme tokens.
 - `tests/unit/`: Vitest unit and data tests (colocated `*.test.ts(x)` under
   `src/` run too). `tests/e2e/`: Playwright journeys with the axe scan.
@@ -109,14 +117,16 @@ pnpm check                # the local gate: typecheck, lint, test
 
 ## IMPORTANT hard rules
 
-- **The requirements are a working draft.** `docs/requirements.md` (S1 to
-  S9, D1 to D8, B1 to B4, the quality requirements, the acceptance criteria,
-  the KPIs and their norms) is still under discussion with the product owner.
-  Cite requirement IDs in issues, tests and PRs. When a requirement is
-  unclear, missing, or conflicts with what you are building, **flag it and ask
-  the owner** (on the issue, in the plan, in your report). Never invent a
-  requirement, never "complete" one, and never pick a number the draft does
-  not state. An owner decision on an issue is newer than the document.
+- **The requirements are a working draft.** `docs/requirements.md` (the
+  requirements S, D and B, the quality requirements Q-, the dashboard measures
+  G-, the risks R-, the acceptance criteria and the open questions O-) is
+  still under discussion with the product owner. Cite requirement IDs in
+  issues, tests and PRs, and never a row marked Dropped as live. When a
+  requirement is unclear, missing, or conflicts with what you are building,
+  **flag it and ask the owner** (on the issue, in the plan, in your report).
+  Never invent a requirement, never "complete" one, never pick a number the
+  draft does not state, and build nothing on an open question until the owner
+  answers it. An owner decision on an issue is newer than the document.
 - **The external specifications are authoritative in their domain:** the
   openEHR ITS-REST 1.1.0 and AQL specifications and the CKM archetypes for
   FerroEHR, HL7 v2 for the Afinion messages (`.claude/rules/integration.md`),
@@ -125,15 +135,29 @@ pnpm check                # the local gate: typecheck, lint, test
   (`docs/security/README.md`). Read the section before you implement it;
   cite it in the PR.
 - **Privacy: never real personal data.** Code, fixtures, seeds, logs,
-  screenshots, issues and PRs use the fixed pseudonymised test set only. Only
-  pseudonyms reach FerroEHR: no name, student number or e-mail address in a
-  composition or an AQL query. Logs carry ids, never names, grades or tokens.
+  screenshots, issues and PRs use invented data only: the fixed
+  pseudonymised test set. FerroEHR holds the fictional patients of a game
+  (S11). No personal data of a real person reaches it: no student's or
+  teacher's name, student number or e-mail address in a composition, an EHR
+  subject or an AQL query (Q-PRIV-1). Logs carry ids, never names, correct
+  values or tokens.
+- **The teachers' game material never becomes public.** The repository and
+  the tracker are public, and students could find the scenario and the
+  correct values there. No scenario, patient list, request form or correct
+  value of a real game enters a file, a fixture, a seed, an issue, a comment,
+  a PR or a commit message. Describe a format without its content, and invent
+  fixtures and demo data for the purpose (Q-PRIV-4, R-13).
+- **eduLIMS gives students no hint.** No feature shows a student a correct
+  value, an accuracy status, a suggested limit or another team's work
+  (Q-SIM-1, W7). The one check a team gets is the warning against its own
+  tolerance before a release (S15).
 - **Role-scoped access is enforced on the server.** Every server function and
   server route checks the session, the role and the ownership (in the SQL
-  query) before it reads data. A student sees only their own work (S7); a
-  teacher only their own practicals (D3). Route guards are navigation, never
-  the security boundary. Every role-scoped function has negative tests per
-  role (`.claude/rules/auth-security.md`).
+  query) before it reads data. A student sees only the work of their own team
+  and never a correct value or an accuracy status (S10, Q-SIM-1); a teacher
+  sees only their own games (D10, D11, Q-SEC-2). Route guards are navigation,
+  never the security boundary. Every role-scoped function has negative tests
+  per role (`.claude/rules/auth-security.md`).
 - **WCAG 2.1 AA** on every screen: keyboard operable, labelled, never colour
   alone, axe-clean (`.claude/rules/react-ui.md`).
 - **Server-only code stays on the server.** The database, secrets, FerroEHR
@@ -283,9 +307,12 @@ headers.
 ## References
 
 - `docs/requirements.md`: the requirements draft (MoSCoW, acceptance
-  criteria, quality requirements, risks, KPIs).
+  criteria, quality requirements, risks, dashboard measures, open questions).
 - `docs/architecture.md`: the design (portals, data split, integrations,
   platform).
+- `docs/lims-workflow.md`: the chain from the paper request form to the
+  released result; `docs/game-dashboard.md`: the teacher dashboard;
+  `docs/adr/0020-workplace-simulation.md`: the decision for the simulation.
 - `docs/ci-cd.md`, `docs/release.md`: the pipeline and the release cut.
 - openEHR ITS-REST 1.1.0:
   <https://specifications.openehr.org/releases/ITS-REST/Release-1.1.0>
