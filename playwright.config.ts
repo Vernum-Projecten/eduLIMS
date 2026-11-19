@@ -67,7 +67,10 @@ export default defineConfig({
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] ? 2 : 0,
   reporter: process.env["CI"] ? [["github"], ["html", { open: "never" }]] : "list",
-  use: { baseURL, locale: "en-US", trace: "retain-on-failure" },
+  // A trace of every test made the longest journeys 3 to 4 times slower on a loaded host (5.0 s
+  // untraced, 22.7 s traced) and left their context teardown, which writes the trace, past the
+  // 30 s budget (#321). The first retry records one; locally, run with `--trace on`.
+  use: { baseURL, locale: "en-US", trace: "on-first-retry" },
   // The integration status journeys own this run's integration port and the global check rows,
   // so one worker runs them: a retry or a repeat of the file never overlaps another (#227).
   projects: [

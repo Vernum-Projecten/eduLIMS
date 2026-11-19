@@ -75,7 +75,10 @@ worktrees never meet. `pnpm test` migrates its database once, and every test
 runs in a transaction that is rolled back. `pnpm test:e2e` migrates and seeds
 its database before the app starts, on a port of its own derived from the
 run id (between 20000 and 29999, below the ephemeral ports the system hands
-out), and writes its traces to `test-results/run_<run id>`. A run also drops
+out), and writes its output to `test-results/run_<run id>`. It records a
+trace only on a retry (CI retries twice), because tracing every test made the
+long journeys outlast their 30 s under load; add `--trace on` to trace a
+local run. A run also drops
 run databases and output folders older than 6 hours that a crashed run left
 behind.
 Neither touches the `edulims` development database.
