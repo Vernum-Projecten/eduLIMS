@@ -77,8 +77,8 @@ moves a row to `met` in the same pull request.
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 175 |
 | Status met | 95 |
-| Status partial | 49 |
-| Status planned | 23 |
+| Status partial | 50 |
+| Status planned | 22 |
 | Status open | 8 |
 | Status n-a | 170 |
 
@@ -137,7 +137,7 @@ Text: [vendor/asvs/en/0x10-V1-Encoding-and-Sanitization.md](vendor/asvs/en/0x10-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V1.5.1 | 1 | yes | the `.xlsx` is zipped XML: the S4 parser must not resolve external entities (cheat sheet XML_External_Entity_Prevention) | unit test with an XXE fixture in S4 | planned |
+| V1.5.1 | 1 | yes | SAML (#298): a response at the ACS meets the sso plugin's fast-xml-parser 5.12.0 with `processEntities: false`, which refuses `SYSTEM` and parameter entities, then samlify 2.15.1's `isValidXml`, which refuses any `<!DOCTYPE` before @xmldom/xmldom 0.9.12 parses it and before the signature is checked; IdP metadata from the screen, the CLI or a URL is refused with a DTD by `parseSamlMetadata` (`src/server/idp/validate.ts`) before samlify reads it; xmldom expands no declared entity and loads no file or URL. Upload: the `.xlsx` is zipped XML, and the S4 parser must not resolve external entities (cheat sheet XML_External_Entity_Prevention) | unit `src/server/idp/saml-xml.test.ts` (entity expansion, file and http entities, an external DTD and a parameter entity, at the ACS and in pasted and fetched metadata; a local listener receives nothing); upload: unit test with an XXE fixture in S4 | partial |
 | V1.5.2 | 2 | yes | server function input is JSON parsed by TanStack Start and validated by Zod; no class-instantiating deserialiser | review | met |
 | V1.5.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
