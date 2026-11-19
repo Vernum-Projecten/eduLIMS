@@ -5,14 +5,12 @@
 // codes, and the metadata of an event as readable, translated parts. The log holds codes; this
 // is the one place they become words.
 import { m } from "@/i18n/messages";
-import { isClassRole } from "@/lib/classes";
 import {
   analyserStatusLabel,
   ferroEhrStepLabel,
   integrationLabel,
   integrationStateLabel,
 } from "@/lib/i18n/analyser-labels";
-import { classRoleLabel } from "@/lib/i18n/class-labels";
 import { formatDateTime, formatNumber } from "@/lib/i18n/format";
 import { rolesLabel } from "@/lib/i18n/labels";
 import { type ProviderLabels, signInMethodLabel } from "@/lib/i18n/user-labels";
@@ -63,10 +61,10 @@ export function activityTargetLabel(
   switch (target.type) {
     case "session":
       return m.admin_activity_target_session();
-    case "class":
-      return m.admin_activity_target_class();
-    case "invitation":
-      return m.admin_activity_target_invitation();
+    case "simulation":
+      return m.admin_activity_target_simulation();
+    case "lab":
+      return m.admin_activity_target_lab();
     case "upload":
       return m.admin_activity_target_upload();
     case "identity_provider":
@@ -107,28 +105,15 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   admin_grant: m.admin_activity_reason_admin_grant,
   admin_grant_override: m.admin_activity_reason_admin_grant_override,
   admin_revoke: m.admin_activity_reason_admin_revoke,
-  already_owner: m.admin_activity_reason_already_owner,
-  archived: m.admin_activity_reason_class_archived,
   banned_user: m.admin_activity_reason_banned_user,
   cannot_change_own_roles: m.admin_activity_reason_own_roles,
-  class_archived: m.admin_activity_reason_class_archived,
-  code_expired: m.admin_activity_reason_join_code_expired,
-  code_used_up: m.admin_activity_reason_join_code_used_up,
-  malformed_code: m.admin_activity_reason_join_code_malformed,
-  not_a_student: m.admin_activity_reason_not_a_student,
-  rate_limited_ip: m.admin_activity_reason_join_limit_ip,
-  rate_limited_user: m.admin_activity_reason_join_limit_user,
-  removed: m.admin_activity_reason_removed,
-  unknown_code: m.admin_activity_reason_join_code_unknown,
-  forbidden: m.admin_activity_reason_class_forbidden,
-  has_work: m.admin_activity_reason_class_has_work,
-  invalid_code: m.admin_activity_reason_invalid_code,
+  has_students: m.admin_activity_reason_has_students,
+  in_other_lab: m.admin_activity_reason_in_other_lab,
+  last_teacher: m.admin_activity_reason_last_teacher,
+  only_simulation_teacher: m.admin_activity_reason_only_simulation_teacher,
   invalid_email_or_password: m.admin_activity_reason_invalid_password,
   no_edulims_role: m.admin_activity_reason_no_role,
   not_a_teacher: m.admin_activity_reason_not_a_teacher,
-  not_archived: m.admin_activity_reason_not_archived,
-  owner_blocked: m.admin_activity_reason_owner_blocked,
-  owns_class: m.admin_activity_reason_owns_class,
   role_conflict: m.admin_activity_reason_role_conflict,
   roles_not_local: m.admin_activity_reason_roles_not_local,
   sign_in_refused: m.admin_activity_reason_sign_in_refused,
@@ -166,45 +151,33 @@ function roleList(value: string): Role[] {
   return value.split(",").filter(isRole);
 }
 
-/** Returns what a `class_group_changed` did to the lab groups, in words. */
-export function groupChangeLabel(change: NonNullable<AuditMetadata["group_change"]>): string {
-  switch (change) {
-    case "created":
-      return m.admin_activity_group_created();
-    case "renamed":
-      return m.admin_activity_group_renamed();
-    case "deleted":
-      return m.admin_activity_group_deleted();
-    case "members":
-      return m.admin_activity_group_members();
-    case "split":
-      return m.admin_activity_group_split();
-    case "copied":
-      return m.admin_activity_group_copied();
+/** Returns how a student came into a lab, in words (S10). */
+export function joinViaLabel(via: NonNullable<AuditMetadata["join_via"]>): string {
+  switch (via) {
+    case "email":
+      return m.admin_activity_join_via_email();
+    case "code":
+      return m.admin_activity_join_via_code();
     default: {
-      const unknown: never = change;
+      const unknown: never = via;
       return unknown;
     }
   }
 }
 
-/** The class parts of an event's metadata (#28): ids as ids, codes in words. */
-function classParts(metadata: AuditMetadata): string[] {
+/** The simulation parts of an event's metadata (D10, S10): ids as ids, codes in words. */
+function simulationParts(metadata: AuditMetadata): string[] {
   const parts: string[] = [];
-  if (metadata.class_id) parts.push(m.admin_activity_detail_class({ id: metadata.class_id }));
-  if (metadata.class_role && isClassRole(metadata.class_role)) {
-    parts.push(m.admin_activity_detail_class_role({ role: classRoleLabel(metadata.class_role) }));
+  if (metadata.simulation_id) {
+    parts.push(m.admin_activity_detail_simulation({ id: metadata.simulation_id }));
   }
   if (metadata.user_id) parts.push(m.admin_activity_detail_person({ id: metadata.user_id }));
-  if (metadata.previous_user_id) {
-    parts.push(m.admin_activity_detail_previous_owner({ id: metadata.previous_user_id }));
+  if (metadata.previous_lab_id) {
+    parts.push(m.admin_activity_detail_previous_lab({ id: metadata.previous_lab_id }));
   }
-  if (metadata.group_change) {
-    parts.push(
-      m.admin_activity_detail_group_change({ change: groupChangeLabel(metadata.group_change) }),
-    );
+  if (metadata.join_via) {
+    parts.push(m.admin_activity_detail_join_via({ via: joinViaLabel(metadata.join_via) }));
   }
-  if (metadata.team_id) parts.push(m.admin_activity_detail_lab_group({ id: metadata.team_id }));
   if (metadata.count !== undefined) {
     parts.push(m.admin_activity_detail_count({ count: formatNumber(metadata.count) }));
   }
@@ -276,7 +249,7 @@ function metadataParts(metadata: AuditMetadata, labels: ProviderLabels): string[
     const status = analyserStatusLabel(metadata.analyser_status);
     parts.push(m.admin_activity_detail_analyser_status({ status }));
   }
-  parts.push(...classParts(metadata), ...integrationParts(metadata));
+  parts.push(...simulationParts(metadata), ...integrationParts(metadata));
   if (metadata.token_expires_at) {
     const date = formatDateTime(metadata.token_expires_at);
     parts.push(m.admin_activity_detail_token_expires({ date }));
@@ -292,7 +265,6 @@ function metadataParts(metadata: AuditMetadata, labels: ProviderLabels): string[
   const removed = [
     [metadata.removed_audit_events, m.admin_activity_detail_removed_events],
     [metadata.removed_sessions, m.admin_activity_detail_removed_sessions],
-    [metadata.removed_invitations, m.admin_activity_detail_removed_invitations],
     [metadata.removed_admin_grants, m.admin_activity_detail_removed_grants],
     [metadata.resealed_providers, m.admin_activity_detail_resealed_providers],
     [metadata.resealed_id_tokens, m.admin_activity_detail_resealed_id_tokens],

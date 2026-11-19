@@ -84,24 +84,19 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   scim_group_updated: m.audit_action_scim_group_updated,
   scim_group_deleted: m.audit_action_scim_group_deleted,
   scim_group_read: m.audit_action_scim_group_read,
-  class_created: m.audit_action_class_created,
-  class_updated: m.audit_action_class_updated,
-  class_archived: m.audit_action_class_archived,
-  class_unarchived: m.audit_action_class_unarchived,
-  class_owner_changed: m.audit_action_class_owner_changed,
-  class_deleted: m.audit_action_class_deleted,
-  class_copied: m.audit_action_class_copied,
-  class_member_removed: m.audit_action_class_member_removed,
-  class_group_changed: m.audit_action_class_group_changed,
-  class_join_code_enabled: m.audit_action_class_join_code_enabled,
-  class_join_code_regenerated: m.audit_action_class_join_code_regenerated,
-  class_join_code_disabled: m.audit_action_class_join_code_disabled,
-  class_joined: m.audit_action_class_joined,
-  class_join_failed: m.audit_action_class_join_failed,
-  invitation_created: m.audit_action_invitation_created,
-  invitation_accepted: m.audit_action_invitation_accepted,
-  invitation_resent: m.audit_action_invitation_resent,
-  invitation_revoked: m.audit_action_invitation_revoked,
+  simulation_created: m.audit_action_simulation_created,
+  simulation_renamed: m.audit_action_simulation_renamed,
+  simulation_deleted: m.audit_action_simulation_deleted,
+  simulation_teacher_added: m.audit_action_simulation_teacher_added,
+  simulation_teacher_removed: m.audit_action_simulation_teacher_removed,
+  lab_created: m.audit_action_lab_created,
+  lab_renamed: m.audit_action_lab_renamed,
+  lab_deleted: m.audit_action_lab_deleted,
+  lab_emails_added: m.audit_action_lab_emails_added,
+  lab_email_removed: m.audit_action_lab_email_removed,
+  lab_member_joined: m.audit_action_lab_member_joined,
+  lab_member_moved: m.audit_action_lab_member_moved,
+  lab_member_removed: m.audit_action_lab_member_removed,
   sys_data_key_rotated: m.audit_action_data_key_rotated,
   upload_complete: m.audit_action_upload_complete,
   upload_validation_fail: m.audit_action_upload_validation_fail,
@@ -157,8 +152,8 @@ export function adminActionErrorMessage(code: string): string {
       return m.admin_users_error_roles_not_local();
     case "role_set_not_allowed":
       return m.role_error_not_allowed();
-    case "owns_class":
-      return m.admin_users_error_owns_class();
+    case "only_simulation_teacher":
+      return m.admin_users_error_only_simulation_teacher();
     default:
       return m.admin_users_error_failed();
   }

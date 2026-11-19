@@ -15,9 +15,9 @@ import * as m0008 from "./0008_identity_provider.ts";
 import * as m0009 from "./0009_analyser.ts";
 import * as m0010 from "./0010_integration_check.ts";
 import * as m0011 from "./0011_audit_event_indexes.ts";
-import * as m0012 from "./0012_classes.ts";
+import * as m0012 from "./0012_simulations_and_labs.ts";
 import * as m0013 from "./0013_scim.ts";
-import * as m0014 from "./0014_class_join_code.ts";
+import * as m0014 from "./0014_lab_join_code.ts";
 import * as m0015 from "./0015_integration_check_steps.ts";
 
 export const migrations: Record<string, Migration> = {
@@ -32,9 +32,9 @@ export const migrations: Record<string, Migration> = {
   "0009_analyser": m0009,
   "0010_integration_check": m0010,
   "0011_audit_event_indexes": m0011,
-  "0012_classes": m0012,
+  "0012_simulations_and_labs": m0012,
   "0013_scim": m0013,
-  "0014_class_join_code": m0014,
+  "0014_lab_join_code": m0014,
   "0015_integration_check_steps": m0015,
 };
 

@@ -3,7 +3,7 @@
 
 // CLI: `pnpm db:seed`. Creates the dev-login users, registers the dev Keycloak as the
 // identity providers `keycloak` (OIDC) and `keycloak-saml` (SAML), the fictional demo set, and
-// classes for Test Teacher, Test Coordinator and Test Student (all idempotent). Refuses to run
+// simulations for Test Teacher, Test Coordinator and Test Student (all idempotent). Refuses to run
 // unless EDULIMS_DEV_LOGIN=true, which env validation in turn refuses in production. Prints
 // e-mail addresses of the public dev-login users and counts only.
 import { getAuth } from "../auth.ts";
@@ -12,7 +12,7 @@ import { getEnv } from "../env.ts";
 import { keyringOf } from "../idp/crypto.ts";
 import { seedDemoAnalysers } from "./demo/analysers.ts";
 import { seedDemoData, seedSummary } from "./demo/seed-demo.ts";
-import { seedDevAccountClasses } from "./demo/seed-dev-classes.ts";
+import { seedDevAccountSimulations } from "./demo/seed-dev-simulations.ts";
 import { formatSeedReport } from "./demo/seed-report.ts";
 import { getDb } from "./index.ts";
 import { seedDevProviders } from "./seed-providers.ts";
@@ -40,7 +40,7 @@ try {
     });
     process.stdout.write(`created ${user.email} (${user.roles.join(",")})\n`);
   }
-  // NOTE: #28; a sign-in accepts invitations for a verified email only, and these public test
+  // NOTE: S10; a sign-in links a waiting address only when it is verified, and these public test
   // addresses stand in for an identity provider's verified ones.
   await db
     .updateTable("user")
@@ -66,10 +66,10 @@ try {
 
   const now = new Date();
   const created = await seedDemoData(db, now);
-  const devClasses = await seedDevAccountClasses(db, now);
+  const devSimulations = await seedDevAccountSimulations(db, now);
   const summary = await seedSummary(db, now);
   process.stdout.write(
-    formatSeedReport({ demoCreated: created, devClassesCreated: devClasses, summary }),
+    formatSeedReport({ demoCreated: created, devSimulationsCreated: devSimulations, summary }),
   );
 } finally {
   await db.destroy();

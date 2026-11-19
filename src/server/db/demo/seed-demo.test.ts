@@ -75,68 +75,61 @@ describe("seedDemoData", () => {
     expect(Object.keys(first.accountsByProvider)).toEqual(["keycloak", "keycloak-saml"]);
   });
 
-  it("seeds the demo classes of #28: this year, last year archived, shared, invited, grouped", async () => {
+  it("seeds two invented simulations with labs of six students and one waiting address", async () => {
     const database = await seeded();
     const summary = await seedSummary(database, NOW);
     expect(summary).toMatchObject({
-      classes: 3,
-      archivedClasses: 1,
-      pendingInvitations: 2,
-      labGroups: 3,
+      simulations: 2,
+      labs: 6,
+      labMembers: 35,
+      waitingAddresses: 1,
     });
-    const classes = await database
-      .selectFrom("organization")
-      .select(["name", "academic_year", "archived_at"])
-      .orderBy("academic_year")
-      .orderBy("name")
+    const labs = await database
+      .selectFrom("labs")
+      .innerJoin("simulations", "simulations.id", "labs.simulation_id")
+      .select((eb) => [
+        "simulations.name as simulation",
+        "labs.name as lab",
+        eb
+          .selectFrom("lab_members")
+          .select((mb) => mb.fn.countAll<string>().as("n"))
+          .whereRef("lab_members.lab_id", "=", "labs.id")
+          .as("members"),
+      ])
+      .orderBy("simulations.name")
+      .orderBy("labs.name")
       .execute();
-    expect(classes.map((row) => [row.name, row.academic_year, row.archived_at !== null])).toEqual([
-      ["LS-2A", "2025-2026", true],
-      ["LS-2A", "2026-2027", false],
-      ["LS-2B", "2026-2027", false],
+    expect(labs.map((row) => [row.simulation, row.lab, Number(row.members)])).toEqual([
+      ["Autumn simulation", "Lab Kestrel", 6],
+      ["Autumn simulation", "Lab Osprey", 6],
+      ["Spring simulation", "Blue Cuvettes", 6],
+      ["Spring simulation", "Night Shift Lab", 5],
+      ["Spring simulation", "Pipette Pilots", 6],
+      ["Spring simulation", "The Centrifugals", 6],
     ]);
-    const owners = await database
-      .selectFrom("member")
-      .select("userId")
-      .distinct()
-      .where("role", "=", "owner")
-      .execute();
-    expect(owners).toHaveLength(2);
     const shared = await database
-      .selectFrom("member")
-      .select("organizationId")
-      .where("role", "=", "teacher")
+      .selectFrom("simulation_teachers")
+      .select("simulation_id")
+      .groupBy("simulation_id")
+      .having((eb) => eb.fn.countAll(), ">", 1)
       .execute();
     expect(shared).toHaveLength(1);
-    const groups = await database
-      .selectFrom("team")
-      .innerJoin("teamMember", "teamMember.teamId", "team.id")
-      .innerJoin("member", (join) =>
-        join
-          .onRef("member.userId", "=", "teamMember.userId")
-          .onRef("member.organizationId", "=", "team.organizationId"),
-      )
-      .select(["team.group_set", "member.role"])
-      .execute();
-    expect(new Set(groups.map((row) => `${row.group_set}:${row.role}`))).toEqual(
-      new Set(["Practical 1:student"]),
-    );
   });
 
-  it("adds the classes to a database seeded before they existed, once", async () => {
+  it("adds the simulations to a database whose simulations were deleted, once", async () => {
     const database = await seeded();
-    await database.deleteFrom("organization").execute();
+    await database.deleteFrom("simulations").execute();
     expect(await seedDemoData(database, NOW)).toBe(true);
-    expect((await seedSummary(database, NOW)).classes).toBe(3);
+    expect((await seedSummary(database, NOW)).simulations).toBe(2);
     expect(await seedDemoData(database, new Date(NOW.getTime() + 86_400_000))).toBe(false);
-    expect((await seedSummary(database, NOW)).classes).toBe(3);
+    expect((await seedSummary(database, NOW)).simulations).toBe(2);
   });
 
-  it("gives every demo class id the UUID shape the class pages accept", () => {
-    for (const item of planDemoData(NOW).classes.classes) {
-      expect(item.id).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
-      );
+  it("gives every demo simulation and lab id the UUID shape the pages accept", () => {
+    for (const simulation of planDemoData(NOW).simulations.simulations) {
+      for (const id of [simulation.id, ...simulation.labs.map((lab) => lab.id)]) {
+        expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      }
     }
   });
 

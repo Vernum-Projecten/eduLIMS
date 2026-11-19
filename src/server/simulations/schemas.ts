@@ -1,0 +1,85 @@
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+
+// The inputs of simulations, labs, teachers, members and the email lists (D10, S10). Shared by the
+// forms and the server functions, so both sides refuse the same input. A malformed id fails here,
+// before any query runs.
+import { z } from "zod";
+import { m } from "@/i18n/messages";
+import {
+  EMAIL_LINE_MAX,
+  EMAIL_LIST_MAX,
+  LAB_NAME_MAX,
+  SIMULATION_NAME_MAX,
+} from "@/lib/simulations";
+
+const tooLong = (max: number) => () => m.form_too_long({ max: String(max) });
+
+const id = z.uuid();
+/** A user id from a teacher's screen: better-auth ids are text, checked against the simulation. */
+const userId = z.string().min(1).max(128);
+
+const simulationName = z
+  .string()
+  .trim()
+  .min(1, { error: () => m.simulations_name_required() })
+  .max(SIMULATION_NAME_MAX, { error: tooLong(SIMULATION_NAME_MAX) });
+
+const labName = z
+  .string()
+  .trim()
+  .min(1, { error: () => m.simulations_lab_name_required() })
+  .max(LAB_NAME_MAX, { error: tooLong(LAB_NAME_MAX) });
+
+/** The simulation form: its name. */
+export const simulationFormSchema = z.object({ name: simulationName });
+export type SimulationForm = z.input<typeof simulationFormSchema>;
+
+/** One simulation, named by its id. */
+export const simulationIdInput = z.object({ simulationId: id });
+
+/** Renaming a simulation. */
+export const renameSimulationInput = simulationFormSchema.extend({ simulationId: id });
+
+/** The lab form: its name. */
+export const labFormSchema = z.object({ name: labName });
+export type LabForm = z.input<typeof labFormSchema>;
+
+/** Creating a lab in a simulation. */
+export const createLabInput = labFormSchema.extend({ simulationId: id });
+
+/** One lab, named by its id. */
+export const labIdInput = z.object({ labId: id });
+
+/** Renaming a lab. */
+export const renameLabInput = labFormSchema.extend({ labId: id });
+
+/** Adding a teacher to a simulation by the address of their account. */
+export const addTeacherInput = z.object({
+  simulationId: id,
+  email: z.string().trim().max(EMAIL_LINE_MAX).pipe(z.email()),
+});
+
+/** A teacher of a simulation, named by their user id. */
+export const teacherInput = z.object({ simulationId: id, userId });
+
+/** A student of a simulation, named by their user id. */
+export const memberInput = z.object({ simulationId: id, userId });
+
+/** Moving a student to another lab of the same simulation. */
+export const moveMemberInput = memberInput.extend({ labId: id });
+
+/**
+ * The pasted list of a lab (D10): any lines up to the limit. The server classifies each line, so
+ * a malformed address is reported in the preview, never refused as a whole.
+ */
+export const emailListInput = z.object({
+  labId: id,
+  emails: z.array(z.string().max(EMAIL_LINE_MAX)).min(1).max(EMAIL_LIST_MAX),
+});
+
+/** One waiting address of a lab. */
+export const waitingEmailInput = z.object({
+  labId: id,
+  email: z.string().trim().min(1).max(EMAIL_LINE_MAX),
+});

@@ -160,9 +160,10 @@ without login. This file is how the code meets them.
   signs in with one of them is linked to that lab; eduLIMS sends no email.
   A student who signs in with another address joins with the lab's code.
   Only a teacher of the simulation creates a lab or changes its members.
-  The class service in `src/server/classes/` is the earlier model (ADR
-  0018); #280 reworks it into simulations and labs, and its membership
-  checks and join-code limits stay.
+  The service is `src/server/simulations/` (ADR 0021): a teacher's access
+  joins `simulation_teachers` on the session user, a student's access goes
+  through the one exported lab predicate (`studentLabsQuery`,
+  `findStudentLab`), and another teacher's simulation answers `not_found`.
 - **Correct values and accuracy are for teachers only (Q-SIM-1, D10).** No
   server function a student can call selects a correct value, an accuracy
   status, the teacher's limits for green, yellow and red (D13) or anything

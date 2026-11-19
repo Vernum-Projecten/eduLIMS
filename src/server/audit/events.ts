@@ -27,28 +27,23 @@ export const AUTH_AUDIT_ACTIONS = [
 ] as const;
 
 /**
- * Actions of eduLIMS's own flows: classes and invitations (#28), the class join code (#49),
- * uploads (S4), the analyser register (B3, #35) and the integration status (B3, #227).
+ * Actions of eduLIMS's own flows: simulations and labs (D10, S10, #287), uploads (S4), the
+ * analyser register (B3, #35) and the integration status (B3, #227).
  */
 export const EDULIMS_AUDIT_ACTIONS = [
-  "class_created",
-  "class_updated",
-  "class_archived",
-  "class_unarchived",
-  "class_owner_changed",
-  "class_deleted",
-  "class_copied",
-  "class_member_removed",
-  "class_group_changed",
-  "class_join_code_enabled",
-  "class_join_code_regenerated",
-  "class_join_code_disabled",
-  "class_joined",
-  "class_join_failed",
-  "invitation_created",
-  "invitation_accepted",
-  "invitation_resent",
-  "invitation_revoked",
+  "simulation_created",
+  "simulation_renamed",
+  "simulation_deleted",
+  "simulation_teacher_added",
+  "simulation_teacher_removed",
+  "lab_created",
+  "lab_renamed",
+  "lab_deleted",
+  "lab_emails_added",
+  "lab_email_removed",
+  "lab_member_joined",
+  "lab_member_moved",
+  "lab_member_removed",
   "upload_complete",
   "upload_validation_fail",
   "upload_delete",
@@ -99,8 +94,8 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 export const AUDIT_TARGET_TYPES = [
   "user",
   "session",
-  "class",
-  "invitation",
+  "simulation",
+  "lab",
   "upload",
   "identity_provider",
   "admin_grant",
@@ -116,10 +111,10 @@ export type AuditTargetOf<A extends AuditAction> = A extends `sys_${string}`
   ? never
   : A extends `session_${string}`
     ? "session"
-    : A extends `class_${string}`
-      ? "class"
-      : A extends `invitation_${string}`
-        ? "invitation"
+    : A extends `simulation_${string}`
+      ? "simulation"
+      : A extends `lab_${string}`
+        ? "lab"
         : A extends `upload_${string}`
           ? "upload"
           : A extends `idp_${string}`
@@ -145,8 +140,8 @@ export type AuditTargetOf<A extends AuditAction> = A extends `sys_${string}`
 export function targetTypeOf(action: AuditAction): AuditTargetType | null {
   if (action.startsWith("sys_")) return null;
   if (action.startsWith("session_")) return "session";
-  if (action.startsWith("class_")) return "class";
-  if (action.startsWith("invitation_")) return "invitation";
+  if (action.startsWith("simulation_")) return "simulation";
+  if (action.startsWith("lab_")) return "lab";
   if (action.startsWith("upload_")) return "upload";
   if (action.startsWith("idp_")) return "identity_provider";
   if (action.startsWith("admin_grant_")) return "admin_grant";
@@ -198,22 +193,15 @@ export const auditMetadataSchema = z.strictObject({
   attest_pkce: z.boolean().optional(),
   /** How many sessions an `idp_disabled` ended. */
   sessions_ended: z.number().int().min(0).optional(),
-  /** The class an `invitation_*` event belongs to, or the source class of a `class_copied`. */
-  class_id: z.uuid().optional(),
-  /** The person a `class_member_removed` or `class_owner_changed` is about: an id only. */
+  /** The simulation a `lab_*` event belongs to (D10). */
+  simulation_id: z.uuid().optional(),
+  /** The person a `simulation_teacher_*` or `lab_member_*` event is about: an id only. */
   user_id: z.string().min(1).max(128).optional(),
-  /** The owner a `class_owner_changed` took the class from: an id only. */
-  previous_user_id: z.string().min(1).max(128).optional(),
-  /** The class role an invitation or a removed member held. */
-  class_role: z.enum(["owner", "teacher", "student"]).optional(),
-  /** The lab group a `class_group_changed` is about. */
-  team_id: z.uuid().optional(),
-  /** What a `class_group_changed` did. */
-  group_change: z.enum(["created", "renamed", "deleted", "members", "split", "copied"]).optional(),
-  /** The term in days and the most joins of a `class_join_code_enabled` or `_regenerated`. */
-  valid_days: z.number().int().min(1).max(366).optional(),
-  max_uses: z.number().int().min(1).max(10_000).optional(),
-  /** How many rows a bulk class action touched (groups created, students moved). */
+  /** The lab a `lab_member_moved` took the student from. */
+  previous_lab_id: z.uuid().optional(),
+  /** How a student came into a lab, on a `lab_member_joined` (S10). */
+  join_via: z.enum(["email", "code"]).optional(),
+  /** How many addresses a `lab_emails_added` stored: a count, never an address. */
   count: z.number().int().min(0).optional(),
   /** The outcome code of an `idp_tested` sign-in. */
   test_outcome: z
@@ -223,7 +211,6 @@ export const auditMetadataSchema = z.strictObject({
   /** How many rows a `sys_retention_prune` removed, per kind: counts only. */
   removed_audit_events: z.number().int().min(0).optional(),
   removed_sessions: z.number().int().min(0).optional(),
-  removed_invitations: z.number().int().min(0).optional(),
   removed_admin_grants: z.number().int().min(0).optional(),
   /** The analyser status after the change (B3); a code, never free text. */
   analyser_status: z.enum(["in_use", "maintenance", "retired"]).optional(),
