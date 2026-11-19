@@ -42,6 +42,10 @@ describe("user labels (#34)", () => {
     expect(auditActionLabel("user_banned")).toBe("Blocked");
     expect(auditActionLabel("simulation_created")).toBe("Simulation created");
     expect(auditActionLabel("lab_member_joined")).toBe("Joined a lab");
+    expect(auditActionLabel("lab_join_code_enabled")).toBe("Lab code turned on");
+    expect(auditActionLabel("lab_join_code_regenerated")).toBe("Lab code replaced");
+    expect(auditActionLabel("lab_join_code_disabled")).toBe("Lab code turned off");
+    expect(auditActionLabel("lab_join_failed")).toBe("Joining a lab with a code failed");
     expect(auditActionLabel("sample_registered")).toBe("Other activity");
     expect(auditActionLabel("toString")).toBe("Other activity");
     expect(auditOutcomeLabel("success")).toBe("succeeded");

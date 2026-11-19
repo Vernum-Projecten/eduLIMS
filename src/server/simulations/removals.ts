@@ -27,6 +27,21 @@ export async function recordRemoval(
     .execute();
 }
 
+/** Returns whether a teacher removed `userId` from the simulation and nobody added them since. */
+export async function wasRemoved(
+  trx: Kysely<DB>,
+  simulationId: string,
+  userId: string,
+): Promise<boolean> {
+  const row = await trx
+    .selectFrom("simulation_removals")
+    .select("user_id")
+    .where("simulation_id", "=", simulationId)
+    .where("user_id", "=", userId)
+    .executeTakeFirst();
+  return row !== undefined;
+}
+
 /** Clears the removal of `userId` from the simulation: they are back in it. */
 export async function clearRemoval(
   trx: Kysely<DB>,

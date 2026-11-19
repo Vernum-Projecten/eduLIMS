@@ -26,6 +26,7 @@ import {
 
 vi.mock("./functions.ts", () => ({
   getAdminSimulationFn: vi.fn(),
+  getJoinCodeFn: vi.fn(),
   getLabPage: vi.fn(),
   getMyLabs: vi.fn(),
   getSimulationPage: vi.fn(),
@@ -71,6 +72,10 @@ describe("simulationsKeys", () => {
     expect(simulationsKeys.lab(ONE, LAB)).toEqual(["simulations", "detail", ONE, "lab", LAB]);
     expect(simulationsKeys.adminDetail(ONE)).toEqual(["simulations", "admin", "detail", ONE]);
     expect(simulationsKeys.student()).toEqual(["simulations", "student"]);
+    expect(simulationsKeys.joinCode(ONE, LAB)).toEqual([
+      ...simulationsKeys.lab(ONE, LAB),
+      "join-code",
+    ]);
   });
 });
 
@@ -120,6 +125,33 @@ describe("simulationMutationOptions (explicit invalidation keys)", () => {
     expect(invalidatedKeys(queryClient)).toEqual(
       keys(simulationsKeys.detail(ONE), simulationsKeys.lab(ONE, LAB)),
     );
+  });
+
+  it("invalidates only the lab's join-code state after a code write (#288)", async () => {
+    seedCache(queryClient, [[simulationsKeys.joinCode(ONE, LAB), { enabled: false }]]);
+    await runMutation(
+      queryClient,
+      simulationMutationOptions(
+        queryClient,
+        ok({ code: "ABCDE-FGH23", expiresAt: "2026-11-26T09:00:00.000Z", maxUses: 30 }),
+        simulationInvalidation.joinCode(ONE, LAB),
+      ),
+      { labId: LAB, validDays: 7, maxUses: 30 },
+    );
+    expect(invalidatedKeys(queryClient)).toEqual(keys(simulationsKeys.joinCode(ONE, LAB)));
+  });
+
+  it("invalidates the student's labs only after a join with a code (S10)", async () => {
+    await runMutation(
+      queryClient,
+      simulationMutationOptions(
+        queryClient,
+        ok({ status: "joined" }),
+        simulationInvalidation.student(),
+      ),
+      { code: "ABCDE-FGH23" },
+    );
+    expect(invalidatedKeys(queryClient)).toEqual(keys(simulationsKeys.student()));
   });
 
   it("invalidates nothing for a read-only preview", async () => {
