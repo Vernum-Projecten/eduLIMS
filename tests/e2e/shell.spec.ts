@@ -17,11 +17,18 @@ const PORTALS = {
   },
   teacher: {
     heading: "Teacher portal",
-    sections: ["Practicals", "Results", "Grading", "KPI dashboard", "Test catalogue"],
+    sections: [
+      "Simulations",
+      "Practicals",
+      "Results",
+      "Grading",
+      "KPI dashboard",
+      "Test catalogue",
+    ],
   },
   admin: {
     heading: "Admin portal",
-    sections: ["Users and roles", "Analysers and integrations", "Activity log"],
+    sections: ["Users and roles", "Simulations", "Analysers and integrations", "Activity log"],
   },
 } as const;
 type PortalRole = keyof typeof PORTALS;

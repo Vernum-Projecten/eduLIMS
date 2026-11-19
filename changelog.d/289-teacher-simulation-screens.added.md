@@ -1,0 +1,1 @@
+- The Teacher portal has a Simulations section (D10): a teacher creates a simulation, manages its labs and its teachers, and adds the students of a lab by pasting their email addresses, with the outcome of every line shown before anything is stored. On a lab's page a teacher moves or removes a student and removes an address that still waits for its student.

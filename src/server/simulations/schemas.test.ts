@@ -2,12 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { EMAIL_LIST_MAX, LAB_NAME_MAX, SIMULATION_NAME_MAX } from "../../lib/simulations.ts";
 import {
+  EMAIL_LINE_MAX,
+  EMAIL_LIST_MAX,
+  LAB_NAME_MAX,
+  SIMULATION_NAME_MAX,
+} from "../../lib/simulations.ts";
+import {
+  addTeacherFormSchema,
   addTeacherInput,
   createLabInput,
+  emailListFormSchema,
   emailListInput,
   labIdInput,
+  moveMemberFormSchema,
   moveMemberInput,
   simulationFormSchema,
   simulationIdInput,
@@ -53,5 +61,42 @@ describe("the simulation inputs (D10)", () => {
       true,
     );
     expect(addTeacherInput.safeParse({ simulationId: ID, email: "teacher" }).success).toBe(false);
+  });
+});
+
+describe("the form schemas share the server's rules, with messages in words (ADR 0011)", () => {
+  it("refuses a malformed teacher address with a translated message", () => {
+    const result = addTeacherFormSchema.safeParse({ email: "teacher" });
+    expect(result.error?.issues[0]?.message).toBe(
+      "Enter an email address, such as name@example.org.",
+    );
+    expect(addTeacherFormSchema.parse({ email: " t@example.test " })).toEqual({
+      email: "t@example.test",
+    });
+  });
+
+  it("refuses an empty pasted list with a translated message, and keeps a malformed line", () => {
+    expect(emailListFormSchema.safeParse({ emails: [] }).error?.issues[0]?.message).toBe(
+      "Enter at least one email address.",
+    );
+    expect(emailListFormSchema.safeParse({ emails: ["not an address"] }).success).toBe(true);
+  });
+
+  it("refuses a pasted line over the limit and a list over the limit in words", () => {
+    const long = emailListFormSchema.safeParse({ emails: ["x".repeat(EMAIL_LINE_MAX + 1)] });
+    expect(long.error?.issues[0]?.message).toBe(
+      `An address has at most ${EMAIL_LINE_MAX} characters.`,
+    );
+    const many = emailListFormSchema.safeParse({
+      emails: Array(EMAIL_LIST_MAX + 1).fill("a@b.test"),
+    });
+    expect(many.error?.issues[0]?.message).toBe(`Enter at most ${EMAIL_LIST_MAX} addresses.`);
+  });
+
+  it("asks for the lab a student moves to", () => {
+    expect(moveMemberFormSchema.safeParse({ labId: "" }).error?.issues[0]?.message).toBe(
+      "Choose the lab the student moves to.",
+    );
+    expect(moveMemberFormSchema.safeParse({ labId: ID }).success).toBe(true);
   });
 });

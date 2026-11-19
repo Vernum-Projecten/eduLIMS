@@ -11,6 +11,7 @@ import {
   ClipboardCheckIcon,
   ClipboardListIcon,
   FlaskConicalIcon,
+  FlaskRoundIcon,
   GraduationCapIcon,
   LayoutDashboardIcon,
   type LucideIcon,
@@ -114,6 +115,13 @@ const TEACHER = {
   },
   sections: [
     {
+      id: "simulations",
+      to: "/teacher/simulations",
+      icon: FlaskRoundIcon,
+      label: m.nav_simulations,
+      description: m.section_teacher_simulations,
+    },
+    {
       id: "practicals",
       to: "/teacher/practicals",
       icon: FlaskConicalIcon,
@@ -169,6 +177,13 @@ const ADMIN = {
       icon: UsersIcon,
       label: m.nav_users_roles,
       description: m.section_admin_users,
+    },
+    {
+      id: "simulations",
+      to: "/admin/simulations",
+      icon: FlaskRoundIcon,
+      label: m.nav_simulations,
+      description: m.section_admin_simulations,
     },
     {
       id: "integrations",
