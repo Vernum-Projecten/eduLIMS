@@ -86,7 +86,8 @@ The Gen5 export is one sheet: a header block and a 96-well grid, rows A to H
 and columns 1 to 12, of absorbance values at one wavelength. It holds no
 sample number, no plate layout and no concentration. The parser validates the
 layout strictly and rejects a file in another layout with a clear message
-(S4). eduLIMS loads the 96 values and shows the plate, as a real LIMS does,
+(S4); [The Gen5 export contract](gen5-export.md) pins the layout, the file
+limits and the refusals. eduLIMS loads the 96 values and shows the plate, as a real LIMS does,
 and the team says which well holds which sample (owner, 2026-11-19, O5,
 R-06). Who calculates the concentration is the teacher's choice per test in the
 test catalogue (D9): the team, by its own procedure, or eduLIMS, from the

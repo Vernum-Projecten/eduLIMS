@@ -175,7 +175,8 @@ The export is one sheet: a header block (software version, date, time,
 reader type and serial number, plate type, read type, wavelength,
 temperature) and a 96-well grid, rows A to H and columns 1 to 12, of
 absorbance values at one wavelength. It holds no sample number, no plate
-layout and no concentration.
+layout and no concentration. [The Gen5 export contract](gen5-export.md) pins
+the layout cell by cell, with the file limits and every reason for a refusal.
 
 ```mermaid
 sequenceDiagram
