@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/empty";
 import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { m } from "@/i18n/messages";
-import { formatNumber } from "@/lib/i18n/format";
+import { linkedMessage } from "@/lib/i18n/simulation-labels";
 import { toast } from "@/lib/toast";
 import { linkMyLabsFn } from "@/server/simulations/functions";
 import { linkMyLabsMutationOptions, myLabsQueryOptions } from "@/server/simulations/query-options";
@@ -36,15 +36,18 @@ function useLinkOnOpen(): void {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
+    const { queryKey } = myLabsQueryOptions();
+    const before = queryClient.getQueryData(queryKey) ?? [];
     mutate(undefined, {
+      // Runs after the mutation's own `onSettled` has read the labs again, so `after` is fresh.
       onSuccess: (outcome) => {
-        if (outcome.linked > 0) {
-          toast.success(m.student_labs_linked({ count: formatNumber(outcome.linked) }));
-        }
+        const after = queryClient.getQueryData(queryKey) ?? [];
+        const message = linkedMessage(outcome.linked, before, after);
+        if (message) toast.success(message);
       },
       onError: () => toast.error(m.student_labs_link_failed()),
     });
-  }, [mutate]);
+  }, [mutate, queryClient]);
 }
 
 /**

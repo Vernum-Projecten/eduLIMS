@@ -48,9 +48,15 @@ export function JoinLabForm() {
         await join.mutateAsync({ code: value.code });
         formApi.reset(empty);
       } catch (error) {
-        applyServerRefusal(formApi, {
-          fields: { code: simulationErrorMessage(simulationErrorCode(error)) },
-        });
+        const code = simulationErrorCode(error);
+        // A refusal is about the code typed; a failure (the network, a 500) is not, so it goes on
+        // top of the form (WCAG 3.3.1).
+        applyServerRefusal(
+          formApi,
+          code === null
+            ? { form: m.labs_join_failed() }
+            : { fields: { code: simulationErrorMessage(code) } },
+        );
       }
     },
   });
