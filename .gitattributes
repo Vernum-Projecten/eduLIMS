@@ -30,3 +30,5 @@ src/components/ui/** linguist-generated=true
 docs/security/vendor/** -text
 # Vendored third-party documents stay byte for byte (docs/vendor/*/PROVENANCE.md).
 docs/vendor/** -text
+# HL7 v2 fixtures end every segment with a lone carriage return; keep them byte for byte.
+tests/fixtures/hl7/*.hl7 -text
