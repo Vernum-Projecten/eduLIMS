@@ -32,7 +32,7 @@ The bootstrap settled the frontend and backend framework:
   Ferro's mdBook for i18n, accessibility and the pnpm toolchain. No axe scan in
   its CI workflow (too slow); run `check:a11y` locally.
 - **Auth:** better-auth with the SSO plugin: OIDC and SAML providers managed at runtime (ADR 0015, superseding ADR 0010); see [[runtime-identity-providers]].
-- **Runtime:** Node 26.13.0 LTS, pnpm 12.18.0, both pinned in `package.json`
+- **Runtime:** Node 26.13.1 LTS, pnpm 12.21.0, both pinned in `package.json`
   `devEngines` and `.node-version`; exact versions (`save-exact=true`).
 - **Library skills:** pnpm 12 links the agent skills that TanStack Router,
   Start and Table ship into `.claude/skills/` as gitignored symlinks,

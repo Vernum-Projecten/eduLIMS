@@ -13,7 +13,7 @@ before you make a change. The published documentation is at
 
 ## Setup
 
-You need Node.js 26.13.0, pnpm 12.18.0 and a container engine with Compose:
+You need Node.js 26.13.1, pnpm 12.21.0 and a container engine with Compose:
 Podman with `podman compose`, or Docker with `docker compose`. The
 `devEngines` field in `package.json` fails the install on any other runtime
 or package manager version.

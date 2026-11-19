@@ -105,7 +105,7 @@ docker pull ghcr.io/vernum-projecten/edulims-migrate:X.Y.Z
 
 ## Quick start
 
-You need Node.js 26 LTS (26.13.0) and pnpm 12 (12.18.0), enforced through
+You need Node.js 26 LTS (26.13.1) and pnpm 12 (12.21.0), enforced through
 `devEngines` in `package.json` (on macOS: `brew install node pnpm`), and
 Podman or Docker with Compose for PostgreSQL 18 and Keycloak.
 

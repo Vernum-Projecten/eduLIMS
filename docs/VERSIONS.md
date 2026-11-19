@@ -23,8 +23,8 @@ this file in the same change.
 
 | Item | Pin | Where |
 |---|---|---|
-| Node.js | 26.13.0 (LTS) | `.node-version`, `package.json` `devEngines.runtime` and `engines.node` (`>=26.13.0 <27`) |
-| pnpm | 12.18.0 | `package.json` `packageManager` and `devEngines.packageManager` |
+| Node.js | 26.13.1 (LTS) | `.node-version`, `package.json` `devEngines.runtime` and `engines.node` (`>=26.13.1 <27`) |
+| pnpm | 12.21.0 | `package.json` `packageManager` and `devEngines.packageManager` |
 | TypeScript | 7.0.2 (native compiler) | `package.json` |
 | Biome | 2.6.6 | `package.json`, `$schema` in `biome.json` |
 | `@types/node` | 26.6.6 | `package.json` |
