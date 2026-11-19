@@ -78,7 +78,7 @@ export interface CatalogueTests {
   name: string;
   retired_at: Timestamp | null;
   source: string;
-  unit: string;
+  unit: string | null;
   updated_at: Generated<Timestamp>;
 }
 

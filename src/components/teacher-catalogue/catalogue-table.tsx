@@ -87,7 +87,7 @@ function CatalogueEmpty({ filtered }: Readonly<{ filtered: boolean }>) {
         <EmptyContent>
           <Button variant="outline" asChild>
             <Link to="/teacher/catalogue" search={{}}>
-              {m.admin_users_clear_filters()}
+              {m.common_clear_filters()}
             </Link>
           </Button>
         </EmptyContent>

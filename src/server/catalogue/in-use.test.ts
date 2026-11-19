@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { parseCatalogueTestId } from "../../lib/catalogue.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
-import { isTestInUse, testsInUse } from "./in-use.ts";
+import { testUsage, usageOf } from "./in-use.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -31,7 +31,7 @@ describe("a test in use (D9, #266)", () => {
       .executeTakeFirstOrThrow();
     const id = parseCatalogueTestId(row.id);
     if (id === null) throw new Error("catalogue_tests.id is not a UUID");
-    expect(await isTestInUse(db, id)).toBe(false);
-    expect([...(await testsInUse(db, [id]))]).toEqual([]);
+    expect(await usageOf(db, id)).toBe("unused");
+    expect([...(await testUsage(db, [id]))]).toEqual([]);
   });
 });
