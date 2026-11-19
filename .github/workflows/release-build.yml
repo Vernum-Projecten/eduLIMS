@@ -85,14 +85,8 @@ jobs:
         run: |
           set -euo pipefail
           out="edulims-${TAG}.tar.gz"
-          # Fixed owner, mode and order, and the commit time as every mtime, so
-          # the tarball's bytes depend on the tree alone.
-          epoch="$(git log -1 --format=%ct)"
-          tar --sort=name --owner=0 --group=0 --numeric-owner \
-            --mtime="@${epoch}" --mode='u+rwX,go+rX,go-w' \
-            -czf "$out" .output
-          sha256sum "$out" > "${out}.sha256sum"
-          cat "${out}.sha256sum"
+          # The CI image lane packs with the same script (#221).
+          bash scripts/release/output.sh pack "$out"
           echo "ASSET=$out" >> "$GITHUB_ENV"
           echo "CHECKSUM=${out}.sha256sum" >> "$GITHUB_ENV"
 

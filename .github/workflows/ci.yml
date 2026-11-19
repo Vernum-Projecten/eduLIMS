@@ -701,7 +701,7 @@ jobs:
             exit 1
           fi
           changed="$(git diff --name-only "$base" HEAD)"
-          pattern='^(docker/|\.dockerignore$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.npmrc$|\.node-version$|\.github/workflows/(ci|release|release-build|release-image)\.yml$)'
+          pattern='^(docker/|\.dockerignore$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.npmrc$|\.node-version$|scripts/release/(install-pnpm|output)\.sh$|\.github/workflows/(ci|release|release-build|release-image)\.yml$)'
           if grep -Eq "$pattern" <<<"$changed"; then
             echo "build=true" >> "$GITHUB_OUTPUT"
             echo "the change touches the image inputs:"
@@ -712,13 +712,15 @@ jobs:
           fi
 
   # Both final targets of docker/Dockerfile for both release platforms, with
-  # the release lane's build arguments except OUTPUT: the runtime target
-  # builds `.output/` from source here, because the attested tarball exists
-  # only in a release run. Every stage that runs code runs on the runner's
-  # platform (the Dockerfile's header), so arm64 needs no QEMU. No login, no
-  # push, no cache import: the result stays in the throwaway builder.
+  # the release lane's build arguments, plus the runtime target the way
+  # release-image.yml builds it: OUTPUT=dist from a `.output/` tarball that
+  # this job builds and packs with release-build.yml's steps (#221). Only the
+  # attestation check is left out, because a CI run attests nothing. Every
+  # stage that runs code runs on the runner's platform (the Dockerfile's
+  # header), so arm64 needs no QEMU. No login, no push, no cache: the result
+  # stays in the throwaway builder.
   image:
-    name: image (${{ matrix.target }})
+    name: image (${{ matrix.target }}, ${{ matrix.output }})
     needs: image-paths
     if: needs.image-paths.outputs.build == 'true'
     runs-on: ubuntu-latest
@@ -728,11 +730,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [tools, runtime]
+        include:
+          - target: tools
+            output: source
+          - target: runtime
+            output: source
+          - target: runtime
+            output: dist
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      # The toolchain and the build exactly as release-build.yml runs them,
+      # with no cache. .dockerignore keeps the local .output out of the
+      # context, so the image copies only the staged dist/.output.
+      - if: matrix.output == 'dist'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Build, pack and stage the .output tarball
+        if: matrix.output == 'dist'
+        run: |
+          set -euo pipefail
+          bash scripts/release/install-pnpm.sh
+          pnpm install --frozen-lockfile
+          pnpm build
+          bash scripts/release/output.sh pack "$RUNNER_TEMP/edulims-ci.tar.gz"
+          bash scripts/release/output.sh stage "$RUNNER_TEMP/edulims-ci.tar.gz"
+
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build without pushing
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -742,7 +769,7 @@ jobs:
           target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
           build-args: |
-            OUTPUT=source
+            OUTPUT=${{ matrix.output }}
             VERSION=ci
             REVISION=${{ github.sha }}
           outputs: type=cacheonly

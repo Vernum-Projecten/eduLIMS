@@ -7,10 +7,12 @@
 # it does not (Node.js, pnpm, the PostgreSQL service image, actionlint,
 # zizmor, shellcheck) and this workflow opens one issue when one is behind.
 # The vendored-owasp job re-fetches the OWASP trees under docs/security/vendor/
-# at their pins and opens one issue when a tree or a tag drifted.
+# at their pins and opens one issue when a tree or a tag drifted. The
+# template-opt job rebuilds the eduLIMS-lab OPT from the CKM archetypes it pins.
 #
-# It opens an issue and does not fail: a weekly red job trains a maintainer to
-# ignore red jobs, and a newer upstream release is not a broken build.
+# The first two jobs open an issue and do not fail: a weekly red job trains a
+# maintainer to ignore red jobs, and a newer upstream release is not a broken
+# build. template-opt opens an issue and fails, for the reason on the job.
 name: Pin freshness
 
 on:
@@ -150,3 +152,74 @@ jobs:
           } > body.md
           bash scripts/gh/fields.sh new task low low \
             --title "$TITLE" --body-file body.md --label documentation --label security
+
+  # The eduLIMS-lab operational template against the CKM archetypes it pins:
+  # scripts/openehr/build-opt.py --check fetches each archetype at its pinned
+  # revision and build_uid, rebuilds the OPT and diffs it with the committed
+  # docker/ferroehr/definitions/eduLIMS-lab.v1.opt (#245). A difference is a
+  # hand edit or a changed archetype behind a pin, a broken input rather than
+  # a newer release, so the job fails as well as opening one issue. The
+  # archetypes are not vendored, so no offline check exists for pull requests
+  # and this job is the guard.
+  template-opt:
+    name: eduLIMS-lab template against CKM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Rebuild the OPT from CKM and diff it with the commit
+        id: check
+        run: |
+          set -uo pipefail
+          status=0
+          python3 -I scripts/openehr/build-opt.py --check > opt-check.txt 2>&1 || status=$?
+          cat opt-check.txt
+          # 0 matches, 1 a pin or the committed file differs, 2 a fetch failed.
+          case "$status" in
+            0) echo "drift=false" >> "$GITHUB_OUTPUT" ;;
+            1) echo "drift=true" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "an archetype could not be fetched; the comparison is incomplete" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Open an issue when the template drifted
+        if: steps.check.outputs.drift == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: The eduLIMS-lab template no longer matches its pinned CKM archetypes
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          open="$(gh issue list --state open --limit 500 --json title \
+            --jq "[.[] | select(.title == \"$TITLE\")] | length")"
+          if [ "$open" -ne 0 ]; then
+            echo "an open issue already carries this report; not opening a second"
+            exit 0
+          fi
+          {
+            echo "\`python3 -I scripts/openehr/build-opt.py --check\` found that the committed \`docker/ferroehr/definitions/eduLIMS-lab.v1.opt\` differs from the build, or that a CKM archetype no longer matches its pin."
+            echo
+            echo "Rebuild the OPT to revert a hand edit. A changed archetype means a new template id beside the old one (\`docs/deployment.md\`, \"Templates\")."
+            echo
+            echo '```text'
+            cat opt-check.txt
+            echo '```'
+            echo
+            echo "Reported by [this run]($RUN_URL)."
+          } > body.md
+          bash scripts/gh/fields.sh new task low low \
+            --title "$TITLE" --body-file body.md --label openehr
+
+      - name: Fail on a difference
+        if: steps.check.outputs.drift == 'true'
+        run: |
+          echo "the eduLIMS-lab template differs from its pinned CKM archetypes" >&2
+          exit 1

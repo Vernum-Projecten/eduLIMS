@@ -126,9 +126,7 @@ jobs:
           gh attestation verify "$tarball" \
             --repo "$GITHUB_REPOSITORY" \
             --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/release-build.yml"
-          mkdir -p dist
-          tar -C dist -xzf "$tarball"
-          test -f dist/.output/server/index.mjs
+          bash scripts/release/output.sh stage "$tarball"
 
       - name: Select the build input
         id: input

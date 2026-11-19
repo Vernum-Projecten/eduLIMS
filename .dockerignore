@@ -31,6 +31,10 @@ coverage
 secrets
 config
 
+# The website package (pnpm-workspace.yaml): the image builds the app alone,
+# and the build stage installs it with --filter=edulims (#221)
+website
+
 # Deployment files the image does not use
 compose*.yaml
 docker/postgres
