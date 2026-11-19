@@ -23,12 +23,14 @@ patient's record in FerroEHR, and eduLIMS reads back by one route
 | Route | From, to | Standard | What eduLIMS builds |
 |---|---|---|---|
 | Afinion 2 | analyser to FerroBRIDGE to FerroEHR | HL7 v2 over MLLP, then openEHR REST | nothing in code: FerroBRIDGE configuration and its mapping to the `eduLIMS-lab` template |
-| Epoch 2 | Gen5 Excel export, uploaded in the Student portal | the fixed Gen5 export layout | the upload, the parser and the layout validation, the plate view of the 96 values, and the team's link from a well to a sample (S4); a concentration from the standards on the plate is open (O5) |
+| Epoch 2 | Gen5 Excel export, uploaded in the Student portal | the fixed Gen5 export layout | the upload, the parser and the layout validation, the plate view of the 96 values, and the team's link from a well to a sample (S4); the concentration, entered by the team or calculated by eduLIMS from the standards and blanks, as the teacher chose for the test (D9, S4) |
 | Release | eduLIMS to FerroEHR | openEHR REST | the result in the patient's record when the team releases it (S15); the result of a control request, which has no patient, goes to the control log of the team and never to a patient's record (S16) |
 | Read | eduLIMS from FerroEHR | AQL through the openEHR REST Query API | the queries for the samples of a team |
 
-Still open, so nothing is built on it: which test runs on which analyser and
-which values a team enters by hand (O4, O8). Where a measurement lives
+Per test the teacher sets where a measurement comes from: the Afinion 2, the
+Epoch 2 upload or entry by hand (D9). A result calculated from other results
+is a test with entry by hand. Every result is a number with a unit; a result
+that is not a number stays outside eduLIMS (W8). Where a measurement lives
 before its release is a design matter for the maintainer: the proposal in
 `docs/lims-workflow.md` keeps it in FerroEHR as Preliminary and makes the
 released one Final. A released result is final (S15). Where a released
@@ -61,9 +63,11 @@ specification, never from memory or from what one server happens to accept:
 4. **HL7 Version 2** for the Afinion message
    (<https://www.hl7.org/implement/standards/product_brief.cfm?product_id=185>),
    at the version and message profile the Afinion 2 connectivity manual
-   specifies. The Afinion 2 User Manual (1117346 Rev. A, 2023/02) is vendored
-   in `docs/vendor/afinion/` (HL7 "based on HL7 version 2.4", no TLS); the HL7
-   protocol data sheet is not yet (#209). Cite the vendored copy, never memory.
+   specifies. Two Abbott documents are vendored in `docs/vendor/afinion/`:
+   the Afinion 2 User Manual (1117346 Rev. A, 2023/02) and the Afinion 2 HL7
+   Connectivity Protocol v4.0 (25.01.2021), which defines the ORU^R01, its
+   segments and fields and the ACK. `PROVENANCE.md` there lists what each
+   settles, by section. Cite the vendored copy by section, never memory.
 
 Cite the section in the PR for every conformance decision. Where no
 specification governs a choice (retry timing, the client's caching), flag it:
@@ -166,7 +170,12 @@ FerroBRIDGE.
   the sample number never links a result on its own (R-11). The format of
   the lab number is not decided; the patient ID field takes up to 16
   characters (`docs/lims-workflow.md`).
-- **Open, #209:** which HL7 fields carry the entered patient ID. Build no
-  matching rule until that is answered.
+- **The entered patient ID goes out in PID-3 or in PV1-19**, as set on the
+  analyser (protocol §3.5, §3.6: "configurable, to use PID or
+  visitnumber"), and a message carries one patient ID. OBX-16 carries the
+  operator ID, OBX-18 the analyser's serial number and MSH-11 `P` or `Q` for
+  a patient or a quality control result (§3.2, §3.8). The deployment
+  documents which of PID-3 and PV1-19 the analysers are set to, and the
+  matching rule reads that one field.
 - A result that eduLIMS cannot link to a team's sample is never attached to
   one: it is logged and shown to administrators (#163).

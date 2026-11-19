@@ -64,7 +64,8 @@ Review priority (report in this order):
    Trace each client-supplied id (simulation, team, patient, request, sample, user)
    to the check that ties it to the session user's team or own simulations. A route
    `beforeLoad` guard alone is a blocker. Dashboard queries leak too: check
-   their ownership filter.
+   their ownership filter. The administrator's read-only view of simulations
+   and labs (B5) that carries a lab's work or a correct value is a blocker.
 2. **Hints to students (Q-SIM-1, W7).** Any function, loader or response a
    student account can reach that carries a correct value, an accuracy
    status, a teacher's limit, a ranking (not built in this iteration, D14) or another team's work,

@@ -184,16 +184,19 @@ Choose your name at the foot of the sidebar, then **Sign out**. eduLIMS ends you
 
 ## Planned tasks
 
-| Task                                                                                                                                                                                                       | Requirement                       |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| Manage the test catalogue: add a test with its name, unit and material, and choose per test whether the team or eduLIMS calculates the concentration from an Epoch 2 plate                                 | [D9](/development/requirements/)  |
-| Prepare a simulation: its name, its labs (each with the name and logo the team made up, and the email addresses of its members) and, beforehand, the correct value per test and sample, once for every lab | [D10](/development/requirements/) |
-| Follow every lab live on the [teacher dashboard](/development/teacher-dashboard/): the times of each request, every measurement with the released one marked, and the accuracy of each released result     | [D11](/development/requirements/) |
-| Set, per test, how far a result may be from the correct value for green, yellow and red                                                                                                                    | [D13](/development/requirements/) |
+| Task                                                                                                                                                                                                                                                                                                                      | Requirement                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Manage the test catalogue: add a test with its name, unit and material, and choose per test where its measurements come from (the Afinion 2, the Epoch 2 upload or entry by hand) and whether the team or eduLIMS calculates the concentration from an Epoch 2 plate                                                      | [D9](/development/requirements/)  |
+| Prepare a simulation: its name, its labs (each with the name and logo the team made up, and the email addresses of its members) and, beforehand, the correct value per test and sample, once for every lab; change a correct value before, during or after the simulation; add other teachers to it, with the same rights | [D10](/development/requirements/) |
+| Follow every lab live on the [teacher dashboard](/development/teacher-dashboard/): the times of each request, every measurement with the released one marked, and the accuracy of each released result                                                                                                                    | [D11](/development/requirements/) |
+| Set, per test, how far a result may be from the correct value: the limit for yellow and the limit for red, each as a percentage of the correct value or as an absolute distance                                                                                                                                           | [D13](/development/requirements/) |
+| Copy a simulation to a new one, with its correct values and without its labs (a Could)                                                                                                                                                                                                                                    | [D15](/development/requirements/) |
 
 You enter the correct values once per simulation. They hold for every lab, so
-adding or removing a lab is no extra work. A request for a control sample
-shows on the dashboard with its times and accuracy like any other.
+adding or removing a lab is no extra work. eduLIMS logs every change to a
+correct value, and the dashboard follows the current value. A value exactly
+on a limit gets the better colour. A request for a control sample shows on
+the dashboard with its times and accuracy like any other.
 
 A simulation has a name of its own and belongs to no class. You create each
 lab in it with the lab name and the logo its team made up, and you add the
@@ -207,7 +210,15 @@ In the test catalogue you choose, per test, who calculates the concentration
 from an Epoch 2 plate: the team or eduLIMS. When eduLIMS calculates, it
 subtracts the blank and fits a straight line through the standards the team
 marked. A sample outside the range of the standards gets no number but the
-message that it is outside the range.
+message that it is outside the range. A result calculated from other results
+is a test with entry by hand, with a correct value like any other. A result
+that is not a number stays outside eduLIMS.
+
+The teams set their own tolerances and can change them during the
+simulation; you see the tolerances and every change. A team can correct a
+patient or a request until its first result is released, and you see every
+correction. Every member of a lab may do everything in it, and eduLIMS
+records who did what.
 
 A released result is final: the team cannot change it or release
 another measurement for that test.

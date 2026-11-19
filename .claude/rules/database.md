@@ -66,7 +66,14 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
   never a key on its own: every team works the same sample numbers, so a
   sample is identified within its team (R-11).
 - **The test catalogue is data** (D9): a test is a row with its name, unit
-  and material, never an enum or a constant in code.
+  and material, where its measurements come from (the Afinion 2, the
+  Epoch 2 upload or entry by hand) and who calculates an Epoch 2
+  concentration (the team or eduLIMS), never an enum or a constant in code.
+- **Changes are logged, never overwritten silently:** a correction of a
+  patient or a request (S11, S12), a change of a tolerance (S13) and a change
+  of a correct value (D10) each leave a log row the teacher reads. A
+  correction never changes the time of entry (S12), and a release keeps the
+  tolerance that was in force at the release (S15).
 - **Time:** `timestamptz` for every instant (the entry of a request, the
   release of a result), set by the database or the server inside the
   transaction, never taken from the request (Q-SIM-2); never `timestamp`
@@ -75,7 +82,9 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
   `CHECK` (a tolerance's lower limit not above its upper limit), foreign
   keys with an explicit `ON DELETE`, at most one released result per
   requested test (a released result is final, S15), a lab number that is
-  unique across the teams of every simulation (S12), and enums or `CHECK ... IN` for statuses (the states of a
+  unique across the teams of every simulation (S12), no unique constraint on
+  a sample number within a lab (the same sample number may come twice, S12),
+  and enums or `CHECK ... IN` for statuses (the states of a
   requested test in `docs/lims-workflow.md`). The application validates too,
   but the database is the last line.
 - **Names:** `snake_case`, plural table names, `<table>_id` foreign keys.

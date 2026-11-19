@@ -89,13 +89,12 @@ discovery = false
 # source (installation/config-integrations.md, `[pixm]`).
 subject_index = "local"
 
-# Whose pseudonyms the EHR subjects are, or whether there is a human subject
-# at all, is the product owner's open question (#131, X1). Once it is
-# answered, `[privacy] subject_namespaces` names the namespace eduLIMS mints
-# its pseudonyms in, and FerroEHR then refuses any subject reference that is
-# not a UUID in it (installation/config-privacy.md, "The subject reference").
-# Until then FerroEHR stores a subject reference as eduLIMS sends it, so
-# pseudonymisation is eduLIMS's own (Q-PRIV-1).
+# The EHR subject is the fictional patient a team registers, with no
+# pseudonym (O9 in docs/requirements.md); no student or teacher is an EHR
+# subject. `[privacy] subject_namespaces` (installation/config-privacy.md,
+# "The subject reference") is not set for it, so FerroEHR stores a subject
+# reference as eduLIMS sends it, and keeping every student and teacher
+# detail out of FerroEHR is eduLIMS's own work (Q-PRIV-1).
 
 [api]
 # This CDR's openEHR system identifier, stored with every EHR and version: a

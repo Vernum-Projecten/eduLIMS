@@ -36,9 +36,10 @@ without a failing check is a wish, so a new rule comes with its check.
   function.** The accuracy status (G-03) derives from the released result,
   the correct value and the teacher's limits (D13); the warning of S15 from
   the value and the team's own tolerance. Each is tested at its limits. Never
-  compare floats for equality; compare rounded values or integers. The form
-  of a limit is open (O2), and the draft does not say on which side a value
-  exactly on a limit falls: ask the owner, never pick one. (Tier 3.)
+  compare floats for equality; compare rounded values or integers. Per test
+  a limit is a percentage of the correct value or an absolute distance, and
+  a value exactly on a limit gets the better colour (D13): test both forms,
+  and each limit exactly on, just inside and just outside it. (Tier 3.)
 - **Times are taken on the server** in the transaction that records the
   event: the entry of a request (S12) and the release of a result (S15). No
   request carries a time the dashboard uses, and the client's clock never

@@ -51,9 +51,11 @@ a question the draft leaves open.
   - says nothing about the behaviour in question;
   - marks the row Dropped: say so with the date and the row that replaces
     it, and never report it as a live requirement;
-  - names an open question (`Open: … (O5)`): quote the question and its
+  - names an open question (`Open: O1`): quote the question and its
     status from the Open questions table, and say that nothing is built on
-    the open part until the owner answers;
+    the open part until the owner answers. A status that records an answer,
+    or a decision the maintainer made on the owner's delegation, is settled:
+    report it as decided with the requirement row it points at;
   - is marked "Won't in this iteration" (D12, D14) or names a question the
     owner held open (O1, O3): say that nothing is built for it now.
 

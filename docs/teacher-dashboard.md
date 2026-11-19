@@ -13,9 +13,10 @@ simulation ([ADR 0021](adr/0021-simulations-and-labs.md)); "team" on this
 page means the students of one lab.
 
 Requirement and measure IDs refer to [requirements.md](requirements.md), which
-is a working draft. Points marked **Open** name a question in its
-[open questions](requirements.md#open-questions); nothing is built on an open
-point. This page states no layout beyond what the requirements state.
+is a working draft. Two of its
+[open questions](requirements.md#open-questions) are held by the owner for
+the next iteration (O1 and O3), and nothing is built on them. This page
+states no layout beyond what the requirements state.
 
 ## What the dashboard shows
 
@@ -40,9 +41,14 @@ with its times and its accuracy like any other result (S16).
 
 Before a simulation the teacher enters the correct value per test and sample
 number, once per simulation (D10). The values hold for every lab, so a lab
-added afterwards is judged against them without any new entry. The teacher also
-sets, per test, how far a result may be from the correct value for green,
-yellow and red (D13).
+added afterwards is judged against them without any new entry. A teacher can
+change a correct value before, during and after the simulation; the change is
+logged and the dashboard follows the current value (D10).
+
+The teacher also sets, per test, how far a result may be from the correct
+value: the limit for yellow and the limit for red, each as a percentage of
+the correct value or as an absolute distance. A value exactly on a limit gets
+the better colour (D13).
 
 ## Not in this iteration
 
@@ -64,8 +70,11 @@ reads the same status from the icon and the text.
 ## Who sees it
 
 - Only the teacher role opens the dashboard, and a teacher sees only their
-  own simulations (D11, Q-SEC-2). The server checks the role and the ownership of
-  the simulation in the database query.
+  own simulations (D11, Q-SEC-2): the ones they created and the ones another
+  teacher added them to, with the same rights (D10). The server checks the
+  role and the ownership of the simulation in the database query.
+- An administrator sees the simulations and their labs read-only, and
+  nothing of a lab's work and no correct value (B5, a Should).
 - A student never sees a correct value, an accuracy status or the work of
   another team: no screen and no server response for a student account holds
   one (Q-SIM-1, W7). Every server function behind the dashboard has negative
@@ -111,16 +120,17 @@ each colour. Which charts the dashboard has is not decided.
 | ID | Status | Touches |
 |---|---|---|
 | O1 | Held open by the owner, 2026-11-19: the time target for an urgent and for a routine request, and what counts as urgent. Nothing is built for it in this iteration. | G-02, D12 |
-| O2 | Answered in part: the teacher sets the limits per test (D13). Still open: whether a limit is a percentage, an absolute distance or either. | G-03, D13 |
+| O2 | Answered 2026-11-19: per test the teacher sets the limit for yellow and for red, each as a percentage of the correct value or as an absolute distance; a value exactly on a limit gets the better colour. | G-03, D13 |
 | O3 | Held open by the owner, 2026-11-19: how time and accuracy combine into a ranking, and whether teams see it during a simulation. Decided in the next iteration; nothing is built for it now. | G-04, D14 |
 | O7 | Answered 2026-11-19: a result in the patient's record is final and cannot be changed. The teacher sees every measurement; the one the team released is the one that counts. | D11, S15 |
 
-The owner answers these on #264. An answer there is newer than this document.
+O1 and O3 are held by the owner for the next iteration. A later owner
+decision on #264 is newer than this document.
 
 ## Related
 
-- [Requirements](requirements.md): D9 to D14, S15, S16, G-01 to G-04, Q-SIM-1,
-  Q-SIM-2 and Q-ACC-2.
+- [Requirements](requirements.md): D9 to D15, S15, S16, B5, G-01 to G-04,
+  Q-SIM-1, Q-SIM-2 and Q-ACC-2.
 - [The LIMS workflow](lims-workflow.md): how a request reaches the dashboard.
 - [ADR 0020](adr/0020-workplace-simulation.md): the decision for the
   simulation.

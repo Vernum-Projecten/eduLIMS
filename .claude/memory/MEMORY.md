@@ -47,6 +47,11 @@ adding one, and update it instead of duplicating.
   invitations (#28), the Admin portal (#32) and security hardening (#39 to
   #44); the GDPR basis and the DPIA stay with the product owner; the group
   grading decision of #28 lapsed on 2026-11-19; 2026-11-11
+- [Owner-delegated decisions, simulation](owner-delegated-decisions-2026-11-19.md):
+  what the maintainer decided on the owner's delegation for the simulation
+  (tolerances, accuracy limits, test sources, corrections, no roles in a lab,
+  co-teachers, the admin view, the Won'ts); targets, urgent requests and the
+  ranking stay with the owner for the next iteration; 2026-11-19
 
 - [Runtime identity providers](runtime-identity-providers.md): OIDC and SAML
   providers in the database, managed in Admin → System with the better-auth
