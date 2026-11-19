@@ -25,6 +25,9 @@ export const MAX_XML_DEPTH = 32;
 /** The most attributes one XML element may carry, namespace declarations included. */
 export const MAX_XML_ATTRIBUTES = 32;
 
+/** The most namespace declarations (`xmlns`, `xmlns:p`) one XML part may carry in total. */
+export const MAX_XML_NAMESPACES = 64;
+
 /** The longest text from the file that an error carries; longer text is cut to this length. */
 export const MAX_ERROR_TEXT = 128;
 

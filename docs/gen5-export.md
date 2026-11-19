@@ -26,11 +26,11 @@ of #297).
 | Maximum unpacked size | 8 MiB (8,388,608 bytes): the sum of the sizes the archive declares for its entries, checked before any entry is unpacked |
 | Maximum unpacked size of one part | 1 MiB (1,048,576 bytes) for each part the reader opens, checked from the declared size before it is unpacked and enforced while it is unpacked |
 | Maximum entries | 50 entries in the archive, checked before any entry is unpacked |
-| XML caps, per part | at most 5,000 elements, nesting at most 32 deep (the root is at depth 1), at most 32 attributes on one element; each is enforced while the part is read, so reading stops at the first element over a cap |
+| XML caps, per part | at most 5,000 elements, nesting at most 32 deep (the root is at depth 1), at most 32 attributes on one element, and at most 64 namespace declarations (`xmlns`, `xmlns:p`) in the part; each is enforced while the part is read, so reading stops at the first element or declaration over a cap |
 | Sheets | Exactly one |
 
 The supplied export is 9,593 bytes with 13 entries and 38,586 bytes unpacked;
-its largest part, the sheet, is 9,222 bytes with about 350 elements. The
+its largest part, the sheet, is 9,222 bytes with 352 elements, and no part declares more than 11 namespaces. The
 limits leave room for any one-plate export and stop a crafted file early. The
 constants are in `src/server/upload/limits.ts`; no environment variable
 changes them.
@@ -71,7 +71,9 @@ expanded or fetched (V1.5.1); only the five predefined entities and character
 references are read. Elements are matched by their namespace and local name:
 the SpreadsheetML main namespace for the workbook, the sheet and the shared
 strings, and the package namespaces for the content types and the
-relationships. An element in another namespace is not read.
+relationships. An element in another namespace is not read. An element keeps only its own
+namespace declarations, and a prefix is resolved by walking up to the root, which the depth
+cap bounds; no scope is copied per element.
 
 The supplied fixture was rewritten by a zip tool when it was cleaned, so its
 container flags are not necessarily the ones Gen5 writes. The container checks
@@ -173,7 +175,7 @@ by its reference and carries no cell text.
 | A missing workbook part or the wrong content type | `not_a_workbook`, with the part |
 | XML that is not well formed or holds a character XML forbids | `xml_malformed`, with the part |
 | A DTD in any part | `xml_dtd_refused`, with the part |
-| A part over an XML cap | `xml_too_large`, with the part and the cap (`elements`, `depth` or `attributes`) |
+| A part over an XML cap | `xml_too_large`, with the part and the cap (`elements`, `depth`, `attributes` or `namespaces`) |
 | No sheet, or more than one (a second plate) | `sheet_count` |
 | A label missing or changed | `label_missing`, with the cell |
 | A header value missing or in the wrong form | `header_missing` or `header_invalid`, with the field and the cell |

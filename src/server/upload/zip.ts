@@ -18,6 +18,11 @@ const MAX_COMMENT_LENGTH = 0xffff;
 const ENCRYPTION_FLAGS = 0x0001 | 0x0040 | 0x2000;
 /** Bit 3: the sizes and CRC-32 follow the data, so the local header may carry zeros (§4.4.4). */
 const DATA_DESCRIPTOR_FLAG = 0x0008;
+/**
+ * The flags a local header must share with its directory entry: encryption, the data descriptor,
+ * UTF-8 names and masked headers. Bits 1 and 2 are deflate speed hints and the rest are reserved.
+ */
+const MEANINGFUL_FLAGS = 0x0001 | 0x0008 | 0x0040 | 0x0800 | 0x2000;
 const STORED = 0;
 const DEFLATED = 8;
 
@@ -127,7 +132,9 @@ function locateData(
     const dataStart = nameStart + nameLength + extraLength;
     const dataEnd = dataStart + record.compressedSize;
     if (dataEnd > centralOffset) return stepFail(localFailure);
-    if (flags !== record.flags || method !== record.method) return stepFail(localFailure);
+    if (((flags ^ record.flags) & MEANINGFUL_FLAGS) !== 0 || method !== record.method) {
+      return stepFail(localFailure);
+    }
     if (!sameBytes(bytes.subarray(nameStart, nameStart + nameLength), record.nameBytes)) {
       return stepFail(localFailure);
     }

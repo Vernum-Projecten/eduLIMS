@@ -13,7 +13,13 @@ import {
   stepFail,
   stepOk,
 } from "./errors.ts";
-import { MAX_PART_BYTES, MAX_XML_ATTRIBUTES, MAX_XML_DEPTH, MAX_XML_ELEMENTS } from "./limits.ts";
+import {
+  MAX_PART_BYTES,
+  MAX_XML_ATTRIBUTES,
+  MAX_XML_DEPTH,
+  MAX_XML_ELEMENTS,
+  MAX_XML_NAMESPACES,
+} from "./limits.ts";
 import { attributeIn, childElements, directText, parseXml, type XmlElement } from "./xml.ts";
 import { readZipEntry, type ZipDirectory } from "./zip.ts";
 
@@ -69,6 +75,7 @@ const XML_LIMITS = {
   maxElements: MAX_XML_ELEMENTS,
   maxDepth: MAX_XML_DEPTH,
   maxAttributes: MAX_XML_ATTRIBUTES,
+  maxNamespaces: MAX_XML_NAMESPACES,
 };
 
 const textDecoder = new TextDecoder("utf-8", { fatal: true });

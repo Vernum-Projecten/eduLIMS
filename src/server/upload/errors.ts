@@ -48,7 +48,7 @@ export type ArchiveError =
   | {
       readonly kind: "xml_too_large";
       readonly part: string;
-      /** The cap the part passed: its element count, its nesting depth, or one element's attributes. */
+      /** The cap the part passed: elements, nesting depth, one element's attributes, or namespaces. */
       readonly cap: XmlCap;
     };
 

@@ -12,6 +12,7 @@ import {
   MAX_XML_ATTRIBUTES,
   MAX_XML_DEPTH,
   MAX_XML_ELEMENTS,
+  MAX_XML_NAMESPACES,
 } from "../../src/server/upload/limits.ts";
 import {
   buildGen5Workbook,
@@ -256,5 +257,72 @@ describe("elements in a foreign namespace are not read (N2)", () => {
       xml.replace(/<row r="25">(.*?)<\/row>/, '<evil:row xmlns:evil="urn:x" r="25">$1</evil:row>'),
     );
     expect(errorsOf(parse(bytes))).toEqual([{ kind: "grid_shape", cell: "B25" }]);
+  });
+});
+
+/** The root start tag of each of the six parts the reader opens. */
+const ROOT_START = /<(Types|Relationships|workbook|worksheet|sst)\b[^>]*>/;
+
+/** A good workbook with `insert(partText)` placed right after the root start tag of each part. */
+function floodEveryPart(insert: (partText: string) => string): Uint8Array {
+  const parts = workbookParts({ sheets: [gen5Cells()] }).map((part) => {
+    if (typeof part.data !== "string") return part;
+    const match = ROOT_START.exec(part.data);
+    if (match === null) throw new Error(`no root start tag in ${part.name}`);
+    const at = match.index + match[0].length;
+    return { ...part, data: `${part.data.slice(0, at)}${insert(part.data)}${part.data.slice(at)}` };
+  });
+  expect(parts.filter((part) => typeof part.data === "string")).toHaveLength(6);
+  return buildZip(parts);
+}
+
+const count = (text: string, pattern: RegExp) => (text.match(pattern) ?? []).length;
+
+describe("namespace declarations through an upload (the second review of #297)", () => {
+  it("refuses the six-part chain of 31 prefixes a level at the namespace cap", () => {
+    let open = "";
+    let close = "";
+    for (let depth = 2; depth <= 31; depth += 1) {
+      const declarations = Array.from(
+        { length: 31 },
+        (_, index) => ` xmlns:p${depth}_${index}="u"`,
+      ).join("");
+      open += `<e${declarations}>`;
+      close = `</e>${close}`;
+    }
+    const bytes = floodEveryPart(() => `${open}${'<l xmlns:q="u"/>'.repeat(4_000)}${close}`);
+    expect(bytes.length).toBeLessThan(64 * 1024);
+    expect(errorsOf(parse(bytes))).toEqual([
+      { kind: "xml_too_large", part: "[Content_Types].xml", cap: "namespaces" },
+    ]);
+  });
+
+  it("reads every opened part flooded up to each XML cap at once, within the budget", () => {
+    const attributes = (total: number) =>
+      Array.from({ length: total }, (_, index) => ` a${index}=""`).join("");
+    const bytes = floodEveryPart((partText) => {
+      const chainLength = MAX_XML_DEPTH - 2;
+      let namespaceRoom = MAX_XML_NAMESPACES - count(partText, /xmlns(:[A-Za-z0-9_]+)?=/g);
+      let open = "";
+      let close = "";
+      for (let level = 0; level < chainLength; level += 1) {
+        const here = Math.min(namespaceRoom, MAX_XML_ATTRIBUTES);
+        namespaceRoom -= here;
+        const declarations = Array.from(
+          { length: here },
+          (_, index) => ` xmlns:n${level}_${index}="urn:n"`,
+        ).join("");
+        open += `<e${declarations}>`;
+        close = `</e>${close}`;
+      }
+      const leaves = MAX_XML_ELEMENTS - count(partText, /<[A-Za-z]/g) - chainLength;
+      const widest = `<x${attributes(MAX_XML_ATTRIBUTES)}/>`;
+      return `${open}${widest}${`<x${attributes(16)}/>`.repeat(leaves - 1)}${close}`;
+    });
+    const started = performance.now();
+    const result = parse(bytes);
+    const elapsed = performance.now() - started;
+    expect(result.ok).toBe(true);
+    expect(elapsed).toBeLessThan(10_000);
   });
 });

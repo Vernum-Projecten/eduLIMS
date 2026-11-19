@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { MAX_XML_ATTRIBUTES, MAX_XML_DEPTH, MAX_XML_ELEMENTS } from "./limits.ts";
+import {
+  MAX_XML_ATTRIBUTES,
+  MAX_XML_DEPTH,
+  MAX_XML_ELEMENTS,
+  MAX_XML_NAMESPACES,
+} from "./limits.ts";
 import {
   attributeIn,
   childElements,
@@ -10,12 +15,14 @@ import {
   parseXml,
   type XmlElement,
   type XmlLimits,
+  type XmlNode,
 } from "./xml.ts";
 
 const LIMITS: XmlLimits = {
   maxElements: MAX_XML_ELEMENTS,
   maxDepth: MAX_XML_DEPTH,
   maxAttributes: MAX_XML_ATTRIBUTES,
+  maxNamespaces: MAX_XML_NAMESPACES,
 };
 
 function root(text: string): XmlElement {
@@ -135,7 +142,17 @@ describe("parseXml and the Char production (XML 1.0 §2.2)", () => {
 });
 
 describe("parseXml caps, enforced while reading", () => {
-  const small: XmlLimits = { maxElements: 4, maxDepth: 3, maxAttributes: 2 };
+  const small: XmlLimits = { maxElements: 4, maxDepth: 3, maxAttributes: 2, maxNamespaces: 2 };
+
+  it("accepts exactly the namespace cap and refuses one declaration more", () => {
+    expect(parseXml('<a xmlns="urn:a"><b xmlns:x="urn:x"/></a>', small).ok).toBe(true);
+    expect(
+      parseXml('<a xmlns="urn:a"><b xmlns:x="urn:x"/><b xmlns:y="urn:y"/></a>', small),
+    ).toEqual({
+      ok: false,
+      error: { kind: "xml_too_large", cap: "namespaces" },
+    });
+  });
 
   it("accepts exactly the element cap and refuses one more", () => {
     expect(parseXml("<a><b/><b/><b/></a>", small).ok).toBe(true);
@@ -222,5 +239,54 @@ describe("namespaces", () => {
     const element = root('<w xmlns="urn:d"><c xmlns=""/></w>');
     const child = element.children[0];
     expect(typeof child !== "string" && child?.namespace).toBeUndefined();
+  });
+});
+
+describe("namespace declarations (the second review of #297)", () => {
+  const declaring = (count: number) =>
+    `<a>${Array.from({ length: count }, (_, index) => `<b xmlns:p${index}="urn:p"/>`).join("")}</a>`;
+
+  it("holds the real namespace cap at and one over", () => {
+    expect(parseXml(declaring(MAX_XML_NAMESPACES), LIMITS).ok).toBe(true);
+    expect(refused(declaring(MAX_XML_NAMESPACES + 1))).toEqual({
+      kind: "xml_too_large",
+      cap: "namespaces",
+    });
+  });
+
+  it("refuses a chain that declares 31 prefixes a level, before it builds a scope", () => {
+    let open = "";
+    let close = "";
+    for (let depth = 2; depth <= 31; depth += 1) {
+      const declarations = Array.from(
+        { length: 31 },
+        (_, index) => ` xmlns:p${depth}_${index}="u"`,
+      ).join("");
+      open += `<e${declarations}>`;
+      close = `</e>${close}`;
+    }
+    const text = `<a>${open}${'<l xmlns:q="u"/>'.repeat(4_000)}${close}</a>`;
+    expect(refused(text)).toEqual({ kind: "xml_too_large", cap: "namespaces" });
+  });
+
+  it("resolves a prefix declared at the root from the deepest element", () => {
+    const nested = MAX_XML_DEPTH - 2;
+    const element = root(
+      `<a xmlns:x="urn:x">${"<b>".repeat(nested)}<x:c/>${"</b>".repeat(nested)}</a>`,
+    );
+    let current: XmlElement | undefined = element;
+    for (let level = 0; level < nested; level += 1) {
+      const child: XmlNode | undefined = current?.children[0];
+      current = typeof child === "string" ? undefined : child;
+    }
+    const leaf = current?.children[0];
+    expect(typeof leaf !== "string" && leaf?.namespace).toBe("urn:x");
+  });
+
+  it("stores only an element's own declarations", () => {
+    const element = root('<a xmlns:x="urn:x"><b/><c xmlns:y="urn:y"/></a>');
+    const [first, second] = element.children;
+    expect(typeof first !== "string" && first?.declarations.size).toBe(0);
+    expect(typeof second !== "string" && [...(second?.declarations.keys() ?? [])]).toEqual(["y"]);
   });
 });

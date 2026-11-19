@@ -357,8 +357,17 @@ describe("local headers against the central directory", () => {
     expect(read.ok && new TextDecoder().decode(read.value)).toBe("<a/>");
   });
 
-  it("refuses a local header whose flags differ from the directory", () => {
-    const bytes = tamper(ONE, ({ view }) => view.setUint16(6, 0x0008, true));
+  it("reads a local header whose flags differ only in the deflate speed bits 1 and 2", () => {
+    const zip = directory(tamper(ONE, ({ view }) => view.setUint16(6, 0x0006, true)));
+    const read = readZipEntry(zip, entryOf(zip, "a.xml"), PART);
+    expect(read.ok && new TextDecoder().decode(read.value)).toBe("<a>invented</a>");
+  });
+
+  it.each([
+    ["the data descriptor bit", 0x0008],
+    ["the UTF-8 name bit", 0x0800],
+  ])("refuses a local header whose flags differ in %s", (_, bit) => {
+    const bytes = tamper(ONE, ({ view }) => view.setUint16(6, bit, true));
     expect(errorOf(readZipDirectory(bytes, LIMITS))).toMatchObject({ reason: "local_header" });
   });
 
