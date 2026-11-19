@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // What makes one `pnpm test:e2e` run independent of another on the same machine: a run id, a
-// database of its own and free ports. The config evaluates this in the runner and again in every
-// worker; the first evaluation stores each value in process.env, which the workers inherit, so
-// all of them agree.
+// database of its own and ports derived from the run id. The config evaluates this in the runner
+// and again in every worker; the first evaluation stores each value in process.env, which the
+// workers inherit, so all of them agree.
+import { createHash } from "node:crypto";
 import { createServer } from "node:net";
 import {
   databaseOf,
@@ -13,25 +14,62 @@ import {
   withDatabase,
 } from "../../src/server/db/test-run-database.ts";
 
-/** Returns a TCP port on 127.0.0.1 that nothing listens on right now. */
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
+/**
+ * The ports a run picks from: below the ephemeral ranges of Linux (from 32768) and macOS and
+ * Windows (from 49152). A port the kernel hands out for port 0 is not held between the probe and
+ * the server's start, so another run's outgoing connection or its own probe could take it (#321).
+ */
+export const RUN_PORT_RANGE = { first: 20_000, count: 10_000 } as const;
+
+/**
+ * Returns the ports `envName` of the run `id` tries, in order: a start derived from the run id
+ * and the name, then the ports after it, wrapping within {@link RUN_PORT_RANGE}.
+ */
+export function runPortCandidates(id: string, envName: string, tries = 50): number[] {
+  const hash = createHash("sha256").update(`${id}:${envName}`).digest().readUInt32BE(0);
+  const start = hash % RUN_PORT_RANGE.count;
+  return Array.from(
+    { length: tries },
+    (_, step) => RUN_PORT_RANGE.first + ((start + step) % RUN_PORT_RANGE.count),
+  );
+}
+
+/** Resolves whether a server can listen on `port` at `host` (all interfaces when undefined). */
+function canListen(port: number, host: string | undefined): Promise<boolean> {
+  return new Promise((resolve) => {
     const server = createServer();
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      server.close(() => {
-        if (address !== null && typeof address === "object") resolve(address.port);
-        else reject(new Error("The probe server reported no port."));
-      });
+    server.once("error", (error) => {
+      // NOTE: a host without IPv6 cannot test "::1"; no requirement governs this: our own design.
+      const code = Reflect.get(error, "code");
+      resolve(host === "::1" && (code === "EADDRNOTAVAIL" || code === "EAFNOSUPPORT"));
     });
+    server.listen({ port, host, exclusive: true }, () => server.close(() => resolve(true)));
   });
 }
 
+/** Returns whether nothing listens on `port`, on any interface the app or a spec may use. */
+async function isFree(port: number): Promise<boolean> {
+  for (const host of [undefined, "127.0.0.1", "::1"]) {
+    if (!(await canListen(port, host))) return false;
+  }
+  return true;
+}
+
+/** The ports this run already holds in the environment, so two names never share one. */
+function heldPorts(): Set<number> {
+  return new Set(
+    Object.entries(process.env)
+      .filter(([name]) => name.startsWith("EDULIMS_E2E_") && name.endsWith("_PORT"))
+      .map(([, value]) => Number(value)),
+  );
+}
+
 /**
- * Returns the port this run uses for `envName`: the one an earlier evaluation stored, else a free
- * one, stored for the workers. A second Playwright project (a dev server) calls it with its own
- * name to get a port of its own.
+ * Returns the port this run uses for `envName`: the one an earlier evaluation stored, else the
+ * first free one of {@link runPortCandidates} for this run id, stored for the workers. Two runs
+ * have different ids, so they start from different ports.
+ *
+ * @throws Error when none of the candidates is free.
  */
 export async function runPort(envName: string): Promise<number> {
   const stored = process.env[envName];
@@ -42,9 +80,16 @@ export async function runPort(envName: string): Promise<number> {
     }
     return port;
   }
-  const port = await freePort();
-  process.env[envName] = String(port);
-  return port;
+  const held = heldPorts();
+  const candidates = runPortCandidates(runId(), envName);
+  for (const port of candidates) {
+    if (held.has(port) || !(await isFree(port))) continue;
+    process.env[envName] = String(port);
+    return port;
+  }
+  throw new Error(
+    `No free port for ${envName} among ${candidates.at(0)} to ${candidates.at(-1)}; set ${envName}.`,
+  );
 }
 
 /** The id of this e2e run, stored for the workers. */
