@@ -141,26 +141,33 @@ export interface LockedLab {
   labId: LabId;
 }
 
+/** How a lab action holds its simulation row: a write locks it, a read-only action shares it. */
+export type LabLock = "update" | "share";
+
 /**
- * Locks the simulation of a lab the actor teaches, then reads the lab again under that lock, or
- * returns `null`. The lab is reached through its simulation's teacher rows, never on its own.
+ * Locks the simulation of a lab the actor teaches (`FOR UPDATE`, or `FOR SHARE` for a read-only
+ * action), then reads the lab again under that lock, or returns `null`. The lab is reached
+ * through its simulation's teacher rows, never on its own.
  */
 export async function lockLab(
   trx: Kysely<DB>,
   labId: string,
   userId: string,
+  lock: LabLock = "update",
 ): Promise<LockedLab | null> {
   const id = parseLabId(labId);
   if (id === null) return null;
-  const owner = await trx
+  const query = trx
     .selectFrom("labs")
     .innerJoin("simulations", "simulations.id", "labs.simulation_id")
     .innerJoin("simulation_teachers", "simulation_teachers.simulation_id", "simulations.id")
     .select("simulations.id")
     .where("labs.id", "=", id)
-    .where("simulation_teachers.user_id", "=", userId)
-    .forUpdate("simulations")
-    .executeTakeFirst();
+    .where("simulation_teachers.user_id", "=", userId);
+  const owner = await (lock === "share"
+    ? query.forShare("simulations")
+    : query.forUpdate("simulations")
+  ).executeTakeFirst();
   if (!owner) return null;
   const simulationId = parseSimulationId(owner.id);
   if (simulationId === null) return null;
@@ -186,6 +193,7 @@ export async function withLab<T>(
   actor: SimulationActor,
   labId: string,
   action: (trx: Transaction<DB>, lab: LockedLab) => Promise<SimulationResult<T>>,
+  lock: LabLock = "update",
 ): Promise<SimulationResult<T>> {
   assertTeacher(actor);
   if (parseLabId(labId) === null) {
@@ -193,7 +201,7 @@ export async function withLab<T>(
     return refused("not_found");
   }
   return db.transaction().execute(async (trx) => {
-    const lab = await lockLab(trx, labId, actor.id);
+    const lab = await lockLab(trx, labId, actor.id, lock);
     if (lab === null) {
       logNotFound(actor.id, "lab", labId);
       return refused<T>("not_found");

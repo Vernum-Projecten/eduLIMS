@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { normalizeEmail, parseLabId, parseSimulationId } from "./simulations";
+import { isAsciiEmail, normalizeEmail, parseLabId, parseSimulationId } from "./simulations";
 
 describe("the branded ids of simulations and labs", () => {
   it("brands a UUID in its text form, and nothing else", () => {
@@ -25,5 +25,22 @@ describe("the branded ids of simulations and labs", () => {
 describe("normalizeEmail", () => {
   it("trims and lower-cases an address, the one form lists store", () => {
     expect(normalizeEmail("  Ada.Lab@Example.TEST ")).toBe("ada.lab@example.test");
+  });
+});
+
+describe("isAsciiEmail (#300 review, S4)", () => {
+  it("takes a plain ASCII address, in any case", () => {
+    expect(isAsciiEmail("Ada.Lab@Example.test")).toBe(true);
+  });
+
+  it("refuses an address that lower-casing could fold onto another", () => {
+    expect(isAsciiEmail("Kelvin@example.test")).toBe(false);
+    expect(isAsciiEmail("adа@example.test")).toBe(false);
+  });
+
+  it("refuses padding, spaces and a line that is no address", () => {
+    expect(isAsciiEmail(" ada@example.test")).toBe(false);
+    expect(isAsciiEmail("ada lab@example.test")).toBe(false);
+    expect(isAsciiEmail("not-an-address")).toBe(false);
   });
 });

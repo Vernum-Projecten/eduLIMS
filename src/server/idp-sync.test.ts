@@ -406,6 +406,27 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
     expect(data.user["roleSource"]).toBe("local");
   });
 
+  it("never grants or verifies a non-ASCII address, such as one with a KELVIN SIGN (S4 of #300)", async () => {
+    const hasWaitingLabAddress = vi.fn(async () => true);
+    const { sync, ctx } = authoritative({ hasWaitingLabAddress });
+    const data = oauth("create-user", "entra", { roles: [] }, { email: "Kelvin@example.test" });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(hasWaitingLabAddress).not.toHaveBeenCalled();
+    expect(data.user["role"]).toBeUndefined();
+  });
+
+  it("does not mark a non-ASCII address verified, even through an authoritative provider", async () => {
+    const { sync, ctx } = authoritative();
+    const data = oauth(
+      "create-user",
+      "entra",
+      { roles: ["edulims-student"] },
+      { email: "Kelvin@example.test" },
+    );
+    expect(await sync(data, ctx)).toBeUndefined();
+    expect(data.user.emailVerified).toBe(false);
+  });
+
   it("never grants a waiting address's student role to a SCIM-provisioned user (S10, #45)", async () => {
     const hasWaitingLabAddress = vi.fn(async () => true);
     const { ctx } = setup(undefined, {
