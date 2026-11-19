@@ -92,8 +92,9 @@ browser client were checked: none of them depends on it.
   the only teacher of a simulation cannot be deleted.
 - **No roles inside a lab** (S10, O10). Every member of a lab may do
   everything in it, and eduLIMS records who did what.
-- **Deleting.** A teacher can delete a lab, and a simulation that has no
-  student.
+- **Deleting.** A teacher can delete a lab and a simulation that have no
+  student. A waiting address is deleted with its simulation, and otherwise
+  90 days after it was added if no student linked it (owner, 2026-11-19).
 - **The administrator** sees the simulations with their teachers, their labs
   and the number of members, read-only, and nothing of a lab's work and no
   correct value (B5, a Should).

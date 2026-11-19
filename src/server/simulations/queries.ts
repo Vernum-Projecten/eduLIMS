@@ -8,6 +8,7 @@ import "@tanstack/react-start/server-only";
 import type { Kysely } from "kysely";
 import { parseLabId, parseSimulationId } from "../../lib/simulations.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { logNotFound } from "./access.ts";
 import { studentLabsQuery } from "./student-access.ts";
 
 /** One simulation of the teacher's list. */
@@ -73,7 +74,8 @@ export interface TeacherSimulationPage {
 
 /**
  * Returns the page of a simulation the teacher teaches, or `null` for a malformed id, an unknown
- * simulation and another teacher's simulation alike (D11, R-01).
+ * simulation and another teacher's simulation alike (D11, R-01). Every `null` is logged as an
+ * `authz_fail` probe (ASVS V16.3.2).
  */
 export async function getTeacherSimulation(
   db: Kysely<DB>,
@@ -81,7 +83,10 @@ export async function getTeacherSimulation(
   simulationId: string,
 ): Promise<TeacherSimulationPage | null> {
   const id = parseSimulationId(simulationId);
-  if (id === null) return null;
+  if (id === null) {
+    logNotFound(userId, "simulation", simulationId);
+    return null;
+  }
   const simulation = await db
     .selectFrom("simulations as s")
     .innerJoin("simulation_teachers as mine", "mine.simulation_id", "s.id")
@@ -89,7 +94,10 @@ export async function getTeacherSimulation(
     .where("s.id", "=", id)
     .where("mine.user_id", "=", userId)
     .executeTakeFirst();
-  if (!simulation) return null;
+  if (!simulation) {
+    logNotFound(userId, "simulation", simulationId);
+    return null;
+  }
   const [teachers, labs] = await Promise.all([
     db
       .selectFrom("simulation_teachers as t")
@@ -147,7 +155,8 @@ export interface TeacherLabPage {
 
 /**
  * Returns the page of a lab whose simulation the teacher teaches, or `null` for a malformed id,
- * an unknown lab and a lab of another teacher's simulation alike (D11, R-01).
+ * an unknown lab and a lab of another teacher's simulation alike (D11, R-01). Every `null` is
+ * logged as an `authz_fail` probe (ASVS V16.3.2).
  */
 export async function getTeacherLab(
   db: Kysely<DB>,
@@ -155,7 +164,10 @@ export async function getTeacherLab(
   labId: string,
 ): Promise<TeacherLabPage | null> {
   const id = parseLabId(labId);
-  if (id === null) return null;
+  if (id === null) {
+    logNotFound(userId, "lab", labId);
+    return null;
+  }
   const lab = await db
     .selectFrom("labs")
     .innerJoin("simulations as s", "s.id", "labs.simulation_id")
@@ -164,7 +176,10 @@ export async function getTeacherLab(
     .where("labs.id", "=", id)
     .where("mine.user_id", "=", userId)
     .executeTakeFirst();
-  if (!lab) return null;
+  if (!lab) {
+    logNotFound(userId, "lab", labId);
+    return null;
+  }
   const [members, waiting, otherLabs] = await Promise.all([
     db
       .selectFrom("lab_members")

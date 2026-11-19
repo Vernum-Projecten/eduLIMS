@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
+import { readWorkbook, splitCellReference } from "../../src/server/upload/workbook.ts";
+import { readZipDirectory } from "../../src/server/upload/zip.ts";
 import {
   buildZip,
   type Cells,
@@ -9,9 +11,7 @@ import {
   type WorkbookOptions,
   workbookParts,
   type ZipPart,
-} from "../../../tests/fixtures/gen5/xlsx-builder.ts";
-import { readWorkbook, splitCellReference } from "./workbook.ts";
-import { readZipDirectory } from "./zip.ts";
+} from "../fixtures/gen5/xlsx-builder.ts";
 
 const MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";

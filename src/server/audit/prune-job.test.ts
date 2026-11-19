@@ -75,7 +75,7 @@ describe("runPrune (B4, #65)", () => {
     restoreLog = setSecurityLogWriter((line) => lines.push(line));
     expect(await runPrune(database, NOW)).toEqual({
       kind: "pruned",
-      counts: { auditEvents: 1, sessions: 1, adminGrants: 0 },
+      counts: { auditEvents: 1, sessions: 1, waitingAddresses: 0, adminGrants: 0 },
     });
     expect(await pruneRows(database)).toEqual([
       {
@@ -87,6 +87,7 @@ describe("runPrune (B4, #65)", () => {
         metadata: {
           removed_audit_events: 1,
           removed_sessions: 1,
+          removed_waiting_addresses: 0,
           removed_admin_grants: 0,
         },
       },
@@ -98,8 +99,40 @@ describe("runPrune (B4, #65)", () => {
       actor_type: "system",
       removed_audit_events: 1,
       removed_sessions: 1,
+      removed_waiting_addresses: 0,
       removed_admin_grants: 0,
     });
+  });
+
+  it("logs how many unlinked lab addresses it removed, never an address (#300)", async () => {
+    const database = await setup();
+    const simulationId = "01960000-0000-7000-8000-0000000000e1";
+    const labId = "01960000-0000-7000-8000-0000000000e2";
+    await database.insertInto("simulations").values({ id: simulationId, name: "Run" }).execute();
+    await database
+      .insertInto("labs")
+      .values({ id: labId, simulation_id: simulationId, name: "Lab Aurora" })
+      .execute();
+    await database
+      .insertInto("lab_member_emails")
+      .values({
+        simulation_id: simulationId,
+        lab_id: labId,
+        email: "never.came@example.test",
+        added_at: new Date("2026-07-01T00:00:00Z"),
+      })
+      .execute();
+    const lines: string[] = [];
+    restoreLog = setSecurityLogWriter((line) => lines.push(line));
+    expect(await runPrune(database, NOW)).toMatchObject({
+      kind: "pruned",
+      counts: { waitingAddresses: 1 },
+    });
+    const [row] = await pruneRows(database);
+    expect(row?.metadata).toMatchObject({ removed_waiting_addresses: 1 });
+    const streamed = lines.filter((line) => line.includes("sys_retention_prune"));
+    expect(JSON.parse(streamed[0] ?? "null")).toMatchObject({ removed_waiting_addresses: 1 });
+    expect(JSON.stringify([row, streamed])).not.toContain("@");
   });
 
   it("skips while another runner holds the lock, so a second replica removes nothing", async () => {

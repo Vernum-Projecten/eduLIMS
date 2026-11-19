@@ -11,6 +11,7 @@ import {
 } from "../lib/identity-providers.ts";
 import { LOCAL_ROLE_SOURCE, parseRoleSource } from "../lib/role-source.ts";
 import { formatRoles, validateRoleValue } from "../lib/roles.ts";
+import { isAsciiEmail } from "../lib/simulations.ts";
 import { auditRecorderOf, requestIdOf } from "./audit/better-auth-hooks.ts";
 import { auditProvider } from "./audit/events.ts";
 import type { ProviderSettingsView } from "./idp/registry.ts";
@@ -179,6 +180,9 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       return { error: PROVIDER_DISABLED_ERROR, errorDescription: "Identity provider disabled" };
     }
     const email = typeof user.email === "string" ? user.email : "";
+    // NOTE: #300 review; a non-ASCII address can fold onto another address when lower-cased, so
+    // it is never verified and never matches a lab's list.
+    const plainEmail = isAsciiEmail(email);
     // NOTE: S10 and #45; an address on a lab's list grants only `student`, to a verified email the
     // IdP sends no role for, at a first sign-in of a user eduLIMS does not hold yet, so never to
     // a SCIM-provisioned user and never back after the IdP took a role.
@@ -188,7 +192,7 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       source.action === "create-user" &&
       stored === null &&
       settings.emailAuthoritative &&
-      email !== "" &&
+      plainEmail &&
       (await options.hasWaitingLabAddress?.(email))
     ) {
       decision = { kind: "default", roles: ["student"] };
@@ -220,7 +224,7 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       }
       return { error: NO_ROLE_ERROR, errorDescription: "No eduLIMS role assigned" };
     }
-    const emailVerified = settings.emailAuthoritative;
+    const emailVerified = settings.emailAuthoritative && plainEmail;
     if (source.action === "create-user") {
       // NOTE: better-auth 1.7.20 validates the exact record it then inserts
       // (internal-adapter.mjs createUser), so these fields are stored with the user.
