@@ -12,6 +12,7 @@ import "@tanstack/react-start/server-only";
 import type { Kysely } from "kysely";
 import { LOCAL_ROLE_SOURCE } from "../../lib/role-source.ts";
 import { formatRoles, type Role, validateRoleSet, validateRoleValue } from "../../lib/roles.ts";
+import { isAsciiEmail } from "../../lib/simulations.ts";
 import { auditProvider } from "../audit/events.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
@@ -267,12 +268,15 @@ export async function revokeAdmin(
 
 /**
  * Consumes the pending grant of `email` through `providerId`, when one exists and has not
- * expired, and records `admin_grant_applied`. Returns whether a grant was applied.
+ * expired, and records `admin_grant_applied`. Returns whether a grant was applied; an address
+ * that is not plain ASCII applies none.
  */
 export async function consumePendingAdminGrant(
   db: Kysely<DB>,
   input: { email: string; providerId: string; now: Date },
 ): Promise<boolean> {
+  // NOTE: #311 finding 3; a non-ASCII address can fold onto a granted one when lower-cased.
+  if (!isAsciiEmail(input.email)) return false;
   return db.transaction().execute(async (trx) => {
     const grant = await trx
       .deleteFrom("pending_admin_grant")

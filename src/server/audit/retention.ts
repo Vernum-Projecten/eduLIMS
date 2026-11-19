@@ -60,12 +60,26 @@ export async function deleteExpired(db: Kysely<DB>, now: Date): Promise<PruneRes
       sql<Date>`${now}::timestamptz - make_interval(days => ${ENDED_SESSION_RETENTION_DAYS})`,
     )
     .executeTakeFirst();
+  // NOTE: #311; rows are locked in key order and a row a teacher's write holds is skipped until
+  // the next run, so the prune never waits on, or deadlocks with, a simulation's delete.
   const waiting = await db
     .deleteFrom("lab_member_emails")
-    .where(
-      "added_at",
-      "<",
-      sql<Date>`${now}::timestamptz - make_interval(days => ${WAITING_ADDRESS_RETENTION_DAYS})`,
+    .where(({ eb, refTuple, selectFrom }) =>
+      eb(
+        refTuple("simulation_id", "email"),
+        "in",
+        selectFrom("lab_member_emails")
+          .select(["simulation_id", "email"])
+          .where(
+            "added_at",
+            "<",
+            sql<Date>`${now}::timestamptz - make_interval(days => ${WAITING_ADDRESS_RETENTION_DAYS})`,
+          )
+          .orderBy(["simulation_id", "email"])
+          .forUpdate()
+          .skipLocked()
+          .$asTuple("simulation_id", "email"),
+      ),
     )
     .executeTakeFirst();
   // NOTE: #49; the join-code counters only matter within their 15-minute window, so a day-old

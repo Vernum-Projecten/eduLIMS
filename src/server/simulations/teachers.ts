@@ -17,10 +17,12 @@ import {
   type SimulationResult,
   withSimulation,
 } from "./access.ts";
+import { storedEmailIsAscii } from "./ascii-email.ts";
 
 /**
  * Adds the account with address `email` as a teacher of a simulation the actor teaches. An
- * unknown address and an account without the app role teacher get the same `not_a_teacher`.
+ * unknown address, an account whose stored address is not plain ASCII and an account without the
+ * app role teacher get the same `not_a_teacher`.
  */
 export function addTeacher(
   db: Kysely<DB>,
@@ -38,6 +40,7 @@ export function addTeacher(
       .selectFrom("user")
       .select(["id", "role"])
       .where((eb) => eb(eb.fn("lower", ["email"]), "=", normalizeEmail(input.email)))
+      .where(storedEmailIsAscii())
       .executeTakeFirst();
     const parsed = account ? validateRoleValue(account.role) : null;
     if (!account || !parsed?.ok || !parsed.roles.includes("teacher")) {

@@ -56,6 +56,26 @@ describe("addTeacher (D10: other teachers, with the same rights)", () => {
     expect(JSON.stringify(rows)).not.toContain("@");
   });
 
+  it("never adds a teacher whose stored address is a KELVIN SIGN look-alike (#311)", async () => {
+    const { database, w } = await open();
+    const kelvin = await person(database, "kelvin-teacher", ["teacher"]);
+    await database
+      .updateTable("user")
+      .set({ email: "Kim@example.test" })
+      .where("id", "=", kelvin.id)
+      .execute();
+    const result = await addTeacher(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId, email: "kim@example.test" },
+      NOW,
+    );
+    expect(result).toEqual({ ok: false, error: "not_a_teacher" });
+    expect(await teachersOf(database, w.simulationId)).toEqual(
+      [w.teacher.id, w.coTeacher.id].sort(),
+    );
+  });
+
   it("adds a teacher-administrator, who holds the teacher role", async () => {
     const { database, w } = await open();
     const both = await person(database, "coordinator", ["teacher", "admin"]);

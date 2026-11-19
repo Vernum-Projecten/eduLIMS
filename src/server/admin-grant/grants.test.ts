@@ -244,6 +244,15 @@ describe("grantAdmin (#48)", () => {
     ]);
   });
 
+  it("never applies a grant to a non-ASCII form of its address (#311 finding 3)", async () => {
+    const database = await setup();
+    await grantAdmin(database, { email: "kim@example.test", providerId: "entra", now: NOW });
+    const consume = (email: string) =>
+      consumePendingAdminGrant(database, { email, providerId: "entra", now: NOW });
+    expect(await consume("Kim@example.test")).toBe(false);
+    expect(await consume("kim@example.test")).toBe(true);
+  });
+
   it("prunes expired pending grants", async () => {
     const database = await setup();
     await grantAdmin(database, { email: "old@example.test", providerId: "entra", now: NOW });
