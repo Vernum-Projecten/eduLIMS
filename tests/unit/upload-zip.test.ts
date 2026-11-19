@@ -2,9 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { buildZip, type ZipPart } from "../../../tests/fixtures/gen5/xlsx-builder.ts";
-import type { Step } from "./errors.ts";
-import { hasZipSignature, readZipDirectory, readZipEntry, type ZipDirectory } from "./zip.ts";
+import type { Step } from "../../src/server/upload/errors.ts";
+import {
+  hasZipSignature,
+  readZipDirectory,
+  readZipEntry,
+  type ZipDirectory,
+} from "../../src/server/upload/zip.ts";
+import { buildZip, type ZipPart } from "../fixtures/gen5/xlsx-builder.ts";
 
 const LIMITS = { maxEntries: 50, maxUnpackedBytes: 8 * 1024 * 1024 };
 const PART = 1024 * 1024;

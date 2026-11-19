@@ -123,6 +123,48 @@ describe("linkWaitingAddresses (S10: in the lab without doing anything)", () => 
     ]);
   });
 
+  it("drops the refused waiting address, so a second run writes nothing more (S5)", async () => {
+    const { database, w } = await open();
+    await database
+      .insertInto("lab_member_emails")
+      .values({ simulation_id: w.simulationId, lab_id: w.otherLabId, email: w.student.email })
+      .execute();
+    await linkWaitingAddresses(database, w.student.id, NOW);
+    const left = await database
+      .selectFrom("lab_member_emails")
+      .select("email")
+      .where("email", "=", w.student.email)
+      .execute();
+    expect(left).toEqual([]);
+    expect(await linkWaitingAddresses(database, w.student.id, NOW)).toEqual({
+      linked: 0,
+      refused: 0,
+      failed: 0,
+    });
+    expect(await auditRows(database, "lab_member_joined")).toHaveLength(1);
+  });
+
+  it("links no address that is not plain ASCII, such as one with a KELVIN SIGN (S4)", async () => {
+    const { database, w } = await open();
+    const kelvin = await person(database, "kelvin", ["student"]);
+    await database
+      .updateTable("user")
+      .set({ email: "\u212aelvin@example.test" })
+      .where("id", "=", kelvin.id)
+      .execute();
+    await database
+      .insertInto("lab_member_emails")
+      .values({ simulation_id: w.simulationId, lab_id: w.otherLabId, email: "kelvin@example.test" })
+      .execute();
+    expect(await linkWaitingAddresses(database, kelvin.id, NOW)).toEqual({
+      linked: 0,
+      refused: 0,
+      failed: 0,
+    });
+    expect(await placesOf(database, kelvin.id)).toEqual([]);
+    expect(await hasWaitingLabAddress(database, "\u212aelvin@example.test")).toBe(false);
+  });
+
   it("consumes a waiting row of the lab the student is already in, without a second place", async () => {
     const { database, w } = await open();
     await database
@@ -207,7 +249,7 @@ describe("hasWaitingLabAddress (the student grant of the sign-in gate, S10)", ()
       { labId: w.labId, emails: ["first.timer@example.test"] },
       NOW,
     );
-    expect(await hasWaitingLabAddress(database, " First.Timer@example.test")).toBe(true);
+    expect(await hasWaitingLabAddress(database, "First.Timer@example.test")).toBe(true);
     expect(await hasWaitingLabAddress(database, "student-1@example.test")).toBe(false);
     expect(await hasWaitingLabAddress(database, "nobody@example.test")).toBe(false);
   });

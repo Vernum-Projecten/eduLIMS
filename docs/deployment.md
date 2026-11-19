@@ -59,12 +59,12 @@ chosen against the two other Node.js 26 bases on 2026-11-11:
 |---|---|---|---|
 | `gcr.io/distroless/nodejs26-debian13:nonroot` | 26.13.0, the version in `.node-version` | by digest, tag tracks Node.js 26 | node, glibc, CA certificates, tzdata; no shell, no package manager, no npm |
 | `cgr.dev/chainguard/node` | yes | by digest, but the free tier publishes `latest` only, which moves to Node.js 27 when that ships | minimal, few CVEs |
-| `node:26.13.0-trixie-slim` | 26.13.0 | by digest and exact tag | a shell, apt, npm and corepack-free Debian userland: the most packages to scan |
+| `node:26.13.1-trixie-slim` | 26.13.1 | by digest and exact tag | a shell, apt, npm and corepack-free Debian userland: the most packages to scan |
 
 Distroless has the fewest packages that stay on Node.js 26, with a stable
 tag to follow. Chainguard's free image cannot be held on Node.js 26 without a
 subscription, and the slim image carries a shell and npm the server never
-uses. The build stage uses the full `node:26.13.0-trixie` image and never
+uses. The build stage uses the full `node:26.13.1-trixie` image and never
 ships.
 
 Both images run as uid 65532, own none of their files, and write nothing, so

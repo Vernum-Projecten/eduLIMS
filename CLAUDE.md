@@ -88,7 +88,7 @@ the npm registry at the moment you add it, never from memory.
   HL7 v2 over MLLP into FerroBRIDGE.
 - **Tests:** Vitest 5 with v8 coverage, Testing Library, Playwright with
   `@axe-core/playwright`.
-- **Runtime:** Node 26.13.0 LTS and pnpm 12.18.0, pinned in `devEngines` and
+- **Runtime:** Node 26.13.1 LTS and pnpm 12.21.0, pinned in `devEngines` and
   `.node-version`.
 - **Delivery:** GitHub Actions, images on GHCR, Docker Compose on one host.
 

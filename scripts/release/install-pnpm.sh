@@ -16,7 +16,8 @@ set -euo pipefail
 
 # One "version<TAB>integrity" row per line.
 readonly INTEGRITY="\
-12.18.0	sha512-nXiC1dyCFH7PxOBiqjSDTgrQKWcQoYN6ERWuASEn02txCeMhrBWYod0KZVl2gbHpmRfhLtDXSerpEYeUM2O+sw=="
+12.18.0	sha512-nXiC1dyCFH7PxOBiqjSDTgrQKWcQoYN6ERWuASEn02txCeMhrBWYod0KZVl2gbHpmRfhLtDXSerpEYeUM2O+sw==
+12.21.0	sha512-Zv2CeO4ok1zpUXktNDZ/869cQyonVkRYIwKVM4NbjaUpu+C+UTCv1W7QcT+4eJ5Hutgtk71a4v5UsVVi1idu8A=="
 
 die() {
   printf 'install-pnpm: %s\n' "$1" >&2

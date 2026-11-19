@@ -32,6 +32,7 @@ time and on accuracy. The owner's input, 2026-11-19:
   creates the labs and adds the email addresses of their members; a student
   who signs in with one of those addresses is in that lab at once, and a lab
   code is the fallback (ADR 0021). The Dutch UI word for the group is "lab".
+- A waiting address is deleted with its simulation, and otherwise 90 days after it was added if nobody linked it; owner, 2026-11-19.
 - A result released to the patient's record is final. The teacher sees every
   measurement; the released one counts.
 - An Afinion 2 result finds its team through the patient ID the team enters

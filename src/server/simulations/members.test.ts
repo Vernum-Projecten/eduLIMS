@@ -7,7 +7,7 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { moveMember, removeMember } from "./members.ts";
 import { teacherWriteRefusals } from "./test-access.ts";
-import { auditRows, NOW, type World, world } from "./test-helpers.ts";
+import { auditRows, NOW, notFoundLine, securityLines, type World, world } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -57,25 +57,33 @@ describe("moveMember (S10: one lab per simulation)", () => {
     ]);
   });
 
-  it("answers not_found for a lab of another simulation and moves nobody", async () => {
+  it("answers not_found for a lab of another simulation, logs it and moves nobody", async () => {
     const { database, w } = await open();
-    const result = await moveMember(database, w.teacher, {
-      simulationId: w.simulationId,
-      userId: w.student.id,
-      labId: w.outsideLabId,
+    let result: unknown;
+    const lines = await securityLines(async () => {
+      result = await moveMember(database, w.teacher, {
+        simulationId: w.simulationId,
+        userId: w.student.id,
+        labId: w.outsideLabId,
+      });
     });
     expect(result).toEqual({ ok: false, error: "not_found" });
+    expect(lines).toEqual([notFoundLine(w.teacher.id, "lab", w.outsideLabId)]);
     expect(await labOf(database, w.simulationId, w.student.id)).toBe(w.labId);
   });
 
-  it("answers not_found for a malformed target lab", async () => {
+  it("answers not_found for a malformed target lab, and logs it", async () => {
     const { database, w } = await open();
-    const result = await moveMember(database, w.teacher, {
-      simulationId: w.simulationId,
-      userId: w.student.id,
-      labId: "not-a-uuid",
+    let result: unknown;
+    const lines = await securityLines(async () => {
+      result = await moveMember(database, w.teacher, {
+        simulationId: w.simulationId,
+        userId: w.student.id,
+        labId: "not-a-uuid",
+      });
     });
     expect(result).toEqual({ ok: false, error: "not_found" });
+    expect(lines).toEqual([notFoundLine(w.teacher.id, "lab", "not-a-uuid")]);
   });
 
   it("answers member_not_found for a student of another simulation", async () => {

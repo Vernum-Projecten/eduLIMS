@@ -267,6 +267,7 @@ function metadataParts(metadata: AuditMetadata, labels: ProviderLabels): string[
   const removed = [
     [metadata.removed_audit_events, m.admin_activity_detail_removed_events],
     [metadata.removed_sessions, m.admin_activity_detail_removed_sessions],
+    [metadata.removed_waiting_addresses, m.admin_activity_detail_removed_waiting_addresses],
     [metadata.removed_admin_grants, m.admin_activity_detail_removed_grants],
     [metadata.resealed_providers, m.admin_activity_detail_resealed_providers],
     [metadata.resealed_id_tokens, m.admin_activity_detail_resealed_id_tokens],

@@ -3,6 +3,7 @@
 
 // Simulations and their labs (D10, S10, ADR 0021): the branded ids that keep a lab id out of a
 // simulation id's place, and the bounds both the forms and the server check.
+import { z } from "zod";
 
 declare const simulationIdBrand: unique symbol;
 declare const labIdBrand: unique symbol;
@@ -42,4 +43,16 @@ export type JoinVia = (typeof JOIN_VIA)[number];
 /** Returns an email address in the one form the lists store and compare: trimmed, lower case. */
 export function normalizeEmail(value: string): string {
   return value.trim().toLowerCase();
+}
+
+const PRINTABLE_ASCII = /^[\x21-\x7e]+$/;
+const ADDRESS = z.email();
+
+/**
+ * Returns whether `value`, as an identity provider sent it, is a plain ASCII email address. Only
+ * such an address may match a lab's list: lower-casing folds some non-ASCII letters onto ASCII
+ * ones (U+212A KELVIN SIGN becomes `k`), so another address could claim a waiting place.
+ */
+export function isAsciiEmail(value: string): boolean {
+  return PRINTABLE_ASCII.test(value) && ADDRESS.safeParse(value).success;
 }
