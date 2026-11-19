@@ -8,9 +8,9 @@ import { type Kysely, sql } from "kysely";
 import { recordAudit } from "../../audit/record.ts";
 import type { DB } from "../schema.gen.ts";
 import { planDemoActivity } from "./activity.ts";
-import { type DemoClasses, planDemoClasses } from "./classes.ts";
 import { type DemoPeople, planDemoPeople } from "./people.ts";
 import { demoRandom } from "./random.ts";
+import { insertSimulations, planDemoSimulations } from "./simulations.ts";
 
 /** The fixed seed of the demo plan: the same people on every machine. */
 export const DEMO_SEED = 33;
@@ -23,11 +23,10 @@ export interface SeedSummary {
   expiredSessions: number;
   blockedUsers: number;
   auditEvents: number;
-  classes: number;
-  archivedClasses: number;
-  classMembers: number;
-  pendingInvitations: number;
-  labGroups: number;
+  simulations: number;
+  labs: number;
+  labMembers: number;
+  waitingAddresses: number;
 }
 
 /** Returns the demo people and their activity for the reference time `now`. */
@@ -35,63 +34,9 @@ export function planDemoData(now: Date) {
   const random = demoRandom(DEMO_SEED);
   const people = planDemoPeople(random, now);
   const activity = planDemoActivity(random, now, people);
-  // A source of its own, so the classes never shift the ids of the people.
-  return { people, activity, classes: planDemoClasses(demoRandom(DEMO_SEED + 1), now, people) };
-}
-
-/** Writes planned classes with their members, invitations, lab groups and activity-log events. */
-export async function insertClasses(trx: Kysely<DB>, classes: DemoClasses): Promise<void> {
-  for (const item of classes.classes) {
-    await trx
-      .insertInto("organization")
-      .values({
-        id: item.id,
-        slug: item.id,
-        name: item.name,
-        academic_year: item.academicYear,
-        createdAt: item.createdAt,
-        archived_at: item.archivedAt,
-      })
-      .execute();
-    await trx
-      .insertInto("member")
-      .values(
-        item.members.map((member) => ({
-          ...member,
-          organizationId: item.id,
-          createdAt: item.createdAt,
-        })),
-      )
-      .execute();
-    for (const invitation of item.invitations) {
-      await trx
-        .insertInto("invitation")
-        .values({ ...invitation, organizationId: item.id, role: "student", status: "pending" })
-        .execute();
-    }
-    for (const group of item.groups) {
-      await trx
-        .insertInto("team")
-        .values({
-          id: group.id,
-          name: group.name,
-          group_set: group.groupSet,
-          organizationId: item.id,
-          createdAt: item.createdAt,
-          updatedAt: item.createdAt,
-          memberCount: group.places.length,
-        })
-        .execute();
-      if (group.places.length === 0) continue;
-      await trx
-        .insertInto("teamMember")
-        .values(
-          group.places.map((place) => ({ ...place, teamId: group.id, createdAt: item.createdAt })),
-        )
-        .execute();
-    }
-  }
-  for (const event of classes.activity) await recordAudit(trx, event, { stdout: false });
+  // A source of its own, so the simulations never shift the ids of the people.
+  const simulations = planDemoSimulations(demoRandom(DEMO_SEED + 1), now, people);
+  return { people, activity, simulations };
 }
 
 /** Returns each user's latest planned session: the last sign-in the Users screen shows. */
@@ -158,7 +103,7 @@ async function insertPeople(trx: Kysely<DB>, people: DemoPeople): Promise<void> 
  * @returns whether this call wrote it.
  */
 export async function seedDemoData(db: Kysely<DB>, now: Date): Promise<boolean> {
-  const { people, activity, classes } = planDemoData(now);
+  const { people, activity, simulations } = planDemoData(now);
   const first = people.users[0];
   if (!first) return false;
   return db.transaction().execute(async (trx) => {
@@ -173,17 +118,17 @@ export async function seedDemoData(db: Kysely<DB>, now: Date): Promise<boolean> 
       for (const event of activity) await recordAudit(trx, event, { stdout: false });
       wrote = true;
     }
-    // A database seeded before the classes existed (#28) gets them on its next seed.
-    const firstClass = classes.classes[0];
-    const hasClasses =
-      firstClass === undefined ||
+    // A database whose simulations were deleted gets them back on its next seed.
+    const firstSimulation = simulations.simulations[0];
+    const hasSimulations =
+      firstSimulation === undefined ||
       (await trx
-        .selectFrom("organization")
+        .selectFrom("simulations")
         .select("id")
-        .where("id", "=", firstClass.id)
+        .where("id", "=", firstSimulation.id)
         .executeTakeFirst()) !== undefined;
-    if (!hasClasses) {
-      await insertClasses(trx, classes);
+    if (!hasSimulations) {
+      await insertSimulations(trx, simulations);
       wrote = true;
     }
     return wrote;
@@ -221,29 +166,20 @@ export async function seedSummary(db: Kysely<DB>, now: Date): Promise<SeedSummar
     .selectFrom("audit_event")
     .select(db.fn.countAll<string>().as("n"))
     .executeTakeFirstOrThrow();
-  const classes = await db
-    .selectFrom("organization")
-    .select([
-      db.fn.countAll<string>().as("all"),
-      db.fn.countAll<string>().filterWhere("archived_at", "is not", null).as("archived"),
-    ])
-    .executeTakeFirstOrThrow();
-  const [classMembers, pending, labGroups] = await Promise.all([
-    db.selectFrom("member").select(db.fn.countAll<string>().as("n")).executeTakeFirstOrThrow(),
+  const [simulations, labs, labMembers, waiting] = await Promise.all([
+    db.selectFrom("simulations").select(db.fn.countAll<string>().as("n")).executeTakeFirstOrThrow(),
+    db.selectFrom("labs").select(db.fn.countAll<string>().as("n")).executeTakeFirstOrThrow(),
+    db.selectFrom("lab_members").select(db.fn.countAll<string>().as("n")).executeTakeFirstOrThrow(),
     db
-      .selectFrom("invitation")
+      .selectFrom("lab_member_emails")
       .select(db.fn.countAll<string>().as("n"))
-      .where("status", "=", "pending")
-      .where("expiresAt", ">", now)
       .executeTakeFirstOrThrow(),
-    db.selectFrom("team").select(db.fn.countAll<string>().as("n")).executeTakeFirstOrThrow(),
   ]);
   return {
-    classes: Number(classes.all),
-    archivedClasses: Number(classes.archived),
-    classMembers: Number(classMembers.n),
-    pendingInvitations: Number(pending.n),
-    labGroups: Number(labGroups.n),
+    simulations: Number(simulations.n),
+    labs: Number(labs.n),
+    labMembers: Number(labMembers.n),
+    waitingAddresses: Number(waiting.n),
     usersByRole: await countBy(db, "user", "role"),
     accountsByProvider: await countBy(db, "account", "providerId"),
     activeSessions: Number(sessions.active),

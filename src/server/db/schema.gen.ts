@@ -68,30 +68,6 @@ export interface AuditEvent {
   target_type: string | null;
 }
 
-export interface ClassJoinAttempts {
-  failures: number;
-  key_hash: string;
-  window_start: Timestamp;
-}
-
-export interface ClassJoinCodes {
-  code_hash: string;
-  created_at: Timestamp;
-  created_by: string | null;
-  expires_at: Timestamp;
-  key_fingerprint: string;
-  max_uses: number;
-  organization_id: string;
-  uses: Generated<number>;
-}
-
-export interface ClassRemovals {
-  organization_id: string;
-  removed_at: Generated<Timestamp>;
-  removed_by: string | null;
-  user_id: string;
-}
-
 export interface IdentityProvider {
   attest_pkce: Generated<boolean>;
   created_at: Generated<Timestamp>;
@@ -138,36 +114,45 @@ export interface IntegrationChecks {
   template_loaded: string | null;
 }
 
-export interface Invitation {
-  createdAt: Generated<Timestamp>;
+export interface LabJoinAttempts {
+  failures: number;
+  key_hash: string;
+  window_start: Timestamp;
+}
+
+export interface LabJoinCodes {
+  code_hash: string;
+  created_at: Timestamp;
+  created_by: string | null;
+  expires_at: Timestamp;
+  key_fingerprint: string;
+  lab_id: string;
+  max_uses: number;
+  uses: Generated<number>;
+}
+
+export interface LabMemberEmails {
+  added_at: Generated<Timestamp>;
+  added_by: string | null;
   email: string;
-  ended_at: Timestamp | null;
-  expiresAt: Timestamp;
-  id: string;
-  inviterId: string | null;
-  organizationId: string;
-  role: string;
-  status: Generated<string>;
-  teamId: string | null;
+  lab_id: string;
+  simulation_id: string;
 }
 
-export interface Member {
-  createdAt: Timestamp;
-  id: string;
-  organizationId: string;
-  role: string;
-  userId: string;
+export interface LabMembers {
+  joined_at: Generated<Timestamp>;
+  joined_via: string;
+  lab_id: string;
+  simulation_id: string;
+  user_id: string;
 }
 
-export interface Organization {
-  academic_year: string;
-  archived_at: Timestamp | null;
-  createdAt: Timestamp;
-  id: string;
-  logo: string | null;
-  metadata: string | null;
+export interface Labs {
+  created_at: Generated<Timestamp>;
+  id: Generated<string>;
   name: string;
-  slug: string;
+  simulation_id: string;
+  updated_at: Generated<Timestamp>;
 }
 
 export interface PendingAdminGrant {
@@ -292,8 +277,6 @@ export interface ScimUser {
 }
 
 export interface Session {
-  activeOrganizationId: string | null;
-  activeTeamId: string | null;
   createdAt: Generated<Timestamp>;
   expiresAt: Timestamp;
   id: string;
@@ -306,6 +289,27 @@ export interface Session {
   userId: string;
 }
 
+export interface SimulationRemovals {
+  removed_at: Generated<Timestamp>;
+  removed_by: string | null;
+  simulation_id: string;
+  user_id: string;
+}
+
+export interface Simulations {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  id: Generated<string>;
+  name: string;
+}
+
+export interface SimulationTeachers {
+  added_at: Generated<Timestamp>;
+  added_by: string | null;
+  simulation_id: string;
+  user_id: string;
+}
+
 export interface SsoProvider {
   domain: string;
   id: string;
@@ -315,24 +319,6 @@ export interface SsoProvider {
   providerId: string;
   samlConfig: string | null;
   userId: string | null;
-}
-
-export interface Team {
-  createdAt: Timestamp;
-  group_set: string;
-  id: string;
-  memberCount: Generated<number>;
-  name: string;
-  organizationId: string;
-  updatedAt: Timestamp | null;
-}
-
-export interface TeamMember {
-  createdAt: Timestamp | null;
-  id: string;
-  membershipKey: string | null;
-  teamId: string;
-  userId: string;
 }
 
 export interface User {
@@ -370,15 +356,14 @@ export interface DB {
   account: Account;
   analysers: Analysers;
   audit_event: AuditEvent;
-  class_join_attempts: ClassJoinAttempts;
-  class_join_codes: ClassJoinCodes;
-  class_removals: ClassRemovals;
   identity_provider: IdentityProvider;
   identity_provider_domain: IdentityProviderDomain;
   integration_checks: IntegrationChecks;
-  invitation: Invitation;
-  member: Member;
-  organization: Organization;
+  lab_join_attempts: LabJoinAttempts;
+  lab_join_codes: LabJoinCodes;
+  lab_member_emails: LabMemberEmails;
+  lab_members: LabMembers;
+  labs: Labs;
   pending_admin_grant: PendingAdminGrant;
   scim_token: ScimToken;
   scimConnectionBinding: ScimConnectionBinding;
@@ -389,9 +374,10 @@ export interface DB {
   scimSubject: ScimSubject;
   scimUser: ScimUser;
   session: Session;
+  simulation_removals: SimulationRemovals;
+  simulation_teachers: SimulationTeachers;
+  simulations: Simulations;
   ssoProvider: SsoProvider;
-  team: Team;
-  teamMember: TeamMember;
   user: User;
   verification: Verification;
 }

@@ -75,7 +75,7 @@ describe("runPrune (B4, #65)", () => {
     restoreLog = setSecurityLogWriter((line) => lines.push(line));
     expect(await runPrune(database, NOW)).toEqual({
       kind: "pruned",
-      counts: { auditEvents: 1, sessions: 1, invitations: 0, adminGrants: 0 },
+      counts: { auditEvents: 1, sessions: 1, adminGrants: 0 },
     });
     expect(await pruneRows(database)).toEqual([
       {
@@ -87,7 +87,6 @@ describe("runPrune (B4, #65)", () => {
         metadata: {
           removed_audit_events: 1,
           removed_sessions: 1,
-          removed_invitations: 0,
           removed_admin_grants: 0,
         },
       },

@@ -148,7 +148,9 @@ sequenceDiagram
 - Every team works the same sample numbers, so the sample number alone does
   not say whose result arrived (R-11). The lab number does: it is unique
   across the teams of every simulation, and eduLIMS links the result to the one
-  sample that carries it. Its format and length are not decided; the patient
+  sample that carries it. It is ten decimal digits, the last a check digit by the
+  Damm algorithm, so a typing mistake on the analyser matches no other sample
+  (#268); the patient
   ID field takes up to 16 characters.
 - The entered patient ID goes out in PID-3 or in PV1-19: the analyser's
   setting "Patient ID As" chooses between "HIS Patient ID" and "Visit

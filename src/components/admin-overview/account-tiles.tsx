@@ -6,10 +6,7 @@ import {
   ArrowRightIcon,
   BanIcon,
   type LucideIcon,
-  MailIcon,
   MonitorSmartphoneIcon,
-  SchoolIcon,
-  ShieldAlertIcon,
   UsersIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -59,10 +56,8 @@ function Tile({
 }
 
 /**
- * The account tiles of the overview (#36): users per role, active sessions, blocked users, and
- * the active classes and pending class invitations (#28). A tile with a filter of the Users
- * screen links to it with that filter in the URL; the active-classes tile links to the class
- * list filtered on active classes (#37), the invitations tile to the whole list.
+ * The account tiles of the overview (#36): users per role, active sessions and blocked users. A
+ * tile with a filter of the Users screen links to it with that filter in the URL.
  */
 export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
   return (
@@ -130,44 +125,6 @@ export function AccountTiles({ counts }: Readonly<{ counts: AccountCounts }>) {
           link={
             <Link to="/admin/users" search={{ status: ["blocked"] }} className={COVER_LINK}>
               {m.admin_overview_blocked_users()}
-            </Link>
-          }
-        />
-      </li>
-      <li className="flex min-w-0">
-        <Tile
-          icon={SchoolIcon}
-          label={m.admin_overview_classes()}
-          value={counts.classes}
-          link={
-            <Link to="/admin/classes" search={{ status: ["active"] }} className={COVER_LINK}>
-              {m.admin_overview_classes()}
-            </Link>
-          }
-        />
-      </li>
-      {counts.classesOwnerNotTeacher > 0 && (
-        <li className="flex min-w-0">
-          <Tile
-            icon={ShieldAlertIcon}
-            label={m.admin_overview_classes_owner_not_teacher()}
-            value={counts.classesOwnerNotTeacher}
-            link={
-              <Link to="/admin/classes" search={{ ownerNotTeacher: true }} className={COVER_LINK}>
-                {m.admin_overview_classes_owner_not_teacher()}
-              </Link>
-            }
-          />
-        </li>
-      )}
-      <li className="flex min-w-0">
-        <Tile
-          icon={MailIcon}
-          label={m.admin_overview_pending_invitations()}
-          value={counts.pendingInvitations}
-          link={
-            <Link to="/admin/classes" className={COVER_LINK}>
-              {m.admin_overview_pending_invitations()}
             </Link>
           }
         />
