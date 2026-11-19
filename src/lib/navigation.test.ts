@@ -53,7 +53,13 @@ describe("navigationFor (B1: a user sees only the screens of their role)", () =>
     const ids = (role: "student" | "teacher" | "admin") =>
       portalNavigation(role).sections.map((section) => section.id);
     expect(ids("student")).toEqual(["practicals", "samples", "results", "submissions", "grades"]);
-    expect(ids("teacher")).toEqual(["practicals", "results", "grading", "kpi-dashboard"]);
+    expect(ids("teacher")).toEqual([
+      "practicals",
+      "results",
+      "grading",
+      "kpi-dashboard",
+      "catalogue",
+    ]);
     expect(ids("admin")).toEqual(["users", "integrations", "activity", "system"]);
   });
 

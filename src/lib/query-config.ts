@@ -27,6 +27,8 @@ export const STALE_TIME = {
   integrationStatus: 0,
   /** Simulations, their labs and members: co-teachers change them, rarely within a minute. */
   simulations: 30_000,
+  /** A page of the test catalogue (D9): teachers change it rarely, and every change invalidates it. */
+  catalogue: 30_000,
   /** A provider's SCIM section: its token's last use moves with every directory sync. */
   scimDetail: 15_000,
   /** The overview's counts and latest events (#36): a snapshot, refreshed on the next visit. */

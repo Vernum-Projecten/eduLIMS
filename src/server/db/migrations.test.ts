@@ -59,6 +59,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0016_test_catalogue", "Success"],
       ["0015_integration_check_steps", "Success"],
       ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
@@ -85,6 +86,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0016_test_catalogue", "Success"],
       ["0015_integration_check_steps", "Success"],
       ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
@@ -111,6 +113,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0016_test_catalogue", "Success"],
       ["0015_integration_check_steps", "Success"],
       ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
@@ -161,6 +164,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0016_test_catalogue", "Success"],
       ["0015_integration_check_steps", "Success"],
       ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
@@ -194,6 +198,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0016_test_catalogue", "Success"],
       ["0015_integration_check_steps", "Success"],
       ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
@@ -230,6 +235,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0010_integration_check");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0016_test_catalogue", "Success"],
       ["0015_integration_check_steps", "Success"],
       ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
@@ -252,6 +258,7 @@ describe("migrations", () => {
     // The migration below 0013 is 0012_simulations_and_labs; 0015, 0014 and then 0013 revert.
     const down = await migrator.migrateTo("0012_simulations_and_labs");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0016_test_catalogue", "Success"],
       ["0015_integration_check_steps", "Success"],
       ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
@@ -359,6 +366,7 @@ describe("migrations", () => {
           values ('ferrobridge', 'not_ready', now(), 'readiness_down')`);
     const down = await migrator.migrateTo("0014_lab_join_code");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0016_test_catalogue", "Success"],
       ["0015_integration_check_steps", "Success"],
     ]);
     await expect(notReady()).rejects.toThrow(/integration_checks_(state|error_class)/);
@@ -372,5 +380,27 @@ describe("migrations", () => {
       .select(["state", "failing_indicators"])
       .executeTakeFirst();
     expect(row).toEqual({ state: "not_ready", failing_indicators: null });
+  });
+
+  it("0016_test_catalogue keeps active names unique case-insensitively, and reverts (D9, #266)", async () => {
+    const database = await createTestDb();
+    db = database;
+    const migrator = createMigrator(database);
+    const inSavepoint = (query: ReturnType<typeof sql>) =>
+      database.transaction().execute((trx) => query.execute(trx));
+    const insert = (name: string, retired: boolean) =>
+      inSavepoint(sql`insert into catalogue_tests (name, unit, material, source, retired_at)
+          values (${name}, 'mmol/L', 'plasma', 'manual', ${retired ? sql`now()` : sql`null`})`);
+    await insert("Glucose", true);
+    await insert("Glucose", false);
+    await expect(insert("GLUCOSE", false)).rejects.toThrow(/catalogue_tests_active_name_key/);
+    const down = await migrator.migrateTo("0015_integration_check_steps");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0016_test_catalogue", "Success"],
+    ]);
+    await expect(inSavepoint(sql`select id from catalogue_tests`)).rejects.toThrow(
+      /relation "catalogue_tests" does not exist/,
+    );
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
   });
 });
