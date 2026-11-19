@@ -25,6 +25,7 @@ import {
   refundAttempt,
 } from "./join-limits.ts";
 import { wasRemoved } from "./removals.ts";
+import { dropWaitingAddressesOf } from "./waiting.ts";
 
 /** What a join did: the lab joined, or the student was in it already. */
 export interface JoinOutcome {
@@ -199,6 +200,9 @@ async function lockedAttempt(
       .set((eb) => ({ uses: eb("uses", "+", 1) }))
       .where("lab_id", "=", labId)
       .execute();
+    // NOTE: #323 (maintainer, 2026-11-19); the first lab joined wins, so no waiting address of the
+    // student is left in the simulation to link them back after a removal.
+    await dropWaitingAddressesOf(trx, lab.simulation_id, actor.id, { verifiedOnly: true });
     await recordAudit(trx, {
       action: "lab_member_joined",
       actor: { type: "user", id: actor.id },
@@ -260,6 +264,17 @@ async function logLimitReached(
   }
 }
 
+/**
+ * Returns whether this is the first time `text` is seen in the current window, counted under its
+ * keyed hash in `lab_join_attempts` in one atomic statement. A refunded `in_other_lab` attempt is
+ * never limited, so its activity-log row is written once per student, lab and window (#323; ASVS
+ * V2.4.1, the Logging cheat sheet: logging must not be a way to use up storage).
+ */
+async function firstInWindow(db: Kysely<DB>, text: string, ctx: JoinContext): Promise<boolean> {
+  const keyHash = ctx.key.attemptHash(text);
+  return (await chargeAttempt(db, keyHash, ctx.now, ctx.limits.windowMs)) === 1;
+}
+
 /** Returns whether the role set is exactly {student}: only such an account joins a lab (S10). */
 function onlyStudent(actor: SimulationActor): boolean {
   return actor.roles.length === 1 && actor.roles[0] === "student";
@@ -304,7 +319,9 @@ export async function joinLabWithCode(
   if (result.reason === "in_other_lab") {
     // NOTE: S10 (#288); the code worked, so the attempt is no guess and costs nothing.
     await refund(db, charges, ctx);
-    await recordAudit(db, failedJoin(actor, "refused", result.reason, result));
+    if (await firstInWindow(db, `in_other_lab:${actor.id}:${result.labId ?? ""}`, ctx)) {
+      await recordAudit(db, failedJoin(actor, "refused", result.reason, result));
+    }
     return refused("in_other_lab");
   }
   await recordAudit(db, failedJoin(actor, "failure", result.reason, result));

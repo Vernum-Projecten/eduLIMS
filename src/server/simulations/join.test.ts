@@ -163,8 +163,50 @@ describe("joinLabWithCode: a student in another lab of the simulation (S10, #288
         error: "in_other_lab",
       });
     }
-    const counts = await database.selectFrom("lab_join_attempts").select("failures").execute();
+    const counts = await database
+      .selectFrom("lab_join_attempts")
+      .select("failures")
+      .where("key_hash", "in", [
+        key.attemptHash(`user:${w.otherLabStudent.id}`),
+        key.attemptHash(`ip:${CLIENT_IP}`),
+      ])
+      .execute();
     expect(counts.map((row) => row.failures)).toEqual([0, 0]);
+  });
+
+  it("writes one activity-log row for twice the per-student limit of attempts (#323)", async () => {
+    const database = await open();
+    const w = await worldWithCode(database);
+    for (let i = 0; i < 2 * LIMITS.user; i += 1) {
+      expect(
+        await joinLabWithCode(database, w.otherLabStudent, { code: w.code }, context()),
+      ).toEqual({ ok: false, error: "in_other_lab" });
+    }
+    expect(await auditRows(database, "lab_join_failed")).toEqual([
+      expect.objectContaining({ actor_id: w.otherLabStudent.id, reason_code: "in_other_lab" }),
+    ]);
+  });
+
+  it("writes the row again in a new window, and once per lab (#323)", async () => {
+    const database = await open();
+    const w = await worldWithCode(database);
+    const third = await database
+      .insertInto("labs")
+      .values({ simulation_id: w.simulationId, name: "Third Lab" })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    const thirdCode = await codeOf(database, w.teacher, third.id);
+    const later = context({ now: new Date(NOW.getTime() + LIMITS.windowMs) });
+    for (const [code, ctx] of [
+      [w.code, context()],
+      [w.code, context()],
+      [thirdCode, context()],
+      [w.code, later],
+    ] as const) {
+      await joinLabWithCode(database, w.otherLabStudent, { code }, ctx);
+    }
+    const rows = await auditRows(database, "lab_join_failed");
+    expect(rows.map((row) => row.target_id)).toEqual([w.labId, third.id, w.labId]);
   });
 });
 
@@ -377,6 +419,33 @@ describe("joinLabWithCode: the brute-force limit (#288, ASVS V2.4.1)", () => {
     expect(await labOf(database, w.simulationId, w.stranger.id)).not.toBeNull();
     const rows = await auditRows(database, "lab_join_failed");
     expect(rows.filter((row) => row.reason_code === "rate_limited_ip")).toHaveLength(1);
+  });
+
+  it("still logs a refused crossing after an in_other_lab refund from the same address (#323)", async () => {
+    const database = await open();
+    const w = await worldWithCode(database);
+    const ctx = context();
+    for (let i = 0; i < LIMITS.ip; i += 1) {
+      const guesser = await person(database, `guesser-${i}`, ["student"]);
+      expect((await joinLabWithCode(database, guesser, { code: WRONG }, ctx)).ok).toBe(false);
+    }
+    expect(await joinLabWithCode(database, w.otherLabStudent, { code: w.code }, ctx)).toEqual({
+      ok: false,
+      error: "in_other_lab",
+    });
+    const crossings = async () =>
+      (await auditRows(database, "lab_join_failed")).filter(
+        (row) => row.reason_code === "rate_limited_ip",
+      );
+    expect(await crossings()).toHaveLength(0);
+    const last = await person(database, "last-guesser", ["student"]);
+    expect(await joinLabWithCode(database, last, { code: WRONG }, ctx)).toEqual({
+      ok: false,
+      error: "rate_limited",
+    });
+    expect(await crossings()).toEqual([
+      expect.objectContaining({ actor_id: last.id, outcome: "refused" }),
+    ]);
   });
 
   it("logs no crossing for a join from an address at its limit (review F1)", async () => {
