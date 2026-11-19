@@ -1,0 +1,388 @@
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+
+// The teacher's simulation screens (D10, S10, #289): a simulation with two labs, a pasted list
+// whose outcome shows per line before anything is stored, a student who lands in the lab at
+// sign-in, moving and removing with the keyboard alone, the error state with its retry, axe in
+// light, dark and Dutch, and reflow at 320 px.
+import { randomBytes } from "node:crypto";
+import { type BrowserContext, expect, type Page, type Route, test } from "@playwright/test";
+import { axe, dutch } from "./admin-users-helpers";
+import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
+import { appUrl } from "./run-env";
+
+const TEACHER = "teacher@example.test";
+const STUDENT = "student@example.test";
+
+/** A suffix no other run of a journey uses, so parallel and repeated runs never meet. */
+function suffix(): string {
+  return randomBytes(4).toString("hex");
+}
+
+async function signInAsTeacher(page: Page): Promise<void> {
+  await devLogin(page, TEACHER);
+  await expect(page).toHaveURL(/\/teacher$/);
+}
+
+/** Waits for every animation (a dialog, a toast) so axe and focus checks see the end state. */
+async function settle(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  );
+}
+
+/** Creates a simulation from the list page and returns its id, read from the page it lands on. */
+async function createSimulation(page: Page, name: string): Promise<string> {
+  await page.goto("/teacher/simulations");
+  const create = page.getByRole("button", { name: "Create simulation" });
+  await expectHydrated(create);
+  await create.click();
+  const dialog = page.getByRole("dialog", { name: "Create a simulation" });
+  await dialog.getByLabel("Name").fill(name);
+  await dialog.getByRole("button", { name: "Create simulation" }).click();
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+  const id = /\/teacher\/simulations\/([0-9a-f-]{36})$/.exec(page.url())?.[1];
+  if (id === undefined) throw new Error(`no simulation id in ${page.url()}`);
+  return id;
+}
+
+async function createLab(page: Page, name: string): Promise<void> {
+  const create = page.getByRole("button", { name: "Create lab" });
+  await expectHydrated(create);
+  await create.click();
+  const dialog = page.getByRole("dialog", { name: "Create a lab" });
+  await dialog.getByLabel("Name").fill(name);
+  await dialog.getByRole("button", { name: "Create lab" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(labsTable(page).getByRole("link", { name, exact: true })).toBeVisible();
+}
+
+function labsTable(page: Page) {
+  return page.getByRole("table", { name: /^Labs of / });
+}
+
+async function openLab(page: Page, name: string): Promise<void> {
+  await labsTable(page).getByRole("link", { name, exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+}
+
+/** Types a list into the paste panel and checks it; nothing is stored yet. */
+async function checkList(page: Page, lines: readonly string[]): Promise<void> {
+  const field = page.getByLabel("Email addresses", { exact: true });
+  await expectHydrated(field);
+  await field.fill(lines.join("\n"));
+  await field.press("Enter");
+  await page.getByRole("button", { name: "Check the list" }).click();
+  await expect(page.getByRole("table", { name: "Outcome per line" })).toBeVisible();
+}
+
+function outcomeRow(page: Page, address: string) {
+  return page
+    .getByRole("table", { name: "Outcome per line" })
+    .getByRole("row")
+    .filter({ hasText: address });
+}
+
+function membersTable(page: Page) {
+  return page.getByRole("table", { name: /^Students of lab / });
+}
+
+function waitingTable(page: Page) {
+  return page.getByRole("table", { name: /^Addresses waiting for lab / });
+}
+
+test("a teacher prepares a simulation with a lab of six, and the student lands in it (D10, S10)", async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  const id = suffix();
+  const simulation = `Journey simulation ${id}`;
+  const alpha = `Alpha ${id}`;
+  const beta = `Beta ${id}`;
+  const taken = `taken.${id}@example.test`;
+  const invented = [1, 2, 3, 4, 5].map((n) => `member${n}.${id}@example.test`);
+
+  await signInAsTeacher(page);
+  await page
+    .getByRole("navigation", { name: "Main menu" })
+    .getByRole("link", { name: "Simulations" })
+    .click();
+  await expect(page.getByRole("heading", { level: 1, name: "Simulations" })).toBeVisible();
+  await expect(page).toHaveTitle("Simulations | Teacher portal | eduLIMS");
+
+  // An empty name is refused at its field before anything is sent.
+  await page.getByRole("button", { name: "Create simulation" }).click();
+  const createDialog = page.getByRole("dialog", { name: "Create a simulation" });
+  await createDialog.getByRole("button", { name: "Create simulation" }).click();
+  await expect(createDialog.getByText("Enter a name for the simulation.")).toBeVisible();
+  await createDialog.getByRole("button", { name: "Cancel" }).click();
+
+  const simulationId = await createSimulation(page, simulation);
+  await expect(page).toHaveTitle(`${simulation} | Simulations | Teacher portal | eduLIMS`);
+  await expect(page.getByText("No labs yet", { exact: true })).toBeVisible();
+  await createLab(page, alpha);
+  await createLab(page, beta);
+
+  // A lab name is unique within the simulation, whatever its case; the refusal is at the field.
+  await page.getByRole("button", { name: "Create lab" }).click();
+  const labDialog = page.getByRole("dialog", { name: "Create a lab" });
+  await labDialog.getByLabel("Name").fill(alpha.toUpperCase());
+  await labDialog.getByRole("button", { name: "Create lab" }).click();
+  await expect(
+    labDialog.getByText("Another lab of this simulation already has this name."),
+  ).toBeVisible();
+  await labDialog.getByRole("button", { name: "Cancel" }).click();
+
+  // One address waits in Beta, so the list for Alpha can name it as taken.
+  await openLab(page, beta);
+  await checkList(page, [taken]);
+  await page.getByRole("button", { name: "Add the new addresses (1)" }).click();
+  await expect(waitingTable(page).getByRole("cell", { name: taken, exact: true })).toBeVisible();
+
+  await page.getByRole("link", { name: `Back to ${simulation}` }).click();
+  await openLab(page, alpha);
+  await expect(page.getByText("No students in this lab yet", { exact: true })).toBeVisible();
+  await checkList(page, [STUDENT, ...invented, "not-an-address", taken]);
+  await expect(page.getByText("Checked: 6 can be added, 2 cannot.").first()).toBeAttached();
+  await expect(outcomeRow(page, "not-an-address")).toContainText("Not added: not an email address");
+  await expect(outcomeRow(page, taken)).toContainText(`Not added: already in lab ${beta}`);
+  await expect(outcomeRow(page, STUDENT)).toContainText("Will be added");
+  // The outcome is a preview: nothing waits for Alpha yet.
+  await expect(page.getByText("No addresses are waiting", { exact: true })).toBeVisible();
+  await axe(page);
+
+  await page.getByRole("button", { name: "Add the new addresses (6)" }).click();
+  await expect(page.getByText(`Addresses now waiting for lab ${alpha}: 6.`)).toBeVisible();
+  await expect(waitingTable(page).getByRole("row")).toHaveCount(7);
+  await expect(page.getByRole("table", { name: "Outcome per line" })).toHaveCount(0);
+
+  // The student signs in elsewhere and is linked to Alpha at sign-in (S10).
+  const studentContext = await browser.newContext();
+  const studentPage = await studentContext.newPage();
+  await devLogin(studentPage, STUDENT);
+  await studentContext.close();
+  await page.reload();
+  await expect(
+    membersTable(page).getByRole("cell", { name: "Test Student", exact: true }),
+  ).toBeVisible();
+  await expect(membersTable(page)).toContainText("By email address");
+  await expect(waitingTable(page).getByRole("row")).toHaveCount(6);
+
+  // A simulation with a student in a lab cannot be deleted; the refusal says why.
+  await page.getByRole("link", { name: `Back to ${simulation}` }).click();
+  await page.getByRole("button", { name: "Delete simulation" }).click();
+  await page
+    .getByRole("alertdialog", { name: `Delete ${simulation}?` })
+    .getByRole("button", { name: "Delete simulation" })
+    .click();
+  await expect(page.getByText("This simulation has students in its labs")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: simulation })).toBeVisible();
+
+  // Move the student to Beta with the keyboard alone (WCAG 2.1.1).
+  await openLab(page, alpha);
+  const actions = page.getByRole("button", { name: "Actions for Test Student" });
+  await expectHydrated(actions);
+  await actions.focus();
+  await page.keyboard.press("Enter");
+  const move = page.getByRole("menuitem", { name: "Move to another lab" });
+  await pressUntilFocused(page, "ArrowDown", move);
+  await page.keyboard.press("Enter");
+  const moveDialog = page.getByRole("dialog", { name: "Move Test Student" });
+  await expect(moveDialog.getByRole("radio", { name: beta })).toBeChecked();
+  await pressUntilFocused(page, "Tab", moveDialog.getByRole("button", { name: "Move student" }), 6);
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(`Test Student moved to lab ${beta}.`)).toBeVisible();
+  await expect(page.getByText("No students in this lab yet", { exact: true })).toBeVisible();
+  await settle(page);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Students", exact: true }),
+  ).toBeFocused();
+
+  // Remove the student from the simulation with the keyboard alone, after a confirmation.
+  await page.getByRole("link", { name: `Back to ${simulation}` }).click();
+  await openLab(page, beta);
+  const betaActions = page.getByRole("button", { name: "Actions for Test Student" });
+  await expectHydrated(betaActions);
+  await betaActions.focus();
+  await page.keyboard.press("Enter");
+  const remove = page.getByRole("menuitem", { name: "Remove from the simulation" });
+  await pressUntilFocused(page, "ArrowDown", remove);
+  await page.keyboard.press("Enter");
+  const confirm = page.getByRole("alertdialog", {
+    name: "Remove Test Student from the simulation?",
+  });
+  // The safe choice takes the first focus (WCAG 3.3.4).
+  await expect(confirm.getByRole("button", { name: "Cancel" })).toBeFocused();
+  await pressUntilFocused(page, "Tab", confirm.getByRole("button", { name: "Remove student" }));
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Test Student removed from the simulation.")).toBeVisible();
+  await expect(page.getByText("No students in this lab yet", { exact: true })).toBeVisible();
+
+  // Rename the lab with the keyboard alone.
+  const renamed = `Gamma ${id}`;
+  const rename = page.getByRole("button", { name: "Rename", exact: true });
+  await rename.focus();
+  await page.keyboard.press("Enter");
+  const renameDialog = page.getByRole("dialog", { name: `Rename lab ${beta}` });
+  const nameField = renameDialog.getByLabel("Name");
+  await pressUntilFocused(page, "Tab", nameField);
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.type(renamed);
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { level: 1, name: renamed })).toBeVisible();
+
+  // Delete the lab, then the simulation, each after a confirmation.
+  await page.getByRole("button", { name: "Delete lab" }).click();
+  await page
+    .getByRole("alertdialog", { name: `Delete lab ${renamed}?` })
+    .getByRole("button", { name: "Delete lab" })
+    .click();
+  await expect(page.getByRole("heading", { level: 1, name: simulation })).toBeVisible();
+  await expect(labsTable(page).getByRole("link", { name: renamed })).toHaveCount(0);
+  await page.getByRole("button", { name: "Delete simulation" }).click();
+  await page
+    .getByRole("alertdialog", { name: `Delete ${simulation}?` })
+    .getByRole("button", { name: "Delete simulation" })
+    .click();
+  await expect(page).toHaveURL(/\/teacher\/simulations$/);
+  await expect(page.getByRole("link", { name: simulation })).toHaveCount(0);
+  await page.goto(`/teacher/simulations/${simulationId}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Not found" })).toBeVisible();
+});
+
+/** Makes every server function read whose payload carries `text` fail with a 500. */
+async function failReadsWith(page: Page, text: string): Promise<() => Promise<void>> {
+  const pattern = "**/_serverFn/**";
+  const handler = (route: Route) => {
+    const request = route.request();
+    return request.method() === "GET" && decodeURIComponent(request.url()).includes(text)
+      ? route.fulfill({ status: 500, body: "forced failure" })
+      : route.fallback();
+  };
+  await page.route(pattern, handler);
+  return () => page.unroute(pattern, handler);
+}
+
+test("a simulation page that fails to load shows the error state, and its retry recovers (#289)", async ({
+  page,
+}) => {
+  const name = `Error state ${suffix()}`;
+  await signInAsTeacher(page);
+  const simulationId = await createSimulation(page, name);
+  await page.goto("/teacher/simulations");
+  const link = page.getByRole("link", { name, exact: true });
+  await expectHydrated(link);
+
+  const restore = await failReadsWith(page, simulationId);
+  await link.click();
+  const heading = page.getByRole("heading", { level: 1, name: "Something went wrong" });
+  await expect(heading).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("An unexpected error occurred.");
+  await axe(page);
+
+  await restore();
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(heading).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+});
+
+test("another teacher's simulation answers not found (D11)", async ({ page, browser }) => {
+  const name = `Private ${suffix()}`;
+  await signInAsTeacher(page);
+  const simulationId = await createSimulation(page, name);
+  const context = await browser.newContext();
+  const other = await context.newPage();
+  await devLogin(other, "teacher-admin@example.test");
+  await other.goto(`/teacher/simulations/${simulationId}`);
+  await expect(other.getByRole("heading", { level: 1, name: "Not found" })).toBeVisible();
+  await expect(other.getByText(name)).toHaveCount(0);
+  await context.close();
+});
+
+async function usePreferences(
+  context: BrowserContext,
+  theme: "light" | "dark",
+  locale: "en" | "nl",
+): Promise<void> {
+  await context.addCookies([
+    { name: "EDULIMS_THEME", value: theme, url: appUrl() },
+    { name: "EDULIMS_LOCALE", value: locale, url: appUrl() },
+  ]);
+}
+
+for (const [theme, locale] of [
+  ["light", "en"],
+  ["dark", "en"],
+  ["light", "nl"],
+  ["dark", "nl"],
+] as const) {
+  test(`the three screens are axe-clean in ${theme}, ${locale} (Q-ACC-1)`, async ({
+    page,
+    context,
+  }) => {
+    const t = (key: string, english: string) => (locale === "nl" ? dutch(key) : english);
+    await signInAsTeacher(page);
+    await usePreferences(context, theme, locale);
+
+    // The seeded demo simulation of the dev teacher: Lab Aurora has six students.
+    await page.goto("/teacher/simulations");
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(
+      page.getByRole("heading", { level: 1, name: t("nav_simulations", "Simulations") }),
+    ).toBeVisible();
+    await axe(page);
+    const simulationLink = page.getByRole("link", { name: "Demo simulation", exact: true });
+    await expectHydrated(simulationLink);
+    await simulationLink.click();
+    await expect(page.getByRole("heading", { level: 1, name: "Demo simulation" })).toBeVisible();
+    await axe(page);
+    await page.getByRole("link", { name: "Lab Aurora", exact: true }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Lab Aurora" })).toBeVisible();
+    await expect(
+      page
+        .getByRole("table", {
+          name: t("labs_members_caption", "Students of lab {lab}").replace("{lab}", "Lab Aurora"),
+        })
+        .getByRole("row"),
+    ).toHaveCount(7);
+    // The outcome of a list is part of the screen too; checking it stores nothing.
+    const field = page.getByLabel(t("labs_paste_label", "Email addresses"), { exact: true });
+    await expectHydrated(field);
+    await field.fill(`not-an-address\n${STUDENT}`);
+    await field.press("Enter");
+    await page.getByRole("button", { name: t("labs_paste_check", "Check the list") }).click();
+    await expect(
+      page.getByRole("table", { name: t("labs_paste_caption", "Outcome per line") }),
+    ).toBeVisible();
+    await axe(page);
+  });
+}
+
+test("the three screens reflow at 320 px without horizontal scrolling (WCAG 1.4.10)", async ({
+  page,
+}) => {
+  await signInAsTeacher(page);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto("/teacher/simulations");
+  const pages = ["Simulations", "Demo simulation", "Lab Aurora"];
+  for (const [index, heading] of pages.entries()) {
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow, heading).toBeLessThanOrEqual(0);
+    const next = pages[index + 1];
+    if (next) {
+      const link = page.getByRole("link", { name: next, exact: true });
+      await expectHydrated(link);
+      await link.click();
+    }
+  }
+});
+
+test("a student cannot open the teacher's simulation screens (D11, A01)", async ({ page }) => {
+  await devLogin(page, STUDENT);
+  await page.goto("/teacher/simulations");
+  await expect(page.getByRole("heading", { level: 1, name: "Simulations" })).toHaveCount(0);
+});

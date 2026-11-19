@@ -57,8 +57,16 @@ export const renameLabInput = labFormSchema.extend({ labId: id });
 /** Adding a teacher to a simulation by the address of their account. */
 export const addTeacherInput = z.object({
   simulationId: id,
-  email: z.string().trim().max(EMAIL_LINE_MAX).pipe(z.email()),
+  email: z
+    .string()
+    .trim()
+    .max(EMAIL_LINE_MAX, { error: tooLong(EMAIL_LINE_MAX) })
+    .pipe(z.email({ error: () => m.simulations_teacher_email_invalid() })),
 });
+
+/** The add-teacher form: the address alone; the simulation comes from the page. */
+export const addTeacherFormSchema = addTeacherInput.pick({ email: true });
+export type AddTeacherForm = z.input<typeof addTeacherFormSchema>;
 
 /** A teacher of a simulation, named by their user id. */
 export const teacherInput = z.object({ simulationId: id, userId });
@@ -67,7 +75,13 @@ export const teacherInput = z.object({ simulationId: id, userId });
 export const memberInput = z.object({ simulationId: id, userId });
 
 /** Moving a student to another lab of the same simulation. */
-export const moveMemberInput = memberInput.extend({ labId: id });
+export const moveMemberInput = memberInput.extend({
+  labId: z.uuid({ error: () => m.labs_move_target_required() }),
+});
+
+/** The move form: the lab the student goes to. */
+export const moveMemberFormSchema = moveMemberInput.pick({ labId: true });
+export type MoveMemberForm = z.input<typeof moveMemberFormSchema>;
 
 /**
  * The pasted list of a lab (D10): any lines up to the limit. The server classifies each line, so
@@ -75,8 +89,21 @@ export const moveMemberInput = memberInput.extend({ labId: id });
  */
 export const emailListInput = z.object({
   labId: id,
-  emails: z.array(z.string().max(EMAIL_LINE_MAX)).min(1).max(EMAIL_LIST_MAX),
+  emails: z
+    .array(
+      z.string().max(EMAIL_LINE_MAX, {
+        error: () => m.labs_paste_line_too_long({ max: String(EMAIL_LINE_MAX) }),
+      }),
+    )
+    .min(1, { error: () => m.labs_paste_required() })
+    .max(EMAIL_LIST_MAX, {
+      error: () => m.form_email_list_too_many({ max: String(EMAIL_LIST_MAX) }),
+    }),
 });
+
+/** The paste form: the list alone; the lab comes from the page. */
+export const emailListFormSchema = emailListInput.pick({ emails: true });
+export type EmailListForm = z.input<typeof emailListFormSchema>;
 
 /** One waiting address of a lab. */
 export const waitingEmailInput = z.object({

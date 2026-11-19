@@ -53,8 +53,14 @@ describe("navigationFor (B1: a user sees only the screens of their role)", () =>
     const ids = (role: "student" | "teacher" | "admin") =>
       portalNavigation(role).sections.map((section) => section.id);
     expect(ids("student")).toEqual(["practicals", "samples", "results", "submissions", "grades"]);
-    expect(ids("teacher")).toEqual(["practicals", "results", "grading", "kpi-dashboard"]);
-    expect(ids("admin")).toEqual(["users", "integrations", "activity", "system"]);
+    expect(ids("teacher")).toEqual([
+      "simulations",
+      "practicals",
+      "results",
+      "grading",
+      "kpi-dashboard",
+    ]);
+    expect(ids("admin")).toEqual(["users", "simulations", "integrations", "activity", "system"]);
   });
 
   it("keeps every path unique", () => {
@@ -68,6 +74,11 @@ describe("navigationFor (B1: a user sees only the screens of their role)", () =>
 describe("sectionOf", () => {
   it("returns the section of a portal", () => {
     expect(sectionOf("teacher", "grading").to).toBe("/teacher/grading");
+  });
+
+  it("gives the teacher and the administrator a simulations section (D10, B5)", () => {
+    expect(sectionOf("teacher", "simulations").to).toBe("/teacher/simulations");
+    expect(sectionOf("admin", "simulations").to).toBe("/admin/simulations");
   });
 });
 
@@ -112,6 +123,14 @@ describe("breadcrumbFor", () => {
     expect(crumb?.page.id).toBe("users");
     expect(crumb?.nested).toBe(true);
     expect(breadcrumbFor("/admin/users")?.nested).toBe(false);
+  });
+
+  it("names the simulations section on a simulation's and a lab's page", () => {
+    const simulation = "/teacher/simulations/01960000-0000-7000-8000-000000000001";
+    expect(breadcrumbFor(simulation)?.page.id).toBe("simulations");
+    expect(breadcrumbFor(`${simulation}/labs/01960000-0000-7000-8000-000000000002`)?.nested).toBe(
+      true,
+    );
   });
 
   it("returns null outside the portals", () => {

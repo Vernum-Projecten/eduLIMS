@@ -37,12 +37,16 @@ import { Route as AuthedTeacherKpiDashboardRouteImport } from './routes/_authed/
 import { Route as AuthedTeacherPracticalsRouteImport } from './routes/_authed/teacher/practicals'
 import { Route as AuthedTeacherResultsRouteImport } from './routes/_authed/teacher/results'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AuthedAdminSimulationsIndexRouteImport } from './routes/_authed/admin/simulations/index'
 import { Route as AuthedAdminSystemIndexRouteImport } from './routes/_authed/admin/system/index'
 import { Route as AuthedAdminUsersUserIdRouteImport } from './routes/_authed/admin/users/$userId'
+import { Route as AuthedTeacherSimulationsIndexRouteImport } from './routes/_authed/teacher/simulations/index'
 import { Route as AuthedAdminSystemIdentityProvidersIndexRouteImport } from './routes/_authed/admin/system/identity-providers/index'
 import { Route as AuthedAdminSystemIdentityProvidersNewRouteImport } from './routes/_authed/admin/system/identity-providers/new'
+import { Route as AuthedTeacherSimulationsSimulationIdIndexRouteImport } from './routes/_authed/teacher/simulations/$simulationId/index'
 import { Route as AuthedAdminSystemIdentityProvidersProviderIdIndexRouteImport } from './routes/_authed/admin/system/identity-providers/$providerId/index'
 import { Route as AuthedAdminSystemIdentityProvidersProviderIdTestResultRouteImport } from './routes/_authed/admin/system/identity-providers/$providerId/test-result'
+import { Route as AuthedTeacherSimulationsSimulationIdLabsLabIdRouteImport } from './routes/_authed/teacher/simulations/$simulationId/labs/$labId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -185,6 +189,12 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedAdminSimulationsIndexRoute =
+  AuthedAdminSimulationsIndexRouteImport.update({
+    id: '/simulations/',
+    path: '/simulations/',
+    getParentRoute: () => AuthedAdminRoute,
+  } as any)
 const AuthedAdminSystemIndexRoute = AuthedAdminSystemIndexRouteImport.update({
   id: '/system/',
   path: '/system/',
@@ -195,6 +205,12 @@ const AuthedAdminUsersUserIdRoute = AuthedAdminUsersUserIdRouteImport.update({
   path: '/$userId',
   getParentRoute: () => AuthedAdminUsersRoute,
 } as any)
+const AuthedTeacherSimulationsIndexRoute =
+  AuthedTeacherSimulationsIndexRouteImport.update({
+    id: '/simulations/',
+    path: '/simulations/',
+    getParentRoute: () => AuthedTeacherRoute,
+  } as any)
 const AuthedAdminSystemIdentityProvidersIndexRoute =
   AuthedAdminSystemIdentityProvidersIndexRouteImport.update({
     id: '/system/identity-providers/',
@@ -207,6 +223,12 @@ const AuthedAdminSystemIdentityProvidersNewRoute =
     path: '/system/identity-providers/new',
     getParentRoute: () => AuthedAdminRoute,
   } as any)
+const AuthedTeacherSimulationsSimulationIdIndexRoute =
+  AuthedTeacherSimulationsSimulationIdIndexRouteImport.update({
+    id: '/simulations/$simulationId/',
+    path: '/simulations/$simulationId/',
+    getParentRoute: () => AuthedTeacherRoute,
+  } as any)
 const AuthedAdminSystemIdentityProvidersProviderIdIndexRoute =
   AuthedAdminSystemIdentityProvidersProviderIdIndexRouteImport.update({
     id: '/system/identity-providers/$providerId/',
@@ -218,6 +240,12 @@ const AuthedAdminSystemIdentityProvidersProviderIdTestResultRoute =
     id: '/system/identity-providers/$providerId/test-result',
     path: '/system/identity-providers/$providerId/test-result',
     getParentRoute: () => AuthedAdminRoute,
+  } as any)
+const AuthedTeacherSimulationsSimulationIdLabsLabIdRoute =
+  AuthedTeacherSimulationsSimulationIdLabsLabIdRouteImport.update({
+    id: '/simulations/$simulationId/labs/$labId',
+    path: '/simulations/$simulationId/labs/$labId',
+    getParentRoute: () => AuthedTeacherRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -249,10 +277,14 @@ export interface FileRoutesByFullPath {
   '/student/': typeof AuthedStudentIndexRoute
   '/teacher/': typeof AuthedTeacherIndexRoute
   '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
+  '/admin/simulations/': typeof AuthedAdminSimulationsIndexRoute
   '/admin/system/': typeof AuthedAdminSystemIndexRoute
+  '/teacher/simulations/': typeof AuthedTeacherSimulationsIndexRoute
   '/admin/system/identity-providers/new': typeof AuthedAdminSystemIdentityProvidersNewRoute
   '/admin/system/identity-providers/': typeof AuthedAdminSystemIdentityProvidersIndexRoute
+  '/teacher/simulations/$simulationId/': typeof AuthedTeacherSimulationsSimulationIdIndexRoute
   '/admin/system/identity-providers/$providerId/test-result': typeof AuthedAdminSystemIdentityProvidersProviderIdTestResultRoute
+  '/teacher/simulations/$simulationId/labs/$labId': typeof AuthedTeacherSimulationsSimulationIdLabsLabIdRoute
   '/admin/system/identity-providers/$providerId/': typeof AuthedAdminSystemIdentityProvidersProviderIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -281,10 +313,14 @@ export interface FileRoutesByTo {
   '/student': typeof AuthedStudentIndexRoute
   '/teacher': typeof AuthedTeacherIndexRoute
   '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
+  '/admin/simulations': typeof AuthedAdminSimulationsIndexRoute
   '/admin/system': typeof AuthedAdminSystemIndexRoute
+  '/teacher/simulations': typeof AuthedTeacherSimulationsIndexRoute
   '/admin/system/identity-providers/new': typeof AuthedAdminSystemIdentityProvidersNewRoute
   '/admin/system/identity-providers': typeof AuthedAdminSystemIdentityProvidersIndexRoute
+  '/teacher/simulations/$simulationId': typeof AuthedTeacherSimulationsSimulationIdIndexRoute
   '/admin/system/identity-providers/$providerId/test-result': typeof AuthedAdminSystemIdentityProvidersProviderIdTestResultRoute
+  '/teacher/simulations/$simulationId/labs/$labId': typeof AuthedTeacherSimulationsSimulationIdLabsLabIdRoute
   '/admin/system/identity-providers/$providerId': typeof AuthedAdminSystemIdentityProvidersProviderIdIndexRoute
 }
 export interface FileRoutesById {
@@ -318,10 +354,14 @@ export interface FileRoutesById {
   '/_authed/student/': typeof AuthedStudentIndexRoute
   '/_authed/teacher/': typeof AuthedTeacherIndexRoute
   '/_authed/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
+  '/_authed/admin/simulations/': typeof AuthedAdminSimulationsIndexRoute
   '/_authed/admin/system/': typeof AuthedAdminSystemIndexRoute
+  '/_authed/teacher/simulations/': typeof AuthedTeacherSimulationsIndexRoute
   '/_authed/admin/system/identity-providers/new': typeof AuthedAdminSystemIdentityProvidersNewRoute
   '/_authed/admin/system/identity-providers/': typeof AuthedAdminSystemIdentityProvidersIndexRoute
+  '/_authed/teacher/simulations/$simulationId/': typeof AuthedTeacherSimulationsSimulationIdIndexRoute
   '/_authed/admin/system/identity-providers/$providerId/test-result': typeof AuthedAdminSystemIdentityProvidersProviderIdTestResultRoute
+  '/_authed/teacher/simulations/$simulationId/labs/$labId': typeof AuthedTeacherSimulationsSimulationIdLabsLabIdRoute
   '/_authed/admin/system/identity-providers/$providerId/': typeof AuthedAdminSystemIdentityProvidersProviderIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -355,10 +395,14 @@ export interface FileRouteTypes {
     | '/student/'
     | '/teacher/'
     | '/admin/users/$userId'
+    | '/admin/simulations/'
     | '/admin/system/'
+    | '/teacher/simulations/'
     | '/admin/system/identity-providers/new'
     | '/admin/system/identity-providers/'
+    | '/teacher/simulations/$simulationId/'
     | '/admin/system/identity-providers/$providerId/test-result'
+    | '/teacher/simulations/$simulationId/labs/$labId'
     | '/admin/system/identity-providers/$providerId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -387,10 +431,14 @@ export interface FileRouteTypes {
     | '/student'
     | '/teacher'
     | '/admin/users/$userId'
+    | '/admin/simulations'
     | '/admin/system'
+    | '/teacher/simulations'
     | '/admin/system/identity-providers/new'
     | '/admin/system/identity-providers'
+    | '/teacher/simulations/$simulationId'
     | '/admin/system/identity-providers/$providerId/test-result'
+    | '/teacher/simulations/$simulationId/labs/$labId'
     | '/admin/system/identity-providers/$providerId'
   id:
     | '__root__'
@@ -423,10 +471,14 @@ export interface FileRouteTypes {
     | '/_authed/student/'
     | '/_authed/teacher/'
     | '/_authed/admin/users/$userId'
+    | '/_authed/admin/simulations/'
     | '/_authed/admin/system/'
+    | '/_authed/teacher/simulations/'
     | '/_authed/admin/system/identity-providers/new'
     | '/_authed/admin/system/identity-providers/'
+    | '/_authed/teacher/simulations/$simulationId/'
     | '/_authed/admin/system/identity-providers/$providerId/test-result'
+    | '/_authed/teacher/simulations/$simulationId/labs/$labId'
     | '/_authed/admin/system/identity-providers/$providerId/'
   fileRoutesById: FileRoutesById
 }
@@ -641,6 +693,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/admin/simulations/': {
+      id: '/_authed/admin/simulations/'
+      path: '/simulations'
+      fullPath: '/admin/simulations/'
+      preLoaderRoute: typeof AuthedAdminSimulationsIndexRouteImport
+      parentRoute: typeof AuthedAdminRoute
+    }
     '/_authed/admin/system/': {
       id: '/_authed/admin/system/'
       path: '/system'
@@ -654,6 +713,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/users/$userId'
       preLoaderRoute: typeof AuthedAdminUsersUserIdRouteImport
       parentRoute: typeof AuthedAdminUsersRoute
+    }
+    '/_authed/teacher/simulations/': {
+      id: '/_authed/teacher/simulations/'
+      path: '/simulations'
+      fullPath: '/teacher/simulations/'
+      preLoaderRoute: typeof AuthedTeacherSimulationsIndexRouteImport
+      parentRoute: typeof AuthedTeacherRoute
     }
     '/_authed/admin/system/identity-providers/': {
       id: '/_authed/admin/system/identity-providers/'
@@ -669,6 +735,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAdminSystemIdentityProvidersNewRouteImport
       parentRoute: typeof AuthedAdminRoute
     }
+    '/_authed/teacher/simulations/$simulationId/': {
+      id: '/_authed/teacher/simulations/$simulationId/'
+      path: '/simulations/$simulationId'
+      fullPath: '/teacher/simulations/$simulationId/'
+      preLoaderRoute: typeof AuthedTeacherSimulationsSimulationIdIndexRouteImport
+      parentRoute: typeof AuthedTeacherRoute
+    }
     '/_authed/admin/system/identity-providers/$providerId/': {
       id: '/_authed/admin/system/identity-providers/$providerId/'
       path: '/system/identity-providers/$providerId'
@@ -682,6 +755,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/system/identity-providers/$providerId/test-result'
       preLoaderRoute: typeof AuthedAdminSystemIdentityProvidersProviderIdTestResultRouteImport
       parentRoute: typeof AuthedAdminRoute
+    }
+    '/_authed/teacher/simulations/$simulationId/labs/$labId': {
+      id: '/_authed/teacher/simulations/$simulationId/labs/$labId'
+      path: '/simulations/$simulationId/labs/$labId'
+      fullPath: '/teacher/simulations/$simulationId/labs/$labId'
+      preLoaderRoute: typeof AuthedTeacherSimulationsSimulationIdLabsLabIdRouteImport
+      parentRoute: typeof AuthedTeacherRoute
     }
   }
 }
@@ -702,6 +782,7 @@ interface AuthedAdminRouteChildren {
   AuthedAdminIntegrationsRoute: typeof AuthedAdminIntegrationsRoute
   AuthedAdminUsersRoute: typeof AuthedAdminUsersRouteWithChildren
   AuthedAdminIndexRoute: typeof AuthedAdminIndexRoute
+  AuthedAdminSimulationsIndexRoute: typeof AuthedAdminSimulationsIndexRoute
   AuthedAdminSystemIndexRoute: typeof AuthedAdminSystemIndexRoute
   AuthedAdminSystemIdentityProvidersNewRoute: typeof AuthedAdminSystemIdentityProvidersNewRoute
   AuthedAdminSystemIdentityProvidersIndexRoute: typeof AuthedAdminSystemIdentityProvidersIndexRoute
@@ -714,6 +795,7 @@ const AuthedAdminRouteChildren: AuthedAdminRouteChildren = {
   AuthedAdminIntegrationsRoute: AuthedAdminIntegrationsRoute,
   AuthedAdminUsersRoute: AuthedAdminUsersRouteWithChildren,
   AuthedAdminIndexRoute: AuthedAdminIndexRoute,
+  AuthedAdminSimulationsIndexRoute: AuthedAdminSimulationsIndexRoute,
   AuthedAdminSystemIndexRoute: AuthedAdminSystemIndexRoute,
   AuthedAdminSystemIdentityProvidersNewRoute:
     AuthedAdminSystemIdentityProvidersNewRoute,
@@ -757,6 +839,9 @@ interface AuthedTeacherRouteChildren {
   AuthedTeacherPracticalsRoute: typeof AuthedTeacherPracticalsRoute
   AuthedTeacherResultsRoute: typeof AuthedTeacherResultsRoute
   AuthedTeacherIndexRoute: typeof AuthedTeacherIndexRoute
+  AuthedTeacherSimulationsIndexRoute: typeof AuthedTeacherSimulationsIndexRoute
+  AuthedTeacherSimulationsSimulationIdIndexRoute: typeof AuthedTeacherSimulationsSimulationIdIndexRoute
+  AuthedTeacherSimulationsSimulationIdLabsLabIdRoute: typeof AuthedTeacherSimulationsSimulationIdLabsLabIdRoute
 }
 
 const AuthedTeacherRouteChildren: AuthedTeacherRouteChildren = {
@@ -765,6 +850,11 @@ const AuthedTeacherRouteChildren: AuthedTeacherRouteChildren = {
   AuthedTeacherPracticalsRoute: AuthedTeacherPracticalsRoute,
   AuthedTeacherResultsRoute: AuthedTeacherResultsRoute,
   AuthedTeacherIndexRoute: AuthedTeacherIndexRoute,
+  AuthedTeacherSimulationsIndexRoute: AuthedTeacherSimulationsIndexRoute,
+  AuthedTeacherSimulationsSimulationIdIndexRoute:
+    AuthedTeacherSimulationsSimulationIdIndexRoute,
+  AuthedTeacherSimulationsSimulationIdLabsLabIdRoute:
+    AuthedTeacherSimulationsSimulationIdLabsLabIdRoute,
 }
 
 const AuthedTeacherRouteWithChildren = AuthedTeacherRoute._addFileChildren(
