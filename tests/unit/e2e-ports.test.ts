@@ -1,9 +1,17 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { RUN_PORT_RANGE, runPortCandidates } from "../e2e/run-env.ts";
+import { newRunId } from "../../src/server/db/test-run-database.ts";
+import {
+  RUN_PORT_RANGE,
+  removeStaleOutputDirs,
+  runOutputDir,
+  runPortCandidates,
+} from "../e2e/run-env.ts";
 
 // Each e2e run picks its own port (#69, #321); a hard-coded one misses the app in a parallel run.
 const E2E_DIR = new URL("../e2e/", import.meta.url);
@@ -42,5 +50,30 @@ describe("the ports of an e2e run (#321)", () => {
         expect(port).toBeLessThan(32_768);
       }
     }
+  });
+});
+
+describe("the output folder of an e2e run (#321)", () => {
+  it("is a folder of its own under test-results, named after the run id", () => {
+    expect(runOutputDir()).toMatch(/^test-results[/\\]run_[0-9a-z]{1,10}_[0-9a-f]{6}$/);
+  });
+
+  it("removes the folders of runs older than six hours and keeps the others", async () => {
+    const root = mkdtempSync(join(tmpdir(), "edulims-e2e-output-"));
+    try {
+      const now = new Date("2026-11-20T12:00:00Z");
+      const old = `run_${newRunId(new Date("2026-11-20T05:00:00Z"))}`;
+      const recent = `run_${newRunId(new Date("2026-11-20T11:00:00Z"))}`;
+      for (const name of [old, recent, "other-folder"]) mkdirSync(join(root, name));
+      await removeStaleOutputDirs(root, now);
+      expect(readdirSync(root).sort()).toEqual(["other-folder", recent].sort());
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does nothing when no output folder exists yet", async () => {
+    const missing = join(tmpdir(), `edulims-no-such-folder-${newRunId()}`);
+    await expect(removeStaleOutputDirs(missing)).resolves.toBeUndefined();
   });
 });

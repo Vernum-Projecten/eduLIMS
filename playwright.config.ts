@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineConfig, devices } from "@playwright/test";
-import { E2E_SECRETS, runDatabaseUrl, runPort } from "./tests/e2e/run-env.ts";
+import { E2E_SECRETS, runDatabaseUrl, runOutputDir, runPort } from "./tests/e2e/run-env.ts";
 import { setupThenServe, webServerTimeout } from "./tests/e2e/web-server-command.ts";
 
 // E2E runs the production build (`pnpm build` first) against a database of its own on a port
@@ -61,7 +61,8 @@ const appEnv = {
 
 export default defineConfig({
   testDir: "tests/e2e",
-  outputDir: "test-results",
+  // Playwright empties its output folder at the start, so each run writes to its own (#321).
+  outputDir: runOutputDir(),
   fullyParallel: true,
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] ? 2 : 0,

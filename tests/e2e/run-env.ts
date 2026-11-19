@@ -6,11 +6,14 @@
 // and again in every worker; the first evaluation stores each value in process.env, which the
 // workers inherit, so all of them agree.
 import { createHash } from "node:crypto";
+import { readdir, rm } from "node:fs/promises";
 import { createServer } from "node:net";
+import { join } from "node:path";
 import {
   databaseOf,
   newRunId,
   runDatabaseName,
+  staleRunDatabases,
   withDatabase,
 } from "../../src/server/db/test-run-database.ts";
 
@@ -101,6 +104,36 @@ export function runId(): string {
 /** Returns the URL of this run's database, next to the database `baseUrl` names. */
 export function runDatabaseUrl(baseUrl: string): string {
   return withDatabase(baseUrl, runDatabaseName(databaseOf(baseUrl), runId()));
+}
+
+/** The folder that holds every run's own output folder. */
+export const OUTPUT_ROOT = "test-results";
+
+/** The base name of a run's output folder, `run_<run id>`, read like a run database name. */
+const OUTPUT_BASE = "run";
+
+/**
+ * Returns this run's output folder under {@link OUTPUT_ROOT}. Playwright empties its output
+ * folder when a run starts, so a shared one loses the traces another run in the same checkout
+ * is still writing.
+ */
+export function runOutputDir(): string {
+  return join(OUTPUT_ROOT, runDatabaseName(OUTPUT_BASE, runId()));
+}
+
+/**
+ * Removes the output folders of runs that started more than `STALE_RUN_DATABASE_MS` before
+ * `now`, as the run database of a crashed run is dropped; a recent folder may belong to a run
+ * that is still going.
+ */
+export async function removeStaleOutputDirs(root: string, now: Date = new Date()): Promise<void> {
+  const names = await readdir(root).catch((error: unknown) => {
+    if (Reflect.get(Object(error), "code") === "ENOENT") return [];
+    throw error;
+  });
+  for (const name of staleRunDatabases(OUTPUT_BASE, names, now)) {
+    await rm(join(root, name), { recursive: true, force: true });
+  }
 }
 
 /** The URL of the app under test, set by playwright.config.ts for the cookies the specs add. */
