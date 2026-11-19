@@ -76,6 +76,14 @@ test("an IdP sign-in without an eduLIMS role is explained", async ({ page }) => 
   await expectNoA11yViolations(page);
 });
 
+test("an IdP sign-in refused for a folding e-mail address is explained (#324)", async ({
+  page,
+}) => {
+  await page.goto("/login?error=email_fold_collision");
+  await expect(page.getByRole("alert")).toContainText("e-mail address eduLIMS cannot accept");
+  await expectNoA11yViolations(page);
+});
+
 test("anonymous visitors are redirected from /teacher to /login", async ({ page }) => {
   await page.goto("/teacher");
   await expect(page).toHaveURL(/\/login\?redirect=%2Fteacher$/);

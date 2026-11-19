@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth-client";
 import {
   ACCOUNT_DEPROVISIONED_ERROR,
   ACCOUNT_NOT_LINKED_ERROR,
+  EMAIL_FOLD_ERROR,
   NO_ROLE_ERROR,
   normalizeSignInError,
   PROVIDER_DISABLED_ERROR,
@@ -30,6 +31,7 @@ export function loginErrorMessage(error: string): string {
   if (code === ACCOUNT_NOT_LINKED_ERROR) return m.login_error_account_not_linked();
   if (code === PROVIDER_DISABLED_ERROR) return m.login_error_provider_disabled();
   if (code === SAML_NAMEID_ERROR) return m.login_error_saml_nameid();
+  if (code === EMAIL_FOLD_ERROR) return m.login_error_email_fold();
   if (code === ACCOUNT_DEPROVISIONED_ERROR) return m.login_error_deprovisioned();
   if (code === "banned_user") return m.login_error_blocked();
   return m.login_error_failed();
