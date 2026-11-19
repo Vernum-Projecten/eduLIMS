@@ -17,7 +17,7 @@ const PORTALS = {
   },
   teacher: {
     heading: "Teacher portal",
-    sections: ["Practicals", "Results", "Grading", "KPI dashboard"],
+    sections: ["Practicals", "Results", "Grading", "KPI dashboard", "Test catalogue"],
   },
   admin: {
     heading: "Admin portal",

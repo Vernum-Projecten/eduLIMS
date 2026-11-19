@@ -28,8 +28,8 @@ export const AUTH_AUDIT_ACTIONS = [
 ] as const;
 
 /**
- * Actions of eduLIMS's own flows: simulations and labs (D10, S10, #287), uploads (S4), the
- * analyser register (B3, #35) and the integration status (B3, #227).
+ * Actions of eduLIMS's own flows: simulations and labs (D10, S10, #287), the test catalogue (D9,
+ * #266), uploads (S4), the analyser register (B3, #35) and the integration status (B3, #227).
  */
 export const EDULIMS_AUDIT_ACTIONS = [
   "simulation_created",
@@ -49,6 +49,10 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "lab_join_code_regenerated",
   "lab_join_code_disabled",
   "lab_join_failed",
+  "test_created",
+  "test_changed",
+  "test_retired",
+  "test_restored",
   "upload_complete",
   "upload_validation_fail",
   "upload_delete",
@@ -101,6 +105,7 @@ export const AUDIT_TARGET_TYPES = [
   "session",
   "simulation",
   "lab",
+  "test",
   "upload",
   "identity_provider",
   "admin_grant",
@@ -120,23 +125,25 @@ export type AuditTargetOf<A extends AuditAction> = A extends `sys_${string}`
       ? "simulation"
       : A extends `lab_${string}`
         ? "lab"
-        : A extends `upload_${string}`
-          ? "upload"
-          : A extends `idp_${string}`
-            ? "identity_provider"
-            : A extends `admin_grant_${string}`
-              ? "admin_grant"
-              : A extends `analyser_${string}`
-                ? "analyser"
-                : A extends `scim_token_${string}`
-                  ? "identity_provider"
-                  : A extends `scim_user_${string}`
-                    ? "scim_user"
-                    : A extends `scim_group_${string}`
-                      ? "scim_group"
-                      : A extends `integration_${string}`
-                        ? "integration"
-                        : "user";
+        : A extends `test_${string}`
+          ? "test"
+          : A extends `upload_${string}`
+            ? "upload"
+            : A extends `idp_${string}`
+              ? "identity_provider"
+              : A extends `admin_grant_${string}`
+                ? "admin_grant"
+                : A extends `analyser_${string}`
+                  ? "analyser"
+                  : A extends `scim_token_${string}`
+                    ? "identity_provider"
+                    : A extends `scim_user_${string}`
+                      ? "scim_user"
+                      : A extends `scim_group_${string}`
+                        ? "scim_group"
+                        : A extends `integration_${string}`
+                          ? "integration"
+                          : "user";
 
 /**
  * Returns the target type an action is about (the runtime form of {@link AuditTargetOf}), or
@@ -147,6 +154,7 @@ export function targetTypeOf(action: AuditAction): AuditTargetType | null {
   if (action.startsWith("session_")) return "session";
   if (action.startsWith("simulation_")) return "simulation";
   if (action.startsWith("lab_")) return "lab";
+  if (action.startsWith("test_")) return "test";
   if (action.startsWith("upload_")) return "upload";
   if (action.startsWith("idp_")) return "identity_provider";
   if (action.startsWith("admin_grant_")) return "admin_grant";
