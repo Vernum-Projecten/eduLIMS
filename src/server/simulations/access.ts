@@ -31,6 +31,12 @@ export const SIMULATION_ACTION_ERRORS = [
   "member_not_found",
   "same_lab",
   "email_not_found",
+  "join_code_exists",
+  "join_code_off",
+  "not_a_student",
+  "invalid_code",
+  "rate_limited",
+  "in_other_lab",
 ] as const;
 export type SimulationActionError = (typeof SIMULATION_ACTION_ERRORS)[number];
 

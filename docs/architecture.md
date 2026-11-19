@@ -244,7 +244,7 @@ and all students of a year take part in it. The service is
 | `lab_members` | the students of a lab; the key (simulation, student) keeps a student in at most one lab of a simulation (S10) |
 | `lab_member_emails` | the addresses a teacher pasted that wait for a student to sign in; the key (simulation, address) keeps an address in at most one lab of a simulation |
 | `simulation_removals` | the students a teacher removed, so a lab's code does not let them back in |
-| `lab_join_codes`, `lab_join_attempts` | the join code of a lab and its attempt counters (#288) |
+| `lab_join_codes`, `lab_join_attempts` | the join code of a lab, stored only as an HMAC with its key's fingerprint, and the wrong-code counters per student and per client IP, stored only as keyed hashes (#288) |
 
 Every foreign key to a simulation or a lab cascades on delete, and a
 student's place and a waiting address point at their lab through the pair
@@ -277,6 +277,21 @@ student's place and a waiting address point at their lab through the pair
   on a lab's list, and only then: the student role only, at a first
   sign-in, through a provider whose addresses are authoritative, and never
   for a user SCIM provisioned (`createIdpRoleSync`).
+- **The join code.** A teacher of the simulation turns a code on for one
+  lab, replaces it or turns it off; the code is shown once and stored only
+  as an HMAC under a key derived from `BETTER_AUTH_SECRET`, with that key's
+  fingerprint, so a code made under a rotated secret shows as stale. It ends
+  after the days and the joins the teacher chose (at most 30 days and 500
+  joins). A student whose role set is exactly {student} joins that lab with
+  it, and no other lab. Every attempt is charged to the student and to the
+  client IP (only through `EDULIMS_TRUSTED_PROXIES`) before the lookup and
+  refunded on a join; a wrong, expired, used-up or deleted lab's code and a
+  removed student all get the same answer, with the real reason in the
+  activity log. A student already in another lab of the simulation is
+  refused as such, at no cost. A removed student cannot rejoin with a code
+  until a teacher adds their address again. A join locks the simulation row
+  (shared) before the code row, and lets go and retries when the code row is
+  taken, so it never deadlocks with a writer.
 - **Teachers.** A teacher adds another teacher by the address of an existing
   account with the teacher role; an unknown address and a non-teacher get
   the same refusal. The last teacher of a simulation cannot be removed: a

@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { PROVIDER_ID_PATTERN, PROVIDER_PROTOCOLS } from "../../lib/identity-providers.ts";
 import { AUTH_REASON_PATTERN, CHECK_STATES, FERROEHR_STEPS } from "../../lib/integrations.ts";
+import { JOIN_CODE_DAYS_MAX, JOIN_CODE_USES_MAX } from "../../lib/join-code.ts";
 import { parseSignInMethod, type SignInMethod } from "../../lib/sign-in-method.ts";
 
 /** Actions better-auth's sign-in, session and admin flows record. */
@@ -44,6 +45,10 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "lab_member_joined",
   "lab_member_moved",
   "lab_member_removed",
+  "lab_join_code_enabled",
+  "lab_join_code_regenerated",
+  "lab_join_code_disabled",
+  "lab_join_failed",
   "upload_complete",
   "upload_validation_fail",
   "upload_delete",
@@ -203,6 +208,9 @@ export const auditMetadataSchema = z.strictObject({
   join_via: z.enum(["email", "code"]).optional(),
   /** How many addresses a `lab_emails_added` stored: a count, never an address. */
   count: z.number().int().min(0).optional(),
+  /** The term and the most joins a teacher chose for a lab's join code (#288); never the code. */
+  valid_days: z.number().int().min(1).max(JOIN_CODE_DAYS_MAX).optional(),
+  max_uses: z.number().int().min(1).max(JOIN_CODE_USES_MAX).optional(),
   /** The outcome code of an `idp_tested` sign-in. */
   test_outcome: z
     .string()

@@ -120,6 +120,15 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   state_not_found: m.admin_activity_reason_state_not_found,
   user_banned: m.admin_activity_reason_user_banned,
   user_deleted: m.admin_activity_reason_user_deleted,
+  unknown_code: m.admin_activity_reason_unknown_code,
+  malformed_code: m.admin_activity_reason_malformed_code,
+  code_expired: m.admin_activity_reason_code_expired,
+  code_used_up: m.admin_activity_reason_code_used_up,
+  lab_deleted: m.admin_activity_reason_lab_deleted,
+  removed: m.admin_activity_reason_removed,
+  not_a_student: m.admin_activity_reason_not_a_student,
+  rate_limited_user: m.admin_activity_reason_rate_limited_user,
+  rate_limited_ip: m.admin_activity_reason_rate_limited_ip,
   timeout: m.admin_activity_reason_check_timeout,
   unreachable: m.admin_activity_reason_check_unreachable,
   auth_refused: m.admin_activity_reason_check_auth_refused,
@@ -180,6 +189,12 @@ function simulationParts(metadata: AuditMetadata): string[] {
   }
   if (metadata.count !== undefined) {
     parts.push(m.admin_activity_detail_count({ count: formatNumber(metadata.count) }));
+  }
+  if (metadata.valid_days !== undefined) {
+    parts.push(m.admin_activity_detail_valid_days({ days: formatNumber(metadata.valid_days) }));
+  }
+  if (metadata.max_uses !== undefined) {
+    parts.push(m.admin_activity_detail_max_uses({ count: formatNumber(metadata.max_uses) }));
   }
   return parts;
 }
