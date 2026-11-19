@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The client IP of a request, for the rate limits of SCIM (#45) and the class join code (#49).
+// The client IP of a request, for the rate limits of SCIM (#45) and the lab join code (#288).
 // Relative imports: `pnpm db:seed` loads auth.ts, which loads the SCIM gate.
 import "@tanstack/react-start/server-only";
 import { getIPFromHeader } from "@better-auth/core/utils/ip";

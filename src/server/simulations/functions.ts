@@ -10,6 +10,9 @@ import { getDb } from "../db/index.ts";
 import { requireRole } from "../middleware.ts";
 import { readAdminSimulation, readAdminSimulations } from "./admin-queries.ts";
 import { addEmails, previewEmails, removeEmail } from "./emails.ts";
+import { joinLabWithCode } from "./join.ts";
+import { disableJoinCode, enableJoinCode, getJoinCode, regenerateJoinCode } from "./join-code.ts";
+import { requestJoinContext, serverJoinCodeKey } from "./join-context.ts";
 import { createLab, deleteLab, renameLab } from "./labs.ts";
 import { linkWaitingAddresses } from "./linking.ts";
 import { moveMember, removeMember } from "./members.ts";
@@ -23,6 +26,8 @@ import {
   addTeacherInput,
   createLabInput,
   emailListInput,
+  joinCodeInput,
+  joinInput,
   labIdInput,
   memberInput,
   moveMemberInput,
@@ -142,6 +147,47 @@ export const removeEmailFn = createServerFn({ method: "POST" })
   .middleware([teacher])
   .validator(waitingEmailInput)
   .handler(({ data, context }) => removeEmail(getDb(), context.user, data));
+
+/** Returns the join-code state of a lab; throws `notFound` unless the teacher teaches it (#288). */
+export const getJoinCodeFn = createServerFn({ method: "GET" })
+  .middleware([teacher])
+  .validator(labIdInput)
+  .handler(async ({ data, context }) => {
+    const { fingerprint } = serverJoinCodeKey();
+    const view = await getJoinCode(getDb(), context.user, data.labId, new Date(), fingerprint);
+    if (!view) throw notFound();
+    return view;
+  });
+
+/** Turns on the join code of a lab and returns the new code, once (#288). */
+export const enableJoinCodeFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(joinCodeInput)
+  .handler(({ data, context }) =>
+    enableJoinCode(getDb(), context.user, data, new Date(), serverJoinCodeKey()),
+  );
+
+/** Replaces the join code of a lab and returns the new code, once (#288). */
+export const regenerateJoinCodeFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(joinCodeInput)
+  .handler(({ data, context }) =>
+    regenerateJoinCode(getDb(), context.user, data, new Date(), serverJoinCodeKey()),
+  );
+
+/** Turns the join code of a lab off (#288). */
+export const disableJoinCodeFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(labIdInput)
+  .handler(({ data, context }) => disableJoinCode(getDb(), context.user, data));
+
+/** Joins the signed-in student to the lab of a join code (S10, #288). */
+export const joinLabFn = createServerFn({ method: "POST" })
+  .middleware([student])
+  .validator(joinInput)
+  .handler(({ data, context }) =>
+    joinLabWithCode(getDb(), context.user, data, requestJoinContext(new Date())),
+  );
 
 /** Returns the labs the signed-in student is in (S10). */
 export const getMyLabs = createServerFn({ method: "GET" })
