@@ -46,14 +46,10 @@ Requirement IDs (S4, D11, B4, Q-SEC-2) are from the draft in
 [docs/requirements.md](../requirements.md) and can change; the owner's
 decision on an issue is newer than the draft.
 
-Rows that name a class, a class role or the class join code describe the
-class service that is in the code today (`src/server/classes/`,
-[ADR 0018](../adr/0018-classes-as-organizations.md)). The requirements have
-no classes any more (B2 was dropped on 2026-11-19): #280 reworks that service
-into simulations and labs (D10, S10,
-[ADR 0021](../adr/0021-simulations-and-labs.md)). The status of such a row
-holds for the code today, and the row is judged again in the pull request
-that reworks the code.
+Rows on simulations and labs describe `src/server/simulations/`
+([ADR 0021](../adr/0021-simulations-and-labs.md)). The lab join code and its
+limits return with #288; until then the rows that name them are `planned` or
+`partial`.
 
 ## Updating
 
@@ -75,12 +71,12 @@ moves a row to `met` in the same pull request.
 |---|---|
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
-| Applicable (yes or partly) | 175 |
-| Status met | 95 |
-| Status partial | 50 |
-| Status planned | 22 |
+| Applicable (yes or partly) | 174 |
+| Status met | 96 |
+| Status partial | 54 |
+| Status planned | 16 |
 | Status open | 8 |
-| Status n-a | 170 |
+| Status n-a | 171 |
 
 ### V1 Encoding and Sanitization
 
@@ -122,7 +118,7 @@ Text: [vendor/asvs/en/0x10-V1-Encoding-and-Sanitization.md](vendor/asvs/en/0x10-
 | V1.3.8 | 2 | no | no JNDI (Node.js) | none | n-a |
 | V1.3.9 | 2 | no | no memcache | none | n-a |
 | V1.3.10 | 2 | yes | no format strings built from input; log lines use fixed text (`src/server/idp-sync.ts`) | review | met |
-| V1.3.11 | 2 | yes | invitation e-mail (#28); only validated addresses reach the mailer | unit tests with #28 | planned |
+| V1.3.11 | 2 | no | eduLIMS sends no e-mail: a teacher pastes a lab's addresses and a student is linked at sign-in (S10, ADR 0021) | none | n-a |
 | V1.3.12 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V1.4 Memory, String, and Unmanaged Code
@@ -137,7 +133,7 @@ Text: [vendor/asvs/en/0x10-V1-Encoding-and-Sanitization.md](vendor/asvs/en/0x10-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V1.5.1 | 1 | yes | SAML (#298): a response at the ACS meets the sso plugin's fast-xml-parser 5.12.0 with `processEntities: false`, which refuses `SYSTEM` and parameter entities, then samlify 2.15.1's `isValidXml`, which refuses any `<!DOCTYPE` before @xmldom/xmldom 0.9.12 parses it and before the signature is checked; IdP metadata from the screen, the CLI or a URL is refused with a DTD by `parseSamlMetadata` (`src/server/idp/validate.ts`) before samlify reads it; xmldom expands no declared entity and loads no file or URL. Upload: the `.xlsx` is zipped XML, and the S4 parser must not resolve external entities (cheat sheet XML_External_Entity_Prevention) | unit `src/server/idp/saml-xml.test.ts` (entity expansion, file and http entities, an external DTD and a parameter entity, at the ACS and in pasted and fetched metadata; a local listener receives nothing); upload: unit test with an XXE fixture in S4 | partial |
+| V1.5.1 | 1 | yes | SAML (#298): a response at the ACS meets the sso plugin's fast-xml-parser 5.12.0 with `processEntities: false`, which refuses `SYSTEM` and parameter entities, then samlify 2.15.1's `isValidXml`, which refuses any `<!DOCTYPE` before @xmldom/xmldom 0.9.12 parses it and before the signature is checked; IdP metadata from the screen, the CLI or a URL is refused with a DTD by `parseSamlMetadata` (`src/server/idp/validate.ts`) before samlify reads it; xmldom expands no declared entity and loads no file or URL. Upload (S4): the `.xlsx` is zipped XML: the parser reads its XML parts with its own reader, which refuses any document type declaration, so no entity is declared, expanded or fetched, and knows only the five predefined entities and character references (`src/server/upload/xml.ts`, `docs/gen5-export.md`; cheat sheet XML_External_Entity_Prevention) | unit `src/server/idp/saml-xml.test.ts` (entity expansion, file and http entities, an external DTD and a parameter entity, at the ACS and in pasted and fetched metadata; a local listener receives nothing); unit `src/server/upload/xml.test.ts` (DTD, XXE, entity bomb, undeclared entity), `tests/unit/gen5-parser.test.ts` (an XXE sheet) | met |
 | V1.5.2 | 2 | yes | server function input is JSON parsed by TanStack Start and validated by Zod; no class-instantiating deserialiser | review | met |
 | V1.5.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -151,7 +147,7 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 |---|---|---|---|---|---|
 | V2.1.1 | 1 | partly | Zod schemas per area (`src/server/<area>/schemas.ts`) are the rules; no prose document yet | review | partial |
 | V2.1.2 | 2 | yes | combined checks in the draft: the team links a well to its sample (S4), and an analyser result finds its team through the lab number entered as the patient ID (S5, S12); document with each requirement | review | planned |
-| V2.1.3 | 2 | yes | upload size and count limits (S4), invitation limits (#28); not documented yet | review | planned |
+| V2.1.3 | 2 | yes | upload size and count limits (S4); a pasted lab list takes at most 500 lines of at most 320 characters (`src/lib/simulations.ts`, #287); not documented yet | review | planned |
 
 #### V2.2 Input Validation
 
@@ -168,14 +164,14 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 | V2.3.1 | 1 | yes | the order of a requested test (requested, measured, released) and the release of S15, enforced on the server | unit and e2e tests with S14 and S15 | planned |
 | V2.3.2 | 2 | yes | the draft names no numeric business limit since R-03 and S6 were dropped (2026-11-19); the rules of a simulation are enforced on the server: a lab releases only its own measurements (S10, S15) and cannot change a time (Q-SIM-2) | unit tests with S15 and Q-SIM-2 | planned |
 | V2.3.3 | 2 | yes | the S4 upload rejects the whole file and writes nothing on any error; Kysely transactions | unit and integration tests with S4 | planned |
-| V2.3.4 | 2 | yes | one owner per class: every ownership change (the owner's transfer, the administrator's transfer, creating a class) runs in one transaction that locks the class row (`FOR UPDATE`) and reads the new owner's role under a share lock, so two concurrent transfers cannot leave two owners (`src/server/classes/access.ts`, `src/server/classes/admin.ts`, #37) | unit `src/server/classes/admin.test.ts` ("promotes a co-teacher, so the class keeps exactly one owner"), `src/server/classes/classes.test.ts` | met |
+| V2.3.4 | 2 | yes | a student holds at most one place per simulation and an address waits in at most one lab of a simulation, both primary keys (`lab_members`, `lab_member_emails`, migration `0012_simulations_and_labs`); every write of a simulation locks its row first (`FOR UPDATE`, `src/server/simulations/access.ts`), so two removals cannot leave a simulation without a teacher and two pasted lists cannot place one address twice; the link at sign-in takes the same lock per row (`src/server/simulations/linking.ts`, #287) | unit `src/server/simulations/concurrency.test.ts` (ten parallel places of one student, ten parallel waiting places of one address, one address pasted into six labs at once, three parallel sign-ins), `src/server/simulations/teachers.test.ts` (never the last teacher) | met |
 | V2.3.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V2.4 Anti-automation
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V2.4.1 | 2 | partly | better-auth's built-in rate limit on `/api/auth/*` in production; the SCIM endpoint has its own limit in every environment: 600 requests a minute per identity provider for a working token, in a table client keys cannot evict, and 600 a minute per client for every other request (no token, or an unknown, revoked or expired one), in a bounded table that answers 429 when full; the token is looked up first (one indexed digest lookup per request, accepted as Low by the review, owner decision on #45), so a working token is never limited by a shared egress IP; the client is the X-Forwarded-For address only through the proxies in `EDULIMS_TRUSTED_PROXIES`, else one shared bucket; a 1 MiB body cap (`src/server/scim/limits.ts`, `src/server/scim/gate.ts`, #45); wrong class join codes are counted in PostgreSQL per student and per client IP (the IP only through the same proxies, `src/server/client-ip.ts`) with one atomic upsert per key before the code lookup, so concurrent tries and replicas share the count; an address over its limit still joins with a valid code (`src/server/classes/join-limits.ts`, #49); none on other server functions or uploads yet | unit `src/server/scim/gate.test.ts`, `src/server/env.test.ts`, `src/server/client-ip.test.ts`, `src/server/classes/join-limits.test.ts`, `src/server/classes/join.test.ts` (50 parallel wrong codes give exactly 10 `invalid_code`); integration `tests/integration/scim-provisioning.test.ts` (413), `tests/integration/scim-hardening.test.ts` (601 random tokens get 429; spoofed X-Forwarded-For gets no bucket); e2e `tests/e2e/join-code.spec.ts` | partial |
+| V2.4.1 | 2 | partly | better-auth's built-in rate limit on `/api/auth/*` in production; the SCIM endpoint has its own limit in every environment: 600 requests a minute per identity provider for a working token, in a table client keys cannot evict, and 600 a minute per client for every other request (no token, or an unknown, revoked or expired one), in a bounded table that answers 429 when full; the token is looked up first (one indexed digest lookup per request, accepted as Low by the review, owner decision on #45), so a working token is never limited by a shared egress IP; the client is the X-Forwarded-For address only through the proxies in `EDULIMS_TRUSTED_PROXIES`, else one shared bucket; a 1 MiB body cap (`src/server/scim/limits.ts`, `src/server/scim/gate.ts`, #45); the lab join code's attempt counting per student and per client IP returns with the code (#288; its table `lab_join_attempts` exists); none on other server functions or uploads yet | unit `src/server/scim/gate.test.ts`, `src/server/env.test.ts`, `src/server/client-ip.test.ts`; integration `tests/integration/scim-provisioning.test.ts` (413), `tests/integration/scim-hardening.test.ts` (601 random tokens get 429; spoofed X-Forwarded-For gets no bucket) | partial |
 | V2.4.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V3 Web Frontend Security
@@ -296,15 +292,15 @@ Text: [vendor/asvs/en/0x14-V5-File-Handling.md](vendor/asvs/en/0x14-V5-File-Hand
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.1.1 | 2 | yes | the Gen5 upload (S4) and the lab logo (D10, ADR 0021): types, extensions, packed and unpacked size, to be written down; the types and the size limit of a logo are not decided | review | planned |
+| V5.1.1 | 2 | yes | the Gen5 upload (S4) is documented in `docs/gen5-export.md`: `.xlsx` only, an OOXML workbook, 1 MiB packed, 8 MiB unpacked in total, 1 MiB unpacked per part, 50 entries, at most 5,000 elements, depth 32, 32 attributes per element and 64 namespace declarations in each XML part, one sheet, and what is refused; the lab logo (D10, ADR 0021) is not: its types and size limit are not decided | review | partial |
 
 #### V5.2 File Upload and Content
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.2.1 | 1 | yes | size limit on the Gen5 upload (S4) and on the lab logo (D10), `.claude/rules/auth-security.md` Uploads | unit tests with S4 and D10 | planned |
-| V5.2.2 | 1 | yes | `.xlsx` extension and zip content check (S4); extension and content check of the lab logo (D10) | unit tests with S4 and D10 | planned |
-| V5.2.3 | 2 | yes | the `.xlsx` is a zip: unpacked size and entry count checked before unzipping (S4) | unit test with a zip-bomb fixture in S4 | planned |
+| V5.2.1 | 1 | yes | in place: the Gen5 parser refuses a file over 1 MiB before it reads anything else, a part over 1 MiB unpacked before it inflates it, and an XML part over 5,000 elements, depth 32, 32 attributes on one element or 64 namespace declarations while it reads it; an element keeps only its own declarations and resolves a prefix by walking up at most 32 levels, so these caps bound the reader's memory per part and across the six parts it opens (`src/server/upload/gen5.ts`, `limits.ts`, `zip.ts`, `xml.ts`, S4); open: the request-body limit of the upload's server function (#156) and the lab logo (D10) | unit `tests/unit/gen5-parser.test.ts`, `tests/unit/gen5-parser-hardening.test.ts` (each cap at and one over, every opened part flooded at once), `src/server/upload/xml.test.ts` | partial |
+| V5.2.2 | 1 | yes | the Gen5 parser checks the `.xlsx` extension, the zip signature and the SpreadsheetML workbook content type, so a macro-enabled workbook, a template or a renamed file is refused (`src/server/upload/gen5.ts`, `workbook.ts`, S4); entries the reader never opens (styles, theme, printer settings, properties) are not inspected, which holds only while the original file is neither stored nor served; the extension and content check of the lab logo (D10) is not built | unit `tests/unit/gen5-parser.test.ts`, `src/server/upload/workbook.test.ts` | partial |
+| V5.2.3 | 2 | yes | the `.xlsx` is a zip: the entry count (50) and the declared unpacked size (8 MiB in total) are checked from the central directory before any entry is unpacked; a part the reader opens is refused over 1 MiB declared before it is inflated, and inflation stops once the output passes the declared size (`src/server/upload/zip.ts`, S4) | unit `src/server/upload/zip.test.ts`, `tests/unit/gen5-parser.test.ts`, `tests/unit/gen5-parser-hardening.test.ts` (zip bomb, limits at and one over) | met |
 | V5.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V5.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V5.2.6 | 3 | no | Level 3, above the L2 target; the lab logo (D10) is the one image upload | none | n-a |
@@ -314,7 +310,7 @@ Text: [vendor/asvs/en/0x14-V5-File-Handling.md](vendor/asvs/en/0x14-V5-File-Hand
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V5.3.1 | 1 | yes | the Gen5 upload is parsed in memory and never served from a public folder (S4); how a lab logo is stored and served is not designed yet (D10, #280) | review with S4 and D10 | planned |
-| V5.3.2 | 1 | yes | stored files get generated names (UUIDv7), never the uploaded name (S4, D10) | unit tests with S4 and D10 | planned |
+| V5.3.2 | 1 | yes | the Gen5 parser works in memory and reads the uploaded name only for its extension, and archive entry names are lookup keys, never paths (`src/server/upload/gen5.ts`, `zip.ts`); stored files get generated names (UUIDv7), never the uploaded name, once the upload (#155) and the logo (D10) store files | unit `tests/unit/gen5-parser.test.ts` (a name with path segments) | partial |
 | V5.3.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V5.4 File Download
@@ -358,7 +354,7 @@ Text: [vendor/asvs/en/0x15-V6-Authentication.md](vendor/asvs/en/0x15-V6-Authenti
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V6.3.1 | 1 | partly | better-auth rate limits `/api/auth/*`; brute force against the IdP is the IdP's; guessing a class join code is limited per student and per client IP, counted in PostgreSQL before the lookup (#49) | unit `src/server/classes/join.test.ts`, `src/server/classes/join-concurrency.test.ts` | partial |
+| V6.3.1 | 1 | partly | better-auth rate limits `/api/auth/*`; brute force against the IdP is the IdP's; guessing a lab join code is limited per student and per client IP when the code returns (#288) | unit `src/server/client-ip.test.ts` | partial |
 | V6.3.2 | 1 | yes | no default account in production: the seed users exist only with the dev login (`src/server/db/seed.ts`, `src/server/env.ts`) | unit `src/server/env.test.ts`, `src/server/auth.test.ts` | met |
 | V6.3.3 | 2 | partly | MFA is enforced at the institution's IdP (Entra ID Conditional Access or Keycloak); eduLIMS does not check it (see V6.8.4) | manual, operator | open |
 | V6.3.4 | 2 | yes | sign-up is off, the dev login is refused in production, and only the configured OIDC providers exist (`src/server/auth.ts`, `src/server/env.ts`) | unit `src/server/auth.test.ts`, `src/server/env.test.ts` | met |
@@ -371,7 +367,7 @@ Text: [vendor/asvs/en/0x15-V6-Authentication.md](vendor/asvs/en/0x15-V6-Authenti
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V6.4.1 | 1 | yes | the class join code (#49) works like an activation code: 10 symbols from a 31-symbol alphabet (about 49.5 bits) drawn with `crypto.randomInt`, stored only as an HMAC-SHA-256, ending by date (at most 30 days) and by number of joins (`src/lib/join-code.ts`, `src/server/classes/join-code.ts`); invitations (#28) carry no credential | unit `src/lib/join-code.test.ts`, `src/server/classes/join-code.test.ts`, `src/server/classes/join.test.ts` | met |
+| V6.4.1 | 1 | yes | the lab join code (#288) is the one activation code: it keeps the class code's design (10 symbols from a 31-symbol alphabet drawn with `crypto.randomInt`, stored only as an HMAC-SHA-256, ending by date and by number of joins); no code exists in eduLIMS until #288, and a pasted address carries no credential (ADR 0021) | unit tests with #288 | planned |
 | V6.4.2 | 1 | no | no password hints or secret questions exist | none | n-a |
 | V6.4.3 | 2 | no | no password reset: SSO only (ADR 0010) | none | n-a |
 | V6.4.4 | 2 | no | MFA recovery is the IdP's | none | n-a |
@@ -487,7 +483,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V8.2.1 | 1 | yes | `requireRole` and `authMiddleware` on every server function (`src/server/middleware.ts`); role writes guarded (`src/server/role-guard.ts`); `user.role_channel` records whether an ID-token claim, SCIM or eduLIMS wrote a set, so a role a claim gave never outlives the claim and a SCIM write never removes it (`src/server/role-ownership.ts`, `src/server/scim/roles.ts`, #45) | unit `src/server/middleware.test.ts`, `src/server/role-guard.test.ts`, `src/server/role-ownership.test.ts`, `src/server/scim/roles.test.ts`; integration `tests/integration/scim-hardening.test.ts` | met |
-| V8.2.2 | 1 | partly | `canViewResultsOf` (`src/server/authz.ts`) is the rule for results; classes check membership and class role in the SQL of every read and write (`src/server/classes/access.ts`, `queries.ts`, #28); lab and simulation ownership comes with S10, D10 and D11, when #280 reworks the class service (ADR 0021); the administrator's read-only list of simulations and labs (B5) holds no work of a lab and no correct value | unit `src/server/authz.test.ts`; `src/server/classes/*.test.ts` (another class's teacher gets `not_found`, a student 403) | partial |
+| V8.2.2 | 1 | partly | `canViewResultsOf` (`src/server/authz.ts`) is the rule for results; a teacher reaches a simulation and its labs only through their `simulation_teachers` row, a student a lab only through their own `lab_members` row, in the SQL of every read and write, and another teacher's simulation, an unknown id and a malformed id all answer `not_found` (`src/server/simulations/access.ts`, `queries.ts`, `student-access.ts`, #287); the patients, requests and results of a lab build on the same predicate (#268); the administrator's read-only list (B5) selects only names, ids and counts | unit `src/server/authz.test.ts`; `src/server/simulations/*.test.ts` (per write: a student of the lab, a student of another lab, a student outside the simulation and an administrator get 403, a teacher of another simulation `not_found`; per read: the same people read nothing) | partial |
 | V8.2.3 | 2 | partly | `input: false` on `locale` and `lastPortal` (`src/server/auth.ts`); result and correct-value fields with S10, D10 and D11 | review | partial |
 | V8.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -503,7 +499,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V8.4.1 | 2 | yes | classes as tenants: every class function checks the app role, then membership and class role on the session user in one locked transaction; the organization plugin's endpoints are unreachable (`src/server/classes/`, ADR 0018); the administrator's class actions and reads require the app role admin in the service as well as the middleware, never add the administrator as a member and return no results (`src/server/classes/admin.ts`, `admin-queries.ts`, #37) | unit `src/server/classes/classes.test.ts`, `invitations.test.ts`, `groups.test.ts`, `queries.test.ts`, `plugin.test.ts`, `admin.test.ts` and `admin-queries.test.ts` (a student and a teacher get 403 on every admin action and read), `admin-functions.test.ts` (all nine server functions carry the admin guard) | met |
+| V8.4.1 | 2 | yes | simulations as tenants: every simulation function checks the app role, then the session user's teacher row of the simulation in one locked transaction, and a student's reads go through the one lab predicate (`src/server/simulations/`, ADR 0021); a place and a waiting address point at their lab through the pair (lab, simulation), so a write cannot reach a lab of another simulation; better-auth's organization plugin is not installed, so its endpoints answer 404; the administrator's read requires the admin role in the service as well as the middleware and returns no work of a lab (B5) | unit `src/server/simulations/simulations.test.ts`, `teachers.test.ts`, `labs.test.ts`, `members.test.ts`, `emails.test.ts`, `queries.test.ts`, `admin-queries.test.ts`, `auth-plugins.test.ts` (the organization paths answer 404), `functions.test.ts` (every server function carries its role guard before its validator) | met |
 | V8.4.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V9 Self-contained Tokens
@@ -610,8 +606,8 @@ Text: [vendor/asvs/en/0x20-V11-Cryptography.md](vendor/asvs/en/0x20-V11-Cryptogr
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V11.1.1 | 2 | yes | `EDULIMS_DATA_KEY` (provider secrets and the accounts' sealed ID tokens) is documented with its generation, storage, rotation (`EDULIMS_DATA_KEY_PREVIOUS`, `idp rekey`, `src/server/idp/rekey.test.ts`) and loss (`docs/deployment.md`, "Data key"); the class join code's HMAC key and the key of its attempt counters are derived from `BETTER_AUTH_SECRET` with HKDF under separate info strings (`edulims class join code`, `edulims class join attempts`), so neither key serves both uses, and every code stores the code key's fingerprint, so after a rotation the teacher sees "make a new code" and old codes stop working (#49); no policy yet for rotating `BETTER_AUTH_SECRET` itself or the database passwords | unit `src/server/classes/join-code.test.ts` (stale after a rotation), `src/server/classes/join.test.ts` | partial |
-| V11.1.2 | 2 | yes | the AES-256-GCM data key is recorded in ADR 0015; the class join code (#49) uses HMAC-SHA-256 under two HKDF-SHA-256 keys from `BETTER_AUTH_SECRET`, one for the code and one for the rate-limit keys (never an address at rest), with a 16-digit SHA-256 key fingerprint (`src/server/classes/join-code.ts`); no full cryptographic inventory yet (TLS at the proxy, HMAC cookies, IdP signatures, Sigstore) | review | partial |
+| V11.1.1 | 2 | yes | `EDULIMS_DATA_KEY` (provider secrets and the accounts' sealed ID tokens) is documented with its generation, storage, rotation (`EDULIMS_DATA_KEY_PREVIOUS`, `idp rekey`, `src/server/idp/rekey.test.ts`) and loss (`docs/deployment.md`, "Data key"); the lab join code (#288) derives its HMAC key and the key of its attempt counters from `BETTER_AUTH_SECRET` with HKDF under separate info strings that name the lab, and stores the code key's fingerprint; no policy yet for rotating `BETTER_AUTH_SECRET` itself or the database passwords | unit `src/server/idp/rekey.test.ts` | partial |
+| V11.1.2 | 2 | yes | the AES-256-GCM data key is recorded in ADR 0015; the lab join code (#288) uses HMAC-SHA-256 under two HKDF-SHA-256 keys from `BETTER_AUTH_SECRET`, one for the code and one for the rate-limit keys, with a 16-digit SHA-256 key fingerprint (ADR 0021); no full cryptographic inventory yet (TLS at the proxy, HMAC cookies, IdP signatures, Sigstore) | review | partial |
 | V11.1.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V11.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -648,7 +644,7 @@ Text: [vendor/asvs/en/0x20-V11-Cryptography.md](vendor/asvs/en/0x20-V11-Cryptogr
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V11.5.1 | 2 | yes | `crypto.getRandomValues` for the CSP nonce; better-auth's CSPRNG for ids and tokens; `crypto.randomInt` for class join codes (#49) | unit `src/server/security-headers.test.ts`, `src/lib/join-code.test.ts` | met |
+| V11.5.1 | 2 | yes | `crypto.getRandomValues` for the CSP nonce; better-auth's CSPRNG for ids and tokens; PostgreSQL's `uuidv7()` for eduLIMS's own ids; `crypto.randomInt` for the lab join codes (#288) | unit `src/server/security-headers.test.ts` | met |
 | V11.5.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V11.6 Public Key Cryptography
@@ -792,7 +788,7 @@ Text: [vendor/asvs/en/0x24-V15-Secure-Coding-and-Architecture.md](vendor/asvs/en
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V15.2.1 | 1 | yes | `pnpm audit --prod`, dependency review on every PR, and Trivy before a tag (`.github/workflows/ci.yml`, `scan-and-tag.yml`) | CI `audit`, `dependency-review`, `scan-and-tag.yml` | met |
-| V15.2.2 | 2 | yes | limits on upload size and parse time (S4, Q-PERF-2); dashboard query limits (D11) | unit tests with S4 and D11 | planned |
+| V15.2.2 | 2 | yes | in place: the Gen5 parser's size, per-part, element, depth, attribute and namespace-declaration caps bound its memory and work, with no per-element copy of the namespace scope (S4, `src/server/upload/limits.ts`, `xml.ts`); a whole-file test floods all six opened parts to the caps at once inside a time budget, and a seeded mutation test holds 4,500 mutants to a time budget (`tests/unit/gen5-mutation.test.ts`); open: a parse-time measure of the upload in the test stack (Q-PERF-2) and the dashboard query limits (D11) | unit `tests/unit/gen5-parser-hardening.test.ts`, `tests/unit/gen5-mutation.test.ts` | partial |
 | V15.2.3 | 2 | yes | the image holds production dependencies only (`pnpm deploy --prod`); the dev login and demo accounts are refused in production | unit `src/server/env.test.ts`, `src/server/demo-accounts.test.ts` | met |
 | V15.2.4 | 3 | yes | the frozen lockfile with integrity hashes, the npm registry only, and pinned image digests (Level 3, done anyway) | CI `install` | met |
 | V15.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -843,7 +839,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V16.3.1 | 2 | partly | every sign-in, failed or refused sign-in and sign-out is written to the activity log with its provider and no personal data (`src/server/audit/better-auth-hooks.ts`, `src/server/idp-sync.ts`); every SCIM write too, and every refused SCIM token for any method as `scim_token_refused` with the reason (missing, unknown, revoked, expired, provider disabled): an unknown or missing one once per client and minute with the count it stands for, any other once per token and minute (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/idp-sync.test.ts`, `src/server/scim/gate.test.ts`; integration `tests/integration/scim-provisioning.test.ts`, `tests/integration/scim-hardening.test.ts` | met |
-| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`); so is a class the teacher does not teach, the `not_found` of the class service and the class page (`logClassNotFound`, `src/server/classes/access.ts`); class refusals by role or archive, and an administrator's refused transfer, creation or import (`not_a_teacher`, `owner_blocked`, `already_owner`, `archived`, `not_archived`, #37), are activity-log rows, and so is every refused or failed join with a class code (`class_join_failed`, #49); a refused host command (`admin grant` or `revoke`, `idp add`, `enable` or `disable`) writes a row with outcome `refused`, actor `system` and its reason code (`src/server/admin-grant/grants.ts`, `src/server/idp/command.ts`); a SCIM 403 or 404 (another provider's resource) is a refused `scim_user_*` or `scim_group_*` row, reads included (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts`, `src/server/classes/classes.test.ts`, `src/server/classes/queries.test.ts`, `src/server/classes/admin.test.ts`, `src/server/classes/join.test.ts`, `src/server/cli-refusals.test.ts`, `src/server/admin-grant/grants.test.ts`; integration `tests/integration/scim-provisioning.test.ts` | met |
+| V16.3.2 | 2 | partly | refused role writes and refused admin endpoints are written to the activity log (`src/server/role-guard.ts`, `src/server/audit/better-auth-hooks.ts`); a 401 or 403 from a server function is an `authz_fail` event on the security log (`src/server/middleware.ts`); so is a simulation or a lab the teacher does not teach and a malformed id, the `not_found` of the simulation service (`logNotFound`, `src/server/simulations/access.ts`); refused simulation writes (`has_students`, `last_teacher`, `not_a_teacher`), a waiting address of a student who is in another lab (`in_other_lab`) and a refused deletion of the only teacher of a simulation (`only_simulation_teacher`) are activity-log rows (#287); a refused host command (`admin grant` or `revoke`, `idp add`, `enable` or `disable`) writes a row with outcome `refused`, actor `system` and its reason code (`src/server/admin-grant/grants.ts`, `src/server/idp/command.ts`); a SCIM 403 or 404 (another provider's resource) is a refused `scim_user_*` or `scim_group_*` row, reads included (`src/server/scim/audit.ts`) | unit `src/server/audit/better-auth-hooks.test.ts`, `src/server/middleware.test.ts`, `src/server/simulations/test-access.ts` (every write: the `authz_fail` line), `src/server/simulations/teachers.test.ts`, `src/server/simulations/linking.test.ts`, `src/server/simulations/auth-plugins.test.ts`, `src/server/cli-refusals.test.ts`, `src/server/admin-grant/grants.test.ts`; integration `tests/integration/scim-provisioning.test.ts` | met |
 | V16.3.3 | 2 | yes | rejected uploads (S4) and refused access belong in the B4 audit log | unit tests with S4 and B4 | planned |
 | V16.3.4 | 2 | yes | an unreachable FerroEHR or FerroBRIDGE is checked every minute, stored with its error class and shown in the Admin portal within 5 minutes (B3, `src/server/integrations/`); a failed scheduled run is logged by its class only; other unexpected errors are not logged centrally yet | unit `src/server/integrations/checks.test.ts`, e2e `tests/e2e/admin-analysers.spec.ts` | partial |
 

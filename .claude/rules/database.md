@@ -24,8 +24,10 @@ measurement lives before its release is a design matter, with the
 maintainer's proposal in `docs/lims-workflow.md`.
 A request is for one patient or for a control sample, which has no patient
 (S16). The correct values are keyed by simulation, sample number and test,
-never by lab (D10). The class tables of the earlier model (ADR 0018) are
-still in the schema; #280 reworks them into simulations and labs.
+never by lab (D10). Simulations, their teachers, labs, members and
+waiting addresses are eduLIMS's own tables (ADR 0021); one lab per student
+per simulation and one waiting place per address per simulation are primary
+keys.
 A request has no urgent flag and no time target in this iteration (D12, O1),
 and nothing stores a ranking (D14, O3).
 Both databases run on one PostgreSQL 18 server, each with its own database

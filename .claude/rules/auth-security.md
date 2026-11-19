@@ -160,9 +160,10 @@ without login. This file is how the code meets them.
   signs in with one of them is linked to that lab; eduLIMS sends no email.
   A student who signs in with another address joins with the lab's code.
   Only a teacher of the simulation creates a lab or changes its members.
-  The class service in `src/server/classes/` is the earlier model (ADR
-  0018); #280 reworks it into simulations and labs, and its membership
-  checks and join-code limits stay.
+  The service is `src/server/simulations/` (ADR 0021): a teacher's access
+  joins `simulation_teachers` on the session user, a student's access goes
+  through the one exported lab predicate (`studentLabsQuery`,
+  `findStudentLab`), and another teacher's simulation answers `not_found`.
 - **Correct values and accuracy are for teachers only (Q-SIM-1, D10).** No
   server function a student can call selects a correct value, an accuracy
   status, the teacher's limits for green, yellow and red (D13) or anything
@@ -274,6 +275,20 @@ Server functions are an API: hold them to the API Security Top 10 2023 too
   in a server function. Never trust the file name or the MIME type alone.
   Check the unpacked size and the entry count before unzipping (V5.2.3), and
   parse the workbook XML with external entities off (V1.5.1).
+- **One exception to the maintained library (maintainer, 2026-11-19, on the
+  owner's delegation; the security review of #297):** the Gen5 upload reads
+  its container and its XML with eduLIMS's own readers in
+  `src/server/upload/`. The format is one fixed contract
+  (`docs/gen5-export.md`), and the XML libraries available carry advisories
+  in entity handling, which these readers do not have at all: they refuse
+  every DTD. The exception holds only while (a) the element, depth,
+  attribute, namespace-declaration, per-part and total size caps exist, each
+  with tests at and over it; (b) every raw character is checked against the
+  XML Char production; (c) the seeded mutation test runs in `pnpm test` and
+  asserts that every mutant gives a typed result, that nothing throws, and
+  that the run stays inside its time budget; and (d) the readers serve this
+  one contract and grow no general-purpose features. A second upload format
+  gets a library or its own decision.
 - Reject the whole file with a translated message that names the reason when
   it is not in the supplied export layout (S4 acceptance criterion); write
   nothing to FerroEHR from a rejected file. The export holds no sample

@@ -29,7 +29,7 @@ Each significant architecture or technology decision is recorded here in the
 | [0018](0018-classes-as-organizations.md) | A class is a better-auth organization, a lab group a team | Superseded by 0021 |
 | [0019](0019-smart-backend-service.md) | eduLIMS calls FerroEHR as a SMART on openEHR backend service | Proposed |
 | [0020](0020-workplace-simulation.md) | A workplace simulation replaces the practical model | Proposed |
-| [0021](0021-simulations-and-labs.md) | A simulation is a better-auth organization, a lab a team | Proposed |
+| [0021](0021-simulations-and-labs.md) | Simulations and labs in eduLIMS's own tables | Proposed |
 
 ## Adding a record
 

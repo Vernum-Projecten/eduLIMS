@@ -19,20 +19,6 @@ interface DevUser {
   hidden?: true;
 }
 
-/**
- * How many former-owner accounts the administrator's class journeys get: one per try, so
- * `--repeat-each` times (`--retries` + 1) may not pass it. CI's two retries leave 10 repeats.
- */
-export const ADMIN_CLASSES_FORMERS = 30;
-
-/**
- * Returns the label of former-owner slot `slot`, padded so no slot's label is a prefix of
- * another's: the class journeys find an account and a class by a prefix or substring match.
- */
-export function adminClassesSlot(slot: number): string {
-  return String(slot).padStart(String(ADMIN_CLASSES_FORMERS - 1).length, "0");
-}
-
 export const DEV_USERS = [
   { email: "student@example.test", name: "Test Student", roles: ["student"] },
   { email: "teacher@example.test", name: "Test Teacher", roles: ["teacher"] },
@@ -78,69 +64,6 @@ export const DEV_USERS = [
     email: "rollback@example.test",
     name: "Rollback Test Teacher",
     roles: ["teacher"],
-    hidden: true,
-  },
-  // The classes journeys (#28): an owner, a co-teacher, students to group and one who joins.
-  {
-    email: "classes-owner@example.test",
-    name: "Classes Test Owner",
-    roles: ["teacher"],
-    hidden: true,
-  },
-  {
-    email: "classes-co@example.test",
-    name: "Classes Test Co-teacher",
-    roles: ["teacher"],
-    hidden: true,
-  },
-  { email: "classes-ada@example.test", name: "Ada Classes Test", roles: ["student"], hidden: true },
-  { email: "classes-bo@example.test", name: "Bo Classes Test", roles: ["student"], hidden: true },
-  {
-    email: "classes-join@example.test",
-    name: "Joining Classes Test Student",
-    roles: ["student"],
-    hidden: true,
-  },
-  // The administrator's class journeys (#37): an owner, and the teacher who takes over.
-  {
-    email: "admin-classes-owner@example.test",
-    name: "Admin Classes Test Owner",
-    roles: ["teacher"],
-    hidden: true,
-  },
-  {
-    email: "admin-classes-heir@example.test",
-    name: "Admin Classes Test Heir",
-    roles: ["teacher"],
-    hidden: true,
-  },
-  // Own a class, then lose the teacher role: the overview flags the class (#37). One per try
-  // of a `--repeat-each` repeat, since a try leaves its account without the teacher role
-  // (#195, #200).
-  ...Array.from({ length: ADMIN_CLASSES_FORMERS }, (_, index) => ({
-    email: `admin-classes-former-${index}@example.test`,
-    name: `Admin Classes Test Former S${adminClassesSlot(index)}`,
-    roles: ["teacher"] as const,
-    hidden: true as const,
-  })),
-  // The join-code journeys (#49): an owner who turns the code on, a student who joins with it,
-  // and one who guesses until the rate limit refuses them.
-  {
-    email: "joincode-owner@example.test",
-    name: "Join Code Test Owner",
-    roles: ["teacher"],
-    hidden: true,
-  },
-  {
-    email: "joincode-student@example.test",
-    name: "Join Code Test Student",
-    roles: ["student"],
-    hidden: true,
-  },
-  {
-    email: "joincode-guesser@example.test",
-    name: "Join Code Test Guesser",
-    roles: ["student"],
     hidden: true,
   },
 ] as const satisfies readonly DevUser[];

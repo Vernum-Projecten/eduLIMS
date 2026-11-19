@@ -13,7 +13,7 @@ import {
 import { m } from "@/i18n/messages";
 import { breadcrumbFor } from "@/lib/navigation";
 
-/** Returns the `crumb` a route's loader returned (the class name), if it returned one. */
+/** Returns the `crumb` a route's loader returned (the page's own name), if it returned one. */
 function crumbOf(loaderData: unknown): string | null {
   if (typeof loaderData !== "object" || loaderData === null) return null;
   const crumb: unknown = Reflect.get(loaderData, "crumb");
@@ -22,7 +22,7 @@ function crumbOf(loaderData: unknown): string | null {
 
 /**
  * The breadcrumb of the current page in the top bar: its portal, then the page. A page below a
- * section (a class page) shows the section as a link and then its own name, which its loader
+ * section shows the section as a link and then its own name, which its loader
  * returns as `crumb`.
  */
 export function AppBreadcrumb() {

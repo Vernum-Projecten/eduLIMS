@@ -86,7 +86,8 @@ The Gen5 export is one sheet: a header block and a 96-well grid, rows A to H
 and columns 1 to 12, of absorbance values at one wavelength. It holds no
 sample number, no plate layout and no concentration. The parser validates the
 layout strictly and rejects a file in another layout with a clear message
-(S4). eduLIMS loads the 96 values and shows the plate, as a real LIMS does,
+(S4); [The Gen5 export contract](gen5-export.md) pins the layout, the file
+limits and the refusals. eduLIMS loads the 96 values and shows the plate, as a real LIMS does,
 and the team says which well holds which sample (owner, 2026-11-19, O5,
 R-06). Who calculates the concentration is the teacher's choice per test in the
 test catalogue (D9): the team, by its own procedure, or eduLIMS, from the
@@ -229,35 +230,60 @@ backup simple: one backup routine covers both.
 
 ### Simulations and labs
 
-A simulation is a better-auth organization and a lab is a team inside it
-([ADR 0021](adr/0021-simulations-and-labs.md)). There are no classes: a
-simulation belongs to no class, and all students of a year take part in it.
-The plugin owns the tables. eduLIMS's own service does every write behind a membership check
-on the session user, with the plugin's own endpoints unreachable. A teacher
-creates a lab with its name and its logo and adds the email addresses of its
-members. A student who signs in with one of those verified addresses is
-linked to that lab; eduLIMS sends no email. A student who signs in with
-another address joins with the lab's code.
+A simulation and its labs live in eduLIMS's own tables
+([ADR 0021](adr/0021-simulations-and-labs.md)); better-auth's organization
+plugin is not used. There are no classes: a simulation belongs to no class,
+and all students of a year take part in it. The service is
+`src/server/simulations/`.
 
-The code today still has the earlier model of
-[ADR 0018](adr/0018-classes-as-organizations.md), in which the organization
-is a class and the team a lab group. The rework to simulations and labs is
-#280; it changes the service and keeps its mechanisms:
+| Table | What it holds |
+|---|---|
+| `simulations` | the name, who created it and when |
+| `simulation_teachers` | the teachers of a simulation, all with the same rights (D10) |
+| `labs` | the labs of a simulation; a name is unique within its simulation, case-insensitively |
+| `lab_members` | the students of a lab; the key (simulation, student) keeps a student in at most one lab of a simulation (S10) |
+| `lab_member_emails` | the addresses a teacher pasted that wait for a student to sign in; the key (simulation, address) keeps an address in at most one lab of a simulation |
+| `simulation_removals` | the students a teacher removed, so a lab's code does not let them back in |
+| `lab_join_codes`, `lab_join_attempts` | the join code of a lab and its attempt counters (#288) |
 
-- The service is `src/server/classes/`. Today a person joins every class
-  that invited their verified email address when they sign in. The rework
-  makes that the address a teacher adds to a lab.
-- The join code (#49) is per class today: the `class_join_codes` table keeps
-  one HMAC of the code per class with its term, its number of joins and the
-  fingerprint of its key. The rework moves the code to the lab.
-- Every attempt is counted per student and per client IP (only through
-  `EDULIMS_TRUSTED_PROXIES`) in `class_join_attempts`, one atomic upsert per
-  key before the lookup, so parallel requests, restarts and replicas share
-  the count; a join takes its count back.
-- A student a teacher removes is recorded in `class_removals`, their pending
-  invitations to the class are revoked in the same transaction, and they
-  cannot rejoin with the code until a new invitation or a re-add clears the
-  record.
+Every foreign key to a simulation or a lab cascades on delete, and a
+student's place and a waiting address point at their lab through the pair
+(lab, simulation), so neither can name a lab of another simulation.
+
+- **Access in the query.** A teacher reaches a simulation through its
+  `simulation_teachers` row, and a lab through the teacher row of its
+  simulation. Every write locks the simulation row first. Another teacher's
+  simulation, an unknown id and a malformed id all answer `not_found`, and
+  the probe goes to the security log. A student reaches a lab only through
+  their own `lab_members` row; that predicate is one exported helper
+  (`studentLabsQuery`, `findStudentLab`) that the lab's work builds on.
+- **The email list.** A teacher pastes the addresses of a lab's members. The
+  server classifies each line (invalid, repeated, already in this lab, in
+  another lab of the simulation, new) and stores the new ones; no answer
+  says whether an account exists for an address. An address waits until the
+  student signs in, the teacher removes it, or the lab is deleted.
+- **The link.** At every sign-in, and when the student opens the Student
+  portal overview, each address that waits for the student's verified email
+  becomes a place in its lab, one row per transaction. A failed row never
+  fails the sign-in and never undoes another row; an address of a student
+  who is already in another lab of that simulation is logged as a refusal
+  and keeps waiting. Only an account whose role set is {student} links. The
+  identity provider sync grants the student role to an address that waits
+  on a lab's list, and only then: the student role only, at a first
+  sign-in, through a provider whose addresses are authoritative, and never
+  for a user SCIM provisioned (`createIdpRoleSync`).
+- **Teachers.** A teacher adds another teacher by the address of an existing
+  account with the teacher role; an unknown address and a non-teacher get
+  the same refusal. The last teacher of a simulation cannot be removed, and
+  better-auth's `admin/remove-user` refuses an account that is the only
+  teacher of a simulation.
+- **Deleting.** A lab can be deleted with its places, its waiting addresses
+  and its code; a simulation only while no student is in one of its labs.
+- **The administrator** reads each simulation with its teachers' names and
+  its labs with their member counts, and nothing else (B5).
+- **The activity log** records every write with ids and codes only:
+  `simulation_*` and `lab_*` actions, a count for a pasted list, never an
+  address or a name.
 
 The lab logo is a new upload. It follows the upload rules of the security
 baseline (ASVS V5, the File_Upload cheat sheet): the server accepts a

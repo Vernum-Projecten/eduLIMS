@@ -60,9 +60,9 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_integration_check_steps", "Success"],
-      ["0014_class_join_code", "Success"],
+      ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
-      ["0012_classes", "Success"],
+      ["0012_simulations_and_labs", "Success"],
       ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
@@ -86,9 +86,9 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_integration_check_steps", "Success"],
-      ["0014_class_join_code", "Success"],
+      ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
-      ["0012_classes", "Success"],
+      ["0012_simulations_and_labs", "Success"],
       ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
@@ -112,9 +112,9 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_integration_check_steps", "Success"],
-      ["0014_class_join_code", "Success"],
+      ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
-      ["0012_classes", "Success"],
+      ["0012_simulations_and_labs", "Success"],
       ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
@@ -162,9 +162,9 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_integration_check_steps", "Success"],
-      ["0014_class_join_code", "Success"],
+      ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
-      ["0012_classes", "Success"],
+      ["0012_simulations_and_labs", "Success"],
       ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
@@ -195,9 +195,9 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_integration_check_steps", "Success"],
-      ["0014_class_join_code", "Success"],
+      ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
-      ["0012_classes", "Success"],
+      ["0012_simulations_and_labs", "Success"],
       ["0011_audit_event_indexes", "Success"],
       ["0010_integration_check", "Success"],
       ["0009_analyser", "Success"],
@@ -231,9 +231,9 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0010_integration_check");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_integration_check_steps", "Success"],
-      ["0014_class_join_code", "Success"],
+      ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
-      ["0012_classes", "Success"],
+      ["0012_simulations_and_labs", "Success"],
       ["0011_audit_event_indexes", "Success"],
     ]);
     expect(await indexes(db)).toEqual([
@@ -249,11 +249,11 @@ describe("migrations", () => {
     const database = await createTestDb();
     db = database;
     const migrator = createMigrator(database);
-    // The migration below 0013 is 0012_classes; 0015, 0014 and then 0013 revert.
-    const down = await migrator.migrateTo("0012_classes");
+    // The migration below 0013 is 0012_simulations_and_labs; 0015, 0014 and then 0013 revert.
+    const down = await migrator.migrateTo("0012_simulations_and_labs");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_integration_check_steps", "Success"],
-      ["0014_class_join_code", "Success"],
+      ["0014_lab_join_code", "Success"],
       ["0013_scim", "Success"],
     ]);
     const user = (id: string, roleSource: string) =>
@@ -334,7 +334,7 @@ describe("migrations", () => {
     const database = await createTestDb();
     db = database;
     const migrator = createMigrator(database);
-    const down = await migrator.migrateTo("0014_class_join_code");
+    const down = await migrator.migrateTo("0014_lab_join_code");
     expect(down.error).toBeUndefined();
     await sql`insert into integration_checks (integration, state, checked_at, last_success_at, response_time_ms, error_class)
         values ('ferroehr', 'available', now(), now(), 12, null), ('ferrobridge', 'unavailable', now(), null, null, 'unreachable')`.execute(
@@ -357,7 +357,7 @@ describe("migrations", () => {
     const notReady = () =>
       inSavepoint(sql`insert into integration_checks (integration, state, checked_at, error_class)
           values ('ferrobridge', 'not_ready', now(), 'readiness_down')`);
-    const down = await migrator.migrateTo("0014_class_join_code");
+    const down = await migrator.migrateTo("0014_lab_join_code");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0015_integration_check_steps", "Success"],
     ]);

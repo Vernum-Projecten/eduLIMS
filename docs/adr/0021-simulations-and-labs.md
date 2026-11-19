@@ -1,7 +1,7 @@
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# 0021. A simulation is a better-auth organization, a lab a team
+# 0021. Simulations and labs in eduLIMS's own tables
 
 - Status: Proposed
 - Date: 2026-11-19
@@ -22,7 +22,9 @@ it holds the correct values and the labs. A lab is a team of students with a
 lab name and a logo the team made up; a teacher creates the labs, and the
 labs compete with each other. The teacher adds the email addresses of a lab's
 members, and a student who signs in with one of them is linked to that lab.
-Requirement B2 is dropped, and D10 and S10 carry the new model.
+Requirement B2 is dropped, and D10 and S10 carry the new model. The owner
+also asked for a full rewrite with deletion preferred: nothing is in
+production, so no compatibility layer and no class code kept for later.
 
 Where do a simulation and its labs live in the data model, and what happens
 to the class service that is already built and tested?
@@ -34,73 +36,89 @@ to the class service that is already built and tested?
 - A teacher prepares a simulation alone, without an administrator (D10).
 - A student reaches their lab without a step of their own, and eduLIMS sends
   no email (S10).
-- The membership checks, the join-code limits and their negative tests are
-  built and tested. Work that still fits is kept.
+- The join-code limits, the removal record and their tests are built. Work
+  that still fits is kept; the rest is deleted.
 
 ## Considered options
 
 - **Keep classes and attach a simulation to a class.** The class stays the
   organization, and a simulation becomes a new entity under it.
-- **A new model beside the organization plugin.** eduLIMS's own tables for
-  simulations, labs and members, and the class service removed.
 - **Reuse the organization and the team.** The organization becomes the
   simulation and the team becomes the lab.
+- **Own tables, and the organization plugin removed.** eduLIMS's own tables
+  for simulations, teachers, labs, members and waiting addresses.
 
 ## Decision outcome
 
-Chosen option: **reuse the organization and the team.** The owner's decision
-rules out the first option, because a simulation belongs to no class. The
-second option throws away tested access checks and writes them again for the
-same shape: a unit with members, and groups of members inside it.
+Chosen option: **own tables, and the organization plugin removed.** The
+owner's decision rules out the first option, because a simulation belongs to
+no class. After the rework the plugin would give four table names and
+nothing else: its HTTP paths are disabled, its write hooks all refuse, its
+roles have no use, and its invitation table is read only by its own disabled
+routes. Its tables have the wrong shape too: a plugin `member` row is not a
+place in one lab, and nothing in them keeps a student in one lab of a
+simulation. Before the plugin was removed, SCIM provisioning (ADR 0017, its
+own `scim*` tables), the session, the admin plugin, the SSO plugin and the
+browser client were checked: none of them depends on it.
 
-- **One simulation is one organization.** Its name is the simulation's name
-  (for example "Simulation 2026"). The correct values of D10 are keyed to it.
-- **A lab is a team** inside the simulation, with its lab name and its logo.
-  A teacher creates the labs (D10); a team of students does not create or
-  name its lab in eduLIMS.
-- **Membership by email address.** The invited-email path of ADR 0018
-  becomes "the teacher adds a member's email address to a lab". A teacher
-  pastes the addresses as a list. A student who signs in with one of those
-  addresses is linked to that lab at sign-in, and eduLIMS sends no email
-  (S10).
-- **The join code moves from the class to the lab** and is the fallback: a
-  student who signs in with another address joins with the lab's code (S10).
-- **The class service is reworked and kept.** `src/server/classes/` keeps
-  its rule that every write runs behind a membership check on the
-  session user, with the plugin's own endpoints unreachable. It gets the new
-  terms and the new write paths.
-- **Every student has their own account** (O10). A student can be in
-  several simulations, in one lab of each: a member of several
-  organizations, in one team of each (S10).
+- **Tables** (plural snake_case, `uuidv7()` keys, `timestamptz`):
+  `simulations`, `simulation_teachers`, `labs`, `lab_members`,
+  `lab_member_emails`, `simulation_removals`, and the lab's join code in
+  `lab_join_codes` and `lab_join_attempts`. One lab per student per
+  simulation and one waiting place per address per simulation are primary
+  keys. A lab name is unique within its simulation, case-insensitively.
+  Every foreign key to a simulation or a lab cascades on delete. The plugin's
+  tables and its two session columns are gone.
+- **Access in the query.** A teacher reaches a simulation through its teacher
+  row; every write locks the simulation row first. Another teacher's
+  simulation answers `not_found`, never `forbidden`, and a malformed id is
+  refused before the query and logged. A student reaches a lab through their
+  own place in it, with one exported predicate for the lab's work.
+- **Membership by email address.** A teacher pastes the addresses of a lab's
+  members. Each line is classified before anything is stored, and no answer
+  reveals whether an account exists. An address does not expire: it waits
+  until the student signs in, the teacher removes it, or the lab is deleted.
+  It is linked at sign-in and when the student opens the Student portal
+  overview, for a verified address only, one row per transaction, and a
+  failed link never fails the sign-in (S10).
+- **The join code moves from the class to the lab** and is the fallback for
+  a student whose address is on no list (S10, #288). Its mechanism stays:
+  the HMAC at rest with a key fingerprint, the term and use limits, the code
+  shown once, the attempt counting per student and per client IP, and the
+  identical answer for every wrong code.
+- **Teachers of a simulation** all have the same rights (D10). A teacher
+  adds another by the address of an existing account with the teacher role.
+  The last teacher of a simulation cannot be removed, and an account that is
+  the only teacher of a simulation cannot be deleted.
 - **No roles inside a lab** (S10, O10). Every member of a lab may do
-  everything in it, and eduLIMS records who did what. A lab needs no team
-  role.
-- **Teachers of a simulation.** A teacher can add other teachers to a
-  simulation, with the same rights (D10). The co-teacher role of ADR 0018
-  becomes that: every teacher of a simulation holds the same rights.
+  everything in it, and eduLIMS records who did what.
+- **Deleting.** A teacher can delete a lab, and a simulation that has no
+  student.
 - **The administrator** sees the simulations with their teachers, their labs
   and the number of members, read-only, and nothing of a lab's work and no
-  correct value (B5, a Should). No requirement gives the administrator the
-  class actions of ADR 0018 in this model.
+  correct value (B5, a Should).
+- **Deleted** with their routes, messages, audit events and tests, because no
+  requirement needs them: the academic year, archive and unarchive, the class
+  copy, the owner and co-teacher distinction, ownership transfer, group sets
+  and the automatic split, every administrator action on a class, the CSV
+  import, invitations with a role, a status and an expiry, and the
+  class-level join code.
 - **Copying a simulation** to a new one, with its correct values and without
   its labs, is a Could (D15).
-- **Not decided here:** what becomes of the academic year and the archive
-  that ADR 0018 gave a class. The rework on #280 settles them.
 
 ### Consequences
 
-- Good: the plugin's tables and ids stay, and so do the membership checks in
-  the SQL of every read and write.
-- Good: the join code keeps its mechanisms: the HMAC at rest, the count of
-  attempts per student and per client IP, and the record of a removed
-  student.
-- Bad: the routes, the messages and the tests of the class screens are
-  renamed, and the class tables and the documents that name them follow.
-  Until the rework lands, the code and the user guides still say "class" and
-  "lab group".
-- Bad: a lab logo is a new upload. It has to follow the upload rules of
-  `.claude/rules/auth-security.md` (ASVS V5): a defined set of types, a
-  configured size limit and a check of the content.
+- Good: the tables say what the model is, and the database holds the two
+  rules that matter most (one lab per student, one waiting place per
+  address).
+- Good: no third-party schema decides a column, and no disabled plugin
+  endpoint is one configuration change away from reachable.
+- Bad: the access checks of the class service are written again for the new
+  shape, with their negative tests per role; about 60 deleted test cases each
+  need a counterpart.
+- Bad: a lab logo is a new upload (#292). It follows the upload rules of
+  `.claude/rules/auth-security.md` (ASVS V5): PNG or JPEG checked by content,
+  a size and pixel limit, metadata removed, stored in PostgreSQL.
 - Bad: a join code per lab means more codes for a teacher to hand out than
   one code per class.
 - Bad: an email address a teacher mistypes links nobody. The student then
@@ -112,4 +130,4 @@ same shape: a unit with members, and groups of members inside it.
   and O11.
 - [ADR 0018](0018-classes-as-organizations.md), which this record
   supersedes, and [ADR 0020](0020-workplace-simulation.md).
-- better-auth organization plugin: <https://better-auth.com/docs/plugins/organization>
+- The design of the rewrite: the maintainer's comment on #280.

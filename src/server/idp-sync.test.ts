@@ -394,34 +394,34 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
     expect(consumeAdminGrant).not.toHaveBeenCalled();
   });
 
-  it("grants only student to a new user with a pending class invitation (#28 (2))", async () => {
-    const hasStudentInvitation = vi.fn(async () => true);
+  it("grants only student to a new user whose address waits on a lab's list (S10)", async () => {
+    const hasWaitingLabAddress = vi.fn(async () => true);
     const consumeAdminGrant = vi.fn(async () => true);
-    const { sync, ctx } = authoritative({ hasStudentInvitation, consumeAdminGrant });
+    const { sync, ctx } = authoritative({ hasWaitingLabAddress, consumeAdminGrant });
     const data = oauth("create-user", "entra", { roles: [] }, { email: "invited@example.test" });
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(hasStudentInvitation).toHaveBeenCalledWith("invited@example.test");
+    expect(hasWaitingLabAddress).toHaveBeenCalledWith("invited@example.test");
     expect(consumeAdminGrant).not.toHaveBeenCalled();
     expect(data.user["role"]).toBe("student");
     expect(data.user["roleSource"]).toBe("local");
   });
 
-  it("never grants an invitation's student role to a SCIM-provisioned user (#28, #45)", async () => {
-    const hasStudentInvitation = vi.fn(async () => true);
+  it("never grants a waiting address's student role to a SCIM-provisioned user (S10, #45)", async () => {
+    const hasWaitingLabAddress = vi.fn(async () => true);
     const { ctx } = setup(undefined, {
       u1: { role: "", roleSource: "keycloak", provisionedBy: "keycloak" },
     });
     const settings = provider("keycloak", "oidc", "realm_access.roles", {
       emailAuthoritative: true,
     });
-    const sync = createIdpRoleSync({ settingsOf: async () => settings, hasStudentInvitation });
+    const sync = createIdpRoleSync({ settingsOf: async () => settings, hasWaitingLabAddress });
     const data = oauth("sign-in", "keycloak", {}, { id: "u1", email: "scim@example.test" });
     expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
-    expect(hasStudentInvitation).not.toHaveBeenCalled();
+    expect(hasWaitingLabAddress).not.toHaveBeenCalled();
   });
 
   it("never restores a role the IdP took away from an existing user (#28 review)", async () => {
-    const hasStudentInvitation = vi.fn(async () => true);
+    const hasWaitingLabAddress = vi.fn(async () => true);
     const ctx = {
       context: {
         internalAdapter: {
@@ -437,15 +437,15 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
       },
     } as unknown as Ctx;
     const settings = provider("entra", "oidc", "roles", { emailAuthoritative: true });
-    const sync = createIdpRoleSync({ settingsOf: async () => settings, hasStudentInvitation });
+    const sync = createIdpRoleSync({ settingsOf: async () => settings, hasWaitingLabAddress });
     const data = oauth("sign-in", "entra", { roles: [] }, { id: "u1", email: "back@example.test" });
     expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
-    expect(hasStudentInvitation).not.toHaveBeenCalled();
+    expect(hasWaitingLabAddress).not.toHaveBeenCalled();
   });
 
-  it("never lets an invitation override a role the IdP sends (#28 (2))", async () => {
-    const hasStudentInvitation = vi.fn(async () => true);
-    const { sync, ctx } = authoritative({ hasStudentInvitation });
+  it("never lets a waiting address override a role the IdP sends (S10)", async () => {
+    const hasWaitingLabAddress = vi.fn(async () => true);
+    const { sync, ctx } = authoritative({ hasWaitingLabAddress });
     const data = oauth(
       "create-user",
       "entra",
@@ -453,17 +453,17 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
       { email: "t@example.test" },
     );
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(hasStudentInvitation).not.toHaveBeenCalled();
+    expect(hasWaitingLabAddress).not.toHaveBeenCalled();
     expect(data.user["role"]).toBe("teacher");
   });
 
-  it("never asks for an invitation through a provider whose email is not authoritative", async () => {
-    const hasStudentInvitation = vi.fn(async () => true);
+  it("never asks for a waiting address through a provider whose email is not authoritative", async () => {
+    const hasWaitingLabAddress = vi.fn(async () => true);
     const { ctx } = setup();
-    const gated = createIdpRoleSync({ settingsOf: providersWith(), hasStudentInvitation });
+    const gated = createIdpRoleSync({ settingsOf: providersWith(), hasWaitingLabAddress });
     const data = oauth("create-user", "microsoft", {}, { email: "x@example.test" });
     expect(await gated(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
-    expect(hasStudentInvitation).not.toHaveBeenCalled();
+    expect(hasWaitingLabAddress).not.toHaveBeenCalled();
   });
 
   it("marks the email verified on a sign-in of an authoritative provider", async () => {
