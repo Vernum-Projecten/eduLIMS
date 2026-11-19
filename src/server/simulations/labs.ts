@@ -29,7 +29,9 @@ async function nameTaken(
     .selectFrom("labs")
     .select("id")
     .where("simulation_id", "=", simulationId)
-    .where((eb) => eb(eb.fn("lower", ["name"]), "=", name.toLowerCase()));
+    // NOTE: #300 review; PostgreSQL's lower() on both sides, as the unique index compares, so a
+    // case pair JavaScript folds differently gives `lab_name_taken`, never a unique violation.
+    .where((eb) => eb(eb.fn("lower", ["name"]), "=", eb.fn("lower", [eb.val(name)])));
   if (exceptLabId !== null) query = query.where("id", "<>", exceptLabId);
   return (await query.executeTakeFirst()) !== undefined;
 }
@@ -88,21 +90,35 @@ export function renameLab(
   });
 }
 
-/** Deletes a lab of a simulation the actor teaches, with its places, addresses and code. */
+/**
+ * Deletes a lab of a simulation the actor teaches, with its waiting addresses and code, unless a
+ * student is in it (`has_students`, logged): the teacher moves or removes the students first, so
+ * deleting the labs never gets round the rule of `deleteSimulation`.
+ */
 export function deleteLab(
   db: Kysely<DB>,
   actor: SimulationActor,
   input: { labId: string },
 ): Promise<SimulationResult> {
   return withLab(db, actor, input.labId, async (trx, lab) => {
-    await trx.deleteFrom("labs").where("id", "=", lab.labId).execute();
-    await recordAudit(trx, {
+    const event = {
       action: "lab_deleted",
       actor: { type: "user", id: actor.id },
-      outcome: "success",
       target: { type: "lab", id: lab.labId },
       metadata: { simulation_id: lab.simulationId },
-    });
+    } as const;
+    const member = await trx
+      .selectFrom("lab_members")
+      .select("user_id")
+      .where("lab_id", "=", lab.labId)
+      .limit(1)
+      .executeTakeFirst();
+    if (member) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: "has_students" });
+      return refused("has_students");
+    }
+    await trx.deleteFrom("labs").where("id", "=", lab.labId).execute();
+    await recordAudit(trx, { ...event, outcome: "success" });
     return done(null);
   });
 }
