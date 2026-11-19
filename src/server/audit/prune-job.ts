@@ -16,6 +16,8 @@ import { deleteExpired } from "./retention.ts";
 export interface PruneCounts {
   auditEvents: number;
   sessions: number;
+  /** Addresses that waited on a lab's list too long: a count only. */
+  waitingAddresses: number;
   adminGrants: number;
 }
 
@@ -36,7 +38,7 @@ export async function runPrune(db: Kysely<DB>, now: Date): Promise<PruneOutcome>
       locked: boolean;
     }>`select pg_try_advisory_xact_lock(${RETENTION_PRUNE_LOCK_KEY}) as locked`.execute(trx);
     if (lock.rows[0]?.locked !== true) return { kind: "locked" };
-    const { auditEvents, sessions } = await deleteExpired(trx, now);
+    const { auditEvents, sessions, waitingAddresses } = await deleteExpired(trx, now);
     const adminGrants = await pruneExpiredGrants(trx, now);
     await recordAudit(trx, {
       action: "sys_retention_prune",
@@ -45,10 +47,11 @@ export async function runPrune(db: Kysely<DB>, now: Date): Promise<PruneOutcome>
       metadata: {
         removed_audit_events: auditEvents,
         removed_sessions: sessions,
+        removed_waiting_addresses: waitingAddresses,
         removed_admin_grants: adminGrants,
       },
     });
-    return { kind: "pruned", counts: { auditEvents, sessions, adminGrants } };
+    return { kind: "pruned", counts: { auditEvents, sessions, waitingAddresses, adminGrants } };
   });
 }
 

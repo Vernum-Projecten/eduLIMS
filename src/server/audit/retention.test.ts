@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { recordAudit } from "./record.ts";
-import { pruneRetention } from "./retention.ts";
+import { pruneRetention, WAITING_ADDRESS_RETENTION_DAYS } from "./retention.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -54,6 +54,7 @@ describe("pruneRetention (owner decision on #32)", () => {
     expect(await pruneRetention(database, NOW)).toEqual({
       auditEvents: 1,
       sessions: 1,
+      waitingAddresses: 0,
     });
     const events = await database.selectFrom("audit_event").select("actor_id").execute();
     expect(events.map((e) => e.actor_id).sort()).toEqual(["edge", "new"]);
@@ -85,6 +86,69 @@ describe("pruneRetention (owner decision on #32)", () => {
     expect(await pruneRetention(database, NOW)).toEqual({
       auditEvents: 0,
       sessions: 0,
+      waitingAddresses: 0,
     });
+  });
+});
+
+describe("pruneRetention of waiting lab addresses (owner decision, 2026-11-19, #300)", () => {
+  const DAY = 86_400_000;
+  const SIMULATION = "01960000-0000-7000-8000-0000000000e1";
+  const LAB = "01960000-0000-7000-8000-0000000000e2";
+
+  async function waiting(database: Kysely<DB>, rows: [email: string, daysAgo: number][]) {
+    await database
+      .insertInto("simulations")
+      .values({ id: SIMULATION, name: "Retention run" })
+      .execute();
+    await database
+      .insertInto("labs")
+      .values({ id: LAB, simulation_id: SIMULATION, name: "Lab Aurora" })
+      .execute();
+    for (const [email, daysAgo] of rows) {
+      await database
+        .insertInto("lab_member_emails")
+        .values({
+          simulation_id: SIMULATION,
+          lab_id: LAB,
+          email,
+          added_at: new Date(NOW.getTime() - daysAgo * DAY),
+        })
+        .execute();
+    }
+  }
+
+  async function left(database: Kysely<DB>) {
+    const rows = await database
+      .selectFrom("lab_member_emails")
+      .select("email")
+      .orderBy("email")
+      .execute();
+    return rows.map((row) => row.email);
+  }
+
+  it("keeps an address for 90 days", () => {
+    expect(WAITING_ADDRESS_RETENTION_DAYS).toBe(90);
+  });
+
+  it("keeps an address of 89 days and deletes one of 91, counting only", async () => {
+    const database = await createTestDb();
+    db = database;
+    await waiting(database, [
+      ["young@example.test", 89],
+      ["old@example.test", 91],
+    ]);
+    const result = await pruneRetention(database, NOW);
+    expect(result.waitingAddresses).toBe(1);
+    expect(await left(database)).toEqual(["young@example.test"]);
+  });
+
+  it("touches nothing once a student linked the address: the link deleted it already", async () => {
+    const database = await createTestDb();
+    db = database;
+    await waiting(database, [["young@example.test", 10]]);
+    await database.deleteFrom("lab_member_emails").execute();
+    expect((await pruneRetention(database, NOW)).waitingAddresses).toBe(0);
+    expect(await left(database)).toEqual([]);
   });
 });

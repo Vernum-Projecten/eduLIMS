@@ -211,6 +211,8 @@ export const auditMetadataSchema = z.strictObject({
   /** How many rows a `sys_retention_prune` removed, per kind: counts only. */
   removed_audit_events: z.number().int().min(0).optional(),
   removed_sessions: z.number().int().min(0).optional(),
+  /** How many unlinked lab addresses a `sys_retention_prune` removed: a count, never an address. */
+  removed_waiting_addresses: z.number().int().min(0).optional(),
   removed_admin_grants: z.number().int().min(0).optional(),
   /** The analyser status after the change (B3); a code, never free text. */
   analyser_status: z.enum(["in_use", "maintenance", "retired"]).optional(),
