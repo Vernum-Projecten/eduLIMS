@@ -15,7 +15,7 @@ paths:
 
 Two of the highest-scored risks in the requirements are about access: R-01,
 a student sees what belongs to another team or what only a teacher may see,
-and R-13, students find the correct values of a game. The measures are access
+and R-13, students find the correct values of a simulation. The measures are access
 per role and per team in the API (S10, D10, Q-SEC-2) and no hint for students
 (Q-SIM-1). The quality requirement Q-SEC-1 is "sign-in only through SSO;
 access per role", accepted when an OWASP Top 10 check finds no open endpoint
@@ -130,7 +130,7 @@ without login. This file is how the code meets them.
   that user's live sessions (A07). No role implies another: check the specific role a
   function needs (`requireRole("teacher")`), never "admin or higher". An
   administrator who is also a teacher reaches the teams' work only as a
-  teacher, in their own games.
+  teacher, in their own simulations.
 - **The portal is in the URL** (`/teacher/…`); there is no active-role
   state. The saved `last_portal` picks only the landing page and grants
   nothing.
@@ -138,18 +138,27 @@ without login. This file is how the code meets them.
   server route, before any data is read.** Use the shared middleware
   (`requireSession`, `requireRole("teacher")`) from `src/server/auth/`. A
   route `beforeLoad` guard is navigation UX and never the security boundary.
-- **Ownership is checked, not just role.** The work belongs to the team:
+- **Ownership is checked, not just role.** The work belongs to the lab, the
+  team of students that runs one laboratory in a simulation (ADR 0021):
   every patient, request, sample, tolerance, measurement and result hangs
-  under a team within a game (S10, `docs/lims-workflow.md`). A request for a
-  control sample has no patient and hangs under the team in the same way
-  (S16). A student reads
-  and writes only the work of their own team. A teacher reads only the games
-  that are their own (D10, D11: "a teacher sees only their own games"). An id
-  from the client (a game id, a request id, a sample number) is checked
-  against the session user in the same query (a join on the team's members
-  or on the game's teacher), never fetched first and filtered after. Whether
+  under a lab within a simulation (S10, `docs/lims-workflow.md`). A request
+  for a control sample has no patient and hangs under the lab in the same
+  way (S16). A student reads and writes only the work of their own lab. A
+  teacher reads only the simulations that are their own (D10, D11: "a
+  teacher sees only their own simulations"). An id from the client (a
+  simulation id, a lab id, a request id, a sample number) is checked against
+  the session user in the same query (a join on the lab's members or on the
+  simulation's teacher), never fetched first and filtered after. Whether
   team members hold different rights is open (O10): build no team role until
   the owner answers.
+- **A student reaches a lab in two ways, and no other (S10, D10).** A
+  teacher adds the email addresses of a lab's members, and a student who
+  signs in with one of them is linked to that lab; eduLIMS sends no email.
+  A student who signs in with another address joins with the lab's code.
+  Only a teacher of the simulation creates a lab or changes its members.
+  The class service in `src/server/classes/` is the earlier model (ADR
+  0018); #280 reworks it into simulations and labs, and its membership
+  checks and join-code limits stay.
 - **Correct values and accuracy are for teachers only (Q-SIM-1, D10).** No
   server function a student can call selects a correct value, an accuracy
   status, the teacher's limits for green, yellow and red (D13) or anything
@@ -162,7 +171,7 @@ without login. This file is how the code meets them.
   not built in this iteration (O3), so no query computes one and no student
   reads one.
 - **The lab number is a team's own (S12, R-11).** eduLIMS gives each sample
-  a lab number that is unique across the teams of every game, and a team
+  a lab number that is unique across the teams of every simulation, and a team
   reads only the lab numbers of its own samples. An analyser result is
   linked through the lab number in the patient ID and through nothing else
   (S5); a result with an unknown lab number goes to administrators only
@@ -170,8 +179,8 @@ without login. This file is how the code meets them.
 - Every role-scoped server function has a **negative test** per role that
   proves the refusal (a student calling a teacher function gets 403, a student
   reading another team's request gets 404 or 403, a teacher reading another
-  teacher's game gets 404 or 403), using the fixed pseudonymised test accounts
-  (`testing.md`). Every function that touches a correct value has a test that
+  teacher's simulation gets 404 or 403), using the fixed pseudonymised test
+  accounts (`testing.md`). Every function that touches a correct value has a test that
   a student account cannot read one (ADR 0020).
 
 ## Privacy (GDPR)
@@ -179,13 +188,13 @@ without login. This file is how the code meets them.
 - **Never real personal data** in code, fixtures, seeds, logs, screenshots,
   issues or PRs. The test set uses invented students and invented patients.
 - **No real person in FerroEHR (Q-PRIV-1).** FerroEHR holds the fictional
-  patients of a game, with the details the team registers from the form
+  patients of a simulation, with the details the team registers from the form
   (S11). No student's or teacher's name, student number or e-mail address is
   ever written into a composition, an EHR subject or an AQL query. Which team
   a result belongs to lives only in the eduLIMS database.
-- **The teachers' game material stays out of everything public (Q-PRIV-4,
+- **The teachers' simulation material stays out of everything public (Q-PRIV-4,
   R-13).** The repository and the tracker are public. No scenario, patient
-  list, request form or correct value of a real game enters a file, a
+  list, request form or correct value of a real simulation enters a file, a
   fixture, a seed, a log, an issue, a PR or a commit message; fixtures and
   demo data are invented for the purpose.
 - **Logs carry ids, not people:** a user id, a team id, a request id. Never
@@ -266,3 +275,8 @@ Server functions are an API: hold them to the API Security Top 10 2023 too
   number, so the upload validates the layout only; the team links each well
   to a sample, and the server checks that the sample belongs to that team
   (S4, S10, `integration.md`).
+- The lab logo a teacher uploads when creating a lab (D10, ADR 0021) is an
+  upload too. Accept a defined set of image types up to a configured size
+  limit, check the content, and never trust the file name or the MIME type
+  alone. Which types and which limit is not decided: ask the owner before
+  building it.

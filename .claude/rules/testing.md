@@ -38,9 +38,9 @@ is a question for the owner, never a number you pick.
 | Unit | Core rules: turnaround time (G-01), the accuracy status (G-03, D13), the tolerance warning (S15), the final release (S15), the lab number unique across the teams (S12), times taken on the server (Q-SIM-2) | Vitest | `*.test.ts` next to the code, or `tests/unit/` | every change (`pnpm test`) |
 | Data | Gen5 Excel: the header block, the 96-well grid, a file in another layout (S4); Afinion HL7 to openEHR (S5) | Vitest with the fixed good and bad files | `tests/unit/` with `tests/fixtures/` | every change |
 | Integration | eduLIMS with FerroEHR (REST, AQL), FerroBRIDGE with an HL7 message, sign-in | Vitest or Playwright against the Compose test stack; the HL7 message is simulated | `tests/integration/` | the `integration` lane: pull requests that touch the integration, and nightly on `main` (#150) |
-| Security | Role isolation: a student sees nothing of another team and no correct value or accuracy status, a teacher only their own classes and games (Q-SEC-2, Q-SIM-1); vulnerable libraries | role-scoped negative tests with test accounts; dependency scan in CI | next to the server function | every change and every release |
+| Security | Role isolation: a student sees nothing of another team and no correct value or accuracy status, a teacher only their own simulations (Q-SEC-2, Q-SIM-1); vulnerable libraries | role-scoped negative tests with test accounts; dependency scan in CI | next to the server function | every change and every release |
 | Accessibility | Student, Teacher and Admin portals and the dashboard | Playwright + `@axe-core/playwright`, plus a keyboard-only pass | `tests/e2e/` (`pnpm test:e2e`) | every change in CI, before every milestone review |
-| Performance | Page load and Excel upload with a full game of test data | Playwright timings in the test stack | `tests/e2e/` | before every milestone review |
+| Performance | Page load and Excel upload with a full simulation of test data | Playwright timings in the test stack | `tests/e2e/` | before every milestone review |
 
 ## Coverage is a mandate
 
@@ -71,8 +71,8 @@ test and every seed uses:
   numbers, no real e-mail addresses; use `@example.test`), one teacher per
   role scenario, one administrator; the development users are
   `student@example.test`, `teacher@example.test` and `admin@example.test`;
-- one game with teams, patients, requests, samples, tolerances and correct
-  values, all invented for the tests and none copied from a real game
+- one simulation with labs, patients, requests, samples, tolerances and
+  correct values, all invented for the tests and none copied from a real simulation
   (Q-PRIV-4);
 - measurement values for HbA1c, CRP (Afinion 2) and absorbance per well and
   wavelength (Epoch 2);

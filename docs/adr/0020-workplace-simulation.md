@@ -24,7 +24,7 @@ work.
   request, sample, measurement, release.
 - The students are the analysts. The system does not do their analysis and
   gives no hint.
-- Teachers follow the game while it runs, on time and on accuracy.
+- Teachers follow the simulation while it runs, on time and on accuracy.
 - Teachers can change the tests themselves.
 
 ## Considered options
@@ -39,28 +39,31 @@ Chosen option: **replace the practical model with the simulation** (owner,
 migrated, and a second model beside the first would double the screens, the
 access rules and the tests for a use nobody has.
 
-- The unit of work is a **game** with **teams**. A team registers patients,
-  records requests and samples from the paper forms, measures (several times
+- The unit of work is a **simulation** with **labs**: a lab is a team of
+  students that runs one laboratory. A team registers patients, records
+  requests and samples from the paper forms, measures (several times
   when it wants), and releases a result to the patient's record in FerroEHR.
 - A team sets its own tolerances per test beforehand, and eduLIMS warns
   before a value outside them is released. eduLIMS gives no other hint.
-- A teacher manages the test catalogue, enters the correct values of a game
-  beforehand, and follows every team on a live dashboard: the time per
+- A teacher manages the test catalogue, enters the correct values of a
+  simulation beforehand, and follows every team on a live dashboard: the time per
   request, every measurement of a requested test, and the accuracy of each
   released result as green, yellow or red. A target for urgent requests and
   a ranking of the teams are not built in this iteration (D12, D14).
-- Each team picks its own lab name and competes as that lab (S10).
+- A teacher creates each lab with the name and the logo its team made up,
+  and the labs compete with each other (D10, S10;
+  [ADR 0021](0021-simulations-and-labs.md)).
 - A released result is final (S15).
 - A control sample, which has no patient, is its own kind of request. Its
   result goes to the control log of the team, never to a patient's record
   (S16).
-- The correct values are entered once per game and hold for every team
+- The correct values are entered once per simulation and hold for every team
   (D10).
 - There is no grading: no lab report, no rubric, no grade, no grade export,
   no KPI dashboard on grades.
 - The times a dashboard uses are taken on the server.
-- The teachers' game material (the scenario and the correct values) never
-  enters the repository or the tracker, which are public.
+- The teachers' simulation material (the scenario and the correct values)
+  never enters the repository or the tracker, which are public.
 
 The requirements are in [requirements.md](../requirements.md); the questions
 and their answers are listed there as O1 to O14.
@@ -69,8 +72,9 @@ and their answers are listed there as O1 to O14.
 
 - Good: the chain patient, request, sample, measurement, release that
   [The LIMS workflow](../lims-workflow.md) already drew stays, and so do
-  FerroEHR, FerroBRIDGE, the Afinion 2 route, the Gen5 upload, the roles and
-  the classes with their lab groups.
+  FerroEHR, FerroBRIDGE, the Afinion 2 route, the Gen5 upload and the roles.
+  The membership model of ADR 0018 stays as the base of simulations and
+  labs ([ADR 0021](0021-simulations-and-labs.md)).
 - Good: the grading model, the hardest part to keep private (R-01, R-03 of
   the earlier draft), is gone.
 - Bad: the issues, the placeholders and the documents of the practical model

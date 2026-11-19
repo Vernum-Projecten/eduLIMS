@@ -13,8 +13,9 @@ paths:
 
 # Database: PostgreSQL 18 with Kysely
 
-The eduLIMS database holds the simulation: users, roles and classes; games
-and teams with their lab names; the test catalogue; correct values;
+The eduLIMS database holds the simulation: users and roles; simulations and
+their labs, each with its name, its logo and its members (ADR 0021); the
+test catalogue; correct values;
 tolerances; patients, requests and samples with their lab numbers; the times
 of entry and release; the upload log and the audit log
 ([lims-workflow.md](../../docs/lims-workflow.md#who-owns-what-and-where-it-lives)).
@@ -22,8 +23,9 @@ Results live in FerroEHR as compositions (`integration.md`); where a
 measurement lives before its release is a design matter, with the
 maintainer's proposal in `docs/lims-workflow.md`.
 A request is for one patient or for a control sample, which has no patient
-(S16). The correct values are keyed by game, sample number and test, never
-by team (D10).
+(S16). The correct values are keyed by simulation, sample number and test,
+never by lab (D10). The class tables of the earlier model (ADR 0018) are
+still in the schema; #280 reworks them into simulations and labs.
 A request has no urgent flag and no time target in this iteration (D12, O1),
 and nothing stores a ranking (D14, O3).
 Both databases run on one PostgreSQL 18 server, each with its own database
@@ -40,7 +42,7 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
   `sql` template tag, whose `${value}` is a parameter. `sql.raw` and
   `sql.lit` take no request-derived value, ever (OWASP A05).
 - **The ownership filter is part of the query** (`auth-security.md`): a
-  teacher's query joins on the game's teacher, a student's query joins on the
+  teacher's query joins on the simulation's teacher, a student's query joins on the
   team of the student id from the session, in SQL. Never select broadly and filter in
   TypeScript.
 - **Select the columns the screen needs**, never `selectAll()` on a table with
@@ -73,7 +75,7 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
   `CHECK` (a tolerance's lower limit not above its upper limit), foreign
   keys with an explicit `ON DELETE`, at most one released result per
   requested test (a released result is final, S15), a lab number that is
-  unique across the teams of every game (S12), and enums or `CHECK ... IN` for statuses (the states of a
+  unique across the teams of every simulation (S12), and enums or `CHECK ... IN` for statuses (the states of a
   requested test in `docs/lims-workflow.md`). The application validates too,
   but the database is the last line.
 - **Names:** `snake_case`, plural table names, `<table>_id` foreign keys.
@@ -86,8 +88,8 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
   through `runPrune` (`src/server/audit/prune-job.ts`); `pnpm db:prune` runs
   the same code by hand.
 - **No real person in FerroEHR, and the link to the team lives here:**
-  FerroEHR holds the fictional patients of a game and no student or teacher
-  (Q-PRIV-1). Which team and which game a patient, a request and a result
+  FerroEHR holds the fictional patients of a simulation and no student or teacher
+  (Q-PRIV-1). Which team and which simulation a patient, a request and a result
   belong to is recorded only in the eduLIMS database, and only server code
   with a reason reads it.
 
@@ -118,7 +120,7 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
 ## Test data
 
 Seeds and fixtures use the fixed pseudonymised test set only (`testing.md`):
-invented students in invented teams, one game with invented patients,
+invented students in invented labs, one simulation with invented patients,
 requests and correct values, and HbA1c, CRP and absorbance values. Never
-import a real class list, and never copy a patient, a request form or a
-correct value from the teachers' game material (Q-PRIV-4).
+import a real list of students, and never copy a patient, a request form or a
+correct value from the teachers' simulation material (Q-PRIV-4).

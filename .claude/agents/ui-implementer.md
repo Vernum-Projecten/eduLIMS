@@ -4,7 +4,7 @@ description: >
   Implementation worker for well-specified UI tasks in the Student, Teacher
   and Admin portals: TanStack Start routes with loaders, shadcn/ui
   components, TanStack Form forms, TanStack Table views, the teacher dashboard
-  of the games, and their Playwright and axe journeys. The orchestrator hands it the
+  of the simulations, and their Playwright and axe journeys. The orchestrator hands it the
   screen, the requirement IDs, the server functions it reads and the role
   that sees it; it delivers accessible, typed, tested UI that passes
   /ui-gates. Not for the role model, the portal structure, or screen designs
@@ -44,7 +44,7 @@ Non-negotiables (violations are rejected at review):
   the i18n layer (English source, Dutch translation in `nl`); never hard-code
   a user-visible string (ADR 0011). Identifiers and comments are English.
 - **Role data stays scoped:** a student sees only the work of their own
-  team; a teacher only their own games; no student's or teacher's name or
+  team; a teacher only their own simulations; no student's or teacher's name or
   student number comes from FerroEHR.
 - **No hint for students (Q-SIM-1, W7):** a student screen holds no correct
   value, accuracy status, teacher's limit, suggested limit or other team's

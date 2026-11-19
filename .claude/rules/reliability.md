@@ -58,7 +58,7 @@ without a failing check is a wish, so a new rule comes with its check.
 - **Dependencies are pinned and vetted:** exact versions, frozen lockfile in
   CI, a version checked on the registry at the moment it is added
   (`typescript-style.md`). (Tier 2 and 3.)
-- **Availability during a game** (Q-REL-1: 99% of the game hours, recovery
+- **Availability during a simulation** (Q-REL-1: 99% of the simulation hours, recovery
   within one working day): health endpoints for Compose, restart policies, a
   tested backup and restore of both databases (`docs/`). (Tier 3 where testable.)
 

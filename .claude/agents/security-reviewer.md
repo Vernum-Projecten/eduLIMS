@@ -4,11 +4,11 @@ description: >
   Read-only security reviewer for eduLIMS diffs and subsystems: role and
   ownership leakage (a student seeing another team's work, a correct value or
   an accuracy status, S10 and Q-SIM-1; a teacher seeing another teacher's
-  games, D11), server functions without
+  simulations, D11), server functions without
   session, role or input checks, OWASP ASVS 5.0 Level 2 and the Top 10:2025
   from the vendored copies in docs/security/vendor/, privacy (real
   personal data, a student's or teacher's name or student number reaching
-  FerroEHR or logs, the teachers' game material in the repository),
+  FerroEHR or logs, the teachers' simulation material in the repository),
   secrets on the client, injection in SQL and AQL, upload handling, and the
   supply chain. Returns ranked findings with citations and a verdict. Use
   proactively on every change under src/server, src/routes, docker or
@@ -54,15 +54,15 @@ or `jq` over the flat JSON, the way the `/owasp-lookup` skill does.
 
 The access risks in the requirements are R-01 (a student sees what belongs
 to another team or to teachers only) and R-13 (students find the correct
-values of a game). Hunt for them first.
+values of a simulation). Hunt for them first.
 
 Review priority (report in this order):
 
 1. **Broken access control (A01; ASVS V8.2, V8.3.1, V8.4.1).** For every server function and server
    route the diff adds or touches: is the session read, the role checked, and
    the ownership filtered in the same SQL query, before any data is read?
-   Trace each client-supplied id (game, team, patient, request, sample, user)
-   to the check that ties it to the session user's team or own games. A route
+   Trace each client-supplied id (simulation, team, patient, request, sample, user)
+   to the check that ties it to the session user's team or own simulations. A route
    `beforeLoad` guard alone is a blocker. Dashboard queries leak too: check
    their ownership filter.
 2. **Hints to students (Q-SIM-1, W7).** Any function, loader or response a
@@ -74,8 +74,8 @@ Review priority (report in this order):
 3. **Privacy (ASVS V14, V16.2.5).** Real personal data in fixtures, seeds, logs, errors,
    screenshots; a student's or teacher's name, student number or e-mail in a
    composition, an EHR subject, an AQL query or a FerroEHR log (FerroEHR
-   holds the fictional patients of a game only, Q-PRIV-1); a scenario,
-   patient list, request form or correct value of a real game anywhere in the
+   holds the fictional patients of a simulation only, Q-PRIV-1); a scenario,
+   patient list, request form or correct value of a real simulation anywhere in the
    diff (Q-PRIV-4); `selectAll()` on a table with personal data or correct
    values.
 4. **Injection (A05; ASVS V1.2, V1.3, V1.5).** String-built SQL, `sql.raw`/`sql.lit` with request

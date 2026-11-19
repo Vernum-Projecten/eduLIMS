@@ -36,11 +36,11 @@ Non-negotiables:
   layout, a well outside the grid, a request that carries its own time, a
   student reading another team's work, a student reading a correct value or
   an accuracy status, a student calling a teacher function, a teacher reading
-  another teacher's game, an anonymous call.
+  another teacher's simulation, an anonymous call.
 - **The fixed pseudonymised test set** under `tests/fixtures/` is the only
   data source. Extend it with synthetic cases when needed; never real names,
   student numbers or e-mail addresses, and never a patient, a request form or
-  a correct value from the teachers' game material (Q-PRIV-4).
+  a correct value from the teachers' simulation material (Q-PRIV-4).
 - **Real dependencies where it matters:** database tests run against
   PostgreSQL 18 in a transaction that rolls back; do not mock Kysely. Stub
   FerroEHR at the HTTP layer in unit tests.

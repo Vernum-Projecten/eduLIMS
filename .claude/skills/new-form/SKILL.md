@@ -1,6 +1,6 @@
 ---
 name: new-form
-description: Scaffolds an accessible form with shadcn/ui Field components, TanStack Form and one Zod schema shared with the POST server function that receives it, with labels and messages from the i18n layer (English source, Dutch translation), server-side refusals shown at the field, pending state, cache invalidation and tests. Use when adding any form (registering a patient, recording a request, setting tolerances, the test catalogue, preparing a game, user and role management).
+description: Scaffolds an accessible form with shadcn/ui Field components, TanStack Form and one Zod schema shared with the POST server function that receives it, with labels and messages from the i18n layer (English source, Dutch translation), server-side refusals shown at the field, pending state, cache invalidation and tests. Use when adding any form (registering a patient, recording a request, setting tolerances, the test catalogue, preparing a simulation, user and role management).
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash
 argument-hint: "<form name> e.g. add-test"
 ---

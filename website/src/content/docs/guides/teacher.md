@@ -9,8 +9,9 @@ sidebar:
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
 The teacher portal (Docentportaal) is where you manage the test catalogue,
-prepare a game, and follow every team on a live dashboard. eduLIMS has no
-grading.
+prepare a simulation with its labs, and follow every lab on a live dashboard.
+A lab is a team of students that runs one laboratory in a simulation. eduLIMS
+has no grading.
 
 :::caution[Pre-release]
 eduLIMS is in development. This guide describes what works today and lists
@@ -28,8 +29,9 @@ eduLIMS opens the teacher portal when your account has the teacher role. The
 role comes from your identity provider; an administrator arranges it. If the
 sign-in page says your account has no role, contact an administrator.
 
-You see only your own classes and games. Games of other teachers, and the
-results in them, stay hidden.
+You see only what is your own: today the classes you own or co-teach, and
+your own simulations once they are built. The simulations of other teachers,
+and the results in them, stay hidden.
 
 ## Find your way around
 
@@ -73,6 +75,13 @@ are signed in, eduLIMS saves the choice to your account, so it also applies
 the next time you sign in, on any device.
 
 ## Classes
+
+:::note[Classes are being replaced]
+The class screens below work today, and they are the earlier model. The
+product owner decided on 2026-11-19 that eduLIMS has no classes: you will
+prepare a simulation with its labs instead (see [Planned tasks](#planned-tasks)).
+Until that rework lands, the screens work as this section describes.
+:::
 
 **Classes** in the sidebar lists the classes you own or co-teach. Each class
 shows its name with the academic year beside it, such as **LS-2A**
@@ -175,23 +184,36 @@ Choose your name at the foot of the sidebar, then **Sign out**. eduLIMS ends you
 
 ## Planned tasks
 
-| Task                                                                                                                                                                                              | Requirement                       |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| Manage the test catalogue: add a test with its name, unit and material                                                                                                                            | [D9](/development/requirements/)  |
-| Prepare a game: its teams and, beforehand, the correct value per test and sample, once for every team                                                                                             | [D10](/development/requirements/) |
-| Follow every team live on the [game dashboard](/development/game-dashboard/): the times of each request, every measurement with the released one marked, and the accuracy of each released result | [D11](/development/requirements/) |
-| Set, per test, how far a result may be from the correct value for green, yellow and red                                                                                                           | [D13](/development/requirements/) |
+| Task                                                                                                                                                                                                       | Requirement                       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Manage the test catalogue: add a test with its name, unit and material, and choose per test whether the team or eduLIMS calculates the concentration from an Epoch 2 plate                                 | [D9](/development/requirements/)  |
+| Prepare a simulation: its name, its labs (each with the name and logo the team made up, and the email addresses of its members) and, beforehand, the correct value per test and sample, once for every lab | [D10](/development/requirements/) |
+| Follow every lab live on the [teacher dashboard](/development/teacher-dashboard/): the times of each request, every measurement with the released one marked, and the accuracy of each released result     | [D11](/development/requirements/) |
+| Set, per test, how far a result may be from the correct value for green, yellow and red                                                                                                                    | [D13](/development/requirements/) |
 
-You enter the correct values once per game. They hold for every team, so
-adding or removing a team is no extra work. A request for a control sample
+You enter the correct values once per simulation. They hold for every lab, so
+adding or removing a lab is no extra work. A request for a control sample
 shows on the dashboard with its times and accuracy like any other.
 
-Each team picks its own lab name, and the dashboard shows a team under that
-name. A released result is final: the team cannot change it or release
+A simulation has a name of its own and belongs to no class. You create each
+lab in it with the lab name and the logo its team made up, and you add the
+members of a lab by pasting their email addresses. A student who signs in
+with one of those addresses lands in that lab; eduLIMS sends no email. A
+student who signs in with another address joins with the lab's code. The
+dashboard shows a lab under its name and its logo, and the labs compete with
+each other.
+
+In the test catalogue you choose, per test, who calculates the concentration
+from an Epoch 2 plate: the team or eduLIMS. When eduLIMS calculates, it
+subtracts the blank and fits a straight line through the standards the team
+marked. A sample outside the range of the standards gets no number but the
+message that it is outside the range.
+
+A released result is final: the team cannot change it or release
 another measurement for that test.
 
 A time target for urgent requests ([D12](/development/requirements/)) and a
-ranking of the teams ([D14](/development/requirements/)) are not built in
+ranking of the labs ([D14](/development/requirements/)) are not built in
 this iteration.
 
 Students never see a correct value or the accuracy of a result.

@@ -95,7 +95,7 @@ bootstrap it with `scripts/gh/labels.sh`:
 - **Area:** `auth`, `database`, `upload` (Gen5/Epoch Excel),
   `integration:ferroehr` (FerroEHR REST and AQL), `integration:ferrobridge`
   (Afinion HL7 v2 via FerroBRIDGE), `kpi-dashboard` (the teacher dashboard of the
-  games, D11 to D14), `ui`, `infra`.
+  simulations, D11 to D14), `ui`, `infra`.
 - **MoSCoW:** `moscow:must`, `moscow:should`, `moscow:could`, `moscow:wont`,
   the priority of the requirement the issue serves.
 - **Workflow:** `security`, `privacy`, `accessibility`, `dependencies`

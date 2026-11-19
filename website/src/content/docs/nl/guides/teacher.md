@@ -8,8 +8,10 @@ sidebar:
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-In het Docentportaal beheer je de testcatalogus, bereid je een spel voor en
-volg je elk lab op een live dashboard. In eduLIMS wordt niet beoordeeld.
+In het Docentportaal beheer je de testcatalogus, bereid je een simulatie met
+haar labs voor en volg je elk lab op een live dashboard. Een lab is een groep
+studenten die in een simulatie één laboratorium draait. In eduLIMS wordt niet
+beoordeeld.
 
 :::caution[In ontwikkeling]
 eduLIMS is nog in ontwikkeling. Deze handleiding beschrijft wat nu werkt en
@@ -28,8 +30,9 @@ komt uit je identity provider; een beheerder regelt dat. Staat op de
 inlogpagina dat je account geen rol heeft, neem dan contact op met een
 beheerder.
 
-Je ziet alleen je eigen klassen en spellen. Spellen van andere docenten, en
-de resultaten daarin, blijven verborgen.
+Je ziet alleen wat van jou is: nu de klassen waarvan je eigenaar of
+mededocent bent, en straks je eigen simulaties. De simulaties van andere
+docenten, en de resultaten daarin, blijven verborgen.
 
 ## Je weg vinden
 
@@ -72,6 +75,14 @@ ingelogd, dan bewaart eduLIMS je keuze bij je account. Die geldt dan ook de
 volgende keer dat je inlogt, op elk apparaat.
 
 ## Klassen
+
+:::note[Klassen worden vervangen]
+De schermen voor klassen hieronder werken nu, en ze horen bij het eerdere
+model. De product owner heeft op 19 november 2026 besloten dat eduLIMS geen
+klassen heeft: je bereidt straks een simulatie met haar labs voor (zie
+[Geplande taken](#geplande-taken)). Tot die verbouwing klaar is, werken de
+schermen zoals dit hoofdstuk beschrijft.
+:::
 
 **Klassen** in de zijbalk toont de klassen waarvan je eigenaar of
 mededocent bent. Elke klas staat met het studiejaar ernaast, zoals **LS-2A**
@@ -183,20 +194,33 @@ server.
 
 ## Geplande taken
 
-| Taak                                                                                                                                                                                                    | Requirement                       |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| De testcatalogus beheren: een bepaling toevoegen met naam, eenheid en materiaal                                                                                                                         | [D9](/development/requirements/)  |
-| Een spel voorbereiden: de labs en vooraf de juiste waarde per bepaling en monster, één keer voor alle labs                                                                                              | [D10](/development/requirements/) |
-| Elk lab live volgen op het [dashboard](/development/game-dashboard/): de tijden van elke aanvraag, elke meting met de vrijgegeven meting gemarkeerd, en de nauwkeurigheid van elk vrijgegeven resultaat | [D11](/development/requirements/) |
-| Per bepaling instellen hoe ver een resultaat van de juiste waarde mag liggen voor groen, geel en rood                                                                                                   | [D13](/development/requirements/) |
+| Taak                                                                                                                                                                                                                 | Requirement                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| De testcatalogus beheren: een bepaling toevoegen met naam, eenheid en materiaal, en per bepaling kiezen of de groep of eduLIMS de concentratie berekent uit een plaat van de Epoch 2                                 | [D9](/development/requirements/)  |
+| Een simulatie voorbereiden: de naam, de labs (elk met de naam en het logo die de groep heeft bedacht, en de e-mailadressen van de leden) en vooraf de juiste waarde per bepaling en monster, één keer voor alle labs | [D10](/development/requirements/) |
+| Elk lab live volgen op het [dashboard](/development/teacher-dashboard/): de tijden van elke aanvraag, elke meting met de vrijgegeven meting gemarkeerd, en de nauwkeurigheid van elk vrijgegeven resultaat           | [D11](/development/requirements/) |
+| Per bepaling instellen hoe ver een resultaat van de juiste waarde mag liggen voor groen, geel en rood                                                                                                                | [D13](/development/requirements/) |
 
-Je voert de juiste waarden één keer per spel in. Ze gelden voor elk lab, dus
+Je voert de juiste waarden één keer per simulatie in. Ze gelden voor elk lab, dus
 een lab toevoegen of verwijderen kost je geen extra werk. Een aanvraag voor
 een controlemonster staat op het dashboard met zijn tijden en nauwkeurigheid,
 net als elke andere.
 
-Elk lab kiest zijn eigen labnaam, en het dashboard toont een lab onder die
-naam. Een vrijgegeven resultaat is definitief: het lab kan het niet wijzigen
+Een simulatie heeft een eigen naam en hoort bij geen klas. Je maakt elk lab
+in de simulatie aan met de labnaam en het logo die de groep heeft bedacht, en
+je voegt de leden van een lab toe door hun e-mailadressen te plakken. Een
+student die met een van die adressen inlogt, komt in dat lab; eduLIMS
+verstuurt geen e-mail. Een student die met een ander adres inlogt, komt in
+het lab met de code van het lab. Het dashboard toont een lab onder zijn naam
+en zijn logo, en de labs strijden tegen elkaar.
+
+In de testcatalogus kies je per bepaling wie de concentratie berekent uit een
+plaat van de Epoch 2: de groep of eduLIMS. Als eduLIMS rekent, trekt het de
+blanco af en legt het een rechte lijn door de standaarden die de groep heeft
+gemarkeerd. Een monster buiten het bereik van de standaarden krijgt geen
+getal, maar de melding dat het buiten het bereik valt.
+
+Een vrijgegeven resultaat is definitief: het lab kan het niet wijzigen
 en kan voor die bepaling geen andere meting vrijgeven.
 
 Een streeftijd voor spoedaanvragen ([D12](/development/requirements/)) en een

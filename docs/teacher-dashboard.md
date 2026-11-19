@@ -1,14 +1,16 @@
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# Game dashboard
+# Teacher dashboard
 
-This document describes the design of the teacher dashboard of a game
+This document describes the design of the teacher dashboard of a simulation
 (requirements D11 and D13; D12 and D14 are not built in this iteration).
-During a game a teacher follows every team on it: how long each request
-takes and how accurate each released result is. The
-dashboard shows the progress and the process of a game. It holds no grade and
-no norm for a grade (W6).
+During a simulation a teacher follows every lab on it: how long each request
+takes and how accurate each released result is. The dashboard shows the
+progress and the process of a simulation. It holds no grade and no norm for
+a grade (W6). A lab is the team of students that runs one laboratory in a
+simulation ([ADR 0021](adr/0021-simulations-and-labs.md)); "team" on this
+page means the students of one lab.
 
 Requirement and measure IDs refer to [requirements.md](requirements.md), which
 is a working draft. Points marked **Open** name a question in its
@@ -30,14 +32,15 @@ A released result shows on the dashboard without a manual reload (D11). The
 teacher sees the earlier measurements beside the released one. A released
 result is final (S15), so the one that counts does not change afterwards.
 
-The dashboard shows a team under the lab name the team picked (S10).
+The dashboard shows a lab under its name and its logo, which the teacher
+entered when creating the lab (D10, S10).
 
 A request for a control sample, which has no patient, shows on the dashboard
 with its times and its accuracy like any other result (S16).
 
-Before a game the teacher enters the correct value per test and sample
-number, once per game (D10). The values hold for every team, so a team added
-afterwards is judged against them without any new entry. The teacher also
+Before a simulation the teacher enters the correct value per test and sample
+number, once per simulation (D10). The values hold for every lab, so a lab
+added afterwards is judged against them without any new entry. The teacher also
 sets, per test, how far a result may be from the correct value for green,
 yellow and red (D13).
 
@@ -61,8 +64,8 @@ reads the same status from the icon and the text.
 ## Who sees it
 
 - Only the teacher role opens the dashboard, and a teacher sees only their
-  own games (D11, Q-SEC-2). The server checks the role and the ownership of
-  the game in the database query.
+  own simulations (D11, Q-SEC-2). The server checks the role and the ownership of
+  the simulation in the database query.
 - A student never sees a correct value, an accuracy status or the work of
   another team: no screen and no server response for a student account holds
   one (Q-SIM-1, W7). Every server function behind the dashboard has negative
@@ -78,7 +81,7 @@ changes nothing, and a team cannot change a time.
 
 | Source | What it provides | For |
 |---|---|---|
-| eduLIMS database (SQL) | games and teams with their lab names, requests with their time of entry, the time of release, the correct values and the accuracy limits | G-01, G-03 |
+| eduLIMS database (SQL) | simulations and labs with their names and logos, requests with their time of entry, the time of release, the correct values and the accuracy limits | G-01, G-03 |
 | FerroEHR (AQL) | the released results in the patients' records | G-03 |
 
 G-01 is calculated with SQL on the eduLIMS database. G-03
@@ -109,7 +112,7 @@ each colour. Which charts the dashboard has is not decided.
 |---|---|---|
 | O1 | Held open by the owner, 2026-11-19: the time target for an urgent and for a routine request, and what counts as urgent. Nothing is built for it in this iteration. | G-02, D12 |
 | O2 | Answered in part: the teacher sets the limits per test (D13). Still open: whether a limit is a percentage, an absolute distance or either. | G-03, D13 |
-| O3 | Held open by the owner, 2026-11-19: how time and accuracy combine into a ranking, and whether teams see it during a game. Decided in the next iteration; nothing is built for it now. | G-04, D14 |
+| O3 | Held open by the owner, 2026-11-19: how time and accuracy combine into a ranking, and whether teams see it during a simulation. Decided in the next iteration; nothing is built for it now. | G-04, D14 |
 | O7 | Answered 2026-11-19: a result in the patient's record is final and cannot be changed. The teacher sees every measurement; the one the team released is the one that counts. | D11, S15 |
 
 The owner answers these on #264. An answer there is newer than this document.

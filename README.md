@@ -49,13 +49,14 @@
 </div>
 
 eduLIMS is an open-source laboratory information management system (LIMS) for
-a workplace simulation in laboratory education. Teams of students run a
-simulated clinical laboratory: they register patients and requests from paper
-forms, link the samples, measure on the lab analysers, and release each result
-to the patient's record. The teams compete on turnaround time and accuracy,
-and teachers follow every team on a live dashboard. There is no grading.
+a workplace simulation in laboratory education. Each team of students runs a
+simulated clinical laboratory, its lab: the team registers patients and
+requests from paper forms, links the samples, measures on the lab analysers,
+and releases each result to the patient's record. The labs compete on
+turnaround time and accuracy, and teachers follow every lab on a live
+dashboard. There is no grading.
 Results are stored as openEHR compositions in FerroEHR; everything else about
-a game stays in the eduLIMS database.
+a simulation stays in the eduLIMS database.
 
 [Requirements](docs/requirements.md) ·
 [Test strategy](docs/test-strategy.md) ·
@@ -83,13 +84,13 @@ laboratory: patient, request, sample, measurement, release
 ## Status
 
 Implementation started on 2026-11-11. The design (requirements, architecture,
-test strategy, game dashboard) is recorded under [`docs/`](docs/); the
+test strategy, teacher dashboard) is recorded under [`docs/`](docs/); the
 requirements are a working draft with open questions for the product owner. The first milestone, `v0.1.0 – Foundation`,
 sets up the application shell, sign-in, the database and the CI/CD lane.
 The work is planned in [GitHub milestones](https://github.com/Vernum-Projecten/eduLIMS/milestones)
 and [issues](https://github.com/Vernum-Projecten/eduLIMS/issues).
 
-The patients of a game are fictional. eduLIMS is not meant for real patient
+The patients of a simulation are fictional. eduLIMS is not meant for real patient
 data.
 
 Each release publishes two images on GHCR. Pull them by version tag:
@@ -192,11 +193,11 @@ The sources in this repository:
 - [Requirements](docs/requirements.md) (working draft, still under discussion): functional requirements S1 to S16, D1
   to D14 and B1 to B4, the quality requirements, the risks, the dashboard
   measures and the open questions, each with a stable ID.
-- [The LIMS workflow](docs/lims-workflow.md): how the work of a team travels
+- [The LIMS workflow](docs/lims-workflow.md): how the work of a lab travels
   from the paper request form to the patient's record and the dashboard.
 - [Test strategy](docs/test-strategy.md) and the Definition of Done.
-- [Game dashboard](docs/game-dashboard.md): what the teacher dashboard of a
-  game shows, who sees it, its data sources and the open questions.
+- [Teacher dashboard](docs/teacher-dashboard.md): what the teacher dashboard of a
+  simulation shows, who sees it, its data sources and the open questions.
 - [Decision records](docs/adr/README.md).
 - [AI statement](AI_STATEMENT.md): how AI tools are used to build eduLIMS.
 - [Governance](GOVERNANCE.md), [Maintainers](MAINTAINERS.md),

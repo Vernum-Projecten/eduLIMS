@@ -99,8 +99,8 @@ can end up in both bundles. The boundary is explicit:
 ## Types model the domain
 
 - **Distinct ids are distinct types** where a mix-up is a privacy defect: a
-  `UserId`, a `TeamId`, a `GameId` and a `PatientId` are branded types, so
-  passing one team's id where a game id belongs fails to compile. A correct
+  `UserId`, a `LabId`, a `SimulationId` and a `PatientId` are branded types, so
+  passing one team's id where a simulation id belongs fails to compile. A correct
   value has its own type that no student-facing return type includes
   (Q-SIM-1).
 - **Errors are values the caller can branch on.** A server function returns

@@ -52,7 +52,7 @@ for a clean start before visual work. It refuses unless `NODE_ENV` is
 `development` or `test` and `DATABASE_URL` points at localhost.
 
 The development database only ever holds the pseudonymised test set. Never
-load real names or student numbers into it, or the material of a real game.
+load real names or student numbers into it, or the material of a real simulation.
 
 ## Local gates
 

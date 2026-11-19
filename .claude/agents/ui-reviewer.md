@@ -35,7 +35,7 @@ component authority is the shadcn/ui documentation
 Review priority (report in this order):
 
 1. **Data the role must not see.** A component or loader that receives more
-   than the role may see (another team's work, another teacher's game, a
+   than the role may see (another team's work, another teacher's simulation, a
    student's or teacher's name or student number from FerroEHR), and anything
    on a student screen that hints at the answer: a correct value, an accuracy
    status, a teacher's limit, a suggested limit or a ranking (Q-SIM-1, W7;

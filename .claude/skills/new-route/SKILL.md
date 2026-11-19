@@ -2,7 +2,7 @@
 name: new-route
 description: Scaffolds a TanStack Start route for one of the portals with its role guard, a GET server function with session, role and ownership checks and Zod input validation, a key factory with colocated query and mutation options, a loader that warms the cache with ensureQueryData, a useSuspenseQuery component with a translated title from the i18n layer and the loading, error, empty and updating states, and the unit and role-isolation tests. Use when adding a page or screen to the Student, Teacher or Admin portal.
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash
-argument-hint: "<portal>/<path> e.g. teacher/games/$gameId"
+argument-hint: "<portal>/<path> e.g. teacher/simulations/$simulationId"
 ---
 
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
@@ -25,9 +25,9 @@ the exact API of the pinned versions.
    in `src/server/auth/` (`requireSession`, `requireRole`), the `db`
    instance in `src/server/db/`. If the auth middleware does not exist yet,
    the route waits for it: report that instead of inventing one inline.
-3. Pick names: area `games`, route file
-   `src/routes/_authed/teacher/games/$gameId.tsx`, server code in
-   `src/server/games/`.
+3. Pick names: area `simulations`, route file
+   `src/routes/_authed/teacher/simulations/$simulationId.tsx`, server code in
+   `src/server/simulations/`.
 4. **Find the i18n layer** (ADR 0011): the message catalogues under
    `messages/` (`en` is the source, `nl` the translation) and the import the
    existing routes use for message functions. The snippets below write it as
@@ -36,7 +36,7 @@ the exact API of the pinned versions.
 
 ## The pieces
 
-**`src/server/games/functions.ts`**: the server function. Session, role
+**`src/server/simulations/functions.ts`**: the server function. Session, role
 and ownership first, then validation, then a query that filters by owner in
 SQL.
 
@@ -50,17 +50,17 @@ import { z } from "zod";
 import { requireRole } from "@/server/auth/middleware";
 import { db } from "@/server/db";
 
-export const gameInput = z.object({ gameId: z.uuid() });
+export const simulationInput = z.object({ simulationId: z.uuid() });
 
-/** Returns one game of the signed-in teacher (D10, D11). */
-export const getGame = createServerFn({ method: "GET" })
+/** Returns one simulation of the signed-in teacher (D10, D11). */
+export const getSimulation = createServerFn({ method: "GET" })
   .middleware([requireRole("teacher")])
-  .validator(gameInput)
+  .validator(simulationInput)
   .handler(async ({ data, context }) => {
     const row = await db
-      .selectFrom("games")
+      .selectFrom("simulations")
       .select(["id", "name", "created_at"])
-      .where("id", "=", data.gameId)
+      .where("id", "=", data.simulationId)
       .where("owner_id", "=", context.user.id)
       .executeTakeFirst();
     if (row === undefined) throw notFound();
@@ -68,7 +68,7 @@ export const getGame = createServerFn({ method: "GET" })
   });
 ```
 
-**`src/server/games/query-options.ts`**: the Query layer of the area
+**`src/server/simulations/query-options.ts`**: the Query layer of the area
 (`tanstack.md` §Query conventions; `src/server/users/query-options.ts` is the
 reference). One key factory from wide to narrow, the `queryOptions` of each
 read with its `staleTime` from `STALE_TIME` (`src/lib/query-config.ts`; add
@@ -81,30 +81,30 @@ factory per write that invalidates only the keys it changed.
 
 import { mutationOptions, type QueryClient, queryOptions } from "@tanstack/react-query";
 import { STALE_TIME } from "../../lib/query-config.ts";
-import { getGame } from "./functions.ts";
+import { getSimulation } from "./functions.ts";
 
-/** The query keys of the games, from the widest to the narrowest. */
-export const gamesKeys = {
-  all: ["games"] as const,
-  details: () => [...gamesKeys.all, "detail"] as const,
-  detail: (gameId: string) => [...gamesKeys.details(), gameId] as const,
+/** The query keys of the simulations, from the widest to the narrowest. */
+export const simulationsKeys = {
+  all: ["simulations"] as const,
+  details: () => [...simulationsKeys.all, "detail"] as const,
+  detail: (simulationId: string) => [...simulationsKeys.details(), simulationId] as const,
 };
 
-/** One game of the signed-in teacher. */
-export function gameQueryOptions(gameId: string) {
+/** One simulation of the signed-in teacher. */
+export function simulationQueryOptions(simulationId: string) {
   return queryOptions({
-    queryKey: gamesKeys.detail(gameId),
-    queryFn: () => getGame({ data: { gameId } }),
-    staleTime: STALE_TIME.games,
+    queryKey: simulationsKeys.detail(simulationId),
+    queryFn: () => getSimulation({ data: { simulationId } }),
+    staleTime: STALE_TIME.simulations,
   });
 }
 
-/** Renames a game; invalidates that game and nothing else. */
-export function renameGameMutationOptions(queryClient: QueryClient, call: RenameCall) {
+/** Renames a simulation; invalidates that simulation and nothing else. */
+export function renameSimulationMutationOptions(queryClient: QueryClient, call: RenameCall) {
   return mutationOptions({
     mutationFn: (data: RenameInput) => call({ data }),
     onSettled: (_result, _error, data) =>
-      queryClient.invalidateQueries({ queryKey: gamesKeys.detail(data.gameId) }),
+      queryClient.invalidateQueries({ queryKey: simulationsKeys.detail(data.simulationId) }),
   });
 }
 ```
@@ -119,20 +119,20 @@ import { createFileRoute } from "@tanstack/react-router";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { UpdatingIndicator } from "@/components/shell/updating-indicator";
 import { m } from "@/i18n/messages";
-import { gameQueryOptions } from "@/server/games/query-options";
+import { simulationQueryOptions } from "@/server/simulations/query-options";
 
-export const Route = createFileRoute("/_authed/teacher/games/$gameId")({
+export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId")({
   loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(gameQueryOptions(params.gameId)),
-  head: () => ({ meta: [{ title: m.game_page_title() }] }),
-  pendingComponent: GameSkeleton, // loading: shadcn Skeleton in the page's layout
+    context.queryClient.ensureQueryData(simulationQueryOptions(params.simulationId)),
+  head: () => ({ meta: [{ title: m.simulation_page_title() }] }),
+  pendingComponent: SimulationSkeleton, // loading: shadcn Skeleton in the page's layout
   errorComponent: RouteErrorState, // error: an alert and "Try again"
-  component: GamePage,
+  component: SimulationPage,
 });
 
-function GamePage() {
-  const { gameId } = Route.useParams();
-  const { data, isFetching } = useSuspenseQuery(gameQueryOptions(gameId));
+function SimulationPage() {
+  const { simulationId } = Route.useParams();
+  const { data, isFetching } = useSuspenseQuery(simulationQueryOptions(simulationId));
   return (
     <div className="relative" aria-busy={isFetching || undefined}>
       <UpdatingIndicator active={isFetching} />
@@ -166,15 +166,15 @@ the route.
 
 ## Tests
 
-- **Unit** (`src/server/games/functions.test.ts` or `tests/unit/`): the
-  handler's query returns only the teacher's own game, against the Compose
+- **Unit** (`src/server/simulations/functions.test.ts` or `tests/unit/`): the
+  handler's query returns only the teacher's own simulation, against the Compose
   PostgreSQL with the fixed test set (`testing.md`).
 - **Role isolation**, one case per refusal: a student gets 403; a teacher
-  asking for another teacher's game gets 404; an anonymous call is
+  asking for another teacher's simulation gets 404; an anonymous call is
   refused. Cite the requirement in the test name (D11). A Student portal
   route also proves that a student of another team gets 404 and that the
   response holds no correct value or accuracy status (S10, Q-SIM-1).
-- **Query layer** (`src/server/games/query-options.test.ts`): one case
+- **Query layer** (`src/server/simulations/query-options.test.ts`): one case
   per mutation that it invalidates only its keys, and one per optimistic
   update that it rolls back on a server error, with the helpers in
   `src/lib/test-query-client.ts`.

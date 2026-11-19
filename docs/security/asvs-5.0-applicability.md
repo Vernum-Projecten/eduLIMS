@@ -14,10 +14,9 @@ or `grep -n 'V6.8.1' docs/security/vendor/asvs/en/*.md`.
 
 eduLIMS targets **ASVS Level 2**. It holds personal data of students
 (names, student numbers and e-mail addresses) under the GDPR, it serves three
-roles and teams whose data must stay apart (R-01 and Q-SEC-2), it holds the
-correct values of a game, which no student may read (R-13, Q-SIM-1), and it
-is reachable from the
-institution's network with single sign-on. Level 1 is the floor for any
+roles and labs whose data must stay apart (R-01 and Q-SEC-2), it holds the
+correct values of a simulation, which no student may read (R-13, Q-SIM-1),
+and it is reachable from the institution's network with single sign-on. Level 1 is the floor for any
 application and does not cover the access control, session and logging depth
 this needs; Level 3 is meant for systems whose compromise causes serious harm
 (medical devices, finance, critical infrastructure), and the patients here
@@ -46,6 +45,15 @@ table as not applicable unless eduLIMS meets it anyway.
 Requirement IDs (S4, D11, B4, Q-SEC-2) are from the draft in
 [docs/requirements.md](../requirements.md) and can change; the owner's
 decision on an issue is newer than the draft.
+
+Rows that name a class, a class role or the class join code describe the
+class service that is in the code today (`src/server/classes/`,
+[ADR 0018](../adr/0018-classes-as-organizations.md)). The requirements have
+no classes any more (B2 was dropped on 2026-11-19): #280 reworks that service
+into simulations and labs (D10, S10,
+[ADR 0021](../adr/0021-simulations-and-labs.md)). The status of such a row
+holds for the code today, and the row is judged again in the pull request
+that reworks the code.
 
 ## Updating
 
@@ -158,7 +166,7 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V2.3.1 | 1 | yes | the order of a requested test (requested, measured, released) and the release of S15, enforced on the server | unit and e2e tests with S14 and S15 | planned |
-| V2.3.2 | 2 | yes | the draft names no numeric business limit since R-03 and S6 were dropped (2026-11-19); the rules of a game are enforced on the server: a team releases only its own measurements (S10, S15) and cannot change a time (Q-SIM-2) | unit tests with S15 and Q-SIM-2 | planned |
+| V2.3.2 | 2 | yes | the draft names no numeric business limit since R-03 and S6 were dropped (2026-11-19); the rules of a simulation are enforced on the server: a lab releases only its own measurements (S10, S15) and cannot change a time (Q-SIM-2) | unit tests with S15 and Q-SIM-2 | planned |
 | V2.3.3 | 2 | yes | the S4 upload rejects the whole file and writes nothing on any error; Kysely transactions | unit and integration tests with S4 | planned |
 | V2.3.4 | 2 | yes | one owner per class: every ownership change (the owner's transfer, the administrator's transfer, creating a class) runs in one transaction that locks the class row (`FOR UPDATE`) and reads the new owner's role under a share lock, so two concurrent transfers cannot leave two owners (`src/server/classes/access.ts`, `src/server/classes/admin.ts`, #37) | unit `src/server/classes/admin.test.ts` ("promotes a co-teacher, so the class keeps exactly one owner"), `src/server/classes/classes.test.ts` | met |
 | V2.3.5 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -288,34 +296,34 @@ Text: [vendor/asvs/en/0x14-V5-File-Handling.md](vendor/asvs/en/0x14-V5-File-Hand
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.1.1 | 2 | yes | the Gen5 upload (S4): types, extensions, packed and unpacked size, to be written down | review | planned |
+| V5.1.1 | 2 | yes | the Gen5 upload (S4) and the lab logo (D10, ADR 0021): types, extensions, packed and unpacked size, to be written down; the types and the size limit of a logo are not decided | review | planned |
 
 #### V5.2 File Upload and Content
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.2.1 | 1 | yes | size limit on the Gen5 upload (S4, `.claude/rules/auth-security.md` Uploads) | unit tests with S4 | planned |
-| V5.2.2 | 1 | yes | `.xlsx` extension and zip content check (S4) | unit tests with S4 | planned |
+| V5.2.1 | 1 | yes | size limit on the Gen5 upload (S4) and on the lab logo (D10), `.claude/rules/auth-security.md` Uploads | unit tests with S4 and D10 | planned |
+| V5.2.2 | 1 | yes | `.xlsx` extension and zip content check (S4); extension and content check of the lab logo (D10) | unit tests with S4 and D10 | planned |
 | V5.2.3 | 2 | yes | the `.xlsx` is a zip: unpacked size and entry count checked before unzipping (S4) | unit test with a zip-bomb fixture in S4 | planned |
 | V5.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V5.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
-| V5.2.6 | 3 | no | Level 3, above the L2 target; no image upload | none | n-a |
+| V5.2.6 | 3 | no | Level 3, above the L2 target; the lab logo (D10) is the one image upload | none | n-a |
 
 #### V5.3 File Storage
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.3.1 | 1 | yes | uploads are parsed in memory and never served from a public folder (S4) | review with S4 | planned |
-| V5.3.2 | 1 | yes | stored files get generated names (UUIDv7), never the uploaded name (S4) | unit tests with S4 | planned |
+| V5.3.1 | 1 | yes | the Gen5 upload is parsed in memory and never served from a public folder (S4); how a lab logo is stored and served is not designed yet (D10, #280) | review with S4 and D10 | planned |
+| V5.3.2 | 1 | yes | stored files get generated names (UUIDv7), never the uploaded name (S4, D10) | unit tests with S4 and D10 | planned |
 | V5.3.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V5.4 File Download
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.4.1 | 2 | no | eduLIMS serves no file download since the lab report was dropped (S6, 2026-11-19); judge again when a download is added | none | n-a |
-| V5.4.2 | 2 | no | eduLIMS serves no file download since the lab report was dropped (S6, 2026-11-19); judge again when a download is added | none | n-a |
-| V5.4.3 | 2 | yes | no antivirus scan of uploaded files (the Gen5 export, S4) is designed yet; needs an owner decision | review | open |
+| V5.4.1 | 2 | no | eduLIMS serves no file download since the lab report was dropped (S6, 2026-11-19); the lab logo (D10) will be served to browsers, so judge this row again with that work (#280) | none | n-a |
+| V5.4.2 | 2 | no | eduLIMS serves no file download since the lab report was dropped (S6, 2026-11-19); the lab logo (D10) will be served to browsers, so judge this row again with that work (#280) | none | n-a |
+| V5.4.3 | 2 | yes | no antivirus scan of uploaded files (the Gen5 export, S4; the lab logo, D10) is designed yet; needs an owner decision | review | open |
 
 ### V6 Authentication
 
@@ -479,7 +487,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V8.2.1 | 1 | yes | `requireRole` and `authMiddleware` on every server function (`src/server/middleware.ts`); role writes guarded (`src/server/role-guard.ts`); `user.role_channel` records whether an ID-token claim, SCIM or eduLIMS wrote a set, so a role a claim gave never outlives the claim and a SCIM write never removes it (`src/server/role-ownership.ts`, `src/server/scim/roles.ts`, #45) | unit `src/server/middleware.test.ts`, `src/server/role-guard.test.ts`, `src/server/role-ownership.test.ts`, `src/server/scim/roles.test.ts`; integration `tests/integration/scim-hardening.test.ts` | met |
-| V8.2.2 | 1 | partly | `canViewResultsOf` (`src/server/authz.ts`) is the rule for results; classes check membership and class role in the SQL of every read and write (`src/server/classes/access.ts`, `queries.ts`, #28); team and game ownership comes with S10 and D11 | unit `src/server/authz.test.ts`; `src/server/classes/*.test.ts` (another class's teacher gets `not_found`, a student 403) | partial |
+| V8.2.2 | 1 | partly | `canViewResultsOf` (`src/server/authz.ts`) is the rule for results; classes check membership and class role in the SQL of every read and write (`src/server/classes/access.ts`, `queries.ts`, #28); lab and simulation ownership comes with S10, D10 and D11, when #280 reworks the class service (ADR 0021) | unit `src/server/authz.test.ts`; `src/server/classes/*.test.ts` (another class's teacher gets `not_found`, a student 403) | partial |
 | V8.2.3 | 2 | partly | `input: false` on `locale` and `lastPortal` (`src/server/auth.ts`); result and correct-value fields with S10, D10 and D11 | review | partial |
 | V8.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 

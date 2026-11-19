@@ -24,8 +24,8 @@ Write plainly, so the text reads like a person wrote it for another person.
   same rules below (no filler, active voice, short sentences) and addresses
   the reader as "je". Dutch role and portal names appear only inside the
   `nl` catalogue, never in code, routes or docs.
-- Use the English domain terms as `docs/requirements.md` defines them: game,
-  team, patient, request, sample (with its sample number from the form),
+- Use the English domain terms as `docs/requirements.md` defines them: simulation,
+  lab ("team" for the students of one lab), patient, request, sample (with its sample number from the form),
   test, test catalogue, measurement, result, release, tolerance, correct
   value, teacher dashboard, Student portal, Teacher portal, Admin portal.
 

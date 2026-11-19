@@ -1,6 +1,6 @@
 # eduLIMS
 
-> eduLIMS is an open-source laboratory information management system (LIMS) for a workplace simulation in laboratory education. Teams of students run a simulated clinical laboratory: they register patients and requests from paper forms, link samples by the sample number on the form, measure, upload Gen5 Excel exports from the Epoch 2 plate readers, and release each result to the patient's record; teachers manage the test catalogue, enter the correct values of a game beforehand and follow every team on a live dashboard of turnaround time and accuracy; an administrator manages users, classes and analysers. There is no grading. Results are stored as openEHR compositions in FerroEHR (Afinion 2 results arrive over HL7 v2 through FerroBRIDGE); games, teams, correct values, tolerances and times live in the eduLIMS PostgreSQL database. It is a TanStack Start (full SSR) application on Vite and Nitro, written in TypeScript 7, with sign-in through Microsoft Entra ID or Keycloak and an English UI with a Dutch translation. eduLIMS ships no AI; AI coding assistance is used to build it, under human review.
+> eduLIMS is an open-source laboratory information management system (LIMS) for a workplace simulation in laboratory education. Each team of students runs a simulated clinical laboratory, its lab, which a teacher creates in a simulation: the team registers patients and requests from paper forms, links samples by the sample number on the form, measures, uploads Gen5 Excel exports from the Epoch 2 plate readers, and releases each result to the patient's record; teachers manage the test catalogue, enter the correct values of a simulation beforehand and follow every lab on a live dashboard of turnaround time and accuracy; an administrator manages users, roles and analysers. There is no grading. Results are stored as openEHR compositions in FerroEHR (Afinion 2 results arrive over HL7 v2 through FerroBRIDGE); simulations, labs, correct values, tolerances and times live in the eduLIMS PostgreSQL database. It is a TanStack Start (full SSR) application on Vite and Nitro, written in TypeScript 7, with sign-in through Microsoft Entra ID or Keycloak and an English UI with a Dutch translation. eduLIMS ships no AI; AI coding assistance is used to build it, under human review.
 
 ## Start here
 
@@ -8,13 +8,13 @@
 - [README](README.md): what eduLIMS is, the status, the quick start and the stack.
 - [Architecture](docs/architecture.md): the design authority: principles, integrations, data split, portals and roles, deployment, quality requirements.
 - [Requirements](docs/requirements.md) (working draft, not final): S1 to S16, D1 to D14, B1 to B4, the Q-* quality requirements, risks R-01 to R-13, the dashboard measures G-01 to G-04 and the open questions O1 to O14, with stable IDs; a dropped requirement keeps its row.
-- [The LIMS workflow](docs/lims-workflow.md): how the work of a team travels from the paper request form to the patient's record and the teacher dashboard.
+- [The LIMS workflow](docs/lims-workflow.md): how the work of a lab travels from the paper request form to the patient's record and the teacher dashboard.
 - [Working rules](CLAUDE.md): the rules for changing the code.
 
 ## Design
 
 - [Test strategy](docs/test-strategy.md): test levels, test data and the Definition of Done.
-- [Game dashboard](docs/game-dashboard.md): what the teacher dashboard of a game shows, who sees it, its data sources and the open questions.
+- [Teacher dashboard](docs/teacher-dashboard.md): what the teacher dashboard of a simulation shows, who sees it, its data sources and the open questions.
 - [Decision records](docs/adr/README.md): the architecture and technology decisions.
 - [Version matrix](docs/VERSIONS.md): the pinned versions, checked in CI.
 

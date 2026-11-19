@@ -6,8 +6,8 @@
 eduLIMS is an open-source laboratory information management system (LIMS) for
 a workplace simulation in laboratory education. A deployment runs on one
 Linux VM inside the institution's network. It holds the accounts of students
-and teachers, the fictional patients of the games with their results, and the
-correct values a teacher enters for a game, which students must never see.
+and teachers, the fictional patients of the simulations with their results, and the
+correct values a teacher enters for a simulation, which students must never see.
 
 ## Supported versions
 
@@ -27,7 +27,7 @@ branches and no backports.
 issue, the affected version or commit, and a reproduction if you have one.
 
 **Never include personal data in a report.** Not a real name, student number
-or measurement of a real person, and nothing from a real game (a scenario or
+or measurement of a real person, and nothing from a real simulation (a scenario or
 a correct value). Use the pseudonymised test set or make up an equivalent
 case.
 

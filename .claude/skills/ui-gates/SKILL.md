@@ -39,7 +39,7 @@ skip is never a pass.
 - The data on screen is the role's own data: a student page shows only the
   student's own team, and no correct value, accuracy status or other hint
   (Q-SIM-1, `auth-security.md`); a teacher page shows only the teacher's own
-  games.
+  simulations.
 
 ## Report
 
