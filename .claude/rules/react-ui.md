@@ -61,7 +61,7 @@ in a feature component.
   invalid field on each keystroke).
 - **Fields are registered components:** `form.AppField name="…"` (the name is
   typed from the default values, nested paths too, such as
-  `criteria[2].levels[0].points`) renders `field.TextField`,
+  `samples[2].material`) renders `field.TextField`,
   `TextareaField`, `NumberField` (`NaN` for an empty entry, which the schema
   refuses), `SelectField`, `CheckboxField`, `CheckboxGroupField`,
   `RadioGroupField`, `SwitchField`, `DateField` (a `YYYY-MM-DD` value on the
@@ -75,7 +75,7 @@ in a feature component.
   first invalid control after a refused submit; never disabled while the form
   is merely invalid, which would hide the reason) and `form.FormErrors` (the
   form-level refusal at the top, focused when it appears).
-- **Async checks** ("this sample ID is already registered") are a field's
+- **Async checks** ("this name is already in use") are a field's
   `onChangeAsync` with `onChangeAsyncDebounceMs`, calling a GET server
   function through `useServerFn` with the validator's `signal`; the field
   shows "Checking…" in a live region while it runs.
@@ -99,8 +99,8 @@ in a feature component.
   (`tests/unit/form-foundation.test.tsx` proves it).
 - Every control has a visible label (WCAG 1.3.1, 3.3.2); a placeholder is
   never the label. Validation messages come from the i18n layer and are
-  specific and actionable ("Sample ID LS-0042 does not exist in this
-  practical", never "Invalid input").
+  specific and actionable ("This file is not a Gen5 export: the 96-well grid
+  is missing", never "Invalid input").
 
 ## 3. Accessibility (WCAG 2.1 AA)
 
@@ -115,12 +115,13 @@ suite runs axe on every route (`testing.md`).
   translated `title` through its `head()` (2.4.2).
 - **Colour:** text contrast at least 4.5:1, large text and UI components at
   least 3:1 (1.4.3, 1.4.11). **Never carry meaning by colour alone** (1.4.1):
-  a KPI signal, a rejected well or an out-of-range measurement shows an icon
-  and text as well (R-09, "a colour-blind or visually impaired user").
+  the accuracy status on the teacher dashboard, an urgent request past its
+  target and the tolerance warning each show an icon and text as well
+  (Q-ACC-2; R-09, "a colour-blind or visually impaired user").
 - **Tables:** real `<th>` headers with `scope`, a caption or `aria-label`; the
   96-well plate view is a table with row and column headers, not a grid of
   divs.
-- **Status and errors:** dynamic results (an upload verdict, a saved grade)
+- **Status and errors:** dynamic results (an upload verdict, a released result)
   are announced through a live region (`role="status"` or the toast), and an
   error is identified in text (3.3.1).
 - **Reflow and zoom:** usable at 320 CSS px wide and at 200% zoom without
@@ -144,7 +145,7 @@ definitions) and <https://tanstack.com/charts/latest>, never from memory.
   1.3.1).
 - **Never colour alone:** give each series its own shape (`dot`, `hexagon`,
   a ring) or a direct label, and pass `legend` with the same shape and name
-  (SC 1.4.1, R-09). A threshold or norm line carries text.
+  (SC 1.4.1, R-09). A threshold or target line carries text.
 - **Colour:** paint series with `chartSeriesColor(i)` (`src/lib/charts/`),
   which reads the theme tokens `--chart-1` to `--chart-6`; never a hex in a
   definition. The palette holds 3:1 or more on its background, checked by
@@ -168,12 +169,20 @@ definitions) and <https://tanstack.com/charts/latest>, never from memory.
 
 - A component renders what its loader returned and nothing more. Never fetch
   "all results" and filter by role in the component; the server function
-  filters (`auth-security.md`, S7, D3).
-- A student sees their own grade next to the class and practical average; an
-  average shows only from 5 assessments upward (R-03, "an average reveals an
-  individual grade").
-- No name or student number of a subject from FerroEHR appears anywhere;
-  measurements show the sample ID.
+  filters (`auth-security.md`, S10, Q-SEC-2).
+- **A student's screen gives no hint (Q-SIM-1, W7).** It holds the work of
+  the student's own team and nothing else: no correct value, no accuracy
+  status, no limit a teacher set, no suggested limit, no interpretation of a
+  result and no other team's work, in the markup, the loader data or a hidden
+  field. Whether teams see the ranking is open (O3), so no student screen
+  shows it.
+- **The tolerance warning is the one check a team gets (S15).** It shows
+  before the release is confirmed, with an icon and text, and uses only the
+  limits the team entered itself. The team decides.
+- The teacher dashboard (D11) updates without a manual reload and shows only
+  the teacher's own games.
+- A result shows the fictional patient and the sample number. No name or
+  student number of a student or a teacher comes from FerroEHR.
 
 ## 6. Performance
 

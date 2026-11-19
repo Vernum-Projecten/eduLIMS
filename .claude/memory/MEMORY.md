@@ -13,9 +13,10 @@ adding one, and update it instead of duplicating.
   LIMS for a workplace simulation where teams compete on turnaround time and
   accuracy; the practical, lab report, rubric, grade and KPI model is
   dropped; #264 rewrites the requirements; owner 2026-11-19
-- [Requirements are a draft](requirements-are-draft.md): S/D/B IDs, NFRs,
-  acceptance criteria and KPIs are under discussion; cite IDs, flag gaps and
-  ask the owner, never invent or complete one; owner 2026-11-11
+- [Requirements are a draft](requirements-are-draft.md): the requirement
+  IDs, the quality requirements, the acceptance criteria and the dashboard
+  measures are under discussion; cite IDs, flag gaps and ask the owner, never
+  invent or complete one; owner 2026-11-11
 - [GitHub, not Azure DevOps](github-not-azure-devops.md): Issues, Actions,
   GHCR on Vernum-Projecten/eduLIMS instead of Azure Boards, Repos, Pipelines
   and ACR; owner 2026-11
@@ -29,8 +30,8 @@ adding one, and update it instead of duplicating.
   header `Ruben Talstra` on every hand-written file; everything English, UI
   text through the i18n layer with Dutch as the `nl` translation (ADR 0011)
 - [Neutral project context](neutral-project-context.md): no people's names
-  and no institution or course specifics; "an open-source LIMS for practical
-  laboratory education"; owner 2026-11-11
+  and no institution or course specifics; owner 2026-11-11 (the product
+  description changed on 2026-11-19, see the workplace simulation direction)
 - [Brand and UI](brand-and-ui.md): the Microplate mark; build from shadcn/ui
   components and blocks, user-friendly end to end; the language menu pattern
 - [Multiple roles](multiple-roles.md): role sets {student}, {teacher},
@@ -44,8 +45,8 @@ adding one, and update it instead of duplicating.
 - [Owner-delegated decisions](owner-delegated-decisions-2026-11-11.md): what
   the maintainer decided on the owner's delegation for classes and
   invitations (#28), the Admin portal (#32) and security hardening (#39 to
-  #44); GDPR basis, DPIA, EHR subject and KPI norms stay with the product
-  owner; 2026-11-11
+  #44); the GDPR basis and the DPIA stay with the product owner; the group
+  grading decision of #28 lapsed on 2026-11-19; 2026-11-11
 
 - [Runtime identity providers](runtime-identity-providers.md): OIDC and SAML
   providers in the database, managed in Admin → System with the better-auth
@@ -83,7 +84,8 @@ adding one, and update it instead of duplicating.
   pnpm 12 with library skills linked into .claude/skills
 - [Charts: TanStack Charts](charts-tanstack.md): every chart through
   EduChart (name, description, table view, shape plus colour, brand chart
-  palette checked at 3:1); recharts removed; owner 2026-11-11 (#59)
+  palette checked at 3:1), the teacher dashboard of the games included;
+  recharts removed; owner 2026-11-11 (#59)
 
 ## Family rules (carried from the Ferro repositories)
 

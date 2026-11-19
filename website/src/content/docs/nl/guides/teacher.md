@@ -8,8 +8,8 @@ sidebar:
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-In het Docentportaal zet je een practicum klaar, volg je de metingen van je
-studenten en beoordeel je hun labverslagen.
+In het Docentportaal beheer je de testcatalogus, bereid je een spel voor en
+volg je elk team op een live dashboard. In eduLIMS wordt niet beoordeeld.
 
 :::caution[In ontwikkeling]
 eduLIMS is nog in ontwikkeling. Deze handleiding beschrijft wat nu werkt en
@@ -28,8 +28,8 @@ komt uit je identity provider; een beheerder regelt dat. Staat op de
 inlogpagina dat je account geen rol heeft, neem dan contact op met een
 beheerder.
 
-Je ziet alleen de practica die van jou zijn of waaraan je gekoppeld bent.
-Practica van andere docenten, en de resultaten daarin, blijven verborgen.
+Je ziet alleen je eigen klassen en spellen. Spellen van andere docenten, en
+de resultaten daarin, blijven verborgen.
 
 ## Je weg vinden
 
@@ -49,8 +49,7 @@ dan het portaal waarin je werkt, bijvoorbeeld **Docentportaal**. Kies het om
 de lijst met je portalen te openen en kies het andere, of druk op **Alt+1** of
 **Alt+2** (**Option+1** of **Option+2** op een Mac). eduLIMS onthoudt het
 portaal dat je kiest en opent het de volgende keer dat je inlogt. Elk portaal
-toont alleen wat die rol mag zien: als beheerder zie je geen cijfers of
-resultaten. Het gebruikersmenu onderaan de zijbalk toont al je rollen.
+toont alleen wat die rol mag zien: als beheerder zie je geen resultaten. Het gebruikersmenu onderaan de zijbalk toont al je rollen.
 
 ## Sneltoetsen
 
@@ -184,15 +183,16 @@ server.
 
 ## Geplande taken
 
-| Taak                                                                             | Requirement                      |
-| -------------------------------------------------------------------------------- | -------------------------------- |
-| Een practicum maken met opdracht, protocol, deadline en rubric                   | [D1](/development/requirements/) |
-| Klassen of losse studenten aan een practicum koppelen                            | [D2](/development/requirements/) |
-| De meetresultaten van alle studenten van een practicum bekijken                  | [D3](/development/requirements/) |
-| Een inzending per rubriccriterium beoordelen, met feedback en eindcijfer         | [D4](/development/requirements/) |
-| Een klas of practicum volgen op het [KPI-dashboard](/development/kpi-dashboard/) | [D5](/development/requirements/) |
-| De cijfers exporteren als CSV                                                    | [D6](/development/requirements/) |
-| Meetwaarden zien die buiten het verwachte bereik vallen                          | [D7](/development/requirements/) |
-| Een rubric van een eerder practicum hergebruiken                                 | [D8](/development/requirements/) |
+| Taak                                                                                                                                                  | Requirement                       |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| De testcatalogus beheren: een bepaling toevoegen met naam, eenheid en materiaal                                                                       | [D9](/development/requirements/)  |
+| Een spel voorbereiden: de teams en vooraf de juiste waarde per bepaling en monster                                                                    | [D10](/development/requirements/) |
+| Elk team live volgen op het [dashboard](/development/game-dashboard/): de tijden van elke aanvraag en de nauwkeurigheid van elk vrijgegeven resultaat | [D11](/development/requirements/) |
+| Een streeftijd instellen voor spoedaanvragen                                                                                                          | [D12](/development/requirements/) |
+| Per bepaling instellen hoe ver een resultaat van de juiste waarde mag liggen voor groen, geel en rood                                                 | [D13](/development/requirements/) |
+| De ranglijst van de teams op tijd en nauwkeurigheid bekijken                                                                                          | [D14](/development/requirements/) |
 
-De requirements en het KPI-dashboard zijn beschreven in het Engels.
+Studenten zien nooit een juiste waarde of de nauwkeurigheid van een
+resultaat.
+
+De requirements en het dashboard zijn beschreven in het Engels.

@@ -13,14 +13,15 @@ or `grep -n 'V6.8.1' docs/security/vendor/asvs/en/*.md`.
 ## Target: ASVS Level 2
 
 eduLIMS targets **ASVS Level 2**. It holds personal data of students
-(names, student numbers, e-mail addresses, grades and lab results) under the
-GDPR, it serves three roles whose data must stay apart (R-01, the highest
-risk in the requirements, and Q-SEC-2), and it is reachable from the
+(names, student numbers and e-mail addresses) under the GDPR, it serves three
+roles and teams whose data must stay apart (R-01 and Q-SEC-2), it holds the
+correct values of a game, which no student may read (R-13, Q-SIM-1), and it
+is reachable from the
 institution's network with single sign-on. Level 1 is the floor for any
 application and does not cover the access control, session and logging depth
 this needs; Level 3 is meant for systems whose compromise causes serious harm
-(medical devices, finance, critical infrastructure), and the measurements here
-are teaching material, not patient data. A Level 3 requirement appears in the
+(medical devices, finance, critical infrastructure), and the patients here
+are fictional (W5). A Level 3 requirement appears in the
 table as not applicable unless eduLIMS meets it anyway.
 
 ## How to read the table
@@ -42,7 +43,7 @@ table as not applicable unless eduLIMS meets it anyway.
   - `open`: no code and no issue yet; a gap to file and decide.
   - `n-a`: does not apply (status of every `no` row).
 
-Requirement IDs (S4, D3, B4, Q-SEC-2) are from the draft in
+Requirement IDs (S4, D11, B4, Q-SEC-2) are from the draft in
 [docs/requirements.md](../requirements.md) and can change; the owner's
 decision on an issue is newer than the draft.
 
@@ -66,12 +67,12 @@ moves a row to `met` in the same pull request.
 |---|---|
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
-| Applicable (yes or partly) | 178 |
+| Applicable (yes or partly) | 175 |
 | Status met | 95 |
 | Status partial | 49 |
-| Status planned | 26 |
+| Status planned | 23 |
 | Status open | 8 |
-| Status n-a | 167 |
+| Status n-a | 170 |
 
 ### V1 Encoding and Sanitization
 
@@ -97,13 +98,13 @@ Text: [vendor/asvs/en/0x10-V1-Encoding-and-Sanitization.md](vendor/asvs/en/0x10-
 | V1.2.7 | 2 | no | no XPath; the Gen5 workbook is read through a parser library, not XPath (S4) | none | n-a |
 | V1.2.8 | 2 | no | no LaTeX processing | none | n-a |
 | V1.2.9 | 2 | yes | no regular expression is built from input today; keep it so | review | met |
-| V1.2.10 | 3 | yes | planned for the KPI and results exports (D5, B4: "every export is logged"); no export exists yet | unit test when the export lands | planned |
+| V1.2.10 | 3 | no | no export exists, and the draft names none since the grade export was dropped (D6, 2026-11-19); judge again when an export is added | none | n-a |
 
 #### V1.3 Sanitization
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V1.3.1 | 1 | no | no rich-text or WYSIWYG input; lab reports are files (S6) | none | n-a |
+| V1.3.1 | 1 | no | no rich-text or WYSIWYG input | none | n-a |
 | V1.3.2 | 1 | yes | no `eval` or `new Function` in `src/`; Biome `noGlobalEval` (recommended preset) | CI `lint` | met |
 | V1.3.3 | 2 | yes | planned for the Gen5 upload (S4) and AQL parameters (`.claude/rules/integration.md`) | unit tests with the S4 parser | planned |
 | V1.3.4 | 2 | no | no SVG upload; uploads are `.xlsx` only (S4) | none | n-a |
@@ -121,7 +122,7 @@ Text: [vendor/asvs/en/0x10-V1-Encoding-and-Sanitization.md](vendor/asvs/en/0x10-
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V1.4.1 | 2 | no | memory-safe runtime (Node.js, TypeScript); no native code of our own | none | n-a |
-| V1.4.2 | 2 | yes | Zod bounds on numeric input; planned for the Gen5 values and the rubric scores (S4, D4) | unit tests with S4 and D4 | planned |
+| V1.4.2 | 2 | yes | Zod bounds on numeric input; planned for the Gen5 values, the correct values, the tolerances and the accuracy limits (S4, D10, S13, D13) | unit tests with S4, D10, S13 and D13 | planned |
 | V1.4.3 | 2 | no | garbage-collected runtime | none | n-a |
 
 #### V1.5 Safe Deserialization
@@ -141,7 +142,7 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V2.1.1 | 1 | partly | Zod schemas per area (`src/server/<area>/schemas.ts`) are the rules; no prose document yet | review | partial |
-| V2.1.2 | 2 | yes | combined checks are open in the draft (sample ID and well position, S4; deadline, S6); document with each requirement | review | planned |
+| V2.1.2 | 2 | yes | combined checks are open in the draft (a well and its sample, S4 and O5; an analyser result and its team, S5 and O13); document with each requirement | review | planned |
 | V2.1.3 | 2 | yes | upload size and count limits (S4), invitation limits (#28); not documented yet | review | planned |
 
 #### V2.2 Input Validation
@@ -150,14 +151,14 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 |---|---|---|---|---|---|
 | V2.2.1 | 1 | yes | every server function has a Zod `.validator` (`src/server/preferences/functions.ts`, `schemas.ts`) | unit `src/server/preferences/queries.test.ts` | met |
 | V2.2.2 | 1 | yes | validation runs in the server function; client checks are UX only (`.claude/rules/tanstack.md`) | review | met |
-| V2.2.3 | 2 | yes | the S4 upload checks sample IDs against the practical and well positions against the plate | unit tests with S4 | planned |
+| V2.2.3 | 2 | yes | the S4 upload checks the file against the Gen5 layout (the 96-well grid); the check of a well against a sample is open (O5) | unit tests with S4 | planned |
 
 #### V2.3 Business Logic Security
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V2.3.1 | 1 | yes | the S6 lab report lock and the D4 final grade, enforced on the server | unit and e2e tests with S6 and D4 | planned |
-| V2.3.2 | 2 | yes | business limits from the draft (5-assessment floor, R-03; deadline, S6) | unit tests with D5 and S6 | planned |
+| V2.3.1 | 1 | yes | the order of a requested test (requested, measured, released) and the release of S15, enforced on the server | unit and e2e tests with S14 and S15 | planned |
+| V2.3.2 | 2 | yes | the draft names no numeric business limit since R-03 and S6 were dropped (2026-11-19); the rules of a game are enforced on the server: a team releases only its own measurements (S10, S15) and cannot change a time (Q-SIM-2) | unit tests with S15 and Q-SIM-2 | planned |
 | V2.3.3 | 2 | yes | the S4 upload rejects the whole file and writes nothing on any error; Kysely transactions | unit and integration tests with S4 | planned |
 | V2.3.4 | 2 | yes | one owner per class: every ownership change (the owner's transfer, the administrator's transfer, creating a class) runs in one transaction that locks the class row (`FOR UPDATE`) and reads the new owner's role under a share lock, so two concurrent transfers cannot leave two owners (`src/server/classes/access.ts`, `src/server/classes/admin.ts`, #37) | unit `src/server/classes/admin.test.ts` ("promotes a co-teacher, so the class keeps exactly one owner"), `src/server/classes/classes.test.ts` | met |
 | V2.3.5 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -183,7 +184,7 @@ Text: [vendor/asvs/en/0x12-V3-Web-Frontend-Security.md](vendor/asvs/en/0x12-V3-W
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V3.2.1 | 1 | partly | `X-Content-Type-Options: nosniff` on every response (`src/server/security-headers.ts`); upload download headers come with S4 and S6 | unit `src/server/security-headers.test.ts`, e2e `tests/e2e/app.spec.ts` | partial |
+| V3.2.1 | 1 | partly | `X-Content-Type-Options: nosniff` on every response (`src/server/security-headers.ts`); upload download headers come with S4 | unit `src/server/security-headers.test.ts`, e2e `tests/e2e/app.spec.ts` | partial |
 | V3.2.2 | 1 | yes | React renders text nodes; `dangerouslySetInnerHTML` banned outside `src/components/ui/` (`biome.json`) | CI `lint` | met |
 | V3.2.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -287,7 +288,7 @@ Text: [vendor/asvs/en/0x14-V5-File-Handling.md](vendor/asvs/en/0x14-V5-File-Hand
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.1.1 | 2 | yes | the Gen5 upload (S4) and the lab report (S6): types, extensions, packed and unpacked size, to be written down | review | planned |
+| V5.1.1 | 2 | yes | the Gen5 upload (S4): types, extensions, packed and unpacked size, to be written down | review | planned |
 
 #### V5.2 File Upload and Content
 
@@ -305,16 +306,16 @@ Text: [vendor/asvs/en/0x14-V5-File-Handling.md](vendor/asvs/en/0x14-V5-File-Hand
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V5.3.1 | 1 | yes | uploads are parsed in memory and never served from a public folder (S4) | review with S4 | planned |
-| V5.3.2 | 1 | yes | stored files get generated names (UUIDv7), never the uploaded name (S4, S6) | unit tests with S4 and S6 | planned |
+| V5.3.2 | 1 | yes | stored files get generated names (UUIDv7), never the uploaded name (S4) | unit tests with S4 | planned |
 | V5.3.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V5.4 File Download
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.4.1 | 2 | yes | lab report downloads set `Content-Disposition` with a server-chosen name (S6) | unit tests with S6 | planned |
-| V5.4.2 | 2 | yes | download file names encoded per RFC 6266 (S6) | unit tests with S6 | planned |
-| V5.4.3 | 2 | yes | no antivirus scan of lab reports is designed yet; needs an owner decision | review | open |
+| V5.4.1 | 2 | no | eduLIMS serves no file download since the lab report was dropped (S6, 2026-11-19); judge again when a download is added | none | n-a |
+| V5.4.2 | 2 | no | eduLIMS serves no file download since the lab report was dropped (S6, 2026-11-19); judge again when a download is added | none | n-a |
+| V5.4.3 | 2 | yes | no antivirus scan of uploaded files (the Gen5 export, S4) is designed yet; needs an owner decision | review | open |
 
 ### V6 Authentication
 
@@ -469,7 +470,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V8.1.1 | 1 | yes | role sets and ownership rules (ADR 0012, `.claude/rules/auth-security.md`, `src/server/authz.ts`) | review | met |
-| V8.1.2 | 2 | partly | field-level rules exist for user fields (`input: false` in `src/server/auth.ts`); grades and results come with S7 and D3 | review | partial |
+| V8.1.2 | 2 | partly | field-level rules exist for user fields (`input: false` in `src/server/auth.ts`); correct values, tolerances and results come with S10, D10 and D11 | review | partial |
 | V8.1.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V8.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -478,8 +479,8 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V8.2.1 | 1 | yes | `requireRole` and `authMiddleware` on every server function (`src/server/middleware.ts`); role writes guarded (`src/server/role-guard.ts`); `user.role_channel` records whether an ID-token claim, SCIM or eduLIMS wrote a set, so a role a claim gave never outlives the claim and a SCIM write never removes it (`src/server/role-ownership.ts`, `src/server/scim/roles.ts`, #45) | unit `src/server/middleware.test.ts`, `src/server/role-guard.test.ts`, `src/server/role-ownership.test.ts`, `src/server/scim/roles.test.ts`; integration `tests/integration/scim-hardening.test.ts` | met |
-| V8.2.2 | 1 | partly | `canViewResultsOf` (`src/server/authz.ts`) is the rule for results; classes check membership and class role in the SQL of every read and write (`src/server/classes/access.ts`, `queries.ts`, #28); results ownership comes with S7 and D3 | unit `src/server/authz.test.ts`; `src/server/classes/*.test.ts` (another class's teacher gets `not_found`, a student 403) | partial |
-| V8.2.3 | 2 | partly | `input: false` on `locale` and `lastPortal` (`src/server/auth.ts`); result and grade fields with S7 and D3 | review | partial |
+| V8.2.2 | 1 | partly | `canViewResultsOf` (`src/server/authz.ts`) is the rule for results; classes check membership and class role in the SQL of every read and write (`src/server/classes/access.ts`, `queries.ts`, #28); team and game ownership comes with S10 and D11 | unit `src/server/authz.test.ts`; `src/server/classes/*.test.ts` (another class's teacher gets `not_found`, a student 403) | partial |
+| V8.2.3 | 2 | partly | `input: false` on `locale` and `lastPortal` (`src/server/auth.ts`); result and correct-value fields with S10, D10 and D11 | review | partial |
 | V8.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V8.3 Operation Level Authorization
@@ -494,7 +495,7 @@ Text: [vendor/asvs/en/0x17-V8-Authorization.md](vendor/asvs/en/0x17-V8-Authoriza
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V8.4.1 | 2 | yes | classes as tenants: every class function checks the app role, then membership and class role on the session user in one locked transaction; the organization plugin's endpoints are unreachable (`src/server/classes/`, ADR 0018); the administrator's class actions and reads require the app role admin in the service as well as the middleware, never add the administrator as a member and return no grades or results (`src/server/classes/admin.ts`, `admin-queries.ts`, #37) | unit `src/server/classes/classes.test.ts`, `invitations.test.ts`, `groups.test.ts`, `queries.test.ts`, `plugin.test.ts`, `admin.test.ts` and `admin-queries.test.ts` (a student and a teacher get 403 on every admin action and read), `admin-functions.test.ts` (all nine server functions carry the admin guard) | met |
+| V8.4.1 | 2 | yes | classes as tenants: every class function checks the app role, then membership and class role on the session user in one locked transaction; the organization plugin's endpoints are unreachable (`src/server/classes/`, ADR 0018); the administrator's class actions and reads require the app role admin in the service as well as the middleware, never add the administrator as a member and return no results (`src/server/classes/admin.ts`, `admin-queries.ts`, #37) | unit `src/server/classes/classes.test.ts`, `invitations.test.ts`, `groups.test.ts`, `queries.test.ts`, `plugin.test.ts`, `admin.test.ts` and `admin-queries.test.ts` (a student and a teacher get 403 on every admin action and read), `admin-functions.test.ts` (all nine server functions carry the admin guard) | met |
 | V8.4.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 ### V9 Self-contained Tokens
@@ -704,7 +705,7 @@ Text: [vendor/asvs/en/0x22-V13-Configuration.md](vendor/asvs/en/0x22-V13-Configu
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); how eduLIMS authenticates to FerroEHR and FerroBRIDGE is not built yet (S3, S4); FerroBRIDGE 0.0.24 authenticates each MLLP sender by its client certificate, tied to its `[[hl7v2.senders]]` entry, and refuses to start without one; the Afinion 2 has no TLS (Afinion 2 User Manual, 1117346 Rev. A, 2023/02), so its route waits on FerroBRIDGE#1918, plain MLLP bound to the analyser's network address (decided on #131), with the bind address and a host-firewall allow-list of the analysers' fixed addresses; an address is no certificate, so this segment stays the accepted residual risk of ADR 0013 (ADR 0013, `docs/deployment.md`, "The MLLP port"); an identity provider authenticates to the SCIM endpoint with a bearer token per provider that expires after 180 days, hashed, rotated with a one-hour overlap and revocable at once (ADR 0017, owner decision on #45); not short-term, because the providers' SCIM clients take a static secret | review; unit `src/server/scim/tokens.test.ts` | partial |
+| V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); how eduLIMS authenticates to FerroEHR and FerroBRIDGE is not built yet (S4, S5); FerroBRIDGE 0.0.24 authenticates each MLLP sender by its client certificate, tied to its `[[hl7v2.senders]]` entry, and refuses to start without one; the Afinion 2 has no TLS (Afinion 2 User Manual, 1117346 Rev. A, 2023/02), so its route waits on FerroBRIDGE#1918, plain MLLP bound to the analyser's network address (decided on #131), with the bind address and a host-firewall allow-list of the analysers' fixed addresses; an address is no certificate, so this segment stays the accepted residual risk of ADR 0013 (ADR 0013, `docs/deployment.md`, "The MLLP port"); an identity provider authenticates to the SCIM endpoint with a bearer token per provider that expires after 180 days, hashed, rotated with a one-hour overlap and revocable at once (ADR 0017, owner decision on #45); not short-term, because the providers' SCIM clients take a static secret | review; unit `src/server/scim/tokens.test.ts` | partial |
 | V13.2.2 | 2 | yes | one database role per service (`docker/postgres/init/20-edulims.sh`); containers run non-root with `cap_drop: [ALL]` (`compose.yaml`, `docker/Dockerfile`) | review | met |
 | V13.2.3 | 2 | yes | Compose refuses to start without each password (`${VAR:?}` in `compose.yaml`) | review | met |
 | V13.2.4 | 2 | partly | outbound targets are configured URLs only (`src/server/env.ts`), the B3 health check included (`src/server/integrations/probe.ts`); no egress allowlist at the network level | unit `src/server/integrations/checks.test.ts`, review | partial |
@@ -740,7 +741,7 @@ Text: [vendor/asvs/en/0x23-V14-Data-Protection.md](vendor/asvs/en/0x23-V14-Data-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V14.1.1 | 2 | partly | the requirements name the personal data (student names, numbers, e-mail, grades; `docs/requirements.md` Privacy); no classification table yet | review | partial |
+| V14.1.1 | 2 | partly | the requirements name the personal data (names, student numbers and e-mail addresses of students and teachers; `docs/requirements.md`, Q-PRIV-1); no classification table yet | review | partial |
 | V14.1.2 | 2 | partly | Q-PRIV-1 to Q-PRIV-3 set protection rules; not per protection level | review | partial |
 
 #### V14.2 General Data Protection
@@ -750,7 +751,7 @@ Text: [vendor/asvs/en/0x23-V14-Data-Protection.md](vendor/asvs/en/0x23-V14-Data-
 | V14.2.1 | 1 | yes | no personal data in URLs: ids only (UUIDv7, #28); sign-in uses POST and the IdP's code flow | review | met |
 | V14.2.2 | 2 | partly | no application cache holds personal data; every session-dependent response is `no-store` in production (V14.3.2) | unit `src/server/security-headers.test.ts` | met |
 | V14.2.3 | 2 | yes | no analytics or third-party scripts (CSP `default-src 'self'`); an OIDC client secret goes only to the issuer it was issued for: any issuer change needs a new secret (`src/server/idp/service.ts`, #92); the unused SP-initiated SAML logout endpoint, which would send a LogoutRequest to the IdP, is unreachable (`src/server/idp/sso-guards.ts`) | unit `src/server/security-headers.test.ts`, `src/server/idp/review-fixes.test.ts`, `src/server/auth.test.ts` | met |
-| V14.2.4 | 2 | partly | `.claude/rules/auth-security.md` Privacy: logs carry ids only, pseudonyms in FerroEHR; retention decided (#32: activity log 12 months, ended sessions 30 days) and applied automatically every 24 hours inside the app container (#65, `src/server/audit/prune-job.ts`) | unit `src/server/audit/prune-job.test.ts`, `src/server/audit/prune-schedule.test.ts` | partial |
+| V14.2.4 | 2 | partly | `.claude/rules/auth-security.md` Privacy: logs carry ids only, no student or teacher data in FerroEHR; retention decided (#32: activity log 12 months, ended sessions 30 days) and applied automatically every 24 hours inside the app container (#65, `src/server/audit/prune-job.ts`) | unit `src/server/audit/prune-job.test.ts`, `src/server/audit/prune-schedule.test.ts` | partial |
 | V14.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V14.2.6 | 3 | no | Level 3, above the L2 target; `getSessionUser` already returns a minimal projection | none | n-a |
 | V14.2.7 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -774,7 +775,7 @@ Text: [vendor/asvs/en/0x24-V15-Secure-Coding-and-Architecture.md](vendor/asvs/en
 |---|---|---|---|---|---|
 | V15.1.1 | 1 | partly | Dependabot with a 7-day cooldown and the Trivy gate on fixable HIGH and CRITICAL (`docs/ci-cd.md`); no remediation time frame written | review | partial |
 | V15.1.2 | 2 | yes | every release image carries a signed SPDX SBOM; the tarball a CycloneDX SBOM (`docs/release.md`) | CI `release-image.yml`, `release-build.yml` | met |
-| V15.1.3 | 2 | partly | the Gen5 upload and the KPI queries are the heavy functions (Q-PERF-1, Q-PERF-2); not documented as such | review | planned |
+| V15.1.3 | 2 | partly | the Gen5 upload and the dashboard queries are the heavy functions (Q-PERF-1, Q-PERF-2); not documented as such | review | planned |
 | V15.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V15.1.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -783,7 +784,7 @@ Text: [vendor/asvs/en/0x24-V15-Secure-Coding-and-Architecture.md](vendor/asvs/en
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V15.2.1 | 1 | yes | `pnpm audit --prod`, dependency review on every PR, and Trivy before a tag (`.github/workflows/ci.yml`, `scan-and-tag.yml`) | CI `audit`, `dependency-review`, `scan-and-tag.yml` | met |
-| V15.2.2 | 2 | yes | limits on upload size and parse time (S4, Q-PERF-2); KPI query limits (D5) | unit tests with S4 and D5 | planned |
+| V15.2.2 | 2 | yes | limits on upload size and parse time (S4, Q-PERF-2); dashboard query limits (D11) | unit tests with S4 and D11 | planned |
 | V15.2.3 | 2 | yes | the image holds production dependencies only (`pnpm deploy --prod`); the dev login and demo accounts are refused in production | unit `src/server/env.test.ts`, `src/server/demo-accounts.test.ts` | met |
 | V15.2.4 | 3 | yes | the frozen lockfile with integrity hashes, the npm registry only, and pinned image digests (Level 3, done anyway) | CI `install` | met |
 | V15.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -827,7 +828,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 | V16.2.2 | 2 | yes | timestamps in UTC (`timestamptz`, `.claude/rules/database.md`); container clocks follow the host | review | partial |
 | V16.2.3 | 2 | yes | logs go to the container's stdout, and with `compose.logship.yaml` the security events also go to the institution's log platform (`docs/deployment.md`, "Shipping logs off the host"); the log inventory (V16.1.1) is still to write | review | partial |
 | V16.2.4 | 2 | yes | security events are one JSON object per line with a fixed field set and a UTC `time` (`src/server/security-log.ts`), shipped as RFC 5424 syslog or JSON (`docker/logship/`); the host CLI writes its access changes and failures in the same format, and a list such as `fields` stays a JSON array of codes | unit `src/server/security-log.test.ts`, `src/server/cli-stream.test.ts`, `src/server/audit/prune-schedule.test.ts` | met |
-| V16.2.5 | 2 | yes | logs carry ids, never names, e-mail, grades or tokens: the security log takes an allowlist of fields and redacts a value with a space or an `@` (`src/server/security-log.ts`, `src/server/idp-sync.ts`, `src/server/role-guard.ts`) | unit `src/server/security-log.test.ts`, `src/server/idp-sync.test.ts` | met |
+| V16.2.5 | 2 | yes | logs carry ids, never names, e-mail or tokens: the security log takes an allowlist of fields and redacts a value with a space or an `@` (`src/server/security-log.ts`, `src/server/idp-sync.ts`, `src/server/role-guard.ts`) | unit `src/server/security-log.test.ts`, `src/server/idp-sync.test.ts` | met |
 
 #### V16.3 Security Events
 

@@ -75,3 +75,9 @@ authority, this file is the index. Cite the issue number, not this file.
 The maintainer did not decide, and nobody may assume: the GDPR legal basis,
 the DPIA, who or what the EHR subject is, and the KPI norms. These remain
 open questions for the product owner ([[requirements-are-draft]]).
+
+2026-11-19: superseded in part by [[workplace-simulation-direction]]: the
+group grading decision under #28 no longer applies (no grading of any kind),
+and the KPI norms are dropped with the KPIs. The EHR subject is answered: it
+is the fictional patient of a game (O9 in `docs/requirements.md`). The GDPR
+basis and the DPIA stay with the product owner.

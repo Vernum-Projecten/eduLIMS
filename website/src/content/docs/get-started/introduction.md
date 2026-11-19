@@ -7,24 +7,27 @@ description: What eduLIMS is, who uses it, and where it stands.
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
 eduLIMS is an open-source laboratory information management system (LIMS) for
-practical laboratory education. Students register samples, run measurements
-on the lab analysers, check their results and submit a lab report. Teachers
-set up a practical, grade it with a rubric and follow their classes on a KPI
-dashboard. Administrators manage users and roles and watch the integrations.
+a workplace simulation in laboratory education. Teams of students run a
+simulated clinical laboratory: they register patients and requests from paper
+forms, link the samples, measure on the lab analysers, and release each
+result to the patient's record. The teams compete on turnaround time and
+accuracy. Teachers enter the correct values beforehand and follow every team
+on a live dashboard; there is no grading. Administrators manage users and
+roles and watch the integrations.
 
-Measurement data is stored as openEHR compositions in
+Results are stored as openEHR compositions in
 [FerroEHR](https://github.com/FerroHEALTH/FerroEHR), an openEHR clinical data
 repository. Results from analysers that send HL7 v2 arrive through
-[FerroBRIDGE](https://github.com/FerroHEALTH/FerroBRIDGE). Everything about
-teaching and grading (practicals, sample IDs, lab reports, rubric scores and
-grades) stays in the eduLIMS database.
+[FerroBRIDGE](https://github.com/FerroHEALTH/FerroBRIDGE). Everything else
+about a game (teams, the test catalogue, correct values, tolerances, requests
+and their times) stays in the eduLIMS database.
 
 :::caution[Pre-release]
 eduLIMS is pre-release software. The [requirements](/development/requirements/)
-are a working draft under re-evaluation, and the application, its
+are a working draft with open questions, and the application, its
 configuration and this documentation can change between releases without a
-deprecation period. eduLIMS holds only test data from volunteer subjects
-under a pseudonym; it is not meant for patient data.
+deprecation period. The patients of a game are fictional; eduLIMS is not
+meant for real patient data.
 :::
 
 ## Portals and roles

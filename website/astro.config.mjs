@@ -11,7 +11,7 @@ import { rehypeFocusableTables } from "./src/plugins/rehype-focusable-tables.ts"
 
 const repository = "https://github.com/Vernum-Projecten/eduLIMS";
 const socialImage = "https://edulims.eu/edulims-social.png";
-const socialAlt = "eduLIMS: open-source LIMS for practical laboratory education";
+const socialAlt = "eduLIMS: open-source LIMS for a workplace simulation in laboratory education";
 
 export default defineConfig({
   site: "https://edulims.eu",
@@ -26,7 +26,7 @@ export default defineConfig({
     starlight({
       title: "eduLIMS",
       description:
-        "An open-source laboratory information management system for practical laboratory education.",
+        "An open-source laboratory information management system for a workplace simulation in laboratory education.",
       // The lockup carries the name, so it replaces the text title; its alt is the title.
       logo: {
         light: "../assets/brand/edulims-lockup-light.svg",
@@ -90,7 +90,7 @@ export default defineConfig({
             "development/architecture",
             "development/requirements",
             "development/test-strategy",
-            "development/kpi-dashboard",
+            "development/game-dashboard",
             {
               label: "Decisions",
               translations: { nl: "Besluiten" },

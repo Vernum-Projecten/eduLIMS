@@ -24,3 +24,9 @@ not rewritten.
 **How to apply:** write neutral, professional English; the lab domain (the
 analysers, openEHR, HL7 v2, FerroEHR, FerroBRIDGE) stays, since it is the
 product. See [[spdx-and-languages]].
+
+2026-11-19: superseded in part by [[workplace-simulation-direction]]: the
+description "for practical laboratory education" no longer applies; eduLIMS
+is the LIMS of a workplace simulation in laboratory education. The rule on
+names and institutions stands, and it now also covers the teachers' game
+material.

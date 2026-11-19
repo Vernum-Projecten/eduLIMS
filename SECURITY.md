@@ -4,9 +4,10 @@
 # Security policy
 
 eduLIMS is an open-source laboratory information management system (LIMS) for
-practical laboratory education. A deployment runs on one Linux VM inside the
-institution's network and holds test data from volunteer subjects under a
-pseudonym, plus the grades of students taking part in the practical courses.
+a workplace simulation in laboratory education. A deployment runs on one
+Linux VM inside the institution's network. It holds the accounts of students
+and teachers, the fictional patients of the games with their results, and the
+correct values a teacher enters for a game, which students must never see.
 
 ## Supported versions
 
@@ -25,9 +26,10 @@ branches and no backports.
 ("Report a vulnerability" on the repository's Security tab). Describe the
 issue, the affected version or commit, and a reproduction if you have one.
 
-**Never include personal data in a report.** Not a real name, student number,
-grade or measurement of a real person. Use the pseudonymised test set or make
-up an equivalent case.
+**Never include personal data in a report.** Not a real name, student number
+or measurement of a real person, and nothing from a real game (a scenario or
+a correct value). Use the pseudonymised test set or make up an equivalent
+case.
 
 ## What happens next
 
@@ -52,8 +54,9 @@ under the GDPR.
 In scope:
 
 - the eduLIMS application: sign-in and session handling, role checks
-  (a student who sees another student's grades or results is a vulnerability),
-  the Excel upload and parser, the CSV export, and the API routes;
+  (a student who sees the work of another team, a correct value or an
+  accuracy status is a vulnerability), the Excel upload and parser, the CSV
+  import, and the API routes;
 - the container image, the Compose files and the CI/CD workflows in this
   repository.
 

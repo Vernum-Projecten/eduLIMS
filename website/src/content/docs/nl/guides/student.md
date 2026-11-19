@@ -8,8 +8,10 @@ sidebar:
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-In het Studentportaal volg je een practicum: je registreert je monsters,
-bekijkt je meetresultaten en levert je labverslag in.
+In het Studentportaal draai je met je team een laboratorium tijdens een spel:
+je registreert patiënten en aanvragen vanaf de papieren formulieren, koppelt
+de monsters, meet, en geeft elk resultaat vrij naar het dossier van de
+patiënt.
 
 :::caution[In ontwikkeling]
 eduLIMS is nog in ontwikkeling. Deze handleiding beschrijft wat nu werkt en
@@ -27,8 +29,8 @@ conceptrequirement, die nog kan veranderen.
 eduLIMS opent het Studentportaal. Heeft je account nog geen rol in eduLIMS,
 dan staat dat op de inlogpagina. Vraag een beheerder om je account de rol student te geven.
 
-Je ziet alleen je eigen gegevens. Resultaten, inzendingen en cijfers van
-andere studenten krijg je nooit te zien.
+Je ziet alleen het werk van je eigen team. Het werk van andere teams krijg je
+nooit te zien.
 
 ## Je weg vinden
 
@@ -88,15 +90,19 @@ server.
 
 ## Geplande taken
 
-| Taak                                                                                                        | Requirement                      |
-| ----------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| De opdracht, het meetprotocol en de deadline van een practicum lezen                                        | [S2](/development/requirements/) |
-| Monsters registreren; eduLIMS geeft elk monster een uniek monster-ID                                        | [S3](/development/requirements/) |
-| Een Gen5-export (Excel) van de platereader uploaden; eduLIMS controleert elk monster-ID en elke wellpositie | [S4](/development/requirements/) |
-| De meetresultaten per monster bekijken, van de Afinion 2 en de Epoch 2                                      | [S5](/development/requirements/) |
-| Het labverslag voor de deadline inleveren; na het inleveren is het vergrendeld                              | [S6](/development/requirements/) |
-| Je feedback en cijfer bekijken, naast het gemiddelde van het practicum                                      | [S7](/development/requirements/) |
-| De status van een inzending zien: concept, ingediend, beoordeeld                                            | [S8](/development/requirements/) |
-| Een herkansing of nieuwe versie inleveren                                                                   | [S9](/development/requirements/) |
+| Taak                                                                                                                               | Requirement                       |
+| ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Met je team werken in de gedeelde patiënten, aanvragen, monsters en resultaten                                                     | [S10](/development/requirements/) |
+| Een patiënt registreren vanaf het papieren aanvraagformulier                                                                       | [S11](/development/requirements/) |
+| Een aanvraag vastleggen: de bepalingen, routine of spoed, en elk monster met het monsternummer en het materiaal van het formulier  | [S12](/development/requirements/) |
+| Per bepaling de toleranties van je eigen team instellen voordat je meet                                                            | [S13](/development/requirements/) |
+| Een Gen5-export (Excel) van de platereader uploaden door die te slepen                                                             | [S4](/development/requirements/)  |
+| De metingen per monster bekijken, van de Afinion 2 en de Epoch 2                                                                   | [S5](/development/requirements/)  |
+| Een monster opnieuw meten; eduLIMS bewaart elke meting                                                                             | [S14](/development/requirements/) |
+| Een resultaat vrijgeven naar het dossier van de patiënt; eduLIMS waarschuwt je als de waarde buiten de tolerantie van je team valt | [S15](/development/requirements/) |
+
+Jij en je team zijn de analisten. eduLIMS beoordeelt een resultaat niet voor
+je: de waarschuwing bij de tolerantie van je eigen team is de enige controle
+die je krijgt.
 
 De requirements zijn in het Engels.

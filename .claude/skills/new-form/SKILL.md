@@ -1,8 +1,8 @@
 ---
 name: new-form
-description: Scaffolds an accessible form with shadcn/ui Field components, TanStack Form and one Zod schema shared with the POST server function that receives it, with labels and messages from the i18n layer (English source, Dutch translation), server-side refusals shown at the field, pending state, cache invalidation and tests. Use when adding any form (practical setup, sample registration, rubric scoring, user and role management).
+description: Scaffolds an accessible form with shadcn/ui Field components, TanStack Form and one Zod schema shared with the POST server function that receives it, with labels and messages from the i18n layer (English source, Dutch translation), server-side refusals shown at the field, pending state, cache invalidation and tests. Use when adding any form (registering a patient, recording a request, setting tolerances, the test catalogue, preparing a game, user and role management).
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash
-argument-hint: "<form name> e.g. register-sample"
+argument-hint: "<form name> e.g. add-test"
 ---
 
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
@@ -45,23 +45,27 @@ path the existing code uses, and add every new key to both the `en` and the
 import { z } from "zod";
 import { m } from "@/i18n/messages";
 
-export const registerSampleSchema = z.object({
-  practicalId: z.uuid(),
-  sampleType: z.enum(["blood", "serum", "plasma"], { error: () => m.sample_type_required() }),
-  note: z.string().max(200, { error: () => m.note_too_long({ max: 200 }) }),
+export const addTestSchema = z.object({
+  name: z.string().min(1, { error: () => m.test_name_required() }),
+  unit: z.string().min(1, { error: () => m.test_unit_required() }),
+  material: z.enum(["blood", "urine"], { error: () => m.test_material_required() }),
 });
-export type RegisterSampleInput = z.infer<typeof registerSampleSchema>;
+export type AddTestInput = z.infer<typeof addTestSchema>;
 ```
 
+The example is the form of D9 (a teacher adds a test with its name, unit and
+material). Its rules (the materials, the name check below) only illustrate
+the pattern; take the real ones from the draft or the owner.
+
 **The server function** (`src/server/<area>/functions.ts`): `POST`, the role
-middleware, `.validator(registerSampleSchema)`, ownership check, then the
+middleware, `.validator(addTestSchema)`, ownership check, then the
 write in a transaction. It returns the created record, or throws a typed
 error the form can show.
 
 **The form component** (`src/components/<area>/<name>-form.tsx`), on the
 foundation in `src/components/form/` (`react-ui.md` §2). `/dev/forms` and
 `src/components/dev-forms/` show every field, an async check, a server
-refusal and a nested array editor (the rubric editor) working.
+refusal and a nested array editor working.
 
 ```tsx
 import { revalidateLogic } from "@tanstack/react-form";
@@ -72,27 +76,27 @@ import { useAppForm } from "@/components/form/app-form";
 import { FieldGroup } from "@/components/ui/field";
 import { m } from "@/i18n/messages";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
-import { isSampleIdFree, registerSample } from "@/server/samples/functions";
-import { samplesKeys } from "@/server/samples/query-options";
-import { registerSampleSchema } from "@/server/samples/schemas";
+import { addTest, isTestNameFree } from "@/server/tests/functions";
+import { testsKeys } from "@/server/tests/query-options";
+import { addTestSchema } from "@/server/tests/schemas";
 
-export function RegisterSampleForm({ practicalId }: Readonly<{ practicalId: string }>) {
+export function AddTestForm() {
   const queryClient = useQueryClient();
-  const submit = useServerFn(registerSample);
-  const check = useServerFn(isSampleIdFree);
+  const submit = useServerFn(addTest);
+  const check = useServerFn(isTestNameFree);
   const form = useAppForm({
-    defaultValues: { practicalId, sampleType: "" as const, note: "" },
+    defaultValues: { name: "", unit: "", material: "" as const },
     // Nothing shows before the first submit; then every change revalidates.
     validationLogic: revalidateLogic(),
-    validators: { onDynamic: registerSampleSchema },
+    validators: { onDynamic: addTestSchema },
     onSubmit: async ({ value, formApi }) => {
       const result = await submit({ data: value });
       if (!result.ok) {
         // A typed refusal, translated here and shown at its field (or `form` for the top).
-        applyServerRefusal(formApi, { fields: { note: m.sample_note_refused() } });
+        applyServerRefusal(formApi, { fields: { name: m.test_name_refused() } });
         return;
       }
-      await queryClient.invalidateQueries({ queryKey: samplesKeys.list(practicalId) });
+      await queryClient.invalidateQueries({ queryKey: testsKeys.lists() });
     },
   });
 
@@ -108,26 +112,25 @@ export function RegisterSampleForm({ practicalId }: Readonly<{ practicalId: stri
         <form.FormErrors />
         <FieldGroup>
           <form.AppField
-            name="note"
+            name="name"
             validators={{
               onChangeAsyncDebounceMs: 400,
               onChangeAsync: async ({ value, signal }) =>
-                (await check({ data: { note: value }, signal })).free
+                (await check({ data: { name: value }, signal })).free
                   ? undefined
-                  : m.sample_note_taken(),
+                  : m.test_name_taken(),
             }}
           >
             {(field) => (
               <field.TextField
-                label={m.sample_note_label()}
-                description={m.sample_note_help()}
-                maxLength={200}
+                label={m.test_name_label()}
+                description={m.test_name_help()}
               />
             )}
           </form.AppField>
         </FieldGroup>
         <form.SubmitButton icon={<SaveIcon aria-hidden="true" data-icon="inline-start" />}>
-          {m.sample_register_submit()}
+          {m.test_add_submit()}
         </form.SubmitButton>
       </form.AppForm>
     </form>
@@ -139,7 +142,7 @@ export function RegisterSampleForm({ practicalId }: Readonly<{ practicalId: stri
   `src/components/form/`, registered in `app-form.ts` and built on
   `useFieldA11y` and `FieldFeedback`, so its label, help text, error,
   `aria-invalid` and `aria-describedby` work like the others.
-- An array (rubric criteria, invitation rows) is `form.AppField
+- An array (the tests of a request, invitation rows) is `form.AppField
   mode="array"`, a stable `id` per row as the React key, `ArrayRowControls`
   and `useArrayEditing` (`src/components/form/array-controls.tsx`); split a
   row into a `withForm` part, as `src/components/dev-forms/rubric-editor.tsx`
@@ -152,12 +155,16 @@ export function RegisterSampleForm({ practicalId }: Readonly<{ practicalId: stri
 - Every control has a visible label tied to it (the registered fields do
   this); help text is the `description`; never a placeholder as the label
   (WCAG 1.3.1, 3.3.2).
-- A server refusal (a deadline passed, an unknown sample ID) is shown at the
+- A server refusal (a name already in use, a team the user is not in) is shown at the
   field it concerns, or at the top of the form with focus moved to it
   (`applyServerRefusal`, `form.FormErrors`), and announced (`role="alert"`
   or the toast).
-- An irreversible submit (S6 lab report, D4 final grade) confirms with an
-  `AlertDialog` that states what can no longer change.
+- An irreversible submit (the release of a result, S15) confirms with an
+  `AlertDialog` that states what can no longer change. The tolerance warning
+  of S15 shows in that step, with an icon and text.
+- A Student portal form fills in, corrects and suggests nothing (S11,
+  Q-SIM-1, W7): no default taken from a correct value, no suggested limit,
+  no check against anything but the team's own entries.
 - `form.SubmitButton` reflects `isSubmitting`, cannot double-submit and is
   never disabled only because the form is invalid.
 

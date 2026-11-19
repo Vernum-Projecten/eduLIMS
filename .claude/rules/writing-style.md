@@ -24,8 +24,10 @@ Write plainly, so the text reads like a person wrote it for another person.
   same rules below (no filler, active voice, short sentences) and addresses
   the reader as "je". Dutch role and portal names appear only inside the
   `nl` catalogue, never in code, routes or docs.
-- Use the English domain terms: practical, sample ID, lab report, rubric,
-  Student portal, Teacher portal, Admin portal.
+- Use the English domain terms as `docs/requirements.md` defines them: game,
+  team, patient, request, sample (with its sample number from the form),
+  test, test catalogue, measurement, result, release, tolerance, correct
+  value, teacher dashboard, Student portal, Teacher portal, Admin portal.
 
 ## Banned tells
 
@@ -74,8 +76,8 @@ The requirements prioritise with MoSCoW (Must, Should, Could,
 Won't), and the Must requirements carry acceptance criteria. Describe scope
 with those terms and IDs ("S8 is a Should"), and describe build order as build
 order ("the Student portal comes first"). Do not invent release labels such as
-"v1" or "deferred" for work the requirements list; a Won't item (an external
-grade-book integration) is named as a Won't with its reason.
+"v1" or "deferred" for work the requirements list; a Won't item (grading, W6) is
+named as a Won't with its reason.
 
 ## Code comments and TSDoc
 

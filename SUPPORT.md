@@ -11,15 +11,16 @@ answer it, open an issue through the
 [issue chooser](https://github.com/Vernum-Projecten/eduLIMS/issues/new/choose).
 
 eduLIMS is an open-source project. There is no service-level agreement.
-During practical hours, teachers and students contact their institution's lab
+During a game, teachers and students contact their institution's lab
 and application administrator for access, classes and analysers.
 
 ## I found a defect
 
 [Open an issue](https://github.com/Vernum-Projecten/eduLIMS/issues/new/choose)
 with the steps to reproduce it, what you expected and what happened. Use the
-pseudonymised test data in screenshots and files. Never attach real names,
-student numbers or grades.
+pseudonymised test data in screenshots and files. Never attach real names or
+student numbers, or anything from a real game (a request form, a scenario or
+a correct value).
 
 ## I found a vulnerability
 

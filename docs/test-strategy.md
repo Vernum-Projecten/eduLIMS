@@ -24,13 +24,13 @@ repeat, so they cover the most important flows only.
 
 | Level | What is tested | How | When | Passes when |
 |---|---|---|---|---|
-| Unit | Rules in the core: final grade from the rubric (D4), the five KPIs (K-01, K-04 to K-06, K-08), deadline and locking after sending (S6), sample ID uniqueness (S3) | Vitest | every change, in CI | all tests green; core coverage at least 70% (Q-MAINT-1) |
-| Data | Excel upload: sample IDs, well positions, empty or duplicate values (S4). Afinion: HL7 message to openEHR | a fixed set of good and bad test files; validation against the template `eduLIMS-lab` | every change, in CI | bad files are rejected with a clear message; good files reach FerroEHR correctly |
-| Integration | eduLIMS with FerroEHR (REST and AQL), FerroBRIDGE with an HL7 message, sign-in through Microsoft Entra ID or Keycloak | a test environment with Docker Compose; the HL7 message is simulated | every pull request that touches the integration code or the Compose stack, and nightly on `main` (the CI integration lane, [ci-cd.md](ci-cd.md)) | a measurement appears with the right sample within 1 minute (S5) |
-| Security | Roles: a student sees no data of others, a teacher only their own classes (Q-SEC-2). Vulnerable libraries (Q-SEC-4) | test accounts per role; OWASP Top 10 checklist (Q-SEC-1); dependency and image scan in CI | every release | no access outside the own role; no known critical vulnerabilities |
-| Performance | Page load time and Excel upload processing (Q-PERF-1, Q-PERF-2) | measured in the test environment with a full practical of test data | before every milestone review | pages within 2 seconds; upload within 10 seconds |
+| Unit | Rules in the core: turnaround time (G-01), urgent within target (G-02), accuracy status from the teacher's limits (G-03, D13), the check against the team's own tolerance (S15), and the ranking (G-04) once O3 is answered | Vitest | every change, in CI | all tests green; core coverage at least 70% (Q-MAINT-1) |
+| Data | Excel upload: the Gen5 layout, a header block and a 96-well grid of absorbance values at one wavelength (S4). Afinion: HL7 message to openEHR | a fixed set of good and bad test files; validation against the template `eduLIMS-lab` | every change, in CI | a file in another layout is rejected with a clear message; a good file is read and its values are shown to the team; a composition passes validation against the template |
+| Integration | eduLIMS with FerroEHR (REST and AQL), FerroBRIDGE with an HL7 message, sign-in through Microsoft Entra ID or Keycloak | a test environment with Docker Compose; the HL7 message is simulated | every pull request that touches the integration code or the Compose stack, and nightly on `main` (the CI integration lane, [ci-cd.md](ci-cd.md)) | a measurement appears with the right sample in the team's work within 1 minute (S5); how a result finds its team is open (O13) |
+| Security | Team isolation: a student sees no work of another team, a teacher only their own classes and games (S10, Q-SEC-2). No hint: no server response for a student account carries a correct value or an accuracy status (Q-SIM-1). Vulnerable libraries (Q-SEC-4) | test accounts per role and per team, with negative tests on every function that touches a correct value; OWASP Top 10 checklist (Q-SEC-1); dependency and image scan in CI | every release | no access outside the own role and the own team; no correct value in a student response; no known critical vulnerabilities |
+| Performance | Page load time and Excel upload processing (Q-PERF-1, Q-PERF-2) | measured in the test environment with a full game of test data | before every milestone review | pages within 2 seconds; upload within 10 seconds |
 | Accessibility | Student portal, teacher portal and the dashboard (Q-ACC-1 to Q-ACC-3) | axe scan in Playwright, and a keyboard-only walkthrough | axe on every change; keyboard before every milestone review | no errors at WCAG 2.1 level A and AA |
-| User test | Dashboard with 3 to 5 teachers, student portal with 2 to 3 students | think-aloud test with fixed tasks, such as "which class is behind?" | after every design iteration | at least 4 of 5 tasks completed without help |
+| User test | The game dashboard with 3 to 5 teachers, the student portal with 2 to 3 students | think-aloud test with fixed tasks on an invented game, such as "which team has an urgent request past its target?" | after every design iteration | at least 4 of 5 tasks completed without help |
 | Acceptance | The Must requirements | demo to the product owner in the milestone review | every milestone | the product owner accepts the acceptance criterion |
 
 ### Tools
@@ -47,13 +47,20 @@ repeat, so they cover the most important flows only.
 eduLIMS is never tested with real personal data (Q-PRIV-3). The repository
 holds a fixed test set:
 
-- made-up students under pseudonyms, in made-up classes;
-- one practical with a deadline and a rubric;
-- measured values for HbA1c, CRP and absorbance;
-- deliberately bad files: an Excel with an unknown sample ID, a well position
-  that does not exist, and an empty column.
+- invented students under pseudonyms, in invented classes and teams;
+- fictional patients, invented for the test set;
+- one invented game with invented correct values;
+- measured values in the formats the analysers deliver: an HL7 v2 message of
+  the Afinion 2 and a Gen5 export of the Epoch 2;
+- deliberately bad files, such as an Excel file in another layout than the
+  Gen5 export.
 
 Everyone runs the same tests on the same set.
+
+The teachers' real game material is never used as a fixture (Q-PRIV-4, R-13):
+no scenario, patient list, request form or correct value of a real game is in
+the repository, a test or the demo data. A fixture copies the format of the
+material and none of its content.
 
 ## Testing the AI part
 

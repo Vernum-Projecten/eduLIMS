@@ -8,8 +8,9 @@ sidebar:
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-The student portal (Studentportaal) is where you follow a practical: register
-your samples, check your measurements, and hand in your lab report.
+The student portal (Studentportaal) is where your team runs its laboratory
+during a game: you register patients and requests from the paper forms, link
+the samples, measure, and release each result to the patient's record.
 
 :::caution[Pre-release]
 eduLIMS is in development. This guide describes what works today and lists
@@ -28,8 +29,8 @@ eduLIMS opens the student portal. If your account has no role in eduLIMS
 yet, the sign-in page tells you so.
 Ask an administrator to give your account the student role.
 
-You see only your own data. Results, submissions and grades of other students
-are never shown to you.
+You see only the work of your own team. The work of other teams is never
+shown to you.
 
 ## Find your way around
 
@@ -87,13 +88,16 @@ Choose your name at the foot of the sidebar, then **Sign out**. eduLIMS ends you
 
 ## Planned tasks
 
-| Task                                                                                             | Requirement                      |
-| ------------------------------------------------------------------------------------------------ | -------------------------------- |
-| Read the assignment, the measurement protocol and the deadline of a practical                    | [S2](/development/requirements/) |
-| Register samples; eduLIMS gives each sample a unique sample ID (monster-ID)                      | [S3](/development/requirements/) |
-| Upload a Gen5 Excel export of the plate reader; eduLIMS checks every sample ID and well position | [S4](/development/requirements/) |
-| Check the measurement results per sample, from the Afinion 2 and the Epoch 2                     | [S5](/development/requirements/) |
-| Submit the lab report (labverslag) before the deadline; after you submit, it is locked           | [S6](/development/requirements/) |
-| Read your feedback and grade, next to the average of the practical                               | [S7](/development/requirements/) |
-| See the status of a submission: draft, submitted, graded                                         | [S8](/development/requirements/) |
-| Submit a resit or a new version                                                                  | [S9](/development/requirements/) |
+| Task                                                                                                              | Requirement                       |
+| ----------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Work with your team in its shared patients, requests, samples and results                                         | [S10](/development/requirements/) |
+| Register a patient from the paper request form                                                                    | [S11](/development/requirements/) |
+| Record a request: its tests, routine or urgent, and each sample with the sample number and material from the form | [S12](/development/requirements/) |
+| Set your team's own tolerances per test before you measure                                                        | [S13](/development/requirements/) |
+| Upload a Gen5 Excel export of the plate reader by drag and drop                                                   | [S4](/development/requirements/)  |
+| See the measurements per sample, from the Afinion 2 and the Epoch 2                                               | [S5](/development/requirements/)  |
+| Measure a sample again; eduLIMS keeps every measurement                                                           | [S14](/development/requirements/) |
+| Release a result to the patient's record; eduLIMS warns you when the value is outside your team's tolerance       | [S15](/development/requirements/) |
+
+You and your team are the analysts. eduLIMS does not judge a result for you:
+the warning against your team's own tolerance is the one check it gives.

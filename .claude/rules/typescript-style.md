@@ -99,20 +99,22 @@ can end up in both bundles. The boundary is explicit:
 ## Types model the domain
 
 - **Distinct ids are distinct types** where a mix-up is a privacy defect: a
-  `StudentId`, a `SampleId`, a `PracticalId` and an EHR pseudonym
-  are branded types, so passing a student id where a pseudonym belongs fails
-  to compile.
+  `UserId`, a `TeamId`, a `GameId` and a `PatientId` are branded types, so
+  passing one team's id where a game id belongs fails to compile. A correct
+  value has its own type that no student-facing return type includes
+  (Q-SIM-1).
 - **Errors are values the caller can branch on.** A server function returns
   or throws a typed error (a discriminated union with a `kind`), never a
   string the caller has to match. Map it to an HTTP status and a message key from
   the i18n layer at the edge.
-- **Discriminated unions over boolean flags** for state (submission status
-  `draft | submitted | graded`, S8), with an exhaustive `switch` that
+- **Discriminated unions over boolean flags** for state (the state of a requested test,
+  `requested | measured | released`, `docs/lims-workflow.md`), with an exhaustive `switch` that
   ends in a `never` check.
 - **Dates:** store and compare instants in UTC (`timestamptz`); format for
   the user in the active locale and `APP_TIME_ZONE` at render time, through
-  the `Intl` helpers in `src/lib/i18n/` (ADR 0011). Deadline logic
-  (S6) never compares formatted strings.
+  the `Intl` helpers in `src/lib/i18n/` (ADR 0011). Turnaround time
+  (G-01) and the urgent target (G-02) are computed from instants, never from
+  formatted strings.
 
 ## Dependencies
 

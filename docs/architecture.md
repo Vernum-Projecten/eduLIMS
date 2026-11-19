@@ -4,23 +4,31 @@
 # Architecture
 
 eduLIMS is an open-source laboratory information management system (LIMS) for
-practical laboratory education. It is one web application with three portals
-(student, teacher, administrator) on a shared core. The core keeps teaching
-data in its own PostgreSQL database and reads and writes measurement data as
-openEHR compositions in FerroEHR.
+a workplace simulation in laboratory education. Teams of students run a
+simulated clinical laboratory: they register patients and requests from paper
+forms, link the samples, measure, and release each result to the patient's
+record. Teachers follow every team on a live dashboard
+([ADR 0020](adr/0020-workplace-simulation.md)). eduLIMS is one web application
+with three portals (student, teacher, administrator) on a shared core. The
+core keeps the data of a game in its own PostgreSQL database and reads and
+writes measurement data as openEHR compositions in FerroEHR.
 
 This document is the design authority. Where it and a later
 [decision record](adr/README.md) disagree, the decision record wins.
 Requirement IDs refer to [requirements.md](requirements.md), which is a working
-draft under re-evaluation. The architecture diagrams will be redrawn once that
-re-evaluation is complete; until then this text is the reference.
+draft. A point marked **Open** names a question in its
+[open questions](requirements.md#open-questions) (O1 to O13); the owner
+answers those on #264, and nothing is built on an open point. The architecture
+diagrams will be redrawn once the questions are answered; until then this text
+is the reference.
 
 ## Drivers
 
 Two drivers shape the design:
 
-- **Realistic laboratory education.** Students work as in a real lab, where a
-  measurement lands in a LIMS without retyping.
+- **Realistic laboratory education.** Teams work as in a real clinical lab
+  and follow the chain a real LIMS follows: patient, request, sample,
+  measurement, release.
 - **Long-term continuity.** eduLIMS and its development lane stay
   maintainable by a new maintainer or contributor without prior context.
 
@@ -30,58 +38,67 @@ Every design decision can be checked against these principles.
 
 | Principle | Consequence for the design |
 |---|---|
-| Privacy by design | Measurements come from volunteer subjects: test data, no patient data. Subjects get a pseudonym as EHR subject in FerroEHR. |
-| Record once, at the source | Afinion results arrive through HL7; Epoch results through an Excel upload. Nobody retypes a measured value. |
+| Privacy by design | The patients of a game are fictional (W5). The patient's record in FerroEHR carries the fictional details the team registers (S11, O9). No student or teacher is ever an EHR subject, and no name, student number or email address of a student or a teacher reaches FerroEHR (Q-PRIV-1). |
+| Record once, at the source | Afinion results arrive through HL7; Epoch values through an Excel upload. Open: which tests have no analyser route and are entered by hand (O4, O8). |
 | Open standards | HL7 v2 for the Afinion 2; openEHR archetypes and templates for measurement data. |
-| Traceability | Every measurement links through its sample ID to device, sample and student (Q-TRACE-1). |
+| Traceability | Every measurement links through its sample number to device, sample, patient and team (Q-TRACE-1). |
+| The students are the analysts | eduLIMS gives a student no hint (W7): no screen and no server response for a student holds a correct value, an accuracy status or another team's work (Q-SIM-1). The one check is the warning against the team's own tolerance (S15). |
+| The server keeps the time | Every time the dashboard uses is taken on the server (Q-SIM-2). |
 | Two sides, one system | Separate student and teacher portals on one eduLIMS core. |
-| Separate teaching and measurement data | Practicals and assessments in eduLIMS; measurement results in FerroEHR. |
+| Separate game and measurement data | Games, teams, correct values, tolerances and times in eduLIMS; results in FerroEHR. |
 | AI assists, a person decides | No AI-written change without a pull request, green tests and a person who reviews it and takes responsibility for it ([ADR 0009](adr/0009-no-ai-attribution-human-review.md)). |
 
 ## Context and integrations
 
-The end-to-end workflow, from the patient to the graded lab report, with its
-diagrams and the ownership rules, is in [The LIMS workflow](lims-workflow.md).
+The end-to-end workflow, from the paper request form to the result in the
+patient's record and on the teacher's dashboard, with its diagrams and the
+ownership rules, is in [The LIMS workflow](lims-workflow.md).
 
 eduLIMS integrates with the systems below. An external grade-book system is
-out of scope: grading stays in eduLIMS, and teachers can take grades elsewhere
-with the CSV export (D6).
+out of scope: eduLIMS holds no grades (W2, W6).
 
 | Interface | From → to | Protocol | What is built | Priority |
 |---|---|---|---|---|
 | Afinion 2 → FerroBRIDGE | analyser → integration layer | HL7 v2 over MLLP (TCP/IP, Ethernet); FerroBRIDGE 0.0.24 accepts MLLP only over TLS with a client certificate per `[[hl7v2.senders]]` entry, and the Afinion 2 has none (Afinion 2 User Manual, 1117346 Rev. A, 2023/02) | configuration: FerroBRIDGE's IP address and port on the device; HL7 to openEHR mapping; waits on the FerroBRIDGE release with address-bound plain MLLP for devices ([FerroBRIDGE#1918](https://github.com/FerroHEALTH/FerroBRIDGE/issues/1918), decided on #131), then that lane bound to the analyser's fixed address, with the port bound to the lab-facing address (`FERROBRIDGE_MLLP_BIND_HOST`) and a host-firewall allow-list of the analysers' fixed addresses ([deployment](deployment.md#the-mllp-port), [ADR 0013](adr/0013-internal-transport-security.md)) | Must |
 | FerroBRIDGE → FerroEHR | integration layer → CDR | openEHR REST (ITS-REST 1.1.0) | mapping to the template `eduLIMS-lab` | Must |
-| Epoch 2 / Gen5 → eduLIMS | Gen5 PC → web app | Excel file (fixed export template, sample ID per well) | upload, parser and validation in the student portal (S4) | Must |
-| eduLIMS → FerroEHR (write) | web app → CDR | openEHR REST, compositions, as the SMART on openEHR backend service `edulims-ferroehr` (client credentials, `system/` scopes) | convert Epoch results to compositions ([ADR 0019](adr/0019-smart-backend-service.md)) | Must |
-| eduLIMS → FerroEHR (read) | web app → CDR | AQL 1.1, named stored queries under the same backend-service identity | queries per sample, student and practical ([ADR 0019](adr/0019-smart-backend-service.md)) | Must |
+| Epoch 2 / Gen5 → eduLIMS | Gen5 PC → web app | Excel file (the Gen5 export: a header block and a 96-well grid of absorbance values at one wavelength) | upload by drag and drop, parser and layout validation in the student portal (S4); open: how a well is linked to a sample (O5) | Must |
+| eduLIMS → FerroEHR (write) | web app → CDR | openEHR REST, compositions, as the SMART on openEHR backend service `edulims-ferroehr` (client credentials, `system/` scopes) | write a released result to the patient's record as a composition (S15, [ADR 0019](adr/0019-smart-backend-service.md)); open: where a measurement lives before its release (O7) | Must |
+| eduLIMS → FerroEHR (read) | web app → CDR | AQL 1.1, named stored queries under the same backend-service identity | queries for the measurements of a team's samples (S5, [ADR 0019](adr/0019-smart-backend-service.md)); open: how a result finds its team (O13) | Must |
 | eduLIMS ↔ identity provider | web app → the institution's identity provider (Microsoft Entra ID or Keycloak) | OpenID Connect, authorization code flow with PKCE | an OIDC client registered by the institution; roles through app roles, groups or realm roles ([ADR 0010](adr/0010-vendor-neutral-oidc-entra-and-keycloak.md)) | Must |
 | identity provider → eduLIMS | the institution's directory → web app | SCIM 2.0 (RFC 7644), a bearer token per identity provider | provisioning and deprovisioning of users and groups, roles through the provider's role map ([ADR 0017](adr/0017-scim-provisioning.md)) | not set in the requirements (#45) |
 | GitHub → VM | development lane → platform | GitHub Actions, GHCR, Docker Compose | CI/CD with tests and openEHR conformance ([ADR 0002](adr/0002-github-instead-of-azure-devops.md)) | Must |
-| eduLIMS → CSV export | web app → teacher | CSV | export of grades (D6) | Should |
-| eduLIMS ↔ external grade-book system | | | not built (out of scope) | Won't |
+| eduLIMS ↔ external grade-book system | | | not built: eduLIMS holds no grades (W2, W6) | Won't |
 
 ### Two routes from analyser to FerroEHR
 
 | Device | Route | What is built |
 |---|---|---|
 | Abbott Afinion 2, HbA1c and CRP | sends HL7 v2 itself over Ethernet as plain MLLP; the MLLP listener of FerroBRIDGE 0.0.24 requires TLS with a client certificate, so the route waits on the address-bound plain lane of FerroBRIDGE#1918 (decided on #131) | configuration on the device; FerroBRIDGE's plain lane bound to the analyser's fixed address; on the host, the bind address and the analysers' address allow-list ([deployment](deployment.md#the-mllp-port), [ADR 0013](adr/0013-internal-transport-security.md)) |
-| BioTek Epoch 2 | Gen5 3.11 on its own PC exports to Excel; the student uploads the file in the student portal | an upload in eduLIMS that parses the file and writes the results through openEHR REST to FerroEHR |
+| BioTek Epoch 2 | Gen5 3.11 on its own PC exports to Excel; the team drops the file on the upload area in the student portal | an upload in eduLIMS that reads the file and shows its values to the team (S4); eduLIMS writes the released result through openEHR REST to FerroEHR (S15) |
 
-The Epoch 2 has no direct link and Gen5 does not speak HL7, so the upload is
-the simplest route. eduLIMS writes directly to FerroEHR; FerroBRIDGE is only
-needed for the Afinion's HL7 messages.
+The Epoch 2 has no direct link and Gen5 does not speak HL7 (W3), so the upload
+is the simplest route. eduLIMS writes directly to FerroEHR; FerroBRIDGE is
+only needed for the Afinion's HL7 messages.
 
-The Gen5 export template must be fixed, preferably as a table with the sample
-ID per well (positions A1 to H12). Then eduLIMS can link every measurement to
-a student. The parser validates strictly and rejects a file with an unknown
-sample ID or an invalid well position (S4, R-06).
+The Gen5 export is one sheet: a header block and a 96-well grid, rows A to H
+and columns 1 to 12, of absorbance values at one wavelength. It holds no
+sample number, no plate layout and no concentration. The parser validates the
+layout strictly and rejects a file in another layout with a clear message
+(S4). Open: how a well becomes a value for a sample, and who calculates a
+concentration (O5, R-06).
 
-### The sample ID
+### The sample number
 
-The sample ID is the key that connects every interface. eduLIMS creates it
-(S3); the student enters it on the Afinion 2 and puts it in the Gen5 export;
-FerroEHR stores it in `CLUSTER.specimen.v1`; the eduLIMS database links it to
-the student and the practical.
+The sample number is the key that connects the interfaces. It is printed on
+the paper request form, and eduLIMS never creates one. The team records it
+with the request (S12) and enters it on the Afinion 2; FerroEHR stores it in
+`CLUSTER.specimen.v1`; the eduLIMS database links it to the request, the
+patient and the team.
+
+Every team works the same sample numbers, so the number alone does not say
+whose result an analyser sends. Open: how an analyser result finds the right
+team (O13, R-11). A result that eduLIMS cannot link to a team's sample is
+never attached to one: it is logged and shown to administrators (#163).
 
 ## Portals and roles
 
@@ -93,8 +110,8 @@ and is enforced on the server for every request (Q-SEC-1, Q-SEC-2).
 
 | Role | Portal | May | Sees |
 |---|---|---|---|
-| Student | Student portal (`/student`) | register samples, upload Excel, submit the lab report | own practicals, own measurements, own grade next to the class and practical average |
-| Teacher | Teacher portal (`/teacher`) | set up practical, protocol and rubric; link classes; check results; grade; record feedback and grade | all students, submissions and measurements of their own practicals; KPI dashboard of their own classes |
+| Student | Student portal (`/student`) | with the team: register patients, record requests and samples, set tolerances, upload the Epoch export, measure again, release results | the work of their own team only; never a correct value, an accuracy status or another team's work |
+| Teacher | Teacher portal (`/teacher`) | manage the test catalogue, prepare a game and its correct values, set the urgent target and the accuracy limits, follow the teams | every team of their own games: times, measurements, released results and accuracy |
 | Administrator | Admin portal (`/admin`) | manage users, classes and roles; manage analysers and the FerroEHR and FerroBRIDGE integrations | logs, integration status, analyser usage |
 
 A user may hold teacher and administrator together; student is never combined
@@ -104,32 +121,52 @@ switcher at the top of the sidebar moves between the portals a user holds;
 the last one picked is the landing page at the next sign-in
 ([ADR 0012](adr/0012-multiple-roles-and-portal-switcher.md)).
 
-"View measurement results" is the same application service for student and
-teacher with a different scope: the teacher sees all students of their
-practical, the student only their own work.
+The work belongs to the team. Every patient, request, sample, measurement and
+result hangs under the team within a game, and every server function checks
+that in its database query (S10). A teacher sees the teams of their own games.
+Only functions for the teacher role read a correct value or an accuracy
+status, and each has negative tests with a student account (Q-SIM-1). Open:
+whether every student signs in with their own account and whether a team has
+roles with different rights (O10).
 
 ### Core process
 
-1. The teacher sets up a practical (assignment, protocol, rubric, deadline).
-2. The student registers samples and receives sample IDs.
-3. The student measures on the Afinion 2 (the result goes to FerroEHR on its
-   own) or on the Epoch 2 and uploads the Excel export.
-4. The student checks the results and submits the lab report. The submission
-   is then locked (S6).
-5. The teacher grades with the rubric and records feedback and grade.
-6. The student sees feedback and grade; the KPI dashboard updates.
+1. Before a game, the teacher manages the test catalogue (D9), prepares the
+   game with its teams and enters the correct value per test and sample (D10),
+   and sets the time target for urgent requests (D12) and, per test, the
+   limits for green, yellow and red (D13). Open: how much of a game a teacher prepares in
+   eduLIMS (O11).
+2. The team sets its own tolerances per test (S13).
+3. The team registers a patient from the paper request form (S11) and records
+   the request: the tests, routine or urgent, and each sample by its sample
+   number and material (S12). eduLIMS records the time of entry on the server.
+4. The team measures on the Afinion 2 (the result goes to FerroEHR on its
+   own) or on the Epoch 2 and uploads the Excel export (S4, S5). A team can
+   measure again; every measurement is kept (S14).
+5. The team picks a measurement and releases it to the patient's record.
+   eduLIMS warns when the value is outside the team's own tolerance, and
+   records the time of release on the server (S15).
+6. The teacher's dashboard shows the request with its times and the accuracy
+   of the released result, without a manual reload (D11 to D14).
 
 ## Data
 
-eduLIMS uses two databases on one PostgreSQL 18 server. Grades stay out of the
-CDR on purpose: they belong to real students, while the CDR only holds
-pseudonyms of volunteer subjects, and this way no custom archetypes are
-needed.
+eduLIMS uses two databases on one PostgreSQL 18 server. Everything that
+belongs to the game stays out of the CDR on purpose: a correct value, a
+tolerance and an accuracy status are not part of a patient's record, and this
+way no custom archetypes are needed (W4). The CDR also holds no name, student
+number or email address of a student or a teacher, and no student or teacher
+is an EHR subject (Q-PRIV-1).
 
 | Database | Holds | Read with |
 |---|---|---|
-| FerroEHR (openEHR CDR) | sample and measurement result as an openEHR composition (template `eduLIMS-lab`, existing CKM archetypes); a pseudonym as EHR subject | openEHR REST, AQL |
-| eduLIMS database | users, roles and classes; practicals (assignment, protocol, rubric, deadline); sample IDs linked to student and practical; lab reports; assessments, grades and feedback; upload log and audit log; better-auth's sessions and accounts | SQL through Kysely ([ADR 0006](adr/0006-kysely-for-app-data.md)) |
+| FerroEHR (openEHR CDR) | the fictional patients of a game as EHR subjects, with the details the team registers (S11); each result as an openEHR composition (template `eduLIMS-lab`, existing CKM archetypes) in the EHR of its patient, with the sample number, the analyte, the value, the device and the time | openEHR REST, AQL |
+| eduLIMS database | users, roles and classes; games and teams; the test catalogue; correct values; tolerances; patients, requests and samples; the times of entry and release; upload log and audit log; better-auth's sessions and accounts | SQL through Kysely ([ADR 0006](adr/0006-kysely-for-app-data.md)) |
+
+The EHR subject is the fictional patient, under the name and the date of
+birth the team registers; a fictional patient gets no pseudonym (owner,
+2026-11-19, O9). Open: where a measurement lives before its release, and
+whether a released result can be corrected (O7).
 
 Each database has its own database user. One server keeps monitoring and
 backup simple: one backup routine covers both.
@@ -151,6 +188,9 @@ teacher removes is recorded in `class_removals`, their pending invitations to
 the class are revoked in the same transaction, and they cannot rejoin with the
 code until a new invitation or a re-add clears the record.
 
+The lab groups of a class are the natural home of a team. Open: whether a
+game takes its teams from them (O11).
+
 ### Template `eduLIMS-lab`
 
 The operational template `eduLIMS-lab.v1` is built only from existing
@@ -164,9 +204,9 @@ new id (`eduLIMS-lab.v2`), because FerroEHR never replaces a stored template.
 
 | Archetype | CKM revision | Where it sits | What it records |
 |---|---|---|---|
-| `openEHR-EHR-COMPOSITION.report-result.v1` | 1.1.0 | the root | the result report as a whole; its context has no element for the practical |
+| `openEHR-EHR-COMPOSITION.report-result.v1` | 1.1.0 | the root | the result report as a whole |
 | `openEHR-EHR-OBSERVATION.laboratory_test_result.v1` | 1.2.8 | `content`, one or more | the test, and the order in its protocol |
-| `openEHR-EHR-CLUSTER.specimen.v1` | 1.1.3 | the observation's "Specimen detail" slot, one or more | the sample: sample ID and well position |
+| `openEHR-EHR-CLUSTER.specimen.v1` | 1.1.3 | the observation's "Specimen detail" slot, one or more | the sample: sample number and well position |
 | `openEHR-EHR-CLUSTER.laboratory_test_analyte.v1` | 1.2.3 | the observation's "Test result" slot, one or more | per analyte the name, the value with its unit and the result status |
 | `openEHR-EHR-CLUSTER.device.v1` | 1.1.6 | the observation's "Testing details" slot (protocol), exactly one | the analyser |
 
@@ -180,9 +220,9 @@ delegation on #146, within the CKM archetypes, W4):
 
 | eduLIMS field | Archetype | Element (at-code) | Data type | In the template |
 |---|---|---|---|---|
-| Sample ID | `specimen.v1` | Laboratory specimen identifier (`at0001`) | `DV_IDENTIFIER` | required, one |
+| Sample number | `specimen.v1` | Laboratory specimen identifier (`at0001`) | `DV_IDENTIFIER` | required, one |
 | Well position (Epoch 2) | `specimen.v1` | Specimen label (`at0098`) | `DV_TEXT` | optional |
-| Practical | `laboratory_test_result.v1` | Test request details (`at0094`), Requester order identifier (`at0062`) | `DV_IDENTIFIER` | optional |
+| Order identifier | `laboratory_test_result.v1` | Test request details (`at0094`), Requester order identifier (`at0062`) | `DV_IDENTIFIER` | optional; the template has it from the earlier model, for the practical. What eduLIMS writes here in a game is not decided (#264) |
 | Test name | `laboratory_test_result.v1` | Test name (`at0005`) | `DV_TEXT` | required, as in the archetype |
 | Analyte name; for the Epoch 2 it includes the wavelength | `laboratory_test_analyte.v1` | Analyte name (`at0024`) | `DV_TEXT` | required, one |
 | Value and unit | `laboratory_test_analyte.v1` | Analyte result (`at0001`) | `DV_QUANTITY` (`magnitude`, `units`; `magnitude_status` for a value outside the measuring range) | required, one |
@@ -191,27 +231,30 @@ delegation on #146, within the CKM archetypes, W4):
 | Lab (facility) | the reference model | `COMPOSITION.context.health_care_facility` | `PARTY_IDENTIFIED` with the identifier of the system client's facility | FerroEHR refuses a composition without it |
 | Composer | the reference model | `COMPOSITION.composer` | `PARTY_IDENTIFIED` naming the analyser, its serial number as identifier under the issuer `https://edulims.eu/id/analyser` | FerroEHR checks it for the `device` origin |
 
-An unchecked student result has the status Preliminary; the student's
-release makes it Final ([LIMS workflow](lims-workflow.md)). The Afinion 2
-analytes, HbA1c and CRP, are fixed by the device. The Epoch 2 assays stay
-generic, an analyte name and a value per well and wavelength, until the
-practical questions on #131 are answered. No element carries a name, a
-student number or an email address (Q-PRIV-1); who the EHR subject is waits
-on #131 (X1).
+The result status has two values, Preliminary and Final. One design keeps
+every measurement in FerroEHR as Preliminary and makes the released one Final
+([LIMS workflow](lims-workflow.md)); it is a proposal of the maintainer until
+the owner answers O7. The Afinion 2 analytes, HbA1c and CRP, are fixed by the
+device; which tests of a game run on which analyser is open (O4). The Epoch 2
+assays stay generic, an analyte name and a value per well and wavelength,
+until O5 is answered. No element carries the name, the student number or the
+email address of a student or a teacher (Q-PRIV-1). The EHR subject is the
+fictional patient the team registers (S11, O9).
 
 Every composition eduLIMS writes passes openEHR validation against this
 template (Q-COMP-1).
 
 ### Reporting
 
-The KPI dashboard is built inside eduLIMS rather than in an external BI tool:
-the database runs on the institution's own server, and nested openEHR
-compositions are hard to report on in a generic BI tool. Grade KPIs use SQL on
-the assessment records; measurement quality and analyser usage use AQL on
-FerroEHR. The analytical model is a star schema with three fact tables
-(submission, assessment, measurement) and dimensions for student, class,
-practical, rubric criterion and date. Details are in
-[kpi-dashboard.md](kpi-dashboard.md).
+The teacher dashboard (D11 to D14) is built inside eduLIMS, because the
+databases run on the institution's own server and the correct values never
+leave eduLIMS. It shows the progress and the process of a game and holds no
+grade (W6). Turnaround time (G-01), urgent within target (G-02) and the
+ranking (G-04) are calculated with SQL on the eduLIMS database; accuracy
+(G-03) compares a released result with the correct value, which only eduLIMS
+holds, by the limits the teacher sets per test (D13). The time targets, the
+form of a limit and the ranking rule are open (O1, O2, O3).
+Details are in [game-dashboard.md](game-dashboard.md).
 
 ## Application structure
 
@@ -264,10 +307,10 @@ within the 5 minutes of B3.
 
 Two places carry the system:
 
-- **The practical lab.** Each Epoch 2 has its own PC with Gen5 3.11, connected
-  over USB. The Afinion 2 is on the lab network over Ethernet, and the lab
-  network routes to the server network. The sample ID is on the physical
-  sample, which closes the traceability chain.
+- **The lab.** Each Epoch 2 has its own PC with Gen5 3.11, connected over
+  USB. The Afinion 2 is on the lab network over Ethernet, and the lab network
+  routes to the server network. The sample number on the request form
+  identifies the sample.
 - **A Linux VM in an isolated network of the institution.** All parts run as
   containers through Docker Compose
   ([ADR 0008](adr/0008-docker-compose-ghcr-slsa.md)).
@@ -307,12 +350,14 @@ the architecture:
 
 | ID | Requirement | Where the architecture answers it |
 |---|---|---|
-| Q-SEC-1, Q-SEC-2 | SSO only; access per role, filtered on own data | Entra ID or Keycloak through better-auth; role and ownership checks in server functions; no client-side access to FerroEHR |
+| Q-SEC-1, Q-SEC-2 | SSO only; access per role, filtered on the own team and the own games | Entra ID or Keycloak through better-auth; role and ownership checks in server functions; no client-side access to FerroEHR |
 | Q-SEC-3 | HTTPS; measurement data stays inside the institution's network | everything on one VM in an isolated network; TLS terminated in front of the app ([deployment.md](deployment.md)) |
-| Q-PRIV-1, Q-PRIV-2 | pseudonyms only in the CDR; averages from 5 assessments | data split between CDR and eduLIMS database; threshold in the KPI queries |
-| Q-TRACE-1 | measurement traceable to device, sample and student | sample ID across all interfaces |
+| Q-PRIV-1 | no personal data of a real person in the CDR | data split between CDR and eduLIMS database; the EHR subject is a fictional patient, never a student or a teacher (O9) |
+| Q-SIM-1 | a student gets no hint from eduLIMS | correct values and accuracy are read only by teacher functions in the eduLIMS database and never reach FerroEHR; negative tests with a student account |
+| Q-SIM-2 | the server keeps the time | the times of entry and release are set by the server in the transaction that writes the row |
+| Q-TRACE-1 | measurement traceable to device, sample, patient and team | the sample number across the interfaces; how a result finds its team is open (O13) |
 | Q-PERF-1, Q-PERF-2 | pages within 2 s; upload within 10 s | server rendering; parsing and validation on the server, one REST write per composition |
-| Q-REL-1 | 99% of practical hours; recovery within one working day | Compose stack restarts; one backup routine for both databases |
+| Q-REL-1 | 99% of the game hours; recovery within one working day | Compose stack restarts; one backup routine for both databases |
 | Q-ACC-1 | WCAG 2.1 AA | shadcn/ui on Radix primitives; axe in Playwright tests |
 | Q-MAINT-1 | core coverage at least 70%; docs current | Vitest coverage gate; this document in the Definition of Done |
 | Q-SUST-1 | one environment, no idle services | one VM, one Compose file |

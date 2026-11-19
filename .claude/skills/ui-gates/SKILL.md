@@ -33,11 +33,13 @@ skip is never a pass.
   both the `en` and the `nl` catalogue, and every new route has a translated
   `title` (WCAG 2.4.2, ADR 0011). No hard-coded user-visible string.
 - Meaning is never carried by colour alone (1.4.1): look at each new status,
-  badge, KPI signal and validation state.
+  badge, accuracy status, tolerance warning and validation state.
 - The screen at 320 px wide and at 200% zoom scrolls only vertically
   (1.4.10).
-- The data on screen is the role's own data: a student page shows no other
-  student; an average shows only from 5 assessments (`auth-security.md`).
+- The data on screen is the role's own data: a student page shows only the
+  student's own team, and no correct value, accuracy status or other hint
+  (Q-SIM-1, `auth-security.md`); a teacher page shows only the teacher's own
+  games.
 
 ## Report
 

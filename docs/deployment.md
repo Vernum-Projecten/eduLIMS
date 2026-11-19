@@ -185,11 +185,13 @@ system client writes, so the `eduLIMS-lab.v1` template must be in its store
 before FerroEHR starts with this file. The `ferroehr-definitions` step loads
 it (below, "FerroEHR's templates").
 
-Two settings wait on product-owner decisions (#131). Who the EHR subject is
-(X1) decides `[privacy] subject_namespaces`: until it is answered, FerroEHR
-stores a subject reference as eduLIMS sends it. Whether a pilot holds
-personal data (X2) decides `[deployment] profile`, which stays at
-FerroEHR's default `sandbox`.
+Two settings follow product-owner decisions. The EHR subject is the fictional
+patient a team registers (answered 2026-11-19, O9 in
+[requirements.md](requirements.md#open-questions)); `[privacy]
+subject_namespaces` is not set for it yet, so FerroEHR stores a subject
+reference as eduLIMS sends it. Whether a pilot holds personal data of real
+people decides `[deployment] profile`, which stays at FerroEHR's default
+`sandbox`; that question is still open (#264).
 
 ### FerroEHR's templates
 
@@ -954,7 +956,7 @@ these fields: `outcome`, `actor_type`, `actor_id`, `target_type`,
 `variables` and `cause`. They hold ids, codes and counts; `fields`,
 `variables` and `cause` are lists of codes. eduLIMS replaces any value or
 list item that contains a space or an `@` with `redacted`, so a name, an
-e-mail address, a token or a grade cannot leave the host. An error line names
+e-mail address or a token cannot leave the host. An error line names
 its cause by error class and code (a SQLSTATE such as `42P01`, or
 `ECONNREFUSED`), never by its message. The events are:
 

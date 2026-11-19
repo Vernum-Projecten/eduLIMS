@@ -45,7 +45,7 @@ Choose it to open the list of your portals and pick the other one, or press
 **Alt+1** or **Alt+2** (**Option+1** or **Option+2** on a Mac). eduLIMS
 remembers the portal you picked and opens it the next time you sign in. Each
 portal shows only what that role may see: as an administrator you do not see
-grades or results. The user menu at the foot of the sidebar lists all your
+results. The user menu at the foot of the sidebar lists all your
 roles.
 
 ## Keyboard shortcuts
@@ -95,8 +95,7 @@ for new numbers.
 shows the name and e-mail address, the roles with where they come from
 (an identity provider or eduLIMS), the sign-in methods, the status
 (**Active**, **Blocked** or **Never signed in**), the last sign-in and the
-number of active sessions. The screen shows no grades, results or
-submissions.
+number of active sessions. The screen shows no results.
 
 - **Search** by part of a name or an e-mail address: the list follows while
   you type.
@@ -270,7 +269,7 @@ Teachers create their own classes and invite their students and
 co-teachers; see the teacher guide. **Classes** in the admin portal lists
 every class in eduLIMS, newest academic year first, with its owner, its
 co-teachers, the number of students, the number of pending invitations and
-whether it is archived. It shows no grades or results. It shows active
+whether it is archived. It shows no results. It shows active
 classes until you choose **Archived** under **Status**. Search by the class
 name or a teacher's name, and filter by status, academic year and owner; the
 filters stay in the address, so you can share a filtered list.

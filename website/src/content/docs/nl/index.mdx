@@ -1,12 +1,12 @@
 ---
 title: eduLIMS
-description: Een opensource laboratoriuminformatiesysteem voor het laboratoriumonderwijs.
+description: Een opensource laboratoriuminformatiesysteem voor een werkpleksimulatie in het laboratoriumonderwijs.
 template: splash
 editUrl: false
 lastUpdated: false
 hero:
   title: eduLIMS
-  tagline: Een opensource laboratoriuminformatiesysteem (LIMS) voor het laboratoriumonderwijs.
+  tagline: Een opensource laboratoriuminformatiesysteem (LIMS) voor een werkpleksimulatie in het laboratoriumonderwijs.
   image:
     light: ../../../../../assets/brand/edulims-icon.svg
     dark: ../../../../../assets/brand/edulims-icon-dark.svg
@@ -34,19 +34,22 @@ het alleen met testgegevens.
 ## Wat het doet
 
 <CardGrid>
-  <Card title="Monsters met een herleidbaar ID" icon="seti:db">
-    Studenten registreren monsters en krijgen een uniek monster-ID, zodat elke
-    meting terug te voeren is op het apparaat, het monster en de student.
+  <Card title="Patiënten, aanvragen en monsters" icon="seti:db">
+    Teams van studenten registreren patiënten en aanvragen vanaf papieren
+    formulieren en koppelen elk monster met het monsternummer op het
+    formulier. Zo is elke meting terug te voeren op het apparaat, het monster,
+    de patiënt en het team.
   </Card>
   <Card title="Resultaten direct van de apparaten" icon="random">
     HL7 v2-resultaten komen binnen via FerroBRIDGE, en exports van de
-    platereader worden bij het uploaden gecontroleerd. Metingen worden als
-    openEHR-composities opgeslagen in FerroEHR.
+    platereader worden bij het uploaden ingelezen. Een team geeft elk
+    resultaat vrij naar het dossier van de patiënt, als openEHR-compositie in
+    FerroEHR.
   </Card>
-  <Card title="Beoordelen met een rubric" icon="approve-check">
-    Docenten zetten een practicum klaar met opdracht, protocol, deadline en
-    rubric, beoordelen elk labverslag per criterium en volgen hun klassen op
-    een KPI-dashboard.
+  <Card title="Een live dashboard voor docenten" icon="approve-check">
+    Docenten voeren vooraf de juiste waarden van een spel in en volgen elk
+    team live: de tijd per aanvraag, een streeftijd voor spoedaanvragen en de
+    nauwkeurigheid van elk vrijgegeven resultaat. Er wordt niet beoordeeld.
   </Card>
   <Card title="Inloggen via je eigen instelling" icon="seti:lock">
     Gebruikers loggen in met Microsoft Entra ID of Keycloak. De rol komt uit de
@@ -58,8 +61,8 @@ het alleen met testgegevens.
 ## Handleidingen
 
 <CardGrid>
-  <LinkCard title="Student" href="/nl/guides/student/" description="Inloggen en een practicum volgen." />
-  <LinkCard title="Docent" href="/nl/guides/teacher/" description="Practica klaarzetten en labverslagen beoordelen." />
+  <LinkCard title="Student" href="/nl/guides/student/" description="Inloggen en met je team werken." />
+  <LinkCard title="Docent" href="/nl/guides/teacher/" description="Een spel voorbereiden en de teams volgen." />
   <LinkCard title="Beheerder" href="/nl/guides/administrator/" description="Gebruikers een rol geven en de koppelingen bewaken." />
 </CardGrid>
 

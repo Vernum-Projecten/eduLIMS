@@ -8,8 +8,9 @@ sidebar:
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-The teacher portal (Docentportaal) is where you set up a practical, follow
-the measurements of your students, and grade their lab reports.
+The teacher portal (Docentportaal) is where you manage the test catalogue,
+prepare a game, and follow every team on a live dashboard. eduLIMS has no
+grading.
 
 :::caution[Pre-release]
 eduLIMS is in development. This guide describes what works today and lists
@@ -27,8 +28,8 @@ eduLIMS opens the teacher portal when your account has the teacher role. The
 role comes from your identity provider; an administrator arranges it. If the
 sign-in page says your account has no role, contact an administrator.
 
-You see only the practicals you own or are linked to. Practicals of other
-teachers, and the results in them, stay hidden.
+You see only your own classes and games. Games of other teachers, and the
+results in them, stay hidden.
 
 ## Find your way around
 
@@ -48,7 +49,7 @@ Choose it to open the list of your portals and pick the other one, or press
 **Alt+1** or **Alt+2** (**Option+1** or **Option+2** on a Mac). eduLIMS
 remembers the portal you picked and opens it the next time you sign in. Each
 portal shows only what that role may see: as an administrator you do not see
-grades or results. The user menu at the foot of the sidebar lists all your
+results. The user menu at the foot of the sidebar lists all your
 roles.
 
 ## Keyboard shortcuts
@@ -174,13 +175,13 @@ Choose your name at the foot of the sidebar, then **Sign out**. eduLIMS ends you
 
 ## Planned tasks
 
-| Task                                                                              | Requirement                      |
-| --------------------------------------------------------------------------------- | -------------------------------- |
-| Create a practical with an assignment, a protocol, a deadline and a rubric        | [D1](/development/requirements/) |
-| Link classes or individual students to a practical                                | [D2](/development/requirements/) |
-| View the measurement results of all students of a practical                       | [D3](/development/requirements/) |
-| Grade a submission per rubric criterion, with feedback and a final grade          | [D4](/development/requirements/) |
-| Follow a class or a practical on the [KPI dashboard](/development/kpi-dashboard/) | [D5](/development/requirements/) |
-| Export the grades as CSV                                                          | [D6](/development/requirements/) |
-| See measured values that fall outside the expected range                          | [D7](/development/requirements/) |
-| Reuse a rubric from an earlier practical                                          | [D8](/development/requirements/) |
+| Task                                                                                                                                             | Requirement                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| Manage the test catalogue: add a test with its name, unit and material                                                                           | [D9](/development/requirements/)  |
+| Prepare a game: its teams and, beforehand, the correct value per test and sample                                                                 | [D10](/development/requirements/) |
+| Follow every team live on the [game dashboard](/development/game-dashboard/): the times of each request and the accuracy of each released result | [D11](/development/requirements/) |
+| Set a time target for urgent requests                                                                                                            | [D12](/development/requirements/) |
+| Set, per test, how far a result may be from the correct value for green, yellow and red                                                          | [D13](/development/requirements/) |
+| See the ranking of the teams on time and accuracy                                                                                                | [D14](/development/requirements/) |
+
+Students never see a correct value or the accuracy of a result.

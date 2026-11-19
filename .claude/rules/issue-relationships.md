@@ -42,9 +42,8 @@ the SessionStart dump, `/phase-status`, and the board). Limits: at most 100
 sub-issues per parent, 8 nesting levels, one parent per issue.
 
 Use it to split a requirement that is too big for one PR into closeable
-pieces: "S4 Upload and validate a Gen5 export" becomes the parser, the
-sample-ID and well validation, the openEHR composition write, and the
-Student portal upload screen, each with its own acceptance criteria. A
+pieces: "S4 Upload a Gen5 export" becomes the parser, the layout validation and
+the Student portal upload screen, each with its own acceptance criteria. A
 requirement with one PR of work needs no parent.
 
 Milestones stay the release spine. Do not create per-release "epic" parents:
@@ -53,8 +52,8 @@ sub-issues express decomposition, milestones express release.
 ### Blocked-by and blocking (sequencing)
 
 #n cannot start or finish until its blockers close. Use it for real in-repo
-sequencing: the role model (B1) blocks the role-scoped result view (D3); the
-sample registration (S3) blocks the upload validation (S4). Write it in
+sequencing: the role model (B1) blocks the teacher dashboard (D11); recording a
+request (S12) blocks releasing a result (S15). Write it in
 either direction; GitHub stores one edge.
 
 An external wait with no issue here (the identity provider registration from

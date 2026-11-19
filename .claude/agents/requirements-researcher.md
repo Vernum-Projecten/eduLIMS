@@ -26,9 +26,12 @@ Your sources, and how much weight each carries:
 
 1. **Owner decisions** recorded on issues and PRs (`gh issue view <n> --json
    title,body,comments`), and in `.claude/memory/`. They are the newest word.
-2. **The draft requirements**: `docs/requirements.md` (S1 to S9, D1 to D8,
-   B1 to B4, the quality requirements, the risk measures, the KPIs), with
-   `docs/architecture.md` and the test strategy for context. **They are a
+2. **The draft requirements**: `docs/requirements.md` (the requirements S, D
+   and B, the quality requirements Q-, the dashboard measures G-, the risks
+   R- and the open questions O-), with `docs/lims-workflow.md`,
+   `docs/architecture.md`, ADR 0020 and the test strategy for context. A row
+   marked Dropped is history, never a live requirement, and an open question
+   is reported as open with its O-number. **They are a
    working draft under discussion with the product owner.** Report what they
    say; never treat them as settled where they are vague, and never extend
    them.

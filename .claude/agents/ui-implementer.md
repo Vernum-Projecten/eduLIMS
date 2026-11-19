@@ -3,8 +3,8 @@ name: ui-implementer
 description: >
   Implementation worker for well-specified UI tasks in the Student, Teacher
   and Admin portals: TanStack Start routes with loaders, shadcn/ui
-  components, TanStack Form forms, TanStack Table views, the KPI dashboard
-  tiles, and their Playwright and axe journeys. The orchestrator hands it the
+  components, TanStack Form forms, TanStack Table views, the teacher dashboard
+  of the games, and their Playwright and axe journeys. The orchestrator hands it the
   screen, the requirement IDs, the server functions it reads and the role
   that sees it; it delivers accessible, typed, tested UI that passes
   /ui-gates. Not for the role model, the portal structure, or screen designs
@@ -43,11 +43,15 @@ Non-negotiables (violations are rejected at review):
 - **English code, translated UI.** Every string a user reads goes through
   the i18n layer (English source, Dutch translation in `nl`); never hard-code
   a user-visible string (ADR 0011). Identifiers and comments are English.
-- **Role data stays scoped:** a student sees only their own work; an average
-  shows only from 5 assessments; no subject name or student number from
-  FerroEHR, only the sample ID.
+- **Role data stays scoped:** a student sees only the work of their own
+  team; a teacher only their own games; no student's or teacher's name or
+  student number comes from FerroEHR.
+- **No hint for students (Q-SIM-1, W7):** a student screen holds no correct
+  value, accuracy status, teacher's limit, suggested limit or other team's
+  work, in the markup or in the loader data. The tolerance warning before a
+  release (S15) is the one check, with an icon and text.
 - **Draft requirements:** if the prompt does not say what a screen shows for
-  a role, which KPI norm applies, or what an empty state says, return the
+  a role, which target or limit applies, or what an empty state says, return the
   question; do not design it from the draft as if it were settled.
 - Never edit `src/routeTree.gen.ts`; never weaken a test or exclude an axe
   rule.

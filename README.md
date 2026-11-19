@@ -9,7 +9,7 @@
   <img src="assets/brand/edulims-lockup-light.svg" alt="eduLIMS" width="290">
 </picture>
 
-**The open-source laboratory information management system for practical laboratory education.**
+**The open-source laboratory information management system for a workplace simulation in laboratory education.**
 
 [Documentation](https://edulims.eu) ·
 [Quick start](#quick-start) ·
@@ -49,11 +49,13 @@
 </div>
 
 eduLIMS is an open-source laboratory information management system (LIMS) for
-practical laboratory education. Students register samples, run measurements on the lab analysers, check their results
-and submit a lab report. Teachers set up a practical, grade it with a rubric
-and follow their classes on a KPI dashboard. Measurement data is stored as
-openEHR compositions in FerroEHR; everything about teaching and grading stays
-in the eduLIMS database.
+a workplace simulation in laboratory education. Teams of students run a
+simulated clinical laboratory: they register patients and requests from paper
+forms, link the samples, measure on the lab analysers, and release each result
+to the patient's record. The teams compete on turnaround time and accuracy,
+and teachers follow every team on a live dashboard. There is no grading.
+Results are stored as openEHR compositions in FerroEHR; everything else about
+a game stays in the eduLIMS database.
 
 [Requirements](docs/requirements.md) ·
 [Test strategy](docs/test-strategy.md) ·
@@ -61,30 +63,34 @@ in the eduLIMS database.
 
 ## Why it exists
 
-Today students hand in their measurements as Excel files and photos, and a
-teacher opens, checks and grades each file by hand. That costs teachers a lot
-of time, and it is not how a real laboratory works: there, a measurement lands
-in a LIMS on its own. eduLIMS closes that gap:
+In the simulation, students experience a LIMS as they will in a real
+laboratory: patient, request, sample, measurement, release
+([ADR 0020](docs/adr/0020-workplace-simulation.md),
+[the LIMS workflow](docs/lims-workflow.md)).
 
-- The Abbott Afinion 2 sends HbA1c and CRP results over HL7 v2 to
-  FerroBRIDGE, which writes them to FerroEHR. Nobody retypes a value.
-- The BioTek Epoch 2 plate readers export from Gen5 to Excel; the student
-  uploads the file and eduLIMS validates every sample ID and well position
-  before it writes the results to FerroEHR.
-- Every measurement is traceable through its sample ID to the device, the
-  sample and the student.
+- The students are the analysts. eduLIMS gives them no hint: the one check is
+  a warning when a value is outside the tolerance the team set itself.
+- The Abbott Afinion 2 sends its results over HL7 v2 to FerroBRIDGE, which
+  writes them to FerroEHR.
+- The BioTek Epoch 2 plate readers export from Gen5 to Excel; the team drops
+  the file on the upload area and eduLIMS reads the measured values from it.
+- Teachers enter the correct values beforehand and see, per team, the time of
+  each request and the accuracy of each released result. Students never see a
+  correct value.
+- Every measurement is traceable through its sample number to the device, the
+  sample, the patient and the team.
 
 ## Status
 
 Implementation started on 2026-11-11. The design (requirements, architecture,
-test strategy, KPI dashboard) is recorded under [`docs/`](docs/); the
-requirements are a working draft under re-evaluation. The first milestone, `v0.1.0 – Foundation`,
+test strategy, game dashboard) is recorded under [`docs/`](docs/); the
+requirements are a working draft with open questions for the product owner. The first milestone, `v0.1.0 – Foundation`,
 sets up the application shell, sign-in, the database and the CI/CD lane.
 The work is planned in [GitHub milestones](https://github.com/Vernum-Projecten/eduLIMS/milestones)
 and [issues](https://github.com/Vernum-Projecten/eduLIMS/issues).
 
-eduLIMS only ever holds test data from volunteer subjects under a pseudonym. It
-is not meant for patient data.
+The patients of a game are fictional. eduLIMS is not meant for real patient
+data.
 
 Each release publishes two images on GHCR. Pull them by version tag:
 
@@ -183,12 +189,14 @@ The sources in this repository:
 
 - [Architecture](docs/architecture.md): principles, integrations, data split,
   portals and roles, deployment, and quality requirements.
-- [Requirements](docs/requirements.md) (working draft, still under discussion): functional requirements S1 to S9, D1
-  to D8 and B1 to B4, the quality requirements, risks and KPIs, each with a
-  stable ID.
+- [Requirements](docs/requirements.md) (working draft, still under discussion): functional requirements S1 to S15, D1
+  to D14 and B1 to B4, the quality requirements, the risks, the dashboard
+  measures and the open questions, each with a stable ID.
+- [The LIMS workflow](docs/lims-workflow.md): how the work of a team travels
+  from the paper request form to the patient's record and the dashboard.
 - [Test strategy](docs/test-strategy.md) and the Definition of Done.
-- [KPI dashboard](docs/kpi-dashboard.md): KPIs, norms, data sources and the
-  two design iterations.
+- [Game dashboard](docs/game-dashboard.md): what the teacher dashboard of a
+  game shows, who sees it, its data sources and the open questions.
 - [Decision records](docs/adr/README.md).
 - [AI statement](AI_STATEMENT.md): how AI tools are used to build eduLIMS.
 - [Governance](GOVERNANCE.md), [Maintainers](MAINTAINERS.md),

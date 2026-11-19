@@ -15,14 +15,22 @@ paths:
 
 # Integrations: FerroEHR (openEHR), FerroBRIDGE (HL7 v2), Gen5 Excel
 
-Measurements reach FerroEHR by two routes and are read back by one
-([architecture.md](../../docs/architecture.md#context-and-integrations)):
+Measurements arrive by two analyser routes, a team releases a result to the
+patient's record in FerroEHR, and eduLIMS reads back by one route
+([lims-workflow.md](../../docs/lims-workflow.md),
+[architecture.md](../../docs/architecture.md#context-and-integrations)):
 
 | Route | From, to | Standard | What eduLIMS builds |
 |---|---|---|---|
 | Afinion 2 | analyser to FerroBRIDGE to FerroEHR | HL7 v2 over MLLP, then openEHR REST | nothing in code: FerroBRIDGE configuration and its mapping to the `eduLIMS-lab` template |
-| Epoch 2 | Gen5 Excel export, uploaded in the Student portal | the fixed Gen5 export template | the upload, the parser, the validation, and the composition write |
-| Read | eduLIMS from FerroEHR | AQL through the openEHR REST Query API | the queries per sample, student and practical |
+| Epoch 2 | Gen5 Excel export, uploaded in the Student portal | the fixed Gen5 export layout | the upload, the parser and the layout validation; the step from a well to a value for a sample is open (O5) |
+| Release | eduLIMS to FerroEHR | openEHR REST | the result in the patient's record when the team releases it (S15) |
+| Read | eduLIMS from FerroEHR | AQL through the openEHR REST Query API | the queries for the samples of a team |
+
+Still open, so nothing is built on it: which test runs on which analyser and
+which values a team enters by hand (O4, O8), and where a measurement lives
+before its release (O7; the maintainer's proposal in `docs/lims-workflow.md`
+keeps it in FerroEHR as Preliminary and makes the released one Final).
 
 FerroEHR and FerroBRIDGE are configured, never developed here (scope, plan of
 approach §1.5). A defect in either is reported to its own repository.
@@ -72,28 +80,33 @@ specification governs a choice (retry timing, the client's caching), flag it:
   `system/aql-<name>.s` per named stored query), never `system/aql-*`, so it
   runs named stored queries, never ad-hoc AQL. eduLIMS checks session, role
   and ownership before every call, because FerroEHR sees only the client.
-- **Only pseudonyms cross the boundary.** The EHR `subject_id` is the
-  pseudonym of the test subject, with a fixed `subject_namespace`. No name,
-  student number or e-mail address ever appears in a composition, an AQL
-  query, a log line, or an error message (requirements, "Privacy"; risk
-  analysis).
+- **No real person crosses the boundary (Q-PRIV-1).** FerroEHR holds the
+  fictional patients of a game: the EHR is the patient's, with the fictional
+  details the team registered from the form (S11; O9, answered 2026-11-19).
+  No student's or teacher's name, student number or e-mail address ever
+  appears in a composition, an EHR subject, an AQL query, a log line, or an
+  error message.
+- **Nothing a student may not see crosses either.** A composition holds no
+  correct value, no tolerance and no accuracy status
+  (`docs/lims-workflow.md`); those stay in the eduLIMS database.
 - **Compositions conform to the `eduLIMS-lab` operational template.** Every
   composition eduLIMS writes passes FerroEHR's template validation; a
   validation failure is a defect to fix in the mapping, never a field to drop
   (Q-COMP-1: "measurement data passes openEHR validation against the
   template `eduLIMS-lab`").
-- **The sample ID is the key** that ties everything together. It
+- **The sample number from the request form ties the chain together.** It
   goes in the specimen cluster's identifier, and the device cluster carries
   the analyser and its serial number, so every measurement traces to device,
-  sample and student (principle "traceability", Q-TRACE-1).
+  sample, patient and team (Q-TRACE-1). The sample number alone does not
+  name the team, because every team works the same numbers (R-11, O13).
 - **AQL uses parameters.** Pass values through `query_parameters`
-  (`WHERE … = $sample_id`); never interpolate a value into the AQL string
+  (`WHERE … = $sample_number`); never interpolate a value into the AQL string
   (OWASP A05). Queries are named constants with a test against the template's
   paths.
-- **Read your write:** after a composition write, the student sees the result
-  through the AQL read path, so a test asserts the round trip (S4: "a
-  correct Excel file reaches FerroEHR within 10 seconds"; S5: an Afinion
-  measurement appears with the right sample within 1 minute).
+- **Read your write:** after a release, the team sees the result through the
+  AQL read path, so a test asserts the round trip (S15: "the result is in the
+  patient's record in FerroEHR"; S5: an Afinion measurement appears with the
+  right sample in the team's work within 1 minute).
 - **Failure is loud and safe.** Map an unreachable FerroEHR or a 4xx/5xx
   answer to a typed error; show the user a translated message, never a stale or
   partial result as if it were complete. Timeouts are explicit.
@@ -107,18 +120,28 @@ request.
 
 ## Gen5 / Epoch 2 Excel upload (S4)
 
-- The export template is fixed and agreed with the teachers: one row per well,
-  with the sample ID per well. The parser accepts exactly that template and
-  nothing looser (risk P-03: "the Gen5 export template cannot be pinned down unambiguously";
-  measure: "the parser validates strictly").
-- **Validation before any write:** every sample ID must exist in the
-  practical and belong to the uploading student; every well position must be
-  a real position on the plate (rows A to H, columns 1 to 12 on a 96-well
-  plate); no empty or duplicate value where the template requires one. One
-  failure rejects the whole file with a translated message per row; nothing reaches
-  FerroEHR from a rejected file.
-- A valid file is processed within 10 seconds (S4, "Performance"), and the
-  upload is logged (B4) with the user id and the verdict.
+- The export is one sheet (`docs/lims-workflow.md`): a header block (software
+  version, date, time, reader type and serial number, plate type, read type,
+  wavelength, temperature) and a 96-well grid, rows A to H and columns 1 to
+  12, of absorbance values at one wavelength. The parser accepts exactly that
+  layout and nothing looser (risk P-03: "the Gen5 export template cannot be
+  pinned down unambiguously"; measure: "the parser validates strictly").
+- **The export holds no sample number, no plate layout and no
+  concentration.** The upload therefore checks the file type, the size and
+  the layout, and shows the team the absorbance per well. It cannot check a
+  sample against the file.
+- **Open, O5:** how a well becomes a value for a sample, and who calculates
+  the concentration. The maintainer's proposal (the team records the plate
+  layout; per test the teacher chooses whether eduLIMS calculates from the
+  team's own standards or the team enters the result) waits on the owner.
+  Build neither until the owner answers, and never use a correct value in
+  that step.
+- **Validation before anything is kept:** a file in another layout is
+  rejected whole with a translated message that names the reason (S4);
+  nothing reaches FerroEHR from a rejected file.
+- A valid file is read and its values are shown to the team within 10
+  seconds (S4, Q-PERF-2), and the upload is logged (B4) with the user id and
+  the verdict.
 
 ## HL7 v2 from the Afinion 2
 
@@ -127,3 +150,12 @@ MLLP and writes the composition. eduLIMS owns two things: the simulated HL7
 messages in `tests/fixtures/` that the integration tests send to FerroBRIDGE
 (the lab network may not route to the server network early, risk P-02), and the log view of HL7 messages and errors (B4), read from
 FerroBRIDGE.
+
+- **Open, O13:** how an Afinion result finds the right team. Every team
+  works the same sample numbers, so the sample number alone does not say
+  whose result arrived (R-11). Which identifier a team enters on the analyser
+  to name itself, or whether each team has its own analyser, is the owner's
+  decision; which HL7 fields carry the entered identifiers is #209. Build no
+  matching rule until both are answered.
+- A result that eduLIMS cannot link to a team's sample is never attached to
+  one: it is logged and shown to administrators (#163).

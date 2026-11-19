@@ -4,7 +4,7 @@
 # Contributing to eduLIMS
 
 eduLIMS is an open-source laboratory information management system (LIMS) for
-practical laboratory education. The design is recorded in
+a workplace simulation in laboratory education. The design is recorded in
 [`docs/architecture.md`](docs/architecture.md) and the draft requirements, with
 stable IDs, in [`docs/requirements.md`](docs/requirements.md). The working
 rules for people and AI sessions are in [`CLAUDE.md`](CLAUDE.md). Read them
@@ -52,7 +52,7 @@ for a clean start before visual work. It refuses unless `NODE_ENV` is
 `development` or `test` and `DATABASE_URL` points at localhost.
 
 The development database only ever holds the pseudonymised test set. Never
-load real names, student numbers or grades into it.
+load real names or student numbers into it, or the material of a real game.
 
 ## Local gates
 

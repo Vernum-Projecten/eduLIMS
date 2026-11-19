@@ -2,7 +2,7 @@
 name: db-migration
 description: Writes a Kysely migration for the eduLIMS PostgreSQL 18 database (up and down, constraints, uuidv7 keys, timestamptz), runs it against the Compose database, regenerates the Kysely Database types and proves it with tests. Use for any schema change (a new table, column, constraint, index or enum value).
 allowed-tools: Read, Grep, Glob, Write, Edit, Bash
-argument-hint: "<snake_case_slug> e.g. add_samples_table"
+argument-hint: "<snake_case_slug> e.g. add_requests_table"
 ---
 
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
@@ -17,15 +17,17 @@ pinned version.
 ## Before you write
 
 1. Read the requirement behind the change (`/requirement-lookup`). A
-   constraint the draft does not state (a grade range, a uniqueness rule, a
+   constraint the draft does not state (a value range, a uniqueness rule, a
    retention period) is a question for the owner before it becomes a `CHECK`.
 2. Read the existing migrations in `src/server/db/migrations/` and the
    generated types under `src/server/db/` to see the current schema. A
    migration that has reached `main` is immutable: change the schema with a
    new one.
-3. Measurement data never goes in this database; it belongs in FerroEHR
-   (`integration.md`). Personal data stays out of FerroEHR, and the
-   student-to-pseudonym map stays here.
+3. A released result belongs in FerroEHR as a composition
+   (`integration.md`); where a measurement lives before its release is open
+   (O7). No student's or teacher's personal data goes to FerroEHR, and
+   correct values, tolerances and the link from a result to its team stay
+   here (`database.md`).
 
 ## Write the migration
 
@@ -39,25 +41,28 @@ import { type Kysely, sql } from "kysely";
 
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
-    .createTable("samples")
+    .createTable("requests")
     .addColumn("id", "uuid", (c) => c.primaryKey().defaultTo(sql`uuidv7()`))
-    .addColumn("sample_code", "text", (c) => c.notNull().unique())
-    .addColumn("practical_id", "uuid", (c) =>
-      c.notNull().references("practicals.id").onDelete("restrict"),
+    .addColumn("team_id", "uuid", (c) =>
+      c.notNull().references("teams.id").onDelete("restrict"),
     )
-    .addColumn("student_id", "uuid", (c) =>
-      c.notNull().references("users.id").onDelete("restrict"),
+    .addColumn("patient_id", "uuid", (c) =>
+      c.notNull().references("patients.id").onDelete("restrict"),
     )
-    .addColumn("created_at", "timestamptz", (c) => c.notNull().defaultTo(sql`now()`))
+    .addColumn("urgent", "boolean", (c) => c.notNull())
+    // The time of entry is the server's, never the client's (Q-SIM-2).
+    .addColumn("entered_at", "timestamptz", (c) => c.notNull().defaultTo(sql`now()`))
     .execute();
-  await db.schema.createIndex("samples_practical_id_idx").on("samples").column("practical_id").execute();
+  await db.schema.createIndex("requests_team_id_idx").on("requests").column("team_id").execute();
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await db.schema.dropTable("samples").execute();
+  await db.schema.dropTable("requests").execute();
 }
 ```
 
+- The table and its columns above only illustrate the form; the real schema
+  comes from the issue and `docs/lims-workflow.md`.
 - Migrations take `Kysely<unknown>`: they must not depend on the generated
   types, which describe the schema after all migrations.
 - `down` reverts `up`. A `down` that loses data says so in a `// NOTE:`.
@@ -79,11 +84,10 @@ generated file by hand (`generated_file_guard.sh` blocks it).
 
 - The migration runs from an empty database to the latest and back down one
   step without error (CI runs from empty on every PR).
-- Each constraint has a negative test: a duplicate `sample_code` is refused
-  (S3), a score outside its range is refused, a delete that the foreign key
-  restricts is refused.
-- Queries that use the new table filter by owner in SQL and have their role
-  isolation tests (`auth-security.md`).
+- Each constraint has a negative test: a request without a team is refused
+  (S10), a delete that the foreign key restricts is refused.
+- Queries that use the new table filter by team, or by the teacher's own
+  games, in SQL and have their role isolation tests (`auth-security.md`).
 
 ## Report
 
