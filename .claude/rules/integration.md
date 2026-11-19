@@ -167,9 +167,10 @@ FerroBRIDGE.
 - **An Afinion result finds its team through the patient ID** (S5; owner,
   2026-11-19, O13). The team enters the sample's lab number (S12) as the
   patient ID on the analyser. Every team works the same sample numbers, so
-  the sample number never links a result on its own (R-11). The format of
-  the lab number is not decided; the patient ID field takes up to 16
-  characters (`docs/lims-workflow.md`).
+  the sample number never links a result on its own (R-11). The lab
+  number is ten decimal digits, the last a check digit by the Damm algorithm,
+  which catches a wrong digit and a swap of two neighbours (#268); the patient ID field takes up to 16 characters
+  (`docs/lims-workflow.md`).
 - **The entered patient ID goes out in PID-3 or in PV1-19**, as set on the
   analyser (protocol §3.5, §3.6: "configurable, to use PID or
   visitnumber"), and a message carries one patient ID. OBX-16 carries the

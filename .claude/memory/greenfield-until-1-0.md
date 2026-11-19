@@ -30,3 +30,11 @@ just rewrite everything properly until we release the first stable release".
 **How to apply:** when a change would need a migration path or a shim, drop
 it and say so in the PR. Parallel branches still number their migrations so
 they do not collide, until the squash. See [[stack-decisions]].
+
+**2026-11-19, the owner again, on the rework of classes into simulations and
+labs:** make breaking changes and do a full rewrite; deleting is preferred,
+no legacy. Design the new code in its target shape, delete what no
+requirement needs, and reuse a piece of old code only where it fits that
+shape unchanged. Never keep an old area alive on stubs, an alias route or a
+renamed-in-place table. The tests are the one thing that never shrinks: an
+access test goes only with its feature, and its check gets a counterpart.

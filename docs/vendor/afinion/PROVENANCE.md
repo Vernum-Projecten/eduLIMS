@@ -61,7 +61,8 @@ newer (§1).
 - **OBX (§3.8):** one OBX per analyte with the name in OBX-3, the value in
   OBX-5, the unit in OBX-6, the result status in OBX-11 (always `F`), the
   operator ID in OBX-16, the analyser's serial number in OBX-18 and the time
-  of the measurement in OBX-19. The value type in OBX-2 is `ST`.
+  of the measurement in OBX-19. The value type in OBX-2 is `ST`
+  (§3.8), though example 4.1.2 sends `NM` for one analyte.
 - **Results outside the measuring range (§3.8):** OBX-8 carries `<` or `>`
   and OBX-5 carries the comparator with the limit; "Only '<' and '>' will be
   supported". A value that cannot be calculated or measured is `--- ` in

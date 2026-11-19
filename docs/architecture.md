@@ -107,7 +107,8 @@ eduLIMS gives it a lab number that is unique across the teams of every simulatio
 (S12). The team enters that lab number as the patient ID on the Afinion 2,
 and the result finds its team through it (owner, 2026-11-19, O13; S5). The
 lab number is the key that connects the analyser route to the team's sample.
-Its format is not decided. The analyser sends the entered patient ID, so the lab number, in PID-3 or
+It is ten decimal digits, the last a check digit by the Damm algorithm (#268).
+The analyser sends the entered patient ID, so the lab number, in PID-3 or
 PV1-19 (Afinion 2 HL7 Connectivity Protocol v4.0, §3.5 and §3.6, vendored in
 `docs/vendor/afinion/`); which element of the composition carries the lab
 number beside the sample number is settled in #160. A result that eduLIMS cannot link to a team's sample is
