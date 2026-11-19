@@ -281,11 +281,13 @@ Server functions are an API: hold them to the API Security Top 10 2023 too
   (`docs/gen5-export.md`), and the XML libraries available carry advisories
   in entity handling, which these readers do not have at all: they refuse
   every DTD. The exception holds only while (a) the element, depth,
-  attribute, per-part and total size caps exist, each with tests at and over
-  it; (b) every raw character is checked against the XML Char production;
-  (c) the seeded mutation test runs in `pnpm test`; and (d) the readers serve
-  this one contract and grow no general-purpose features. A second upload
-  format gets a library or its own decision.
+  attribute, namespace-declaration, per-part and total size caps exist, each
+  with tests at and over it; (b) every raw character is checked against the
+  XML Char production; (c) the seeded mutation test runs in `pnpm test` and
+  asserts that every mutant gives a typed result, that nothing throws, and
+  that the run stays inside its time budget; and (d) the readers serve this
+  one contract and grow no general-purpose features. A second upload format
+  gets a library or its own decision.
 - Reject the whole file with a translated message that names the reason when
   it is not in the supplied export layout (S4 acceptance criterion); write
   nothing to FerroEHR from a rejected file. The export holds no sample
