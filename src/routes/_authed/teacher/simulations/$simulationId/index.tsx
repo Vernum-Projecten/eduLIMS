@@ -7,13 +7,12 @@ import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { Page } from "@/components/shell/page-header";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { LabsSection } from "@/components/simulations/labs-section";
-import { SimulationNotFound } from "@/components/simulations/not-found";
+import { SimulationNotFound, simulationPageTitle } from "@/components/simulations/not-found";
 import { BackToSimulations, SimulationActions } from "@/components/simulations/simulation-actions";
 import { TeachersSection } from "@/components/simulations/teachers-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/i18n/messages";
 import { formatDate } from "@/lib/i18n/format";
-import { portalNavigation, sectionOf } from "@/lib/navigation";
 import { simulationPageQueryOptions } from "@/server/simulations/query-options";
 
 export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId/")({
@@ -23,10 +22,10 @@ export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId
     );
     return { crumb: page.name };
   },
-  head: ({ loaderData }) => ({
+  head: ({ loaderData, match }) => ({
     meta: [
       {
-        title: `${loaderData?.crumb ?? m.simulations_page_title()} | ${sectionOf("teacher", "simulations").label()} | ${portalNavigation("teacher").label()} | eduLIMS`,
+        title: simulationPageTitle(match.status, loaderData?.crumb ?? m.simulations_page_title()),
       },
     ],
   }),

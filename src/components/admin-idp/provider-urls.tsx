@@ -3,11 +3,11 @@
 
 import { CopyIcon } from "lucide-react";
 import { useId } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { m } from "@/i18n/messages";
+import { toast } from "@/lib/toast";
 import type { ProviderDetail } from "@/server/idp/queries";
 
 /** A read-only value with a copy button. */

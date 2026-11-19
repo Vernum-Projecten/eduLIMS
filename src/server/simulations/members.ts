@@ -18,6 +18,7 @@ import {
   withSimulation,
 } from "./access.ts";
 import { recordRemoval } from "./removals.ts";
+import { dropWaitingAddressesOf } from "./waiting.ts";
 
 async function placeOf(trx: Kysely<DB>, simulationId: string, userId: string) {
   return trx
@@ -62,6 +63,11 @@ export function moveMember(
       .where("simulation_id", "=", simulationId)
       .where("user_id", "=", input.userId)
       .execute();
+    // NOTE: #323 (maintainer, 2026-11-19); an address waiting in another lab goes with the move.
+    await dropWaitingAddressesOf(trx, simulationId, input.userId, {
+      exceptLabId: target.id,
+      verifiedOnly: false,
+    });
     await recordAudit(trx, {
       action: "lab_member_moved",
       actor: { type: "user", id: actor.id },
@@ -78,8 +84,9 @@ export function moveMember(
 }
 
 /**
- * Removes a student from a simulation the actor teaches and records the removal, so the lab's
- * code no longer lets them back in (#288).
+ * Removes a student from a simulation the actor teaches, records the removal and deletes the
+ * addresses that wait for them there, so neither a lab's code nor the next sign-in lets them back
+ * in until a teacher adds their address again (#288, #323).
  */
 export function removeMember(
   db: Kysely<DB>,
@@ -96,6 +103,9 @@ export function removeMember(
       .where("user_id", "=", input.userId)
       .execute();
     await recordRemoval(trx, simulationId, input.userId, actor.id, now);
+    // NOTE: #323 (maintainer, 2026-11-19); a waiting address would link the student back at the
+    // next sign-in and clear the removal, so every one of theirs in the simulation goes with it.
+    await dropWaitingAddressesOf(trx, simulationId, input.userId, { verifiedOnly: false });
     await recordAudit(trx, {
       action: "lab_member_removed",
       actor: { type: "user", id: actor.id },

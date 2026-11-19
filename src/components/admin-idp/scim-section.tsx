@@ -6,7 +6,6 @@ import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-q
 import { useServerFn } from "@tanstack/react-start";
 import { KeyRoundIcon, RefreshCwIcon, ShieldOffIcon, TriangleAlertIcon } from "lucide-react";
 import { useId, useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod";
 import { CopyField } from "@/components/admin-idp/provider-urls";
 import { ConfirmButton } from "@/components/admin-users/admin-action";
@@ -16,6 +15,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { m } from "@/i18n/messages";
 import { formatDateTime } from "@/lib/i18n/format";
+import { toast } from "@/lib/toast";
 import {
   createScimTokenFn,
   revokeScimTokenFn,
