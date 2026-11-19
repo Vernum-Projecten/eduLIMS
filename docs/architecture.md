@@ -252,32 +252,41 @@ student's place and a waiting address point at their lab through the pair
 - **Access in the query.** A teacher reaches a simulation through its
   `simulation_teachers` row, and a lab through the teacher row of its
   simulation. Every write locks the simulation row first. Another teacher's
-  simulation, an unknown id and a malformed id all answer `not_found`, and
-  the probe goes to the security log. A student reaches a lab only through
+  simulation, an unknown id and a malformed id all answer `not_found`, in a
+  write, a page read and the target lab of a move alike, and every probe
+  goes to the security log. A student reaches a lab only through
   their own `lab_members` row; that predicate is one exported helper
   (`studentLabsQuery`, `findStudentLab`) that the lab's work builds on.
 - **The email list.** A teacher pastes the addresses of a lab's members. The
   server classifies each line (invalid, repeated, already in this lab, in
   another lab of the simulation, new) and stores the new ones; no answer
   says whether an account exists for an address. An address waits until the
-  student signs in, the teacher removes it, or the lab is deleted.
+  student signs in, the teacher removes it, its simulation is deleted, or 90
+  days have passed since it was added (owner, 2026-11-19); the daily
+  retention prune deletes it then and logs only the count.
 - **The link.** At every sign-in, and when the student opens the Student
   portal overview, each address that waits for the student's verified email
   becomes a place in its lab, one row per transaction. A failed row never
   fails the sign-in and never undoes another row; an address of a student
-  who is already in another lab of that simulation is logged as a refusal
-  and keeps waiting. Only an account whose role set is {student} links. The
+  who is already in another lab of that simulation is deleted, and the
+  refusal is logged once. Only an account whose role set is {student} and
+  whose address is plain ASCII links: lower-casing folds some other letters
+  onto ASCII ones, so such an address is never verified either. The
   identity provider sync grants the student role to an address that waits
   on a lab's list, and only then: the student role only, at a first
   sign-in, through a provider whose addresses are authoritative, and never
   for a user SCIM provisioned (`createIdpRoleSync`).
 - **Teachers.** A teacher adds another teacher by the address of an existing
   account with the teacher role; an unknown address and a non-teacher get
-  the same refusal. The last teacher of a simulation cannot be removed, and
-  better-auth's `admin/remove-user` refuses an account that is the only
-  teacher of a simulation.
-- **Deleting.** A lab can be deleted with its places, its waiting addresses
-  and its code; a simulation only while no student is in one of its labs.
+  the same refusal. The last teacher of a simulation cannot be removed: a
+  teacher row counts only while its user holds the teacher role. Better-auth's
+  `admin/remove-user` refuses an account that is the only teacher of a
+  simulation, and a deferred constraint trigger refuses any commit that
+  leaves an existing simulation without a teacher row, so the two cannot
+  race past each other.
+- **Deleting.** A lab can be deleted with its waiting addresses and its
+  code once no student is in it, and a simulation only while no student is in
+  one of its labs; the teacher moves or removes the students first.
 - **The administrator** reads each simulation with its teachers' names and
   its labs with their member counts, and nothing else (B5).
 - **The activity log** records every write with ids and codes only:
