@@ -6,6 +6,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { Page } from "@/components/shell/page-header";
 import { RouteErrorState } from "@/components/shell/route-error";
+import { JoinCodePanel } from "@/components/simulations/join-code-panel";
 import { BackToSimulation, LabActions } from "@/components/simulations/lab-actions";
 import { MembersSection } from "@/components/simulations/members-section";
 import { SimulationNotFound, simulationPageTitle } from "@/components/simulations/not-found";
@@ -13,7 +14,7 @@ import { PastePanel } from "@/components/simulations/paste-panel";
 import { WaitingSection } from "@/components/simulations/waiting-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/i18n/messages";
-import { labPageQueryOptions } from "@/server/simulations/query-options";
+import { joinCodeQueryOptions, labPageQueryOptions } from "@/server/simulations/query-options";
 
 export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId/labs/$labId")({
   loader: async ({ context, params }) => {
@@ -22,6 +23,9 @@ export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId
     );
     // A lab of another simulation under this simulation's address is not this page.
     if (page.simulation.id !== params.simulationId) throw notFound();
+    await context.queryClient.ensureQueryData(
+      joinCodeQueryOptions(params.simulationId, params.labId),
+    );
     return { crumb: page.name, simulation: page.simulation.name };
   },
   head: ({ loaderData, match }) => ({
@@ -63,6 +67,7 @@ function LabPage() {
       <MembersSection page={page} busy={isFetching} />
       <PastePanel simulationId={page.simulation.id} labId={page.id} labName={page.name} />
       <WaitingSection page={page} busy={isFetching} />
+      <JoinCodePanel simulationId={page.simulation.id} labId={page.id} labName={page.name} />
     </Page>
   );
 }

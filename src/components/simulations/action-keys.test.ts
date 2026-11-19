@@ -80,6 +80,17 @@ describe("simulationActionKeys (every action names its invalidation keys)", () =
     },
   );
 
+  it.each(["enableJoinCode", "regenerateJoinCode", "disableJoinCode"] as const)(
+    "%s invalidates only the lab's code state: no page or list shows the code (#288)",
+    (action) => {
+      expect(simulationActionKeys[action](SIM, LAB)).toEqual([simulationsKeys.joinCode(SIM, LAB)]);
+    },
+  );
+
+  it("a student's join invalidates only the student's own labs (S10)", () => {
+    expect(simulationActionKeys.joinLab()).toEqual([simulationsKeys.student()]);
+  });
+
   it("a lab's page nests under its simulation, so a simulation-wide write reaches it", () => {
     const [detail] = simulationActionKeys.moveMember(SIM);
     expect(detail).toBeDefined();

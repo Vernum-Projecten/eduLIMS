@@ -6,7 +6,12 @@
 // before any query runs.
 import { z } from "zod";
 import { m } from "@/i18n/messages";
-import { JOIN_CODE_DAYS_MAX, JOIN_CODE_INPUT_MAX, JOIN_CODE_USES_MAX } from "@/lib/join-code";
+import {
+  JOIN_CODE_DAYS_MAX,
+  JOIN_CODE_INPUT_MAX,
+  JOIN_CODE_USES_MAX,
+  normalizeJoinCode,
+} from "@/lib/join-code";
 import {
   EMAIL_LINE_MAX,
   EMAIL_LIST_MAX,
@@ -131,18 +136,48 @@ export const waitingEmailInput = z.object({
   email: z.string().trim().min(1).max(EMAIL_LINE_MAX),
 });
 
+const validDaysError = () => m.labs_code_days_invalid({ max: String(JOIN_CODE_DAYS_MAX) });
+const maxUsesError = () => m.labs_code_uses_invalid({ max: String(JOIN_CODE_USES_MAX) });
+
 /**
- * Turning on or replacing a lab's join code (#288): how many days it works and how many students
- * may join, within the bounds the database CHECKs hold too.
+ * The lab-code form (#288, #290): how many days the code works and how many students may join,
+ * within the bounds the database CHECKs hold too.
  */
-export const joinCodeInput = z.object({
-  labId: id,
-  validDays: z.number().int().min(1).max(JOIN_CODE_DAYS_MAX),
-  maxUses: z.number().int().min(1).max(JOIN_CODE_USES_MAX),
+export const joinCodeFormSchema = z.object({
+  validDays: z
+    .number({ error: validDaysError })
+    .int({ error: validDaysError })
+    .min(1, { error: validDaysError })
+    .max(JOIN_CODE_DAYS_MAX, { error: validDaysError }),
+  maxUses: z
+    .number({ error: maxUsesError })
+    .int({ error: maxUsesError })
+    .min(1, { error: maxUsesError })
+    .max(JOIN_CODE_USES_MAX, { error: maxUsesError }),
 });
+export type JoinCodeForm = z.input<typeof joinCodeFormSchema>;
+
+/** Turning on or replacing a lab's join code: the form's settings for the page's lab. */
+export const joinCodeInput = joinCodeFormSchema.extend({ labId: id });
 
 /**
  * Joining a lab with its code (S10): any string up to the form's maximum. The server normalises
  * it and counts a malformed code as a wrong one, so a crafted request skips no limit.
  */
 export const joinInput = z.object({ code: z.string().max(JOIN_CODE_INPUT_MAX) });
+
+/**
+ * The student's join form (S10, #290): {@link joinInput} plus the checks that need no server. An
+ * empty code or one of the wrong shape is refused at the field and costs no attempt; a code of
+ * the right shape that does not work is the server's `invalid_code`, at the field too.
+ */
+export const joinFormSchema = z.object({
+  code: z
+    .string()
+    .max(JOIN_CODE_INPUT_MAX, { error: () => m.labs_join_code_shape() })
+    .refine((value) => value.trim() !== "", { error: () => m.labs_join_code_required() })
+    .refine((value) => value.trim() === "" || normalizeJoinCode(value) !== null, {
+      error: () => m.labs_join_code_shape(),
+    }),
+});
+export type JoinForm = z.input<typeof joinFormSchema>;
