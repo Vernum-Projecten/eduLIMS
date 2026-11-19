@@ -34,12 +34,10 @@ open questions into code and tests.
 - **Planning lives only in GitHub milestones and issues.** No backlog files,
   no sprint plans in the repository (the owner removed both, 2026-11-11).
   Issues are created from re-evaluated requirements, with the owner.
-- **Exception, 2026-11-12 (the maintainer):** the LIMS-core issues (practicals,
-  samples, FerroEHR, the Gen5 upload, the Afinion route, results, lab
-  reports, grading, the KPI dashboard) are filed from the draft before the
-  re-evaluation. Every issue that depends on an open product-owner question
-  is `on-hold` and blocked by the one "Product-owner decisions" issue; only
-  the parts no open question touches are built. An owner answer on that
-  issue unblocks its dependents. These issues go in milestone v0.2.0;
-  v0.1.0 first finishes the open foundation work (auth, classes, the
-  Admin portal), and nothing LIMS-core starts before that.
+- **2026-11-19:** the owner changed the direction to a workplace simulation
+  ([[workplace-simulation-direction]]). The LIMS-core issues filed from the
+  old draft on 2026-11-12 are closed as not planned, the "Product-owner
+  decisions" issue (#131) with them; #264 rewrites the requirements and
+  carries the open questions. The surviving issues (FerroEHR, the Gen5
+  upload, the Afinion route) are blocked by #264 where the model shapes
+  them.

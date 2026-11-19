@@ -9,6 +9,10 @@ adding one, and update it instead of duplicating.
 
 ## Owner decisions
 
+- [Workplace simulation direction](workplace-simulation-direction.md): a
+  LIMS for a workplace simulation where teams compete on turnaround time and
+  accuracy; the practical, lab report, rubric, grade and KPI model is
+  dropped; #264 rewrites the requirements; owner 2026-11-19
 - [Requirements are a draft](requirements-are-draft.md): S/D/B IDs, NFRs,
   acceptance criteria and KPIs are under discussion; cite IDs, flag gaps and
   ask the owner, never invent or complete one; owner 2026-11-11
