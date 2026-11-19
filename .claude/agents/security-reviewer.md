@@ -67,7 +67,7 @@ Review priority (report in this order):
    their ownership filter.
 2. **Hints to students (Q-SIM-1, W7).** Any function, loader or response a
    student account can reach that carries a correct value, an accuracy
-   status, a teacher's limit, a ranking (open, O3) or another team's work,
+   status, a teacher's limit, a ranking (not built in this iteration, D14) or another team's work,
    also as an unused field, is a blocker. Check that a negative test per role
    exists, and one per function that touches a correct value. A time the
    dashboard uses that comes from the client is a blocker (Q-SIM-2).

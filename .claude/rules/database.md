@@ -14,11 +14,18 @@ paths:
 # Database: PostgreSQL 18 with Kysely
 
 The eduLIMS database holds the simulation: users, roles and classes; games
-and teams; the test catalogue; correct values; tolerances; patients, requests
-and samples; the times of entry and release; the upload log and the audit log
+and teams with their lab names; the test catalogue; correct values;
+tolerances; patients, requests and samples with their lab numbers; the times
+of entry and release; the upload log and the audit log
 ([lims-workflow.md](../../docs/lims-workflow.md#who-owns-what-and-where-it-lives)).
 Results live in FerroEHR as compositions (`integration.md`); where a
-measurement lives before its release is open (O7).
+measurement lives before its release is a design matter, with the
+maintainer's proposal in `docs/lims-workflow.md`.
+A request is for one patient or for a control sample, which has no patient
+(S16). The correct values are keyed by game, sample number and test, never
+by team (D10).
+A request has no urgent flag and no time target in this iteration (D12, O1),
+and nothing stores a ranking (D14, O3).
 Both databases run on one PostgreSQL 18 server, each with its own database
 user: the eduLIMS app user never has rights on the FerroEHR database.
 
@@ -65,7 +72,8 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
 - **Constraints carry the rules the database can hold:** `NOT NULL`,
   `CHECK` (a tolerance's lower limit not above its upper limit), foreign
   keys with an explicit `ON DELETE`, at most one released result per
-  requested test (whether a release can be corrected is open, O7), and enums or `CHECK ... IN` for statuses (the states of a
+  requested test (a released result is final, S15), a lab number that is
+  unique across the teams of every game (S12), and enums or `CHECK ... IN` for statuses (the states of a
   requested test in `docs/lims-workflow.md`). The application validates too,
   but the database is the last line.
 - **Names:** `snake_case`, plural table names, `<table>_id` foreign keys.

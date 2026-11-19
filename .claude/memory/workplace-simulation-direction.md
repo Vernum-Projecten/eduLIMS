@@ -25,6 +25,23 @@ time and on accuracy. The owner's input, 2026-11-19:
   live, on time and on accuracy (green, yellow, red).
 - There is no grading of any kind. The teacher side is a dashboard that
   shows the progress and the process of the games.
+- Each team picks its own lab name and competes as that lab; the Dutch UI
+  word for the group is "lab".
+- A result released to the patient's record is final. The teacher sees every
+  measurement; the released one counts.
+- An Afinion 2 result finds its team through the patient ID the team enters
+  on the analyser. The maintainer's design: eduLIMS gives each team's sample
+  a lab number, unique across the teams, and the team enters that.
+- A teacher prepares a game once: the correct values hold for every team, so
+  a team more or less is no extra work for the teacher.
+- A control sample (quality control, no patient) is its own kind of request;
+  its result goes to a control log, never to a patient's record.
+- Keep the code simple. Not in this iteration, and not to be built or
+  decided by the maintainer: urgent requests and time targets, and the
+  ranking. eduLIMS only logs when a request enters the system and when its
+  result is released.
+- The Epoch 2 export: eduLIMS loads the values and shows the plate as a real
+  LIMS does; the team links wells to samples.
 - Teachers can add other tests later, so the test set is data, never code.
 - The Epoch 2 export is uploaded by drag and drop.
 

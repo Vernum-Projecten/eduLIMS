@@ -43,7 +43,7 @@ body:
     attributes:
       label: User story
       description: Who wants what, and why.
-      placeholder: As a teacher, I want to see which urgent requests are past their target, so that I can follow the game.
+      placeholder: As a teacher, I want to see every measurement of a requested test, so that I can follow the game.
     validations:
       required: true
   - type: textarea

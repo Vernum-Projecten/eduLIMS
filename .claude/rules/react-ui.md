@@ -115,8 +115,8 @@ suite runs axe on every route (`testing.md`).
   translated `title` through its `head()` (2.4.2).
 - **Colour:** text contrast at least 4.5:1, large text and UI components at
   least 3:1 (1.4.3, 1.4.11). **Never carry meaning by colour alone** (1.4.1):
-  the accuracy status on the teacher dashboard, an urgent request past its
-  target and the tolerance warning each show an icon and text as well
+  the accuracy status on the teacher dashboard, the mark on the released
+  measurement and the tolerance warning each show an icon and text as well
   (Q-ACC-2; R-09, "a colour-blind or visually impaired user").
 - **Tables:** real `<th>` headers with `scope`, a caption or `aria-label`; the
   96-well plate view is a table with row and column headers, not a grid of
@@ -174,8 +174,8 @@ definitions) and <https://tanstack.com/charts/latest>, never from memory.
   the student's own team and nothing else: no correct value, no accuracy
   status, no limit a teacher set, no suggested limit, no interpretation of a
   result and no other team's work, in the markup, the loader data or a hidden
-  field. Whether teams see the ranking is open (O3), so no student screen
-  shows it.
+  field. The ranking is not built in this iteration (D14, O3), so no screen
+  shows one.
 - **The tolerance warning is the one check a team gets (S15).** It shows
   before the release is confirmed, with an icon and text, and uses only the
   limits the team entered itself. The team decides.

@@ -24,7 +24,7 @@ a question the draft leaves open.
    acceptance criteria, the quality requirements (ISO 25010, Q-), the risk
    table with its measures (R-), the dashboard measures (G-) and the open
    questions (O-). Search it with Grep for the ID (`\bS4\b`) and for the
-   topic words (`tolerance`, `release`, `urgent`, `correct value`).
+   topic words (`tolerance`, `release`, `lab number`, `correct value`).
 2. `docs/lims-workflow.md` for the chain from request form to released
    result, `docs/architecture.md` for where a requirement lands in the design
    (portals, databases, the openEHR template, the integrations), and
@@ -53,7 +53,9 @@ a question the draft leaves open.
     it, and never report it as a live requirement;
   - names an open question (`Open: … (O5)`): quote the question and its
     status from the Open questions table, and say that nothing is built on
-    it until the owner answers.
+    the open part until the owner answers;
+  - is marked "Won't in this iteration" (D12, D14) or names a question the
+    owner held open (O1, O3): say that nothing is built for it now.
 
   For each, write the question the owner needs to answer, and recommend the
   caller comments it on the issue. Do not propose a number, a rule or a scope

@@ -142,7 +142,7 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V2.1.1 | 1 | partly | Zod schemas per area (`src/server/<area>/schemas.ts`) are the rules; no prose document yet | review | partial |
-| V2.1.2 | 2 | yes | combined checks are open in the draft (a well and its sample, S4 and O5; an analyser result and its team, S5 and O13); document with each requirement | review | planned |
+| V2.1.2 | 2 | yes | combined checks in the draft: the team links a well to its sample (S4), and an analyser result finds its team through the lab number entered as the patient ID (S5, S12); document with each requirement | review | planned |
 | V2.1.3 | 2 | yes | upload size and count limits (S4), invitation limits (#28); not documented yet | review | planned |
 
 #### V2.2 Input Validation
@@ -151,7 +151,7 @@ Text: [vendor/asvs/en/0x11-V2-Validation-and-Business-Logic.md](vendor/asvs/en/0
 |---|---|---|---|---|---|
 | V2.2.1 | 1 | yes | every server function has a Zod `.validator` (`src/server/preferences/functions.ts`, `schemas.ts`) | unit `src/server/preferences/queries.test.ts` | met |
 | V2.2.2 | 1 | yes | validation runs in the server function; client checks are UX only (`.claude/rules/tanstack.md`) | review | met |
-| V2.2.3 | 2 | yes | the S4 upload checks the file against the Gen5 layout (the 96-well grid); the check of a well against a sample is open (O5) | unit tests with S4 | planned |
+| V2.2.3 | 2 | yes | the S4 upload checks the file against the Gen5 layout (the 96-well grid); the export holds no sample number, so the team links each well to a sample of its own team (S4) | unit tests with S4 | planned |
 
 #### V2.3 Business Logic Security
 

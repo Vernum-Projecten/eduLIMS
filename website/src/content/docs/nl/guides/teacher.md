@@ -9,7 +9,7 @@ sidebar:
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
 In het Docentportaal beheer je de testcatalogus, bereid je een spel voor en
-volg je elk team op een live dashboard. In eduLIMS wordt niet beoordeeld.
+volg je elk lab op een live dashboard. In eduLIMS wordt niet beoordeeld.
 
 :::caution[In ontwikkeling]
 eduLIMS is nog in ontwikkeling. Deze handleiding beschrijft wat nu werkt en
@@ -183,14 +183,25 @@ server.
 
 ## Geplande taken
 
-| Taak                                                                                                                                                  | Requirement                       |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| De testcatalogus beheren: een bepaling toevoegen met naam, eenheid en materiaal                                                                       | [D9](/development/requirements/)  |
-| Een spel voorbereiden: de teams en vooraf de juiste waarde per bepaling en monster                                                                    | [D10](/development/requirements/) |
-| Elk team live volgen op het [dashboard](/development/game-dashboard/): de tijden van elke aanvraag en de nauwkeurigheid van elk vrijgegeven resultaat | [D11](/development/requirements/) |
-| Een streeftijd instellen voor spoedaanvragen                                                                                                          | [D12](/development/requirements/) |
-| Per bepaling instellen hoe ver een resultaat van de juiste waarde mag liggen voor groen, geel en rood                                                 | [D13](/development/requirements/) |
-| De ranglijst van de teams op tijd en nauwkeurigheid bekijken                                                                                          | [D14](/development/requirements/) |
+| Taak                                                                                                                                                                                                    | Requirement                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| De testcatalogus beheren: een bepaling toevoegen met naam, eenheid en materiaal                                                                                                                         | [D9](/development/requirements/)  |
+| Een spel voorbereiden: de labs en vooraf de juiste waarde per bepaling en monster, één keer voor alle labs                                                                                              | [D10](/development/requirements/) |
+| Elk lab live volgen op het [dashboard](/development/game-dashboard/): de tijden van elke aanvraag, elke meting met de vrijgegeven meting gemarkeerd, en de nauwkeurigheid van elk vrijgegeven resultaat | [D11](/development/requirements/) |
+| Per bepaling instellen hoe ver een resultaat van de juiste waarde mag liggen voor groen, geel en rood                                                                                                   | [D13](/development/requirements/) |
+
+Je voert de juiste waarden één keer per spel in. Ze gelden voor elk lab, dus
+een lab toevoegen of verwijderen kost je geen extra werk. Een aanvraag voor
+een controlemonster staat op het dashboard met zijn tijden en nauwkeurigheid,
+net als elke andere.
+
+Elk lab kiest zijn eigen labnaam, en het dashboard toont een lab onder die
+naam. Een vrijgegeven resultaat is definitief: het lab kan het niet wijzigen
+en kan voor die bepaling geen andere meting vrijgeven.
+
+Een streeftijd voor spoedaanvragen ([D12](/development/requirements/)) en een
+ranglijst van de labs ([D14](/development/requirements/)) worden in deze
+iteratie niet gebouwd.
 
 Studenten zien nooit een juiste waarde of de nauwkeurigheid van een
 resultaat.

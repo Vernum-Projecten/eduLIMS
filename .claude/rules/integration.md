@@ -23,14 +23,17 @@ patient's record in FerroEHR, and eduLIMS reads back by one route
 | Route | From, to | Standard | What eduLIMS builds |
 |---|---|---|---|
 | Afinion 2 | analyser to FerroBRIDGE to FerroEHR | HL7 v2 over MLLP, then openEHR REST | nothing in code: FerroBRIDGE configuration and its mapping to the `eduLIMS-lab` template |
-| Epoch 2 | Gen5 Excel export, uploaded in the Student portal | the fixed Gen5 export layout | the upload, the parser and the layout validation; the step from a well to a value for a sample is open (O5) |
-| Release | eduLIMS to FerroEHR | openEHR REST | the result in the patient's record when the team releases it (S15) |
+| Epoch 2 | Gen5 Excel export, uploaded in the Student portal | the fixed Gen5 export layout | the upload, the parser and the layout validation, the plate view of the 96 values, and the team's link from a well to a sample (S4); a concentration from the standards on the plate is open (O5) |
+| Release | eduLIMS to FerroEHR | openEHR REST | the result in the patient's record when the team releases it (S15); the result of a control request, which has no patient, goes to the control log of the team and never to a patient's record (S16) |
 | Read | eduLIMS from FerroEHR | AQL through the openEHR REST Query API | the queries for the samples of a team |
 
 Still open, so nothing is built on it: which test runs on which analyser and
-which values a team enters by hand (O4, O8), and where a measurement lives
-before its release (O7; the maintainer's proposal in `docs/lims-workflow.md`
-keeps it in FerroEHR as Preliminary and makes the released one Final).
+which values a team enters by hand (O4, O8). Where a measurement lives
+before its release is a design matter for the maintainer: the proposal in
+`docs/lims-workflow.md` keeps it in FerroEHR as Preliminary and makes the
+released one Final. A released result is final (S15). Where a released
+control result is stored, in FerroEHR or in the eduLIMS database, is a
+design decision that is not made yet: build no storage for it until it is.
 
 FerroEHR and FerroBRIDGE are configured, never developed here (scope, plan of
 approach §1.5). A defect in either is reported to its own repository.
@@ -98,7 +101,9 @@ specification governs a choice (retry timing, the client's caching), flag it:
   goes in the specimen cluster's identifier, and the device cluster carries
   the analyser and its serial number, so every measurement traces to device,
   sample, patient and team (Q-TRACE-1). The sample number alone does not
-  name the team, because every team works the same numbers (R-11, O13).
+  name the team, because every team works the same numbers (R-11). The lab
+  number eduLIMS gives the sample (S12) does: it is unique across the teams
+  of every game.
 - **AQL uses parameters.** Pass values through `query_parameters`
   (`WHERE … = $sample_number`); never interpolate a value into the AQL string
   (OWASP A05). Queries are named constants with a test against the template's
@@ -128,14 +133,15 @@ request.
   pinned down unambiguously"; measure: "the parser validates strictly").
 - **The export holds no sample number, no plate layout and no
   concentration.** The upload therefore checks the file type, the size and
-  the layout, and shows the team the absorbance per well. It cannot check a
-  sample against the file.
-- **Open, O5:** how a well becomes a value for a sample, and who calculates
-  the concentration. The maintainer's proposal (the team records the plate
-  layout; per test the teacher chooses whether eduLIMS calculates from the
-  team's own standards or the team enters the result) waits on the owner.
-  Build neither until the owner answers, and never use a correct value in
-  that step.
+  the layout, loads the 96 values and shows the team the plate, as a real
+  LIMS does (S4). It cannot check a sample against the file.
+- **The team links wells to samples** (S4; owner, 2026-11-19, O5): the team
+  says which well holds which sample, and the server checks that each sample
+  belongs to that team.
+- **Open, O5:** whether eduLIMS also calculates a concentration from the
+  standards on the plate (the calibration line) or shows the absorbance
+  only. The teachers confirm this. Build no calculation until they do, and
+  never use a correct value in that step.
 - **Validation before anything is kept:** a file in another layout is
   rejected whole with a translated message that names the reason (S4);
   nothing reaches FerroEHR from a rejected file.
@@ -151,11 +157,13 @@ messages in `tests/fixtures/` that the integration tests send to FerroBRIDGE
 (the lab network may not route to the server network early, risk P-02), and the log view of HL7 messages and errors (B4), read from
 FerroBRIDGE.
 
-- **Open, O13:** how an Afinion result finds the right team. Every team
-  works the same sample numbers, so the sample number alone does not say
-  whose result arrived (R-11). Which identifier a team enters on the analyser
-  to name itself, or whether each team has its own analyser, is the owner's
-  decision; which HL7 fields carry the entered identifiers is #209. Build no
-  matching rule until both are answered.
+- **An Afinion result finds its team through the patient ID** (S5; owner,
+  2026-11-19, O13). The team enters the sample's lab number (S12) as the
+  patient ID on the analyser. Every team works the same sample numbers, so
+  the sample number never links a result on its own (R-11). The format of
+  the lab number is not decided; the patient ID field takes up to 16
+  characters (`docs/lims-workflow.md`).
+- **Open, #209:** which HL7 fields carry the entered patient ID. Build no
+  matching rule until that is answered.
 - A result that eduLIMS cannot link to a team's sample is never attached to
   one: it is logged and shown to administrators (#163).

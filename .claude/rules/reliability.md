@@ -44,7 +44,7 @@ without a failing check is a wish, so a new rule comes with its check.
   request carries a time the dashboard uses, and the client's clock never
   decides (Q-SIM-2, R-12). (Tier 3.)
 - **Determinism:** anything a user compares across visits (a dashboard
-  measure, a list order, the ranking) has a defined order (`ORDER BY` a
+  measure, a list order, the measurements of a requested test) has a defined order (`ORDER BY` a
   stable key), so the same data gives the same screen. (Review-enforced.)
 - **Errors carry their cause:** `new AppError("…", { cause })`, so a log line
   shows the chain. A typed error is a discriminated union the caller can

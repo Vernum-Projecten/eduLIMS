@@ -46,8 +46,16 @@ access rules and the tests for a use nobody has.
   before a value outside them is released. eduLIMS gives no other hint.
 - A teacher manages the test catalogue, enters the correct values of a game
   beforehand, and follows every team on a live dashboard: the time per
-  request, with a target for urgent requests, and the accuracy of each
-  released result as green, yellow or red.
+  request, every measurement of a requested test, and the accuracy of each
+  released result as green, yellow or red. A target for urgent requests and
+  a ranking of the teams are not built in this iteration (D12, D14).
+- Each team picks its own lab name and competes as that lab (S10).
+- A released result is final (S15).
+- A control sample, which has no patient, is its own kind of request. Its
+  result goes to the control log of the team, never to a patient's record
+  (S16).
+- The correct values are entered once per game and hold for every team
+  (D10).
 - There is no grading: no lab report, no rubric, no grade, no grade export,
   no KPI dashboard on grades.
 - The times a dashboard uses are taken on the server.
@@ -55,7 +63,7 @@ access rules and the tests for a use nobody has.
   enters the repository or the tracker, which are public.
 
 The requirements are in [requirements.md](../requirements.md); the questions
-the owner still answers are listed there as O1 to O14.
+and their answers are listed there as O1 to O14.
 
 ### Consequences
 
@@ -72,4 +80,6 @@ the owner still answers are listed there as O1 to O14.
   account must never read one, and that needs negative tests on every
   function that touches them.
 - Bad: every team works the same sample numbers, so a sample number alone no
-  longer identifies whose result an analyser sends (R-11, O13).
+  longer identifies whose result an analyser sends (R-11). eduLIMS gives
+  each team's sample a lab number that is unique across the teams, and the
+  team enters it as the patient ID on the Afinion 2 (S5, S12).

@@ -140,7 +140,9 @@ without login. This file is how the code meets them.
   route `beforeLoad` guard is navigation UX and never the security boundary.
 - **Ownership is checked, not just role.** The work belongs to the team:
   every patient, request, sample, tolerance, measurement and result hangs
-  under a team within a game (S10, `docs/lims-workflow.md`). A student reads
+  under a team within a game (S10, `docs/lims-workflow.md`). A request for a
+  control sample has no patient and hangs under the team in the same way
+  (S16). A student reads
   and writes only the work of their own team. A teacher reads only the games
   that are their own (D10, D11: "a teacher sees only their own games"). An id
   from the client (a game id, a request id, a sample number) is checked
@@ -155,9 +157,16 @@ without login. This file is how the code meets them.
   screen does not show included. The tolerance check of S15 uses only the
   limits the team entered itself. A team's tolerances are its own: no other
   team reads them (S13).
-- **Derived data leaks too.** The dashboard queries (G-01 to G-04) apply the
-  same ownership filter as the detail queries. Whether teams see the ranking
-  is open (O3): no student reads it until the owner answers.
+- **Derived data leaks too.** The dashboard queries (G-01, G-03) apply the
+  same ownership filter as the detail queries. The ranking (D14, G-04) is
+  not built in this iteration (O3), so no query computes one and no student
+  reads one.
+- **The lab number is a team's own (S12, R-11).** eduLIMS gives each sample
+  a lab number that is unique across the teams of every game, and a team
+  reads only the lab numbers of its own samples. An analyser result is
+  linked through the lab number in the patient ID and through nothing else
+  (S5); a result with an unknown lab number goes to administrators only
+  (#163).
 - Every role-scoped server function has a **negative test** per role that
   proves the refusal (a student calling a teacher function gets 403, a student
   reading another team's request gets 404 or 403, a teacher reading another
@@ -221,8 +230,8 @@ each point answers:
 - **A06 Insecure Design (V2.3):** the release of a result (S15) is explicit,
   confirmed, and enforced on the server: the server takes the time of release
   (Q-SIM-2), and a crafted request cannot move it or release a second result
-  for the same requested test. Whether a team can correct a released result
-  is open (O7).
+  for the same requested test. A released result is final: no function
+  changes it or releases another measurement for that requested test (S15).
   Sheets: Threat_Modeling, Abuse_Case.
 - **A07 Authentication Failures (V6.3, V6.8, V7.2, V7.4, V10.5):** SSO only,
   a new session on sign-in, sign-out invalidates the server session. Two IdPs
@@ -254,5 +263,6 @@ Server functions are an API: hold them to the API Security Top 10 2023 too
 - Reject the whole file with a translated message that names the reason when
   it is not in the supplied export layout (S4 acceptance criterion); write
   nothing to FerroEHR from a rejected file. The export holds no sample
-  number, so the upload validates the layout only; how a well is linked to a
-  sample is open (O5, `integration.md`).
+  number, so the upload validates the layout only; the team links each well
+  to a sample, and the server checks that the sample belongs to that team
+  (S4, S10, `integration.md`).

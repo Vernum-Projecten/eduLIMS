@@ -39,7 +39,7 @@ Review priority (report in this order):
    student's or teacher's name or student number from FerroEHR), and anything
    on a student screen that hints at the answer: a correct value, an accuracy
    status, a teacher's limit, a suggested limit or a ranking (Q-SIM-1, W7;
-   the ranking is open, O3). Role filtering in a component instead of the server
+   the ranking is not built in this iteration, D14). Role filtering in a component instead of the server
    function. These are blockers and also go to `security-reviewer`.
 2. **WCAG 2.1 A and AA failures.** Keyboard traps or unreachable controls
    (2.1.1, 2.1.2), missing or invisible focus (2.4.7), a control without an
