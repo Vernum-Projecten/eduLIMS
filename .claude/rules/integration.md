@@ -138,10 +138,13 @@ request.
 - **The team links wells to samples** (S4; owner, 2026-11-19, O5): the team
   says which well holds which sample, and the server checks that each sample
   belongs to that team.
-- **Open, O5:** whether eduLIMS also calculates a concentration from the
-  standards on the plate (the calibration line) or shows the absorbance
-  only. The teachers confirm this. Build no calculation until they do, and
-  never use a correct value in that step.
+- **Who calculates the concentration is the teacher's choice per test** (D9,
+  S4; owner, 2026-11-19, O5): the team calculates by its own procedure and
+  enters the result, or eduLIMS calculates it from the standards and blanks
+  the team marked on the plate and shows the calibration line it used. The
+  calculation is one tested function in `src/lib/`, it uses only what the
+  team entered, and never a correct value. The calibration model is not
+  decided: ask before picking one.
 - **Validation before anything is kept:** a file in another layout is
   rejected whole with a translated message that names the reason (S4);
   nothing reaches FerroEHR from a rejected file.
