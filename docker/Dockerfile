@@ -44,8 +44,8 @@ FROM --platform=$BUILDPLATFORM docker.io/library/node:26.13.1-trixie@sha256:e18c
 # pnpm 12 canonicalises its working directory first and stops when that
 # directory is gone (#217).
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-ARG PNPM_VERSION=12.18.0
-ARG PNPM_INTEGRITY=sha512-nXiC1dyCFH7PxOBiqjSDTgrQKWcQoYN6ERWuASEn02txCeMhrBWYod0KZVl2gbHpmRfhLtDXSerpEYeUM2O+sw==
+ARG PNPM_VERSION=12.21.0
+ARG PNPM_INTEGRITY=sha512-Zv2CeO4ok1zpUXktNDZ/869cQyonVkRYIwKVM4NbjaUpu+C+UTCv1W7QcT+4eJ5Hutgtk71a4v5UsVVi1idu8A==
 WORKDIR /tmp/pnpm
 RUN tarball="$(npm pack --silent "pnpm@${PNPM_VERSION}")" \
  && got="sha512-$(openssl dgst -sha512 -binary "${tarball}" | openssl base64 -A)" \
