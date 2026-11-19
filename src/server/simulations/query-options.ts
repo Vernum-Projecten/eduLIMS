@@ -14,6 +14,7 @@ import { STALE_TIME } from "../../lib/query-config.ts";
 import type { SimulationActionError, SimulationResult } from "./access.ts";
 import {
   getAdminSimulationFn,
+  getJoinCodeFn,
   getLabPage,
   getMyLabs,
   getSimulationPage,
@@ -29,6 +30,8 @@ export const simulationsKeys = {
   detail: (simulationId: string) => [...simulationsKeys.details(), simulationId] as const,
   lab: (simulationId: string, labId: string) =>
     [...simulationsKeys.detail(simulationId), "lab", labId] as const,
+  joinCode: (simulationId: string, labId: string) =>
+    [...simulationsKeys.lab(simulationId, labId), "join-code"] as const,
   student: () => [...simulationsKeys.all, "student"] as const,
   admin: () => [...simulationsKeys.all, "admin"] as const,
   adminList: () => [...simulationsKeys.admin(), "list"] as const,
@@ -51,7 +54,11 @@ export const simulationInvalidation = {
   ],
   /** A change to a lab's waiting addresses: its page and the simulation page's counts. */
   waiting: (simulationId: string): QueryKey[] => [simulationsKeys.detail(simulationId)],
-  /** Linking the student's waiting addresses: their own labs. */
+  /** Turning a lab's join code on, replacing it or turning it off: its state only (#288). */
+  joinCode: (simulationId: string, labId: string): QueryKey[] => [
+    simulationsKeys.joinCode(simulationId, labId),
+  ],
+  /** Linking the student's waiting addresses, or joining with a code: their own labs. */
   student: (): QueryKey[] => [simulationsKeys.student()],
 };
 
@@ -78,6 +85,15 @@ export function labPageQueryOptions(simulationId: string, labId: string) {
   return queryOptions({
     queryKey: simulationsKeys.lab(simulationId, labId),
     queryFn: () => getLabPage({ data: { labId } }),
+    staleTime: STALE_TIME.simulations,
+  });
+}
+
+/** The state of a lab's join code, keyed under the lab; never the code itself (#288). */
+export function joinCodeQueryOptions(simulationId: string, labId: string) {
+  return queryOptions({
+    queryKey: simulationsKeys.joinCode(simulationId, labId),
+    queryFn: () => getJoinCodeFn({ data: { labId } }),
     staleTime: STALE_TIME.simulations,
   });
 }

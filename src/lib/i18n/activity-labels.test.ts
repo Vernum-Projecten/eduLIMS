@@ -248,6 +248,26 @@ describe("activity log labels (#36)", () => {
     ).toEqual(["Joined through the lab code"]);
   });
 
+  it("summarises a lab code's term and places, never the code (#288)", () => {
+    expect(
+      activityDetails({ reason: null, provider: null, metadata: { valid_days: 7, max_uses: 30 } }),
+    ).toEqual(["Valid for 7 days", "At most 30 students"]);
+  });
+
+  it.each([
+    ["unknown_code", "the code is not known"],
+    ["malformed_code", "the code has the wrong shape"],
+    ["code_expired", "the code has expired"],
+    ["code_used_up", "the code has no places left"],
+    ["lab_deleted", "the lab was deleted"],
+    ["removed", "a teacher removed the student from the simulation"],
+    ["not_a_student", "the account does not have only the student role"],
+    ["rate_limited_user", "too many wrong codes from this student"],
+    ["rate_limited_ip", "too many wrong codes from this network address"],
+  ])("names the join-code reason %s (#288)", (code, words) => {
+    expect(activityReasonLabel(code)).toBe(words);
+  });
+
   it("names the refusals of the simulation service and the teacher delete guard (D10)", () => {
     expect(activityReasonLabel("has_students")).toBe("the simulation has students in its labs");
     expect(activityReasonLabel("last_teacher")).toBe("the simulation would have no teacher left");

@@ -6,6 +6,7 @@
 // before any query runs.
 import { z } from "zod";
 import { m } from "@/i18n/messages";
+import { JOIN_CODE_DAYS_MAX, JOIN_CODE_INPUT_MAX, JOIN_CODE_USES_MAX } from "@/lib/join-code";
 import {
   EMAIL_LINE_MAX,
   EMAIL_LIST_MAX,
@@ -110,3 +111,19 @@ export const waitingEmailInput = z.object({
   labId: id,
   email: z.string().trim().min(1).max(EMAIL_LINE_MAX),
 });
+
+/**
+ * Turning on or replacing a lab's join code (#288): how many days it works and how many students
+ * may join, within the bounds the database CHECKs hold too.
+ */
+export const joinCodeInput = z.object({
+  labId: id,
+  validDays: z.number().int().min(1).max(JOIN_CODE_DAYS_MAX),
+  maxUses: z.number().int().min(1).max(JOIN_CODE_USES_MAX),
+});
+
+/**
+ * Joining a lab with its code (S10): any string up to the form's maximum. The server normalises
+ * it and counts a malformed code as a wrong one, so a crafted request skips no limit.
+ */
+export const joinInput = z.object({ code: z.string().max(JOIN_CODE_INPUT_MAX) });
