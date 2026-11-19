@@ -73,8 +73,11 @@ own next to `edulims_test` (`pnpm test`) or `edulims_e2e` (`pnpm test:e2e`),
 named `<base>_<run id>`, and drops it at the end, so runs in parallel
 worktrees never meet. `pnpm test` migrates its database once, and every test
 runs in a transaction that is rolled back. `pnpm test:e2e` migrates and seeds
-its database before the app starts, on a free port of its own. A run also
-drops run databases older than 6 hours that a crashed run left behind.
+its database before the app starts, on a port of its own derived from the
+run id (between 20000 and 29999, below the ephemeral ports the system hands
+out), and writes its traces to `test-results/run_<run id>`. A run also drops
+run databases and output folders older than 6 hours that a crashed run left
+behind.
 Neither touches the `edulims` development database.
 
 Only the role that creates a run database may connect to it: CONNECT is
