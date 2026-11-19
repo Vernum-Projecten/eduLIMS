@@ -56,7 +56,6 @@ describe("the export a teacher supplied (S4)", () => {
   it("reads the header fields of the contract", () => {
     expect(plate.header).toEqual({
       softwareVersion: "3.11.19",
-      plateNumber: "Plate 1",
       date: "2026-11-19",
       time: "14:39:10",
       readerType: "Epoch 2",
@@ -285,6 +284,11 @@ describe("the header block", () => {
   it("refuses content in a cell outside the layout", () => {
     const errors = errorsOf(parseCells((cells) => cells.set("C2", "a note")));
     expect(errors).toEqual([{ kind: "unexpected_content", cell: "C2" }]);
+  });
+
+  it("never returns the plate number, which a user types in Gen5 (Q-PRIV-4)", () => {
+    const plate = plateOf(parseCells((cells) => cells.set("B6", "Plate of someone")));
+    expect(JSON.stringify(plate)).not.toContain("someone");
   });
 
   it("never reads the file paths, which may name a user account (Q-PRIV-4)", () => {

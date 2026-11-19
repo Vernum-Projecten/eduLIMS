@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Reads a zip archive held in memory (PKWARE APPNOTE.TXT 6.3.10, §4.3): the end of central
-// directory record, the central directory, and one entry at a time on request. Entry names are
-// lookup keys only and never touch the file system (ASVS 5.0 V5.3.2).
+// directory record, the central directory and every local header, and one entry at a time on
+// request. Entry names are lookup keys only and never touch the file system (ASVS 5.0 V5.3.2).
 import { crc32, inflateRawSync } from "node:zlib";
-import { type ArchiveError, type Step, stepFail, stepOk } from "./errors.ts";
+import { type ArchiveError, boundText, type Step, stepFail, stepOk } from "./errors.ts";
 
 const LOCAL_HEADER_SIGNATURE = 0x04034b50;
 const CENTRAL_HEADER_SIGNATURE = 0x02014b50;
@@ -16,24 +16,25 @@ const LOCAL_HEADER_LENGTH = 30;
 const MAX_COMMENT_LENGTH = 0xffff;
 /** General purpose flags (§4.4.4): bit 0 encrypted, bit 6 strong encryption, bit 13 masked. */
 const ENCRYPTION_FLAGS = 0x0001 | 0x0040 | 0x2000;
+/** Bit 3: the sizes and CRC-32 follow the data, so the local header may carry zeros (§4.4.4). */
+const DATA_DESCRIPTOR_FLAG = 0x0008;
 const STORED = 0;
 const DEFLATED = 8;
 
-/** One entry of the central directory. */
+/** One entry of the central directory, with where its data lies. */
 export interface ZipEntry {
   readonly name: string;
   readonly method: typeof STORED | typeof DEFLATED;
   readonly crc32: number;
   readonly compressedSize: number;
   readonly uncompressedSize: number;
-  readonly localHeaderOffset: number;
+  readonly dataStart: number;
 }
 
-/** A zip archive whose central directory passed every check, with its bytes. */
+/** A zip archive whose central directory and local headers passed every check, with its bytes. */
 export interface ZipDirectory {
   readonly entries: ReadonlyMap<string, ZipEntry>;
   readonly bytes: Uint8Array;
-  readonly centralDirectoryOffset: number;
 }
 
 /** The limits {@link readZipDirectory} enforces before any entry is unpacked (ASVS V5.2.3). */
@@ -60,7 +61,7 @@ function findEndRecord(view: DataView): number | undefined {
   const first = Math.max(0, last - MAX_COMMENT_LENGTH);
   for (let offset = last; offset >= first; offset -= 1) {
     if (view.getUint32(offset, true) !== END_SIGNATURE) continue;
-    // NOTE: APPNOTE §4.3.16; the comment must end the file exactly, so trailing bytes are refused.
+    // NOTE: APPNOTE §4.3.16; the last record whose comment ends the file exactly is the one read.
     if (offset + END_RECORD_LENGTH + view.getUint16(offset + 20, true) === view.byteLength) {
       return offset;
     }
@@ -81,12 +82,84 @@ function decodeName(bytes: Uint8Array): string | undefined {
   }
 }
 
+interface CentralRecord {
+  readonly name: string;
+  readonly nameBytes: Uint8Array;
+  readonly flags: number;
+  readonly method: typeof STORED | typeof DEFLATED;
+  readonly crc32: number;
+  readonly compressedSize: number;
+  readonly uncompressedSize: number;
+  readonly localHeaderOffset: number;
+}
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
 /**
- * Reads and checks the central directory of `bytes` without unpacking anything.
+ * Checks every local header against its central record and returns where each entry's data
+ * lies; entries must not overlap and must end before the central directory.
+ */
+function locateData(
+  view: DataView,
+  bytes: Uint8Array,
+  records: readonly CentralRecord[],
+  centralOffset: number,
+): Step<Map<string, ZipEntry>> {
+  const localFailure: ArchiveError = { kind: "archive_corrupt", reason: "local_header" };
+  const byOffset = [...records].sort((a, b) => a.localHeaderOffset - b.localHeaderOffset);
+  const entries = new Map<string, ZipEntry>();
+  let previousEnd = 0;
+  for (const record of byOffset) {
+    const at = record.localHeaderOffset;
+    if (at < previousEnd) return stepFail({ kind: "archive_corrupt", reason: "entry_overlap" });
+    if (at + LOCAL_HEADER_LENGTH > centralOffset) return stepFail(localFailure);
+    if (view.getUint32(at, true) !== LOCAL_HEADER_SIGNATURE) return stepFail(localFailure);
+    const flags = view.getUint16(at + 6, true);
+    const method = view.getUint16(at + 8, true);
+    const checksum = view.getUint32(at + 14, true);
+    const compressedSize = view.getUint32(at + 18, true);
+    const uncompressedSize = view.getUint32(at + 22, true);
+    const nameLength = view.getUint16(at + 26, true);
+    const extraLength = view.getUint16(at + 28, true);
+    const nameStart = at + LOCAL_HEADER_LENGTH;
+    const dataStart = nameStart + nameLength + extraLength;
+    const dataEnd = dataStart + record.compressedSize;
+    if (dataEnd > centralOffset) return stepFail(localFailure);
+    if (flags !== record.flags || method !== record.method) return stepFail(localFailure);
+    if (!sameBytes(bytes.subarray(nameStart, nameStart + nameLength), record.nameBytes)) {
+      return stepFail(localFailure);
+    }
+    // NOTE: APPNOTE §4.4.4 bit 3; without a data descriptor the local sizes and CRC must agree.
+    const described = (record.flags & DATA_DESCRIPTOR_FLAG) !== 0;
+    const agrees =
+      checksum === record.crc32 &&
+      compressedSize === record.compressedSize &&
+      uncompressedSize === record.uncompressedSize;
+    const zeros = checksum === 0 && compressedSize === 0 && uncompressedSize === 0;
+    if (!agrees && !(described && zeros)) return stepFail(localFailure);
+    entries.set(record.name, {
+      name: record.name,
+      method: record.method,
+      crc32: record.crc32,
+      compressedSize: record.compressedSize,
+      uncompressedSize: record.uncompressedSize,
+      dataStart,
+    });
+    previousEnd = dataEnd;
+  }
+  return stepOk(entries);
+}
+
+/**
+ * Reads and checks the central directory and the local headers of `bytes` without unpacking
+ * anything.
  *
  * The entry count and the sum of the declared unpacked sizes are checked against `limits` before
- * any entry is read (ASVS 5.0 V5.2.3). ZIP64, split archives, encryption and any compression
- * method other than stored and deflate are refused.
+ * any entry is read (ASVS 5.0 V5.2.3). ZIP64, split archives, encryption, any compression method
+ * other than stored and deflate, duplicate names, overlapping entries and local headers that
+ * disagree with the directory are refused. These errors name no entry (ASVS 5.0 V16.5.1).
  */
 export function readZipDirectory(bytes: Uint8Array, limits: ZipLimits): Step<ZipDirectory> {
   if (bytes.length < END_RECORD_LENGTH) return stepFail({ kind: "not_a_zip" });
@@ -119,7 +192,8 @@ export function readZipDirectory(bytes: Uint8Array, limits: ZipLimits): Step<Zip
     return corrupt("central_directory");
   }
 
-  const entries = new Map<string, ZipEntry>();
+  const records: CentralRecord[] = [];
+  const names = new Set<string>();
   let declaredTotal = 0;
   let offset = centralOffset;
   for (let index = 0; index < entryCount; index += 1) {
@@ -141,36 +215,33 @@ export function readZipDirectory(bytes: Uint8Array, limits: ZipLimits): Step<Zip
     const next = nameStart + nameLength + extraLength + commentLength;
     if (next > end) return corrupt("central_directory");
 
-    const name = decodeName(bytes.subarray(nameStart, nameStart + nameLength));
+    const nameBytes = bytes.subarray(nameStart, nameStart + nameLength);
+    const name = decodeName(nameBytes);
     if (name === undefined) return stepFail({ kind: "archive_corrupt", reason: "entry_name" });
     if (
       compressedSize === 0xffffffff ||
       uncompressedSize === 0xffffffff ||
       localHeaderOffset === 0xffffffff
     ) {
-      return stepFail({ kind: "archive_unsupported", reason: "zip64", part: name });
+      return stepFail({ kind: "archive_unsupported", reason: "zip64" });
     }
-    if (startDisk !== 0) {
-      return stepFail({ kind: "archive_unsupported", reason: "multi_disk", part: name });
-    }
+    if (startDisk !== 0) return stepFail({ kind: "archive_unsupported", reason: "multi_disk" });
     if ((flags & ENCRYPTION_FLAGS) !== 0) {
-      return stepFail({ kind: "archive_unsupported", reason: "encrypted", part: name });
+      return stepFail({ kind: "archive_unsupported", reason: "encrypted" });
     }
     if (method !== STORED && method !== DEFLATED) {
-      return stepFail({ kind: "archive_unsupported", reason: "compression_method", part: name });
+      return stepFail({ kind: "archive_unsupported", reason: "compression_method" });
     }
     if (method === STORED && compressedSize !== uncompressedSize) {
-      return stepFail({ kind: "entry_size_mismatch", part: name });
+      return stepFail({ kind: "entry_size_mismatch" });
     }
-    if (localHeaderOffset + LOCAL_HEADER_LENGTH > centralOffset) {
-      return stepFail({ kind: "archive_corrupt", reason: "local_header", part: name });
-    }
-    if (entries.has(name)) {
-      return stepFail({ kind: "archive_corrupt", reason: "duplicate_entry", part: name });
-    }
+    if (names.has(name)) return stepFail({ kind: "archive_corrupt", reason: "duplicate_entry" });
+    names.add(name);
     declaredTotal += uncompressedSize;
-    entries.set(name, {
+    records.push({
       name,
+      nameBytes,
+      flags,
       method,
       crc32: checksum,
       compressedSize,
@@ -187,14 +258,12 @@ export function readZipDirectory(bytes: Uint8Array, limits: ZipLimits): Step<Zip
       limit: limits.maxUnpackedBytes,
     });
   }
-  return stepOk({ entries, bytes, centralDirectoryOffset: centralOffset });
+  const entries = locateData(view, bytes, records, centralOffset);
+  if (!entries.ok) return entries;
+  return stepOk({ entries: entries.value, bytes });
 }
 
-function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
-}
-
-function inflate(data: Uint8Array, entry: ZipEntry): Step<Uint8Array> {
+function inflate(data: Uint8Array, entry: ZipEntry, part: string): Step<Uint8Array> {
   try {
     // NOTE: ASVS 5.0 V5.2.3; inflation stops once the output passes the declared size.
     return stepOk(inflateRawSync(data, { maxOutputLength: Math.max(1, entry.uncompressedSize) }));
@@ -202,48 +271,41 @@ function inflate(data: Uint8Array, entry: ZipEntry): Step<Uint8Array> {
     const tooLarge =
       error instanceof RangeError && "code" in error && error.code === "ERR_BUFFER_TOO_LARGE";
     const failure: ArchiveError = tooLarge
-      ? { kind: "entry_size_mismatch", part: entry.name }
-      : { kind: "archive_corrupt", reason: "entry_data", part: entry.name };
+      ? { kind: "entry_size_mismatch", part }
+      : { kind: "archive_corrupt", reason: "entry_data", part };
     return stepFail(failure);
   }
 }
 
 /**
- * Unpacks one entry of a checked directory.
+ * Unpacks one entry of a checked directory, refusing it when it declares more than `maxBytes`.
  *
- * The local header must agree with the central directory, the data must lie before the central
- * directory, and the unpacked bytes must match the declared size and CRC-32 exactly. A deflate
- * stream that unpacks past its declared size is refused when it passes it, so a small entry that
- * claims a small size cannot expand without bound (ASVS 5.0 V5.2.3).
+ * The declared size is checked against `maxBytes` before inflating, inflation stops once the
+ * output passes the declared size (so a small entry that claims a small size cannot expand
+ * without bound, ASVS 5.0 V5.2.3), and the result must match the declared size and CRC-32.
  */
-export function readZipEntry(directory: ZipDirectory, entry: ZipEntry): Step<Uint8Array> {
-  const { bytes, centralDirectoryOffset } = directory;
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const at = entry.localHeaderOffset;
-  const localFailure: ArchiveError = {
-    kind: "archive_corrupt",
-    reason: "local_header",
-    part: entry.name,
-  };
-  if (view.getUint32(at, true) !== LOCAL_HEADER_SIGNATURE) return stepFail(localFailure);
-  const method = view.getUint16(at + 8, true);
-  const nameLength = view.getUint16(at + 26, true);
-  const extraLength = view.getUint16(at + 28, true);
-  const nameStart = at + LOCAL_HEADER_LENGTH;
-  const dataStart = nameStart + nameLength + extraLength;
-  const dataEnd = dataStart + entry.compressedSize;
-  if (method !== entry.method || dataEnd > centralDirectoryOffset) return stepFail(localFailure);
-  const localName = bytes.subarray(nameStart, nameStart + nameLength);
-  if (!sameBytes(localName, new TextEncoder().encode(entry.name))) return stepFail(localFailure);
-
-  const data = bytes.subarray(dataStart, dataEnd);
-  const unpacked = entry.method === STORED ? stepOk(data) : inflate(data, entry);
+export function readZipEntry(
+  directory: ZipDirectory,
+  entry: ZipEntry,
+  maxBytes: number,
+): Step<Uint8Array> {
+  const part = boundText(entry.name);
+  if (entry.uncompressedSize > maxBytes) {
+    return stepFail({
+      kind: "part_too_large",
+      part,
+      size: entry.uncompressedSize,
+      limit: maxBytes,
+    });
+  }
+  const data = directory.bytes.subarray(entry.dataStart, entry.dataStart + entry.compressedSize);
+  const unpacked = entry.method === STORED ? stepOk(data) : inflate(data, entry, part);
   if (!unpacked.ok) return unpacked;
   if (unpacked.value.length !== entry.uncompressedSize) {
-    return stepFail({ kind: "entry_size_mismatch", part: entry.name });
+    return stepFail({ kind: "entry_size_mismatch", part });
   }
   if (crc32(unpacked.value) !== entry.crc32) {
-    return stepFail({ kind: "archive_corrupt", reason: "checksum", part: entry.name });
+    return stepFail({ kind: "archive_corrupt", reason: "checksum", part });
   }
   return unpacked;
 }

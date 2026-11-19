@@ -15,11 +15,28 @@ describe("readCellNumber", () => {
     ["5.", "5"],
     ["+3", "3"],
     ["-0", "0"],
+    ["0e-400", "0"],
+    ["1.50000000000000000000", "1.5"],
+    ["0.00012345678901234567", "0.00012345678901234567"],
   ])("reads %s as %s", (raw, text) => {
     expect(readCellNumber(raw)).toEqual({ text, value: Number(text) });
   });
 
-  it.each(["", "abc", "1,5", "INF", "NaN", "1e", "0x10", " 1", "1e999"])("refuses %j", (raw) => {
+  it.each([
+    "",
+    "abc",
+    "1,5",
+    "INF",
+    "NaN",
+    "1e",
+    "0x10",
+    " 1",
+    "1e999",
+    "1e-400",
+    "-1e-400",
+    "0.000123456789012345678",
+    "123456789012345678",
+  ])("refuses %j", (raw) => {
     expect(readCellNumber(raw)).toBeUndefined();
   });
 });

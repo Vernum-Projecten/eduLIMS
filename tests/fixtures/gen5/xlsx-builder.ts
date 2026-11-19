@@ -24,7 +24,10 @@ export interface ZipPart {
 const DOS_DATE = (0 << 9) | (1 << 5) | 1;
 
 /** Writes `parts` as a zip archive. */
-export function buildZip(parts: readonly ZipPart[]): Uint8Array {
+export function buildZip(
+  parts: readonly ZipPart[],
+  options: { readonly comment?: Uint8Array } = {},
+): Uint8Array {
   const chunks: Buffer[] = [];
   const central: Buffer[] = [];
   let offset = 0;
@@ -75,7 +78,9 @@ export function buildZip(parts: readonly ZipPart[]): Uint8Array {
   end.writeUInt16LE(parts.length, 10);
   end.writeUInt32LE(directory.length, 12);
   end.writeUInt32LE(offset, 16);
-  return new Uint8Array(Buffer.concat([...chunks, directory, end]));
+  const comment = Buffer.from(options.comment ?? new Uint8Array());
+  end.writeUInt16LE(comment.length, 20);
+  return new Uint8Array(Buffer.concat([...chunks, directory, end, comment]));
 }
 
 /** A cell value: a shared string, a number, the exact text of a numeric `v`, or another form. */

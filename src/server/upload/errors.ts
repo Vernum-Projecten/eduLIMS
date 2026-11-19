@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { WellId } from "../../lib/plate.ts";
+import { MAX_ERROR_TEXT } from "./limits.ts";
+import type { XmlCap } from "./xml.ts";
 
 /**
  * The errors of the file and its archive: the size, the extension, the zip container and the
  * workbook parts. Any one of them ends the parse at once, so the parser returns only the first.
+ *
+ * A `part` names only a part the workbook reader asked for, cut to {@link MAX_ERROR_TEXT}
+ * characters; an error about an arbitrary entry of the archive carries no name (ASVS 5.0 V16.5.1).
  */
 export type ArchiveError =
   | { readonly kind: "file_too_large"; readonly size: number; readonly limit: number }
@@ -14,14 +19,19 @@ export type ArchiveError =
   | { readonly kind: "too_many_entries"; readonly count: number; readonly limit: number }
   | { readonly kind: "unpacked_too_large"; readonly size: number; readonly limit: number }
   | {
-      readonly kind: "entry_size_mismatch";
-      /** The archive entry whose content does not match the size its directory declares. */
+      readonly kind: "part_too_large";
       readonly part: string;
+      readonly size: number;
+      readonly limit: number;
+    }
+  | {
+      readonly kind: "entry_size_mismatch";
+      /** The part whose content does not match the size its directory entry declares. */
+      readonly part?: string;
     }
   | {
       readonly kind: "archive_unsupported";
       readonly reason: "zip64" | "multi_disk" | "encrypted" | "compression_method";
-      readonly part?: string;
     }
   | {
       readonly kind: "archive_corrupt";
@@ -34,18 +44,33 @@ export type ArchiveError =
       readonly part: string;
     }
   | { readonly kind: "xml_malformed"; readonly part: string; readonly offset: number }
-  | { readonly kind: "xml_dtd_refused"; readonly part: string };
+  | { readonly kind: "xml_dtd_refused"; readonly part: string }
+  | {
+      readonly kind: "xml_too_large";
+      readonly part: string;
+      /** The cap the part passed: its element count, its nesting depth, or one element's attributes. */
+      readonly cap: XmlCap;
+    };
 
 /** Why the zip container could not be read. */
 export type ArchiveCorruption =
   | "end_of_central_directory"
   | "central_directory"
   | "local_header"
+  | "entry_overlap"
   | "entry_name"
   | "duplicate_entry"
   | "entry_data"
   | "checksum"
   | "text_encoding";
+
+/** Returns `text` cut to {@link MAX_ERROR_TEXT} characters, without splitting a surrogate pair. */
+export function boundText(text: string): string {
+  if (text.length <= MAX_ERROR_TEXT) return text;
+  const cut = text.slice(0, MAX_ERROR_TEXT);
+  const last = cut.charCodeAt(cut.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? cut.slice(0, -1) : cut;
+}
 
 /** A field of the header block, as {@link Gen5Header} names it, or a field the parser ignores. */
 export type HeaderField =

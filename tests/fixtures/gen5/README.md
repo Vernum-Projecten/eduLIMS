@@ -56,4 +56,10 @@ hide it.
 | Another plate type | `384 WELL PLATE` |
 
 `tests/unit/gen5-parser.test.ts` runs every file, and checks each limit at and
-one over its boundary.
+one over its boundary. `tests/unit/gen5-parser-hardening.test.ts` does the same
+for the per-part and XML caps through a full upload, and covers bounded error
+text, the header text rules (the plate number in B6 is never read), raw
+characters, numbers that would be rounded, and elements in a foreign
+namespace. `tests/unit/gen5-mutation.test.ts` makes seeded mutants of the two
+good files; a failing seed is printed and replays alone with
+`GEN5_MUTATION_SEED='<seed>' pnpm exec vitest run gen5-mutation`.

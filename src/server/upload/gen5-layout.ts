@@ -18,13 +18,15 @@ import { type Cell, type SheetCells, splitCellReference } from "./workbook.ts";
 
 /** The header fields the parser reads from the export. */
 export interface Gen5Header {
+  /** Digits and dots, 1 to 32 characters. */
   readonly softwareVersion: string;
-  readonly plateNumber: string;
   /** The date of the read as the reader's computer gave it, `YYYY-MM-DD`, without a time zone. */
   readonly date: string;
   /** The time of the read as the reader's computer gave it, `HH:MM:SS`, without a time zone. */
   readonly time: string;
+  /** Printable ASCII, 1 to 64 characters. */
   readonly readerType: string;
+  /** ASCII letters and digits, 1 to 32 characters. */
   readonly readerSerialNumber: string;
   readonly plateType: typeof PLATE_TYPE;
   readonly readType: typeof READ_TYPE;
@@ -75,15 +77,19 @@ const LABELS: readonly (readonly [string, string])[] = [
   ["A22", "Actual Temperature:"],
 ];
 
-/** Value cells the parser never reads: the file paths can name a user account (Q-PRIV-4). */
+/**
+ * Value cells the parser never reads into its result: the file paths can name a user account and
+ * a user types the plate number in Gen5 (Q-PRIV-4).
+ */
 const IGNORED: ReadonlyMap<string, HeaderField> = new Map([
   ["B4", "experimentFilePath"],
   ["B5", "protocolFilePath"],
+  ["B6", "plateNumber"],
   ["B11", "readingType"],
   ["B19", "readSpeed"],
 ]);
 
-const VALUE_CELLS = ["B2", "B6", "B7", "B8", "B9", "B10", "B14", "B16", "B17", "B18", "B22"];
+const VALUE_CELLS = ["B2", "B7", "B8", "B9", "B10", "B14", "B16", "B17", "B18", "B22"];
 
 /** The header row of the grid: column numbers 1 to 12 in C24 to N24. */
 const GRID_HEADER_ROW = 24;
@@ -172,19 +178,29 @@ class LayoutReader {
   }
 }
 
-function nonEmptyText(cell: Cell): string | undefined {
-  const text = textOf(cell)?.trim();
-  return text === undefined || text.length === 0 ? undefined : text;
+// NOTE: the security review of #297 (ASVS 5.0 V2.2.1); header text is checked against a pattern.
+const SOFTWARE_VERSION = /^[0-9.]{1,32}$/;
+const READER_TYPE = /^[\x20-\x7e]{1,64}$/;
+const SERIAL_NUMBER = /^[A-Za-z0-9]{1,32}$/;
+
+function textMatching(pattern: RegExp): (cell: Cell) => string | undefined {
+  return (cell) => {
+    const text = textOf(cell);
+    return text !== undefined && pattern.test(text) ? text : undefined;
+  };
 }
 
 function serialNumber(cell: Cell): string | undefined {
   if (cell.kind === "number") {
     const value = readCellNumber(cell.raw);
-    return value !== undefined && Number.isSafeInteger(value.value) && value.value >= 0
+    return value !== undefined &&
+      Number.isSafeInteger(value.value) &&
+      value.value >= 0 &&
+      SERIAL_NUMBER.test(value.text)
       ? value.text
       : undefined;
   }
-  return nonEmptyText(cell);
+  return textMatching(SERIAL_NUMBER)(cell);
 }
 
 /** Day 0 of the 1900 and the 1904 date systems; serials before 1 March 1900 are refused. */
@@ -297,11 +313,10 @@ export function readGen5Layout(sheet: SheetCells): LayoutResult {
       reader.errors.push({ kind: "label_missing", cell, expected });
     }
   }
-  const softwareVersion = reader.field("softwareVersion", "B2", nonEmptyText);
-  const plateNumber = reader.field("plateNumber", "B6", nonEmptyText);
+  const softwareVersion = reader.field("softwareVersion", "B2", textMatching(SOFTWARE_VERSION));
   const date = reader.field("date", "B7", (cell) => calendarDate(cell, sheet.date1904));
   const time = reader.field("time", "B8", timeOfDay);
-  const readerType = reader.field("readerType", "B9", nonEmptyText);
+  const readerType = reader.field("readerType", "B9", textMatching(READER_TYPE));
   const readerSerialNumber = reader.field("readerSerialNumber", "B10", serialNumber);
   const plateType = reader.fixed("B14", PLATE_TYPE, "plate_type_unsupported");
   const readType = reader.fixed("B16", READ_TYPE, "read_type_unsupported");
@@ -323,7 +338,6 @@ export function readGen5Layout(sheet: SheetCells): LayoutResult {
   if (first !== undefined) return { ok: false, errors: [first, ...rest] };
   if (
     softwareVersion === undefined ||
-    plateNumber === undefined ||
     date === undefined ||
     time === undefined ||
     readerType === undefined ||
@@ -340,7 +354,6 @@ export function readGen5Layout(sheet: SheetCells): LayoutResult {
     plate: {
       header: {
         softwareVersion,
-        plateNumber,
         date,
         time,
         readerType,

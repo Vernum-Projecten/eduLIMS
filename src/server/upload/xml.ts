@@ -1,41 +1,64 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// A small, strict reader for the machine-written XML parts of a workbook (XML 1.0, Fifth
-// Edition, https://www.w3.org/TR/xml/). It refuses any document type declaration, so no entity
-// can be declared, expanded or fetched (ASVS 5.0 V1.5.1); it knows only the five predefined
-// entities and character references (§4.6, §4.1). Names are ASCII, which every SpreadsheetML,
-// package relationship and content type name is.
+// A small, strict reader for the machine-written XML parts of one workbook contract (XML 1.0,
+// Fifth Edition, https://www.w3.org/TR/xml/; Namespaces in XML 1.0). It refuses any document type
+// declaration, so no entity can be declared, expanded or fetched (ASVS 5.0 V1.5.1); it knows only
+// the five predefined entities and character references (§4.6, §4.1), checks every raw character
+// against the Char production (§2.2), and stops at its element, depth and attribute caps while
+// it reads. Names are ASCII, which every SpreadsheetML, relationship and content type name is.
 
-/** An element with its attributes as written and its children in document order. */
+/** An element with its resolved namespace, its attributes as written and its children. */
 export interface XmlElement {
   readonly name: string;
+  readonly localName: string;
+  /** The namespace URI the element's prefix (or the default namespace) is bound to in scope. */
+  readonly namespace: string | undefined;
   readonly attributes: ReadonlyMap<string, string>;
   readonly children: readonly XmlNode[];
+  /** The namespace prefixes in scope at the element, `""` for the default namespace. */
+  readonly scope: ReadonlyMap<string, string>;
 }
 
 /** A child of an element: an element, or a run of character data. */
 export type XmlNode = XmlElement | string;
+
+/** The caps {@link parseXml} enforces while it reads. */
+export interface XmlLimits {
+  readonly maxElements: number;
+  readonly maxDepth: number;
+  readonly maxAttributes: number;
+}
 
 /** The result of {@link parseXml}. */
 export type XmlResult =
   | { readonly ok: true; readonly root: XmlElement }
   | { readonly ok: false; readonly error: XmlError };
 
-/** Why a document was refused: it is not well formed at `offset`, or it carries a DTD. */
+/** Which cap of {@link XmlLimits} a document passed. */
+export type XmlCap = "elements" | "depth" | "attributes";
+
+/** Why a document was refused: not well formed at `offset`, a DTD, or over a cap. */
 export type XmlError =
   | { readonly kind: "xml_malformed"; readonly offset: number }
-  | { readonly kind: "xml_dtd_refused" };
+  | { readonly kind: "xml_dtd_refused" }
+  | { readonly kind: "xml_too_large"; readonly cap: XmlCap };
 
 interface OpenElement {
   name: string;
+  localName: string;
+  namespace: string | undefined;
   attributes: Map<string, string>;
   children: XmlNode[];
+  scope: ReadonlyMap<string, string>;
 }
 
+const XML_NAMESPACE = "http://www.w3.org/XML/1998/namespace";
 const NAME = /[A-Za-z_:][-A-Za-z0-9_.:]*/y;
 const SPACE = /[ \t\r\n]+/y;
 const REFERENCE = /&(?:(lt|gt|amp|quot|apos)|#([0-9]{1,7})|#x([0-9A-Fa-f]{1,6}));/y;
+/** A character outside the Char production of XML 1.0 §2.2, a lone surrogate included. */
+const NOT_CHAR = /[^\t\n\r\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/u;
 const PREDEFINED: Readonly<Record<string, string>> = {
   lt: "<",
   gt: ">",
@@ -54,6 +77,14 @@ class Malformed extends Error {
 
 class DtdRefused extends Error {}
 
+class TooLarge extends Error {
+  readonly cap: XmlCap;
+  constructor(cap: XmlCap) {
+    super(`XML over its ${cap} cap`);
+    this.cap = cap;
+  }
+}
+
 function isXmlChar(code: number): boolean {
   return (
     code === 0x9 ||
@@ -65,15 +96,29 @@ function isXmlChar(code: number): boolean {
   );
 }
 
+function splitName(name: string, at: number): { prefix: string; local: string } {
+  const colon = name.indexOf(":");
+  if (colon < 0) return { prefix: "", local: name };
+  const prefix = name.slice(0, colon);
+  const local = name.slice(colon + 1);
+  if (prefix.length === 0 || local.length === 0 || local.includes(":")) throw new Malformed(at);
+  return { prefix, local };
+}
+
 class Reader {
   private position = 0;
+  private elements = 0;
   private readonly text: string;
+  private readonly limits: XmlLimits;
 
-  constructor(text: string) {
+  constructor(text: string, limits: XmlLimits) {
     this.text = text;
+    this.limits = limits;
   }
 
   parse(): XmlElement {
+    const bad = NOT_CHAR.exec(this.text);
+    if (bad !== null) throw new Malformed(bad.index);
     this.prolog();
     const root = this.element();
     this.misc();
@@ -151,10 +196,10 @@ class Reader {
     this.until("?>");
   }
 
-  /** Reads one element and everything inside it, without recursion, so depth cannot overflow. */
+  /** Reads one element and everything inside it, without recursion. */
   private element(): XmlElement {
     const stack: OpenElement[] = [];
-    let opened = this.startTag();
+    let opened = this.startTag(new Map([["xml", XML_NAMESPACE]]), 1);
     if (opened.closed) return opened.element;
     stack.push(opened.element);
     for (;;) {
@@ -180,7 +225,7 @@ class Reader {
       } else if (this.startsWith("<!")) {
         throw this.startsWith("<!DOCTYPE") ? new DtdRefused() : new Malformed(this.position);
       } else if (this.startsWith("<")) {
-        opened = this.startTag();
+        opened = this.startTag(current.scope, stack.length + 1);
         if (opened.closed) current.children.push(opened.element);
         else stack.push(opened.element);
       } else {
@@ -189,20 +234,32 @@ class Reader {
     }
   }
 
-  private startTag(): { element: OpenElement; closed: boolean } {
+  private startTag(
+    parentScope: ReadonlyMap<string, string>,
+    depth: number,
+  ): { element: OpenElement; closed: boolean } {
+    this.elements += 1;
+    if (this.elements > this.limits.maxElements) throw new TooLarge("elements");
+    if (depth > this.limits.maxDepth) throw new TooLarge("depth");
+    const at = this.position;
     this.expect("<");
-    const element: OpenElement = { name: this.name(), attributes: new Map(), children: [] };
+    const name = this.name();
+    const attributes = new Map<string, string>();
+    let closed: boolean;
     for (;;) {
       const space = this.match(SPACE);
       if (this.startsWith("/>")) {
         this.position += 2;
-        return { element, closed: true };
+        closed = true;
+        break;
       }
       if (this.startsWith(">")) {
         this.position += 1;
-        return { element, closed: false };
+        closed = false;
+        break;
       }
       if (space === undefined) throw new Malformed(this.position);
+      if (attributes.size >= this.limits.maxAttributes) throw new TooLarge("attributes");
       const attribute = this.name();
       this.match(SPACE);
       this.expect("=");
@@ -213,9 +270,45 @@ class Reader {
       const start = this.position;
       const raw = this.until(quote);
       if (raw.includes("<")) throw new Malformed(start);
-      if (element.attributes.has(attribute)) throw new Malformed(start);
-      element.attributes.set(attribute, this.decode(raw, start));
+      if (attributes.has(attribute)) throw new Malformed(start);
+      attributes.set(attribute, this.decode(raw, start));
     }
+    const scope = this.scopeOf(parentScope, attributes, at);
+    const { prefix, local } = splitName(name, at);
+    const namespace = scope.get(prefix);
+    if (prefix !== "" && namespace === undefined) throw new Malformed(at);
+    for (const attribute of attributes.keys()) {
+      const split = splitName(attribute, at);
+      if (split.prefix !== "" && split.prefix !== "xmlns" && !scope.has(split.prefix)) {
+        throw new Malformed(at);
+      }
+    }
+    return {
+      element: { name, localName: local, namespace, attributes, children: [], scope },
+      closed,
+    };
+  }
+
+  /** Adds the element's own `xmlns` declarations to the scope it inherits. */
+  private scopeOf(
+    parent: ReadonlyMap<string, string>,
+    attributes: ReadonlyMap<string, string>,
+    at: number,
+  ): ReadonlyMap<string, string> {
+    let scope: Map<string, string> | undefined;
+    for (const [attribute, value] of attributes) {
+      let prefix: string | undefined;
+      if (attribute === "xmlns") prefix = "";
+      else if (attribute.startsWith("xmlns:")) prefix = attribute.slice(6);
+      if (prefix === undefined) continue;
+      if (prefix === "xml" || prefix === "xmlns" || (prefix !== "" && value === "")) {
+        throw new Malformed(at);
+      }
+      scope ??= new Map(parent);
+      if (value === "") scope.delete(prefix);
+      else scope.set(prefix, value);
+    }
+    return scope ?? parent;
   }
 
   private characterData(): string {
@@ -260,15 +353,19 @@ class Reader {
 /**
  * Parses one XML document into its root element.
  *
- * Refuses a document type declaration anywhere (`xml_dtd_refused`), an entity other than the
- * five predefined ones, a declared encoding other than UTF-8, and anything not well formed
- * (`xml_malformed` with the offset of the problem).
+ * Refuses a document type declaration anywhere (`xml_dtd_refused`); a document over one of
+ * `limits` as soon as it passes it (`xml_too_large`); and an entity other than the five
+ * predefined ones, a character outside the XML Char production, a declared encoding other than
+ * UTF-8, an unbound namespace prefix, or anything else not well formed (`xml_malformed`).
  */
-export function parseXml(text: string): XmlResult {
+export function parseXml(text: string, limits: XmlLimits): XmlResult {
   try {
-    return { ok: true, root: new Reader(text).parse() };
+    return { ok: true, root: new Reader(text, limits).parse() };
   } catch (error) {
     if (error instanceof DtdRefused) return { ok: false, error: { kind: "xml_dtd_refused" } };
+    if (error instanceof TooLarge) {
+      return { ok: false, error: { kind: "xml_too_large", cap: error.cap } };
+    }
     if (error instanceof Malformed) {
       return { ok: false, error: { kind: "xml_malformed", offset: error.offset } };
     }
@@ -276,24 +373,31 @@ export function parseXml(text: string): XmlResult {
   }
 }
 
-/** Returns the local part of a qualified name: `worksheet` for `x:worksheet`. */
-export function localName(name: string): string {
-  const colon = name.indexOf(":");
-  return colon < 0 ? name : name.slice(colon + 1);
-}
-
-/** Returns the namespace URI the element's own prefix (or the default namespace) is bound to. */
-export function namespaceOf(element: XmlElement): string | undefined {
-  const colon = element.name.indexOf(":");
-  const declaration = colon < 0 ? "xmlns" : `xmlns:${element.name.slice(0, colon)}`;
-  return element.attributes.get(declaration);
-}
-
-/** Returns the child elements of `element` with the local name `name`. */
-export function childElements(element: XmlElement, name: string): XmlElement[] {
+/** Returns the child elements of `element` with the namespace `namespace` and the local name. */
+export function childElements(
+  element: XmlElement,
+  namespace: string,
+  localName: string,
+): XmlElement[] {
   return element.children.filter(
-    (child): child is XmlElement => typeof child !== "string" && localName(child.name) === name,
+    (child): child is XmlElement =>
+      typeof child !== "string" && child.localName === localName && child.namespace === namespace,
   );
+}
+
+/** Returns the value of the attribute with the namespace `namespace` and the local name. */
+export function attributeIn(
+  element: XmlElement,
+  namespace: string,
+  localName: string,
+): string | undefined {
+  for (const [name, value] of element.attributes) {
+    const colon = name.indexOf(":");
+    if (colon < 0 || name.slice(colon + 1) !== localName) continue;
+    const prefix = name.slice(0, colon);
+    if (prefix !== "xmlns" && element.scope.get(prefix) === namespace) return value;
+  }
+  return undefined;
 }
 
 /** Returns the character data directly inside `element`, joined. */

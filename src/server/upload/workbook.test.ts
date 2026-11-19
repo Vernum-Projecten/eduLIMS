@@ -233,6 +233,39 @@ describe("readWorkbook content types", () => {
   });
 });
 
+describe("readWorkbook namespaces (N2)", () => {
+  it("does not read a relationship in a foreign namespace", () => {
+    const rels = `<Relationships xmlns="${PKG}"><x:Relationship xmlns:x="urn:x" Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+    expect(errorOf(openWith(replaced("_rels/.rels", rels)))).toEqual({
+      kind: "not_a_workbook",
+      part: "_rels/.rels",
+    });
+  });
+
+  it("does not read a content type override in a foreign namespace", () => {
+    const parts = workbookParts({ sheets: [gen5Cells()] }).map((part) =>
+      part.name === "[Content_Types].xml" && typeof part.data === "string"
+        ? {
+            ...part,
+            data: part.data.replace(
+              '<Override PartName="/xl/workbook.xml"',
+              '<x:Override xmlns:x="urn:x" PartName="/xl/workbook.xml"',
+            ),
+          }
+        : part,
+    );
+    expect(errorOf(open(parts))).toEqual({ kind: "not_a_workbook", part: "xl/workbook.xml" });
+  });
+
+  it("refuses a relationships part whose root is in another namespace", () => {
+    const rels = `<Relationships xmlns="urn:x"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+    expect(errorOf(openWith(replaced("_rels/.rels", rels)))).toEqual({
+      kind: "not_a_workbook",
+      part: "_rels/.rels",
+    });
+  });
+});
+
 describe("splitCellReference", () => {
   it.each([
     ["A1", { column: 1, row: 1 }],

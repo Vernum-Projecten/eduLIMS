@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Opens an Office Open XML workbook (ECMA-376 Part 1 SpreadsheetML, Part 2 Open Packaging
-// Conventions) far enough to return the cells of its one sheet. Only the content types, the
-// relationships, the workbook, the shared strings and the sheet are unpacked; every other entry
-// (styles, theme, printer settings, document properties) is never inflated.
-import { type ArchiveError, type LayoutError, type Step, stepFail, stepOk } from "./errors.ts";
+// Conventions) far enough to return the cells of its one sheet. Only six parts are unpacked: the
+// content types, the package and workbook relationships, the workbook, the shared strings and the
+// sheet; every other entry (styles, theme, printer settings, properties) is never inflated.
 import {
-  childElements,
-  directText,
-  localName,
-  namespaceOf,
-  parseXml,
-  type XmlElement,
-} from "./xml.ts";
+  type ArchiveError,
+  boundText,
+  type LayoutError,
+  type Step,
+  stepFail,
+  stepOk,
+} from "./errors.ts";
+import { MAX_PART_BYTES, MAX_XML_ATTRIBUTES, MAX_XML_DEPTH, MAX_XML_ELEMENTS } from "./limits.ts";
+import { attributeIn, childElements, directText, parseXml, type XmlElement } from "./xml.ts";
 import { readZipEntry, type ZipDirectory } from "./zip.ts";
 
 const NS_CONTENT_TYPES = "http://schemas.openxmlformats.org/package/2006/content-types";
@@ -61,32 +62,50 @@ export function splitCellReference(ref: string): { column: number; row: number }
 }
 
 function notWorkbook<T>(part: string): Step<T> {
-  return stepFail({ kind: "not_a_workbook", part });
+  return stepFail({ kind: "not_a_workbook", part: boundText(part) });
 }
 
+const XML_LIMITS = {
+  maxElements: MAX_XML_ELEMENTS,
+  maxDepth: MAX_XML_DEPTH,
+  maxAttributes: MAX_XML_ATTRIBUTES,
+};
+
 const textDecoder = new TextDecoder("utf-8", { fatal: true });
+
+function xmlFailure(error: ParsedFailure, part: string): ArchiveError {
+  switch (error.kind) {
+    case "xml_dtd_refused":
+      return { kind: "xml_dtd_refused", part };
+    case "xml_too_large":
+      return { kind: "xml_too_large", part, cap: error.cap };
+    case "xml_malformed":
+      return { kind: "xml_malformed", part, offset: error.offset };
+    default: {
+      const unreachable: never = error;
+      return unreachable;
+    }
+  }
+}
+
+type ParsedFailure = Extract<ReturnType<typeof parseXml>, { ok: false }>["error"];
 
 function readPart(zip: ZipDirectory, part: string, rootName: string, ns: string): Step<XmlElement> {
   const entry = zip.entries.get(part);
   if (entry === undefined) return notWorkbook(part);
-  const bytes = readZipEntry(zip, entry);
+  const bytes = readZipEntry(zip, entry, MAX_PART_BYTES);
   if (!bytes.ok) return bytes;
   let text: string;
   try {
+    // NOTE: a UTF-8 byte order mark is dropped here; the XML reader never sees it.
     text = textDecoder.decode(bytes.value);
   } catch {
     // NOTE: ECMA-376 Part 2 allows UTF-16 parts too; Excel and Gen5 write UTF-8, so only it is read.
-    return stepFail({ kind: "archive_corrupt", reason: "text_encoding", part });
+    return stepFail({ kind: "archive_corrupt", reason: "text_encoding", part: boundText(part) });
   }
-  const parsed = parseXml(text);
-  if (!parsed.ok) {
-    return stepFail(
-      parsed.error.kind === "xml_dtd_refused"
-        ? { kind: "xml_dtd_refused", part }
-        : { kind: "xml_malformed", part, offset: parsed.error.offset },
-    );
-  }
-  if (localName(parsed.root.name) !== rootName || namespaceOf(parsed.root) !== ns) {
+  const parsed = parseXml(text, XML_LIMITS);
+  if (!parsed.ok) return stepFail(xmlFailure(parsed.error, boundText(part)));
+  if (parsed.root.localName !== rootName || parsed.root.namespace !== ns) {
     return notWorkbook(part);
   }
   return stepOk(parsed.root);
@@ -120,7 +139,7 @@ function readRelationships(zip: ZipDirectory, part: string, source: string): Ste
   const root = readPart(zip, part, "Relationships", NS_PACKAGE_RELATIONSHIPS);
   if (!root.ok) return root;
   const relationships: Relationship[] = [];
-  for (const element of childElements(root.value, "Relationship")) {
+  for (const element of childElements(root.value, NS_PACKAGE_RELATIONSHIPS, "Relationship")) {
     const id = element.attributes.get("Id");
     const type = element.attributes.get("Type");
     const targetAttribute = element.attributes.get("Target");
@@ -134,13 +153,13 @@ function readRelationships(zip: ZipDirectory, part: string, source: string): Ste
 }
 
 function contentTypeOf(types: XmlElement, part: string): string | undefined {
-  for (const override of childElements(types, "Override")) {
+  for (const override of childElements(types, NS_CONTENT_TYPES, "Override")) {
     if (override.attributes.get("PartName") === `/${part}`) {
       return override.attributes.get("ContentType");
     }
   }
   const extension = part.slice(part.lastIndexOf(".") + 1).toLowerCase();
-  for (const fallback of childElements(types, "Default")) {
+  for (const fallback of childElements(types, NS_CONTENT_TYPES, "Default")) {
     if (fallback.attributes.get("Extension")?.toLowerCase() === extension) {
       return fallback.attributes.get("ContentType");
     }
@@ -150,31 +169,23 @@ function contentTypeOf(types: XmlElement, part: string): string | undefined {
 
 /** The text of a string item (`si`) or an inline string (`is`): its `t`, or its runs' `t`s. */
 function richText(item: XmlElement): string {
-  const plain = childElements(item, "t");
-  const runs = childElements(item, "r").flatMap((run) => childElements(run, "t"));
+  const plain = childElements(item, NS_MAIN, "t");
+  const runs = childElements(item, NS_MAIN, "r").flatMap((run) => childElements(run, NS_MAIN, "t"));
   return [...plain, ...runs].map(directText).join("");
 }
 
 function sharedStrings(root: XmlElement): string[] {
-  return childElements(root, "si").map(richText);
-}
-
-/** The prefix bound to the office relationships namespace on `root`, such as `r`. */
-function relationshipPrefix(root: XmlElement): string | undefined {
-  for (const [name, value] of root.attributes) {
-    if (name.startsWith("xmlns:") && value === NS_OFFICE_RELATIONSHIPS) return name.slice(6);
-  }
-  return undefined;
+  return childElements(root, NS_MAIN, "si").map(richText);
 }
 
 function readCell(element: XmlElement, strings: readonly string[] | undefined): Cell | undefined {
-  if (childElements(element, "f").length > 0) return { kind: "other" };
+  if (childElements(element, NS_MAIN, "f").length > 0) return { kind: "other" };
   const type = element.attributes.get("t") ?? "n";
-  const values = childElements(element, "v");
+  const values = childElements(element, NS_MAIN, "v");
   const value = values[0];
   if (values.length > 1) return undefined;
   if (type === "inlineStr") {
-    const inline = childElements(element, "is")[0];
+    const inline = childElements(element, NS_MAIN, "is")[0];
     return inline === undefined ? { kind: "empty" } : { kind: "text", text: richText(inline) };
   }
   if (value === undefined) return { kind: "empty" };
@@ -193,12 +204,12 @@ function readCells(
   strings: readonly string[] | undefined,
   part: string,
 ): Step<Map<string, Cell>> {
-  const data = childElements(sheet, "sheetData");
+  const data = childElements(sheet, NS_MAIN, "sheetData");
   const sheetData = data[0];
   if (sheetData === undefined || data.length > 1) return notWorkbook(part);
   const cells = new Map<string, Cell>();
-  for (const row of childElements(sheetData, "row")) {
-    for (const element of childElements(row, "c")) {
+  for (const row of childElements(sheetData, NS_MAIN, "row")) {
+    for (const element of childElements(row, NS_MAIN, "c")) {
       const ref = element.attributes.get("r");
       if (ref === undefined || splitCellReference(ref) === undefined || cells.has(ref)) {
         return notWorkbook(part);
@@ -237,14 +248,17 @@ function openWorkbook(zip: ZipDirectory): Step<SheetCells> | { ok: false; error:
 
   const workbook = readPart(zip, workbookPart, "workbook", NS_MAIN);
   if (!workbook.ok) return workbook;
-  const sheets = childElements(workbook.value, "sheets").flatMap((list) =>
-    childElements(list, "sheet"),
+  const sheets = childElements(workbook.value, NS_MAIN, "sheets").flatMap((list) =>
+    childElements(list, NS_MAIN, "sheet"),
   );
   if (sheets.length !== 1)
     return { ok: false, error: { kind: "sheet_count", count: sheets.length } };
-  const prefix = relationshipPrefix(workbook.value);
-  const sheetId = prefix === undefined ? undefined : sheets[0]?.attributes.get(`${prefix}:id`);
-  const date1904Flag = childElements(workbook.value, "workbookPr")[0]?.attributes.get("date1904");
+  const sheet = sheets[0];
+  const sheetId =
+    sheet === undefined ? undefined : attributeIn(sheet, NS_OFFICE_RELATIONSHIPS, "id");
+  const date1904Flag = childElements(workbook.value, NS_MAIN, "workbookPr")[0]?.attributes.get(
+    "date1904",
+  );
   const date1904 = date1904Flag === "1" || date1904Flag === "true";
 
   const workbookRelationshipsPart = relationshipsPartOf(workbookPart);
@@ -270,9 +284,9 @@ function openWorkbook(zip: ZipDirectory): Step<SheetCells> | { ok: false; error:
     strings = sharedStrings(root.value);
   }
 
-  const sheet = readPart(zip, sheetPart, "worksheet", NS_MAIN);
-  if (!sheet.ok) return sheet;
-  const cells = readCells(sheet.value, strings, sheetPart);
+  const worksheet = readPart(zip, sheetPart, "worksheet", NS_MAIN);
+  if (!worksheet.ok) return worksheet;
+  const cells = readCells(worksheet.value, strings, sheetPart);
   if (!cells.ok) return cells;
   return stepOk({ cells: cells.value, date1904 });
 }

@@ -7,6 +7,7 @@ import type { Step } from "./errors.ts";
 import { hasZipSignature, readZipDirectory, readZipEntry, type ZipDirectory } from "./zip.ts";
 
 const LIMITS = { maxEntries: 50, maxUnpackedBytes: 8 * 1024 * 1024 };
+const PART = 1024 * 1024;
 
 function directory(bytes: Uint8Array): ZipDirectory {
   const result = readZipDirectory(bytes, LIMITS);
@@ -95,13 +96,12 @@ describe("readZipDirectory", () => {
     expect(errorOf(readZipDirectory(bytes, LIMITS))).toEqual({
       kind: "archive_unsupported",
       reason: "encrypted",
-      part: "a.xml",
     });
   });
 
   it("accepts an entry with a data descriptor flag, reading sizes from the directory", () => {
     const zip = directory(buildZip([{ name: "a.xml", data: "<a/>", flags: 0x0008 }]));
-    const read = readZipEntry(zip, entryOf(zip, "a.xml"));
+    const read = readZipEntry(zip, entryOf(zip, "a.xml"), PART);
     expect(read.ok && new TextDecoder().decode(read.value)).toBe("<a/>");
   });
 
@@ -114,10 +114,7 @@ describe("readZipDirectory", () => {
 
   it("refuses a stored entry whose sizes disagree", () => {
     const bytes = buildZip([{ name: "a.xml", data: "abc", method: 0, declaredSize: 2 }]);
-    expect(errorOf(readZipDirectory(bytes, LIMITS))).toEqual({
-      kind: "entry_size_mismatch",
-      part: "a.xml",
-    });
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toEqual({ kind: "entry_size_mismatch" });
   });
 
   it("refuses an empty archive", () => {
@@ -202,15 +199,15 @@ describe("hasZipSignature", () => {
 describe("readZipEntry", () => {
   it("unpacks a deflated entry", () => {
     const zip = directory(buildZip(ONE));
-    const read = readZipEntry(zip, entryOf(zip, "a.xml"));
+    const read = readZipEntry(zip, entryOf(zip, "a.xml"), PART);
     expect(read.ok && new TextDecoder().decode(read.value)).toBe("<a>invented</a>");
   });
 
-  it("refuses a deflate stream that unpacks past its declared size, without unpacking it all", () => {
+  it("refuses a deflate stream that unpacks past its declared size", () => {
     const zip = directory(
       buildZip([{ name: "a.xml", data: new Uint8Array(32 * 1024 * 1024), declaredSize: 100 }]),
     );
-    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml")))).toEqual({
+    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml"), PART))).toEqual({
       kind: "entry_size_mismatch",
       part: "a.xml",
     });
@@ -218,7 +215,7 @@ describe("readZipEntry", () => {
 
   it("refuses a deflate stream shorter than its declared size", () => {
     const zip = directory(buildZip([{ name: "a.xml", data: "abc", declaredSize: 10 }]));
-    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml")))).toEqual({
+    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml"), PART))).toEqual({
       kind: "entry_size_mismatch",
       part: "a.xml",
     });
@@ -230,41 +227,161 @@ describe("readZipEntry", () => {
       view.setUint8(36, 0xff);
     });
     const zip = directory(bytes);
-    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml")))).toMatchObject({
+    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml"), PART))).toMatchObject({
       kind: "archive_corrupt",
     });
   });
 
   it("refuses a wrong CRC-32", () => {
     const zip = directory(buildZip([{ name: "a.xml", data: "abc", declaredCrc: 1 }]));
-    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml")))).toEqual({
+    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml"), PART))).toEqual({
       kind: "archive_corrupt",
       reason: "checksum",
       part: "a.xml",
     });
   });
+});
+
+describe("readZipEntry caps", () => {
+  it("refuses a part that declares more than the cap, before inflating it", () => {
+    const zip = directory(buildZip([{ name: "a.xml", data: new Uint8Array(PART + 1) }]));
+    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml"), PART))).toEqual({
+      kind: "part_too_large",
+      part: "a.xml",
+      size: PART + 1,
+      limit: PART,
+    });
+  });
+
+  it("reads a part of exactly the cap", () => {
+    const zip = directory(buildZip([{ name: "a.xml", data: new Uint8Array(PART) }]));
+    const read = readZipEntry(zip, entryOf(zip, "a.xml"), PART);
+    expect(read.ok && read.value.length).toBe(PART);
+  });
+
+  it("reads a deflated entry that declares size 0 and holds an empty stream", () => {
+    const zip = directory(buildZip([{ name: "a.xml", data: "" }]));
+    const read = readZipEntry(zip, entryOf(zip, "a.xml"), PART);
+    expect(read.ok && read.value.length).toBe(0);
+  });
+
+  it("refuses a deflated entry that declares size 0 but holds data", () => {
+    const zip = directory(buildZip([{ name: "a.xml", data: "xy", declaredSize: 0 }]));
+    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml"), PART))).toEqual({
+      kind: "entry_size_mismatch",
+      part: "a.xml",
+    });
+  });
+
+  it("names a part with a long name cut to 128 characters", () => {
+    const name = `${"n".repeat(1_000)}.xml`;
+    const zip = directory(buildZip([{ name, data: "abc", declaredCrc: 1 }]));
+    const error = errorOf(readZipEntry(zip, entryOf(zip, name), PART));
+    expect(error).toEqual({ kind: "archive_corrupt", reason: "checksum", part: "n".repeat(128) });
+  });
+});
+
+describe("the end record (APPNOTE §4.3.16)", () => {
+  it("reads an archive whose comment is exactly 65,535 bytes", () => {
+    const zip = directory(buildZip(ONE, { comment: new Uint8Array(0xffff) }));
+    expect([...zip.entries.keys()]).toEqual(["a.xml"]);
+  });
+
+  it("refuses a comment that ends with a second end record, because the last record is read and no directory ends at it", () => {
+    const plain = buildZip(ONE);
+    const bytes = buildZip(ONE, { comment: plain.subarray(-22) });
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toEqual({
+      kind: "archive_corrupt",
+      reason: "central_directory",
+    });
+  });
+});
+
+describe("local headers against the central directory", () => {
+  const TWO: ZipPart[] = [...ONE, { name: "b.xml", data: "<b/>" }];
+
+  function centralOffsetOf(view: DataView, end: number, index: number): number {
+    let offset = view.getUint32(end + 16, true);
+    for (let at = 0; at < index; at += 1) {
+      offset += 46 + view.getUint16(offset + 28, true) + view.getUint16(offset + 30, true);
+    }
+    return offset;
+  }
+
+  it("refuses two entries that share one local header", () => {
+    const bytes = tamper(TWO, ({ view, end }) =>
+      view.setUint32(centralOffsetOf(view, end, 1) + 42, 0, true),
+    );
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toEqual({
+      kind: "archive_corrupt",
+      reason: "entry_overlap",
+    });
+  });
+
+  it("refuses an entry whose local header lies inside another entry's data", () => {
+    const bytes = tamper(TWO, ({ view, end }) =>
+      view.setUint32(centralOffsetOf(view, end, 1) + 42, 31, true),
+    );
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toEqual({
+      kind: "archive_corrupt",
+      reason: "entry_overlap",
+    });
+  });
+
+  it("refuses data that would run into the central directory through a large local extra field", () => {
+    const bytes = tamper(ONE, ({ view }) => view.setUint16(28, 60_000, true));
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toEqual({
+      kind: "archive_corrupt",
+      reason: "local_header",
+    });
+  });
+
+  it.each([
+    ["the CRC-32", 14],
+    ["the compressed size", 18],
+    ["the unpacked size", 22],
+  ])("refuses a local header whose %s disagrees, without a data descriptor", (_, field) => {
+    const bytes = tamper(ONE, ({ view }) => view.setUint32(field, 1234, true));
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toMatchObject({ reason: "local_header" });
+  });
+
+  it("reads a local header with zero sizes and CRC when the data descriptor flag is set", () => {
+    const parts: ZipPart[] = [{ name: "a.xml", data: "<a/>", flags: 0x0008 }];
+    const bytes = tamper(parts, ({ view }) => {
+      view.setUint32(14, 0, true);
+      view.setUint32(18, 0, true);
+      view.setUint32(22, 0, true);
+    });
+    const zip = directory(bytes);
+    const read = readZipEntry(zip, entryOf(zip, "a.xml"), PART);
+    expect(read.ok && new TextDecoder().decode(read.value)).toBe("<a/>");
+  });
+
+  it("refuses a local header whose flags differ from the directory", () => {
+    const bytes = tamper(ONE, ({ view }) => view.setUint16(6, 0x0008, true));
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toMatchObject({ reason: "local_header" });
+  });
 
   it("refuses a local header whose method differs from the directory", () => {
     const bytes = tamper(ONE, ({ view }) => view.setUint16(8, 0, true));
-    const zip = directory(bytes);
-    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml")))).toMatchObject({
-      reason: "local_header",
-    });
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toMatchObject({ reason: "local_header" });
   });
 
   it("refuses a local header whose name differs from the directory", () => {
     const bytes = tamper(ONE, ({ view }) => view.setUint8(30, "b".charCodeAt(0)));
-    const zip = directory(bytes);
-    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml")))).toMatchObject({
-      reason: "local_header",
-    });
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toMatchObject({ reason: "local_header" });
   });
 
   it("refuses a local header with a wrong signature", () => {
     const bytes = tamper(ONE, ({ view }) => view.setUint32(0, 0, true));
-    const zip = directory(bytes);
-    expect(errorOf(readZipEntry(zip, entryOf(zip, "a.xml")))).toMatchObject({
-      reason: "local_header",
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toMatchObject({ reason: "local_header" });
+  });
+
+  it("names no entry in a directory error, however long its name", () => {
+    const bytes = buildZip([{ name: "n".repeat(65_000), data: "<a/>", method: 12 }]);
+    expect(errorOf(readZipDirectory(bytes, LIMITS))).toEqual({
+      kind: "archive_unsupported",
+      reason: "compression_method",
     });
   });
 });
