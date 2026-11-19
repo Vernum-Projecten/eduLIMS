@@ -31,6 +31,18 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.labs_error_same_lab();
     case "email_not_found":
       return m.labs_error_email_not_found();
+    case "join_code_exists":
+      return m.labs_error_join_code_exists();
+    case "join_code_off":
+      return m.labs_error_join_code_off();
+    case "not_a_student":
+      return m.labs_error_not_a_student();
+    case "invalid_code":
+      return m.labs_error_invalid_code();
+    case "rate_limited":
+      return m.labs_error_rate_limited();
+    case "in_other_lab":
+      return m.labs_error_in_other_lab();
     case null:
       return m.simulations_error_failed();
     default: {
