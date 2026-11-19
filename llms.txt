@@ -7,7 +7,7 @@
 - [Documentation site](https://edulims.eu/): the published documentation, with guides per role, operations and development pages; Dutch user guides under /nl/.
 - [README](README.md): what eduLIMS is, the status, the quick start and the stack.
 - [Architecture](docs/architecture.md): the design authority: principles, integrations, data split, portals and roles, deployment, quality requirements.
-- [Requirements](docs/requirements.md) (working draft, not final): S1 to S16, D1 to D14, B1 to B4, the Q-* quality requirements, risks R-01 to R-13, the dashboard measures G-01 to G-04 and the open questions O1 to O14, with stable IDs; a dropped requirement keeps its row.
+- [Requirements](docs/requirements.md) (working draft, not final): S1 to S16, D1 to D15, B1 to B5, the Q-* quality requirements, risks R-01 to R-13, the dashboard measures G-01 to G-04 and the open questions O1 to O14, with stable IDs; a dropped requirement keeps its row.
 - [The LIMS workflow](docs/lims-workflow.md): how the work of a lab travels from the paper request form to the patient's record and the teacher dashboard.
 - [Working rules](CLAUDE.md): the rules for changing the code.
 

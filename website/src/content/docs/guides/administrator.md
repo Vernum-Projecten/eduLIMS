@@ -271,8 +271,10 @@ product owner decided on 2026-11-19 that eduLIMS has no classes: a teacher
 will prepare a simulation with its labs and add the students to a lab (see
 the [teacher guide](/guides/teacher/#planned-tasks)). Creating classes as an
 administrator is no longer a requirement. Until that rework lands, the
-screens work as this section describes; what the admin portal shows of
-simulations and labs afterwards is not decided.
+screens work as this section describes. Afterwards the admin portal shows
+the simulations with their teachers, their labs and the number of members,
+read-only, and nothing of a lab's work and no correct value
+([B5](/development/requirements/), a Should).
 :::
 
 Teachers create their own classes and invite their students and
@@ -388,6 +390,7 @@ deleted shows as **Deleted user**. Events are kept for 12 months.
 
 ## Planned tasks
 
-| Task                                                                          | Requirement                      |
-| ----------------------------------------------------------------------------- | -------------------------------- |
-| Read the log of uploads, HL7 messages and errors                              | [B4](/development/requirements/) |
+| Task                                                                                     | Requirement                      |
+| ---------------------------------------------------------------------------------------- | -------------------------------- |
+| Read the log of uploads, HL7 messages and errors                                         | [B4](/development/requirements/) |
+| See the simulations with their teachers, their labs and the number of members, read-only | [B5](/development/requirements/) |

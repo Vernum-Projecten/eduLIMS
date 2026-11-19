@@ -315,9 +315,9 @@ the receiving application, the receiving facility, and the patient ID (HIS
 patient ID or visit number). Neither table has a TLS, encryption or
 certificate setting. The chapter "Connectivity" asks only: "Ensure that the
 Afinion 2 Analyzer communicates with the external information system over a
-secure network." The HL7 Connectivity Protocol v4.0 describes plain MLLP
-framing (`<VT>` before the message, `<FS><CR>` after it) (#186). The manual
-is being vendored under `docs/vendor/afinion/` (#209).
+secure network." The Afinion 2 HL7 Connectivity Protocol v4.0, §1.4, describes plain MLLP
+framing (`<VT>` before the message, `<FS><CR>` after it) and names no TLS
+(#186). Both documents are vendored under `docs/vendor/afinion/`.
 
 **The route waits on FerroBRIDGE.** The analyser cannot meet what
 FerroBRIDGE 0.0.24 requires, so the Afinion 2 route waits on the FerroBRIDGE

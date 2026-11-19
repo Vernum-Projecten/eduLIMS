@@ -24,7 +24,7 @@ requests and their times) stays in the eduLIMS database.
 
 :::caution[Pre-release]
 eduLIMS is pre-release software. The [requirements](/development/requirements/)
-are a working draft with open questions, and the application, its
+are a working draft, and the application, its
 configuration and this documentation can change between releases without a
 deprecation period. The patients of a simulation are fictional; eduLIMS is not
 meant for real patient data.

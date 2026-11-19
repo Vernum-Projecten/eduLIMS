@@ -287,8 +287,10 @@ klassen heeft: een docent bereidt straks een simulatie met haar labs voor en
 voegt de studenten aan een lab toe (zie de
 [handleiding voor docenten](/nl/guides/teacher/#geplande-taken)). Klassen
 aanmaken als beheerder is geen requirement meer. Tot die verbouwing klaar
-is, werken de schermen zoals dit hoofdstuk beschrijft; wat het Beheerportaal
-daarna van simulaties en labs toont, is nog niet besloten.
+is, werken de schermen zoals dit hoofdstuk beschrijft. Daarna toont het
+Beheerportaal de simulaties met hun docenten, hun labs en het aantal leden,
+alleen om te lezen, en niets van het werk van een lab en geen juiste waarde
+([B5](/development/requirements/), een Should).
 :::
 
 Docenten maken hun eigen klassen aan en nodigen hun studenten en
@@ -411,8 +413,9 @@ maanden bewaard.
 
 ## Geplande taken
 
-| Taak                                                                               | Requirement                      |
-| ---------------------------------------------------------------------------------- | -------------------------------- |
-| Het logboek van uploads, HL7-berichten en fouten bekijken                          | [B4](/development/requirements/) |
+| Taak                                                                                      | Requirement                      |
+| ----------------------------------------------------------------------------------------- | -------------------------------- |
+| Het logboek van uploads, HL7-berichten en fouten bekijken                                 | [B4](/development/requirements/) |
+| De simulaties bekijken met hun docenten, hun labs en het aantal leden, alleen om te lezen | [B5](/development/requirements/) |
 
 De requirements zijn in het Engels.

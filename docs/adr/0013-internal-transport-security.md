@@ -86,8 +86,10 @@ Option 2.
   1117346 Rev. A, 2023/02, chapter "Configuration", Tables 1 and 2, have no
   TLS, encryption or certificate setting, and the chapter "Connectivity"
   asks only that the analyser "communicates with the external information
-  system over a secure network" (being vendored under
-  `docs/vendor/afinion/`, #209). The Afinion 2 route therefore waits on the FerroBRIDGE release
+  system over a secure network". The Afinion 2 HL7 Connectivity Protocol
+  v4.0, §1.4, describes a plain socket transfer framed as
+  `<VT>message<FS><CR>` and names no TLS. Both documents are vendored under
+  `docs/vendor/afinion/`. The Afinion 2 route therefore waits on the FerroBRIDGE release
   that adds plain MLLP for devices, bound to their network addresses
   (FerroHEALTH/FerroBRIDGE#1918; decided on #131); until then the face
   stays off. Once it ships, the Afinion 2 sends on that plain lane, bound to

@@ -30,8 +30,9 @@ Your sources, and how much weight each carries:
    and B, the quality requirements Q-, the dashboard measures G-, the risks
    R- and the open questions O-), with `docs/lims-workflow.md`,
    `docs/architecture.md`, ADR 0020 and the test strategy for context. A row
-   marked Dropped is history, never a live requirement, and an open question
-   is reported as open with its O-number. **They are a
+   marked Dropped is history, never a live requirement. An O-row is reported
+   with its status: answered, decided (the row says by whom), or held open
+   by the owner, with its O-number. **They are a
    working draft under discussion with the product owner.** Report what they
    say; never treat them as settled where they are vague, and never extend
    them.

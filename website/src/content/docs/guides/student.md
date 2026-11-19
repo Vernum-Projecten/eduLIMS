@@ -98,14 +98,14 @@ Choose your name at the foot of the sidebar, then **Sign out**. eduLIMS ends you
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
 | Work in your lab: you land in it when you sign in with the email address your teacher added, or you join with the lab's code                                                                                                    | [S10](/development/requirements/) |
 | Share the patients, requests, samples and results of your lab with its other members, under the lab's name and logo                                                                                                             | [S10](/development/requirements/) |
-| Register a patient from the paper request form                                                                                                                                                                                  | [S11](/development/requirements/) |
-| Record a request: its tests and each sample with the sample number and material from the form; eduLIMS gives each sample a lab number                                                                                           | [S12](/development/requirements/) |
+| Register a patient from the paper request form; you can correct the details until the first result for that patient is released                                                                                                 | [S11](/development/requirements/) |
+| Record a request: its tests and each sample with the sample number and material from the form; eduLIMS gives each sample a lab number. You can correct the request until its first result is released                           | [S12](/development/requirements/) |
 | Record a request for a control sample, which has no patient; you measure and release it like any other, and its result goes to your team's control log                                                                          | [S16](/development/requirements/) |
-| Set your team's own tolerances per test before you measure                                                                                                                                                                      | [S13](/development/requirements/) |
+| Set your team's own tolerance per test, a lower and an upper limit, before you measure; you can change it during the simulation                                                                                                 | [S13](/development/requirements/) |
 | Upload a Gen5 Excel export of the plate reader by drag and drop, see the plate with its 96 values, and say which well holds which sample; your team or eduLIMS calculates the concentration, as your teacher chose for the test | [S4](/development/requirements/)  |
 | See the measurements per sample, from the Afinion 2 and the Epoch 2; on the Afinion 2 you enter the sample's lab number as the patient ID                                                                                       | [S5](/development/requirements/)  |
 | Measure a sample again; eduLIMS keeps every measurement                                                                                                                                                                         | [S14](/development/requirements/) |
-| Release a result to the patient's record; eduLIMS warns you when the value is outside your team's tolerance, and a released result is final                                                                                     | [S15](/development/requirements/) |
+| Release a result to the patient's record; eduLIMS warns you when the value is outside your team's tolerance, you can release a result only for a test with a tolerance, and a released result is final                          | [S15](/development/requirements/) |
 
 You do not create or name your lab in eduLIMS: your teacher does, and adds
 the email addresses of its members. When you sign in with the address your
@@ -113,9 +113,15 @@ teacher added, you are in your lab at once; eduLIMS sends you no email. When
 you sign in with another address, you join with the lab's code from your
 teacher.
 
+Every member of your lab may do everything in it, and eduLIMS records who did
+what. You can be in several simulations, in one lab of each. Your teacher
+sees every correction of a patient or a request and every change of a
+tolerance. The time a request was entered never changes.
+
 The sample number on the form is the same in every lab. The lab number
 eduLIMS gives your sample is unique across the labs, so a result from the
-Afinion 2 reaches your lab and no other.
+Afinion 2 reaches your lab and no other. The same sample number may come
+twice in your lab, for a second tube; each tube gets its own lab number.
 
 For a plate from the Epoch 2, your teacher chooses per test who calculates
 the concentration. When your team calculates, you enter the result. When

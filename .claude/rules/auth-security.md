@@ -145,12 +145,16 @@ without login. This file is how the code meets them.
   for a control sample has no patient and hangs under the lab in the same
   way (S16). A student reads and writes only the work of their own lab. A
   teacher reads only the simulations that are their own (D10, D11: "a
-  teacher sees only their own simulations"). An id from the client (a
+  teacher sees only their own simulations"): the ones they created and the
+  ones another teacher added them to, with the same rights (D10). An id from the client (a
   simulation id, a lab id, a request id, a sample number) is checked against
   the session user in the same query (a join on the lab's members or on the
-  simulation's teacher), never fetched first and filtered after. Whether
-  team members hold different rights is open (O10): build no team role until
-  the owner answers.
+  simulation's teachers), never fetched first and filtered after. There are
+  no roles inside a lab (S10): every member may do everything in it, and
+  eduLIMS records who did what. Build no team role.
+- **The administrator's view of simulations is read-only (B5, a Should).**
+  It lists each simulation with its teachers, its labs and the number of
+  members, and selects nothing of a lab's work and no correct value.
 - **A student reaches a lab in two ways, and no other (S10, D10).** A
   teacher adds the email addresses of a lab's members, and a student who
   signs in with one of them is linked to that lab; eduLIMS sends no email.
@@ -165,7 +169,8 @@ without login. This file is how the code meets them.
   computed from them, and no response to a student carries one, a field the
   screen does not show included. The tolerance check of S15 uses only the
   limits the team entered itself. A team's tolerances are its own: no other
-  team reads them (S13).
+  team reads them, and the teachers of the simulation see them and every
+  change to them (S13).
 - **Derived data leaks too.** The dashboard queries (G-01, G-03) apply the
   same ownership filter as the detail queries. The ranking (D14, G-04) is
   not built in this iteration (O3), so no query computes one and no student
@@ -278,5 +283,5 @@ Server functions are an API: hold them to the API Security Top 10 2023 too
 - The lab logo a teacher uploads when creating a lab (D10, ADR 0021) is an
   upload too. Accept a defined set of image types up to a configured size
   limit, check the content, and never trust the file name or the MIME type
-  alone. Which types and which limit is not decided: ask the owner before
-  building it.
+  alone. Which types and which limit is an engineering point that the issue
+  building the logo settles and writes down before the code.

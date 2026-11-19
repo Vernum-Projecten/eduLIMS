@@ -69,12 +69,23 @@ same shape: a unit with members, and groups of members inside it.
   its rule that every write runs behind a membership check on the
   session user, with the plugin's own endpoints unreachable. It gets the new
   terms and the new write paths.
-- **Every student has their own account** (O10). Open: team roles with
-  different rights (O10).
-- **Not decided here:** copying a simulation to a next year (O11), and what
-  becomes of the fields and rules ADR 0018 gave a class (the academic year,
-  the archive, the co-teacher role, the administrator's class actions). The
-  rework on #280 settles them with the owner.
+- **Every student has their own account** (O10). A student can be in
+  several simulations, in one lab of each: a member of several
+  organizations, in one team of each (S10).
+- **No roles inside a lab** (S10, O10). Every member of a lab may do
+  everything in it, and eduLIMS records who did what. A lab needs no team
+  role.
+- **Teachers of a simulation.** A teacher can add other teachers to a
+  simulation, with the same rights (D10). The co-teacher role of ADR 0018
+  becomes that: every teacher of a simulation holds the same rights.
+- **The administrator** sees the simulations with their teachers, their labs
+  and the number of members, read-only, and nothing of a lab's work and no
+  correct value (B5, a Should). No requirement gives the administrator the
+  class actions of ADR 0018 in this model.
+- **Copying a simulation** to a new one, with its correct values and without
+  its labs, is a Could (D15).
+- **Not decided here:** what becomes of the academic year and the archive
+  that ADR 0018 gave a class. The rework on #280 settles them.
 
 ### Consequences
 
@@ -97,7 +108,8 @@ same shape: a unit with members, and groups of members inside it.
 
 ## References
 
-- [Requirements](../requirements.md): S10, D10, B2 (dropped), O10 and O11.
+- [Requirements](../requirements.md): S10, D10, D15, B2 (dropped), B5, O10
+  and O11.
 - [ADR 0018](0018-classes-as-organizations.md), which this record
   supersedes, and [ADR 0020](0020-workplace-simulation.md).
 - better-auth organization plugin: <https://better-auth.com/docs/plugins/organization>

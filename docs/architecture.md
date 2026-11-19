@@ -17,11 +17,12 @@ and writes measurement data as openEHR compositions in FerroEHR.
 This document is the design authority. Where it and a later
 [decision record](adr/README.md) disagree, the decision record wins.
 Requirement IDs refer to [requirements.md](requirements.md), which is a working
-draft. A point marked **Open** names a question in its
-[open questions](requirements.md#open-questions) (O1 to O14); the owner
-answers those on #264, and nothing is built on an open point. The architecture
-diagrams will be redrawn once the questions are answered; until then this text
-is the reference.
+draft. Its [open questions](requirements.md#open-questions) (O1 to O14) are
+answered or decided, except O1 (time targets and urgent requests) and O3 (the
+ranking), which the owner holds for the next iteration; nothing is built for
+those two. A point marked **Open** names an engineering point that an issue
+still settles. The architecture diagrams will be redrawn; until then this
+text is the reference.
 
 ## Drivers
 
@@ -40,7 +41,7 @@ Every design decision can be checked against these principles.
 | Principle | Consequence for the design |
 |---|---|
 | Privacy by design | The patients of a simulation are fictional (W5). The patient's record in FerroEHR carries the fictional details the team registers (S11, O9). No student or teacher is ever an EHR subject, and no name, student number or email address of a student or a teacher reaches FerroEHR (Q-PRIV-1). |
-| Record once, at the source | Afinion results arrive through HL7; Epoch values through an Excel upload. Open: which tests have no analyser route and are entered by hand (O4, O8). |
+| Record once, at the source | Afinion results arrive through HL7; Epoch values through an Excel upload. Per test the teacher sets the source in the test catalogue: the Afinion 2, the Epoch 2 upload, or entry by hand; a result calculated from other results is a test with entry by hand (D9). |
 | Open standards | HL7 v2 for the Afinion 2; openEHR archetypes and templates for measurement data. |
 | Traceability | Every measurement links through its sample number to device, sample, patient and team (Q-TRACE-1). |
 | The students are the analysts | eduLIMS gives a student no hint (W7): no screen and no server response for a student holds a correct value, an accuracy status or another team's work (Q-SIM-1). The one check is the warning against the team's own tolerance (S15). |
@@ -106,9 +107,10 @@ eduLIMS gives it a lab number that is unique across the teams of every simulatio
 (S12). The team enters that lab number as the patient ID on the Afinion 2,
 and the result finds its team through it (owner, 2026-11-19, O13; S5). The
 lab number is the key that connects the analyser route to the team's sample.
-Its format is not decided. Which field of the composition carries the sample
-number and which the lab number follows from the HL7 fields the analyser
-sends (#209). A result that eduLIMS cannot link to a team's sample is
+Its format is not decided. The analyser sends the entered patient ID, so the lab number, in PID-3 or
+PV1-19 (Afinion 2 HL7 Connectivity Protocol v4.0, §3.5 and §3.6, vendored in
+`docs/vendor/afinion/`); which element of the composition carries the lab
+number beside the sample number is settled in #160. A result that eduLIMS cannot link to a team's sample is
 never attached to one: it is logged and shown to administrators (#163).
 
 ## Portals and roles
@@ -122,8 +124,8 @@ and is enforced on the server for every request (Q-SEC-1, Q-SEC-2).
 | Role | Portal | May | Sees |
 |---|---|---|---|
 | Student | Student portal (`/student`) | with the team: register patients, record requests and samples, set tolerances, upload the Epoch export, measure again, release results | the work of their own team only; never a correct value, an accuracy status or another team's work |
-| Teacher | Teacher portal (`/teacher`) | manage the test catalogue, prepare a simulation with its labs (name, logo and the members' email addresses) and its correct values, set the accuracy limits, follow the teams | every lab of their own simulations: times, measurements, released results and accuracy |
-| Administrator | Admin portal (`/admin`) | manage users and roles; manage analysers and the FerroEHR and FerroBRIDGE integrations | logs, integration status, analyser usage |
+| Teacher | Teacher portal (`/teacher`) | manage the test catalogue, prepare a simulation with its labs (name, logo and the members' email addresses) and its correct values, add other teachers to it, set the accuracy limits, follow the teams | every lab of their own simulations (the ones they created or were added to): times, measurements, released results, accuracy, and the teams' tolerances with their changes |
+| Administrator | Admin portal (`/admin`) | manage users and roles; manage analysers and the FerroEHR and FerroBRIDGE integrations | logs, integration status, analyser usage; the simulations with their teachers, their labs and the number of members, read-only, and nothing of a lab's work and no correct value (B5, a Should) |
 
 A user may hold teacher and administrator together; student is never combined
 with another role. The roles are a set, not a ranking: each one keeps only
@@ -137,13 +139,15 @@ result hangs under the lab within a simulation, and every server function
 checks that in its database query (S10). A teacher creates each lab with the
 name and the logo its team made up, and eduLIMS shows the lab under them
 (D10, S10). The labs of a simulation compete with each other. A teacher sees
-the labs of their own simulations.
+the labs of their own simulations. A teacher can add other teachers to a
+simulation, and they get the same rights (D10).
 
 Every student signs in with their own account. A student who signs in with an
 email address a teacher added to a lab is linked to that lab without doing
 anything; eduLIMS sends no email. A student who signs in with another address
-joins with the lab's code (S10; owner, 2026-11-19, O10). Open: whether a team
-has roles with different rights (O10).
+joins with the lab's code (S10; owner, 2026-11-19, O10). There are no roles
+inside a lab: every member may do everything, and eduLIMS records who did
+what. A student can be in several simulations, in one lab of each (S10).
 
 Only functions for the teacher role read a correct value or an accuracy
 status, and each has negative tests with a student account (Q-SIM-1).
@@ -154,22 +158,34 @@ status, and each has negative tests with a student account (Q-SIM-1).
    prepares the simulation: its name, its labs with their names, logos and
    the email addresses of their members, and the correct value per test and
    sample number, once per simulation and for every lab (D10). The teacher
-   also sets, per test, the limits for green, yellow and red (D13). A time
-   target for urgent requests is not built in this iteration (D12, O1).
-   Open: copying a simulation to a next year (O11).
-2. The team sets its own tolerances per test (S13).
+   also sets, per test, the limits for yellow and red, each as a percentage
+   of the correct value or as an absolute distance (D13). A teacher can
+   change a correct value before, during and after the simulation; the
+   change is logged and the dashboard follows it (D10). A time target for
+   urgent requests is not built in this iteration (D12, O1). Copying a
+   simulation, with its correct values and without its labs, is a Could
+   (D15).
+2. The team sets its own tolerance, a lower and an upper limit, per test
+   (S13). It can change a tolerance during the simulation; every change is
+   logged and the teacher sees it.
 3. The team registers a patient from the paper request form (S11) and records
    the request: the tests and each sample by its sample number and material
    (S12). eduLIMS records the time of entry on the server and gives each
-   sample its lab number. A control sample, which has no patient, is its
-   own kind of request: the team records it without a patient (S16).
+   sample its lab number; the same sample number twice in a lab gets two lab
+   numbers. Until the first result is released, the team can correct a
+   patient or a request; every correction is logged for the teacher, and the
+   time of entry never changes (S11, S12). A control sample, which has no
+   patient, is its own kind of request: the team records it without a
+   patient (S16).
 4. The team measures on the Afinion 2, where it enters the lab number as the
    patient ID (the result goes to FerroEHR on its own), or on the Epoch 2,
    after which it uploads the Excel export (S4, S5). A team can measure
    again; every measurement is kept (S14).
 5. The team picks a measurement and releases it to the patient's record.
    eduLIMS warns when the value is outside the team's own tolerance, and
-   records the time of release on the server (S15). A released result is
+   records the time of release on the server (S15). A result can be released
+   only for a test with a tolerance, and eduLIMS keeps the tolerance in force
+   at the release (S13, S15). A released result is
    final. The result of a control request goes to the control log of the
    team, never to a patient's record (S16).
 6. The teacher's dashboard shows the request with its times, every
@@ -279,7 +295,7 @@ delegation on #146, within the CKM archetypes, W4):
 |---|---|---|---|---|
 | Sample number | `specimen.v1` | Laboratory specimen identifier (`at0001`) | `DV_IDENTIFIER` | required, one |
 | Well position (Epoch 2) | `specimen.v1` | Specimen label (`at0098`) | `DV_TEXT` | optional |
-| Order identifier | `laboratory_test_result.v1` | Test request details (`at0094`), Requester order identifier (`at0062`) | `DV_IDENTIFIER` | optional; the template has it from the earlier model, for the practical. What eduLIMS writes here in a simulation is not decided (#264) |
+| Order identifier | `laboratory_test_result.v1` | Test request details (`at0094`), Requester order identifier (`at0062`) | `DV_IDENTIFIER` | optional; the template has it from the earlier model, for the practical. What eduLIMS writes here in a simulation is a design point that is not settled yet |
 | Test name | `laboratory_test_result.v1` | Test name (`at0005`) | `DV_TEXT` | required, as in the archetype |
 | Analyte name; for the Epoch 2 it includes the wavelength | `laboratory_test_analyte.v1` | Analyte name (`at0024`) | `DV_TEXT` | required, one |
 | Value and unit | `laboratory_test_analyte.v1` | Analyte result (`at0001`) | `DV_QUANTITY` (`magnitude`, `units`; `magnitude_status` for a value outside the measuring range) | required, one |
@@ -292,10 +308,12 @@ The result status has two values, Preliminary and Final. One design keeps
 every measurement in FerroEHR as Preliminary and makes the released one Final
 ([LIMS workflow](lims-workflow.md)); it is the maintainer's proposal, and a
 design matter since the owner answered O7. The Afinion 2 analytes, HbA1c and CRP, are fixed by the
-device; which tests of a simulation run on which analyser is open (O4). The Epoch 2
+device; per test the teacher sets whether its measurements come from the Afinion 2, the Epoch 2 upload or entry by hand (D9). The Epoch 2
 assays stay generic, an analyte name and a value per well and wavelength,
 and the concentration is entered by the team or calculated by eduLIMS, as
-the teacher chose for the test (D9, S4). No element carries the name, the student number or the
+the teacher chose for the test (D9, S4). Every result is a number with a
+unit (`DV_QUANTITY`); a result that is not a number stays outside eduLIMS
+(W8). No element carries the name, the student number or the
 email address of a student or a teacher (Q-PRIV-1). The EHR subject is the
 fictional patient the team registers (S11, O9).
 
@@ -311,7 +329,9 @@ grade (W6). Turnaround time (G-01) is calculated with SQL on the eduLIMS
 database; accuracy (G-03) compares a released result with the correct value,
 which only eduLIMS holds, by the limits the teacher sets per test (D13). The
 teacher also sees every measurement of a requested test, with the released
-one marked as the one that counts (D11). The form of a limit is open (O2).
+one marked as the one that counts (D11). A limit is a percentage of the
+correct value or an absolute distance, and a value exactly on a limit gets
+the better colour (D13).
 A time target for urgent requests (D12, G-02, O1) and the ranking (D14,
 G-04, O3) are not built in this iteration.
 Details are in [teacher-dashboard.md](teacher-dashboard.md).

@@ -9,10 +9,11 @@ on the teacher's dashboard. Teams practise the workflow of a real clinical
 laboratory, so eduLIMS follows the chain a real LIMS follows
 ([ADR 0020](adr/0020-workplace-simulation.md)).
 
-Status: the chain follows the owner's input and answers of 2026-11-19.
-Points still open are marked **Open** with the question in
-[requirements.md](requirements.md#open-questions); nothing is built on an
-open point.
+Status: the chain follows the owner's input and the decisions of
+2026-11-19 in [requirements.md](requirements.md). The owner holds two
+questions for the next iteration, time targets and urgent requests (O1) and
+the ranking (O3), and nothing is built for them. Engineering points that an
+issue still settles are marked **Open**; nothing is built on an open point.
 
 ## The chain
 
@@ -32,15 +33,15 @@ flowchart LR
 
 | Step | What happens | Who | Requirement |
 |---|---|---|---|
-| Tolerances | Before measuring, the team enters its own limits per test. | team | S13 |
-| Patient | The team registers the patient from the form. eduLIMS fills in nothing. | team | S11 |
-| Request | The team records the request as it stands on the form: the requester, the requested tests, whether the result must be phoned through, and the remarks. eduLIMS records the time of entry on the server. An urgent request is not built in this iteration (D12). | team, eduLIMS | S12, Q-SIM-2 |
+| Tolerances | Before measuring, the team enters its own lower and upper limit per test. The team can change a tolerance during the simulation; every change is logged, and the teacher sees the tolerances and their changes. | team | S13 |
+| Patient | The team registers the patient from the form. eduLIMS fills in nothing. The team can correct the details until the first result for that patient is released; every correction is logged for the teacher. | team | S11 |
+| Request | The team records the request as it stands on the form: the requester, the requested tests, whether the result must be phoned through, and the remarks. eduLIMS records the time of entry on the server. The team can correct the request until its first result is released; every correction is logged for the teacher, and the time of entry never changes. An urgent request is not built in this iteration (D12). | team, eduLIMS | S12, Q-SIM-2 |
 | Control request | A control sample is a quality-control sample with no patient, and it is its own kind of request. The team records it without a patient, then measures and releases it like any other. | team, eduLIMS | S16 |
-| Sample | The team links each sample by the sample number and the material on the form. | team | S12 |
+| Sample | The team links each sample by the sample number and the material on the form. A lab may record the same sample number twice (a second tube); the lab numbers tell the tubes apart. | team | S12 |
 | Lab number | eduLIMS gives the sample a lab number and shows it to the team. The sample number on the form is the same in every team; the lab number is unique across the teams of every simulation, so it names one team's sample. | eduLIMS | S12, R-11 |
-| Measurement | The team measures. A value arrives from the Afinion 2, from the Epoch 2 upload, or is entered by hand where a test has no analyser route (Open, O4 and O8). A team can measure again; every measurement is kept. | team, analyser | S4, S5, S14 |
-| Check | When the team picks a measurement to release, eduLIMS compares it with the team's own tolerance and warns when it is outside. The team decides. | eduLIMS, team | S15 |
-| Release | The team releases the result to the patient's record. eduLIMS records the time of release on the server. The result of a control request goes to the control log of the team, never to a patient's record. A released result is final. | team, eduLIMS | S15, S16, Q-SIM-2 |
+| Measurement | The team measures. Per test the teacher sets where a measurement comes from: the Afinion 2, the Epoch 2 upload, or entry by hand. A result calculated from other results is a test with entry by hand. A team can measure again; every measurement is kept. | team, analyser | S4, S5, S14, D9 |
+| Check | When the team picks a measurement to release, eduLIMS compares it with the team's own tolerance and warns when it is outside. The team decides. A result can be released only for a test that has a tolerance. | eduLIMS, team | S13, S15 |
+| Release | The team releases the result to the patient's record. eduLIMS records the time of release on the server and keeps the tolerance that was in force at the release. The result of a control request goes to the control log of the team, never to a patient's record. A released result is final. | team, eduLIMS | S15, S16, Q-SIM-2 |
 | Dashboard | The teacher sees the request, its times, every measurement of a requested test with the released one marked and, after the release, the accuracy against the correct value. A control request shows like any other. | teacher | D11, D13, S16 |
 
 eduLIMS never shows a student a correct value, an accuracy status or the
@@ -53,7 +54,8 @@ The work belongs to the lab: the team of students that runs one laboratory
 in a simulation. Every patient, request, sample, measurement and result
 hangs under the lab within a simulation, and every server function checks
 that in its database query (S10). A teacher sees the labs of their own
-simulations ([ADR 0021](adr/0021-simulations-and-labs.md)).
+simulations: the ones they created and the ones another teacher added them
+to (D10, [ADR 0021](adr/0021-simulations-and-labs.md)).
 
 ```mermaid
 erDiagram
@@ -93,7 +95,9 @@ erDiagram
 - Every student has their own account. A student who signs in with an email
   address a teacher added to a lab is linked to that lab; eduLIMS sends no
   email. A student who signs in with another address joins with the lab's
-  code (S10). Open: team roles with different rights (O10).
+  code (S10). There are no roles inside a lab: every member may do
+  everything, and eduLIMS records who did what. A student can be in several
+  simulations, in one lab of each (S10).
 - A result released to the patient's record is final: nobody can change it
   or release another measurement for that requested test (S15; owner,
   2026-11-19, O7). The teacher sees every measurement of a requested test,
@@ -107,10 +111,12 @@ erDiagram
 ## A measurement on the Afinion 2
 
 The Afinion 2 sends each result itself over the lab network as HL7 v2.4 to
-FerroBRIDGE, which writes it to FerroEHR. The analyser offers up to four
-patient ID fields and an operator ID of up to 16 characters each (Afinion 2
-User Manual, 1117346 Rev. A, 2023/02, "Patient ID" and "Operator ID",
-vendored in `docs/vendor/afinion/`).
+FerroBRIDGE, which writes it to FerroEHR. The operator enters a patient ID and an operator ID on the analyser, up to
+16 characters each (Afinion 2 User Manual, 1117346 Rev. A, 2023/02, "Patient
+ID" and "Operator ID"). The message carries one patient ID, in PID-3 or in
+PV1-19 as set on the analyser, the operator ID in OBX-16 and the analyser's
+serial number in OBX-18 (Afinion 2 HL7 Connectivity Protocol v4.0, §3.5,
+§3.6 and §3.8). Both documents are vendored in `docs/vendor/afinion/`.
 
 A result finds its team through the patient ID the team enters on the
 analyser (owner, 2026-11-19, O13). That value is the lab number eduLIMS gave
@@ -144,10 +150,13 @@ sequenceDiagram
   across the teams of every simulation, and eduLIMS links the result to the one
   sample that carries it. Its format and length are not decided; the patient
   ID field takes up to 16 characters.
-- **Open, #209:** which HL7 fields carry the entered patient ID. The manual
-  says the entered ID goes out as "HIS Patient ID" or "Visit Number" (Table 2,
-  "Patient ID As"); the exact segments are in Abbott's HL7 data sheet, which
-  is not vendored yet.
+- The entered patient ID goes out in PID-3 or in PV1-19: the analyser's
+  setting "Patient ID As" chooses between "HIS Patient ID" and "Visit
+  Number" (manual, Table 2; protocol §3.5: "configurable, to use PID or
+  visitnumber"). Every analyser of an installation is set the same way, and
+  the mapping reads that one field (#160).
+- A quality control run on the analyser arrives with `Q` in MSH-11 (protocol
+  §3.2). What eduLIMS does with it is settled in #160.
 - **Open, FerroHEALTH/FerroBRIDGE#1918:** the Afinion 2 has no TLS, and
   FerroBRIDGE 0.0.24 accepts MLLP only over TLS. The route waits on the
   address-bound plain lane for devices.
@@ -237,9 +246,15 @@ Epoch 2 plate. The teacher then prepares the simulation (D10): gives it a
 name, creates its labs, each with the name and the logo the team made up,
 and adds the members of a lab by pasting their email addresses. The teacher
 enters the correct value per test and sample number, and sets the limits for
-green, yellow and red (D13). The correct values are entered once per
-simulation and hold for every lab, so adding or removing a lab is no extra
-work. Open: copying a simulation to a next year (O11).
+green, yellow and red (D13). Per test the teacher sets the limit for yellow
+and the limit for red, each as a percentage of the correct value or as an
+absolute distance; a value exactly on a limit gets the better colour. The
+correct values are entered once per simulation and hold for every lab, so
+adding or removing a lab is no extra work. A teacher can change a correct
+value before, during and after the simulation; the change is logged and the
+dashboard follows the current value. A teacher can add other teachers to a
+simulation, with the same rights (D10). Copying a simulation to a new one,
+with its correct values and without its labs, is a Could (D15).
 
 During the simulation the dashboard shows every
 lab's requests with their times, every measurement of a requested test with
@@ -247,6 +262,10 @@ the released one marked, and the accuracy of each released result (D11). A
 time target for urgent requests (D12, O1) and the ranking of the teams (D14,
 O3) are not built in this iteration. The design is in
 [teacher-dashboard.md](teacher-dashboard.md).
+
+An administrator sees the simulations with their teachers, their labs and the
+number of members, read-only, and nothing of a lab's work and no correct
+value (B5, a Should).
 
 ## Setting up an Afinion 2
 
@@ -261,7 +280,7 @@ O3) are not built in this iteration. The design is in
 
 - [Architecture](architecture.md): the portals, the data split and the
   integrations.
-- [Requirements](requirements.md): S4, S5, S10 to S16, D9 to D14 and the
+- [Requirements](requirements.md): S4, S5, S10 to S16, D9 to D15 and the
   open questions.
 - [ADR 0020](adr/0020-workplace-simulation.md): the decision for the
   simulation.

@@ -194,17 +194,20 @@ server.
 
 ## Geplande taken
 
-| Taak                                                                                                                                                                                                                 | Requirement                       |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| De testcatalogus beheren: een bepaling toevoegen met naam, eenheid en materiaal, en per bepaling kiezen of de groep of eduLIMS de concentratie berekent uit een plaat van de Epoch 2                                 | [D9](/development/requirements/)  |
-| Een simulatie voorbereiden: de naam, de labs (elk met de naam en het logo die de groep heeft bedacht, en de e-mailadressen van de leden) en vooraf de juiste waarde per bepaling en monster, één keer voor alle labs | [D10](/development/requirements/) |
-| Elk lab live volgen op het [dashboard](/development/teacher-dashboard/): de tijden van elke aanvraag, elke meting met de vrijgegeven meting gemarkeerd, en de nauwkeurigheid van elk vrijgegeven resultaat           | [D11](/development/requirements/) |
-| Per bepaling instellen hoe ver een resultaat van de juiste waarde mag liggen voor groen, geel en rood                                                                                                                | [D13](/development/requirements/) |
+| Taak                                                                                                                                                                                                                                                                                                                               | Requirement                       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| De testcatalogus beheren: een bepaling toevoegen met naam, eenheid en materiaal, en per bepaling kiezen waar de metingen vandaan komen (de Afinion 2, de upload van de Epoch 2 of invoer met de hand) en of de groep of eduLIMS de concentratie berekent uit een plaat van de Epoch 2                                              | [D9](/development/requirements/)  |
+| Een simulatie voorbereiden: de naam, de labs (elk met de naam en het logo die de groep heeft bedacht, en de e-mailadressen van de leden) en vooraf de juiste waarde per bepaling en monster, één keer voor alle labs; een juiste waarde wijzigen voor, tijdens of na de simulatie; andere docenten toevoegen, met dezelfde rechten | [D10](/development/requirements/) |
+| Elk lab live volgen op het [dashboard](/development/teacher-dashboard/): de tijden van elke aanvraag, elke meting met de vrijgegeven meting gemarkeerd, en de nauwkeurigheid van elk vrijgegeven resultaat                                                                                                                         | [D11](/development/requirements/) |
+| Per bepaling instellen hoe ver een resultaat van de juiste waarde mag liggen: de grens voor geel en de grens voor rood, elk als percentage van de juiste waarde of als absoluut verschil                                                                                                                                           | [D13](/development/requirements/) |
+| Een simulatie kopiëren naar een nieuwe, met de juiste waarden en zonder de labs (een Could)                                                                                                                                                                                                                                        | [D15](/development/requirements/) |
 
 Je voert de juiste waarden één keer per simulatie in. Ze gelden voor elk lab, dus
-een lab toevoegen of verwijderen kost je geen extra werk. Een aanvraag voor
-een controlemonster staat op het dashboard met zijn tijden en nauwkeurigheid,
-net als elke andere.
+een lab toevoegen of verwijderen kost je geen extra werk. eduLIMS legt elke
+wijziging van een juiste waarde vast, en het dashboard volgt de huidige
+waarde. Een waarde precies op een grens krijgt de betere kleur. Een aanvraag
+voor een controlemonster staat op het dashboard met zijn tijden en
+nauwkeurigheid, net als elke andere.
 
 Een simulatie heeft een eigen naam en hoort bij geen klas. Je maakt elk lab
 in de simulatie aan met de labnaam en het logo die de groep heeft bedacht, en
@@ -218,7 +221,16 @@ In de testcatalogus kies je per bepaling wie de concentratie berekent uit een
 plaat van de Epoch 2: de groep of eduLIMS. Als eduLIMS rekent, trekt het de
 blanco af en legt het een rechte lijn door de standaarden die de groep heeft
 gemarkeerd. Een monster buiten het bereik van de standaarden krijgt geen
-getal, maar de melding dat het buiten het bereik valt.
+getal, maar de melding dat het buiten het bereik valt. Een resultaat dat uit
+andere resultaten wordt berekend, is een bepaling met invoer met de hand, met
+een juiste waarde zoals elke andere. Een resultaat dat geen getal is, blijft
+buiten eduLIMS.
+
+De labs stellen hun eigen toleranties in en kunnen ze tijdens de simulatie
+wijzigen; je ziet de toleranties en elke wijziging. Een lab kan een patiënt
+of een aanvraag corrigeren tot het eerste resultaat ervan is vrijgegeven, en
+je ziet elke correctie. Elk lid van een lab mag alles in het lab, en eduLIMS
+legt vast wie wat deed.
 
 Een vrijgegeven resultaat is definitief: het lab kan het niet wijzigen
 en kan voor die bepaling geen andere meting vrijgeven.

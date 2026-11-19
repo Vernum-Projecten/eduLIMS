@@ -178,7 +178,8 @@ definitions) and <https://tanstack.com/charts/latest>, never from memory.
   shows one.
 - **The tolerance warning is the one check a team gets (S15).** It shows
   before the release is confirmed, with an icon and text, and uses only the
-  limits the team entered itself. The team decides.
+  limits the team entered itself. The team decides. A test without a
+  tolerance cannot be released (S13), and the screen says so.
 - The teacher dashboard (D11) updates without a manual reload and shows only
   the teacher's own simulations.
 - A result shows the fictional patient and the sample number. No name or

@@ -85,7 +85,7 @@ laboratory: patient, request, sample, measurement, release
 
 Implementation started on 2026-11-11. The design (requirements, architecture,
 test strategy, teacher dashboard) is recorded under [`docs/`](docs/); the
-requirements are a working draft with open questions for the product owner. The first milestone, `v0.1.0 – Foundation`,
+requirements are a working draft; the product owner holds two questions for the next iteration (the time targets and the ranking). The first milestone, `v0.1.0 – Foundation`,
 sets up the application shell, sign-in, the database and the CI/CD lane.
 The work is planned in [GitHub milestones](https://github.com/Vernum-Projecten/eduLIMS/milestones)
 and [issues](https://github.com/Vernum-Projecten/eduLIMS/issues).
@@ -191,7 +191,7 @@ The sources in this repository:
 - [Architecture](docs/architecture.md): principles, integrations, data split,
   portals and roles, deployment, and quality requirements.
 - [Requirements](docs/requirements.md) (working draft, still under discussion): functional requirements S1 to S16, D1
-  to D14 and B1 to B4, the quality requirements, the risks, the dashboard
+  to D15 and B1 to B5, the quality requirements, the risks, the dashboard
   measures and the open questions, each with a stable ID.
 - [The LIMS workflow](docs/lims-workflow.md): how the work of a lab travels
   from the paper request form to the patient's record and the dashboard.

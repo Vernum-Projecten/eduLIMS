@@ -54,6 +54,8 @@ access rules and the tests for a use nobody has.
   and the labs compete with each other (D10, S10;
   [ADR 0021](0021-simulations-and-labs.md)).
 - A released result is final (S15).
+- eduLIMS holds results that are a number with a unit; a result that is not
+  a number stays outside it (W8).
 - A control sample, which has no patient, is its own kind of request. Its
   result goes to the control log of the team, never to a patient's record
   (S16).
@@ -66,7 +68,8 @@ access rules and the tests for a use nobody has.
   never enters the repository or the tracker, which are public.
 
 The requirements are in [requirements.md](../requirements.md); the questions
-and their answers are listed there as O1 to O14.
+and their answers are listed there as O1 to O14. O1 (time targets and urgent
+requests) and O3 (the ranking) are held by the owner for the next iteration.
 
 ### Consequences
 
