@@ -3,6 +3,11 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  JOIN_CODE_DAYS_MAX,
+  JOIN_CODE_INPUT_MAX,
+  JOIN_CODE_USES_MAX,
+} from "../../lib/join-code.ts";
+import {
   EMAIL_LINE_MAX,
   EMAIL_LIST_MAX,
   LAB_NAME_MAX,
@@ -14,6 +19,10 @@ import {
   createLabInput,
   emailListFormSchema,
   emailListInput,
+  joinCodeFormSchema,
+  joinCodeInput,
+  joinFormSchema,
+  joinInput,
   labIdInput,
   moveMemberFormSchema,
   moveMemberInput,
@@ -107,5 +116,51 @@ describe("the form schemas share the server's rules, with messages in words (ADR
       "Choose the lab the student moves to.",
     );
     expect(moveMemberFormSchema.safeParse({ labId: ID }).success).toBe(true);
+  });
+});
+
+describe("the lab-code schemas (S10, #290)", () => {
+  it("keeps the database's bounds for the term and the joins, in words (#288)", () => {
+    expect(joinCodeFormSchema.safeParse({ validDays: 1, maxUses: 1 }).success).toBe(true);
+    expect(
+      joinCodeFormSchema.safeParse({ validDays: JOIN_CODE_DAYS_MAX, maxUses: JOIN_CODE_USES_MAX })
+        .success,
+    ).toBe(true);
+    expect(
+      joinCodeFormSchema.safeParse({ validDays: JOIN_CODE_DAYS_MAX + 1, maxUses: 1 }).error
+        ?.issues[0]?.message,
+    ).toBe(`Enter a whole number of days from 1 to ${JOIN_CODE_DAYS_MAX}.`);
+    expect(
+      joinCodeFormSchema.safeParse({ validDays: 7, maxUses: 0 }).error?.issues[0]?.message,
+    ).toBe(`Enter a whole number of students from 1 to ${JOIN_CODE_USES_MAX}.`);
+    // An empty number field gives NaN, which is refused with the same words.
+    expect(
+      joinCodeFormSchema.safeParse({ validDays: Number.NaN, maxUses: 1 }).error?.issues[0]?.message,
+    ).toBe(`Enter a whole number of days from 1 to ${JOIN_CODE_DAYS_MAX}.`);
+    expect(joinCodeFormSchema.safeParse({ validDays: 1.5, maxUses: 1 }).success).toBe(false);
+  });
+
+  it("the server's input is the form plus the lab, and refuses a malformed lab id", () => {
+    expect(joinCodeInput.safeParse({ labId: ID, validDays: 7, maxUses: 100 }).success).toBe(true);
+    expect(joinCodeInput.safeParse({ labId: "x", validDays: 7, maxUses: 100 }).success).toBe(false);
+  });
+
+  it("asks for a code, and refuses one of the wrong shape before the server is asked", () => {
+    expect(joinFormSchema.safeParse({ code: "  " }).error?.issues[0]?.message).toBe(
+      "Enter the lab code your teacher gave you.",
+    );
+    expect(joinFormSchema.safeParse({ code: "ABC" }).error?.issues[0]?.message).toBe(
+      "A lab code has 10 letters and digits, such as ABCDE-FGH23.",
+    );
+    expect(
+      joinFormSchema.safeParse({ code: "x".repeat(JOIN_CODE_INPUT_MAX + 1) }).error?.issues[0]
+        ?.message,
+    ).toBe("A lab code has 10 letters and digits, such as ABCDE-FGH23.");
+    expect(joinFormSchema.safeParse({ code: "abcde fgh23" }).success).toBe(true);
+  });
+
+  it("the server takes any string up to the maximum, so a crafted code is still charged", () => {
+    expect(joinInput.safeParse({ code: "" }).success).toBe(true);
+    expect(joinInput.safeParse({ code: "x".repeat(JOIN_CODE_INPUT_MAX + 1) }).success).toBe(false);
   });
 });

@@ -66,6 +66,25 @@ export const DEV_USERS = [
     roles: ["teacher"],
     hidden: true,
   },
+  // The lab code and the overview's link of a waiting address in the e2e suite (#290).
+  {
+    email: "labcode-student@example.test",
+    name: "Lab Code Test Student",
+    roles: ["student"],
+    hidden: true,
+  },
+  {
+    email: "labcode-guesser@example.test",
+    name: "Lab Code Test Guesser",
+    roles: ["student"],
+    hidden: true,
+  },
+  {
+    email: "labs-waiting@example.test",
+    name: "Waiting Address Test Student",
+    roles: ["student"],
+    hidden: true,
+  },
 ] as const satisfies readonly DevUser[];
 
 /** The realm of the development Keycloak (compose.dev.yaml). */
