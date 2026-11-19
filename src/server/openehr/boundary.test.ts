@@ -3,42 +3,21 @@
 
 // The client is the only FerroEHR code (#145, integration.md): no other module reads a FerroEHR
 // setting or names an openEHR REST path, so none can build a FerroEHR request.
-import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
+import { handWrittenFiles } from "../test-source-files.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
-// The Paraglide output (`pnpm i18n`): over a thousand generated message modules.
-const GENERATED_DIRS = [`src${sep}i18n${sep}`];
-
-/** Runs `git ls-files -z` on `src/` and returns the paths, relative to the root, in this OS's form. */
-function gitFiles(...args: string[]): string[] {
-  const out = execFileSync("git", ["ls-files", "-z", ...args, "--", "src"], {
-    cwd: ROOT,
-    encoding: "utf8",
-  });
-  return out
-    .split("\0")
-    .filter((path) => path !== "")
-    .map((path) => path.split("/").join(sep));
-}
 
 /**
- * Every hand-written TypeScript source under `src/`, tests and generated files excluded: the
- * tracked and the new files git sees, less those deleted from the working tree. A listing from
- * git replaces a walk of the tree, so only these files are opened (#249).
+ * Every hand-written TypeScript source under `src/`, tests and generated files excluded. A
+ * listing from git and biome.json replaces a walk of the tree, so only these files are opened
+ * (#249, #320).
  */
 function sources(): string[] {
-  const deleted = new Set(gitFiles("--deleted"));
-  const listed = new Set(gitFiles("--cached", "--others", "--exclude-standard"));
-  return [...listed].filter(
-    (path) =>
-      !deleted.has(path) &&
-      !GENERATED_DIRS.some((dir) => path.startsWith(dir)) &&
-      /\.(ts|tsx)$/.test(path) &&
-      !/\.test\.tsx?$/.test(path) &&
-      !path.endsWith(".gen.ts"),
+  return handWrittenFiles("src").filter(
+    (path) => /\.(ts|tsx)$/.test(path) && !/\.test\.tsx?$/.test(path),
   );
 }
 
