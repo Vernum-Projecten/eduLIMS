@@ -431,6 +431,27 @@ describe("migrations", () => {
       inSavepoint(sql`insert into catalogue_tests (name, unit, material, source)
           values ('Empty unit', '', 'blood', 'manual')`),
     ).rejects.toThrow(/catalogue_tests_unit/);
+    await expect(
+      inSavepoint(sql`insert into catalogue_tests (name, unit, material, source, afinion_analyte)
+          values ('Pipe', 'mg/L', 'blood', 'afinion', 'CR|P')`),
+    ).rejects.toThrow(/catalogue_tests_afinion_analyte/);
+    await expect(
+      inSavepoint(sql`insert into catalogue_tests (name, unit, material, source, afinion_analyte)
+          values ('Accent', 'mg/L', 'blood', 'afinion', 'Créat')`),
+    ).rejects.toThrow(/catalogue_tests_afinion_analyte_ascii/);
+    // A test without a unit blocks the revert, and 0017 stays applied with its index and CHECK.
+    const blocked = await migrator.migrateTo("0016_test_catalogue");
+    expect(blocked.error).toBeDefined();
+    const applied = await sql<{ name: string }>`select name from kysely_migration
+        where name = '0017_catalogue_follow_ups'`.execute(database);
+    expect(applied.rows).toEqual([{ name: "0017_catalogue_follow_ups" }]);
+    await expect(afinion("Chol ratio", "chol/hdl", false)).rejects.toThrow(
+      /catalogue_tests_active_analyte_key/,
+    );
+    await expect(
+      inSavepoint(sql`insert into catalogue_tests (name, unit, material, source)
+          values ('Empty unit again', '', 'blood', 'manual')`),
+    ).rejects.toThrow(/catalogue_tests_unit/);
     await inSavepoint(sql`delete from catalogue_tests`);
     const down = await migrator.migrateTo("0016_test_catalogue");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([

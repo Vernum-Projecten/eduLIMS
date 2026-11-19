@@ -17,6 +17,11 @@ function testName(base: string): string {
   return `${base} ${randomBytes(3).toString("hex").toUpperCase()}`;
 }
 
+/** An analyte name no other journey uses: the analyser's names are unique among active tests. */
+function analyteName(): string {
+  return `E2E${randomBytes(3).toString("hex").toUpperCase()}`;
+}
+
 async function signInAsTeacher(page: Page): Promise<void> {
   await devLogin(page, TEACHER);
   await expect(page).toHaveURL(/\/teacher$/);
@@ -67,7 +72,7 @@ test("a teacher adds, edits, retires and restores a test with the keyboard (D9, 
   await expect(source).toContainText("Epoch 2 upload");
   // The calculator shows for an Epoch 2 test only, and the analyte does not (D9, S4).
   await expect(dialog.getByLabel("Analyte name on the Afinion 2")).toHaveCount(0);
-  const team = dialog.getByRole("radio", { name: "The team calculates" });
+  const team = dialog.getByRole("radio", { name: "The lab calculates" });
   await page.keyboard.press("Tab");
   await expect(team).toBeFocused();
   await page.keyboard.press("Space");
@@ -84,7 +89,7 @@ test("a teacher adds, edits, retires and restores a test with the keyboard (D9, 
   await expect(row).toContainText("mmol/L");
   await expect(row).toContainText("plasma");
   await expect(row).toContainText("Epoch 2 upload");
-  await expect(row).toContainText("The team calculates");
+  await expect(row).toContainText("The lab calculates");
   await expect(row).toContainText("Active");
 
   // Edit: switch who calculates and change the material (D9).
@@ -98,7 +103,7 @@ test("a teacher adds, edits, retires and restores a test with the keyboard (D9, 
   await pressUntilFocused(page, "Tab", edit.getByLabel("Material"));
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.type("serum");
-  await pressUntilFocused(page, "Tab", edit.getByRole("radio", { name: "The team calculates" }));
+  await pressUntilFocused(page, "Tab", edit.getByRole("radio", { name: "The lab calculates" }));
   const edulims = edit.getByRole("radio", { name: "eduLIMS calculates" });
   await page.keyboard.press("ArrowDown");
   await expect(edulims).toBeFocused();
@@ -126,9 +131,10 @@ test("a teacher adds, edits, retires and restores a test with the keyboard (D9, 
   await page.keyboard.press("Enter");
   await expect(row).toContainText("Retired");
   await expect(page.getByText(`${name} retired.`)).toBeVisible();
+  // Focus returns to the row's menu button after the confirmation (WCAG 2.4.3).
+  await expect(menu).toBeFocused();
 
   // A retired test can be restored.
-  await menu.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("menuitem", { name: "Restore" })).toBeFocused();
   await page.keyboard.press("Enter");
@@ -139,6 +145,7 @@ test("an Afinion 2 test needs its analyte, and a taken name is refused at its fi
   page,
 }) => {
   const name = testName("CRP");
+  const analyte = analyteName();
   await signInAsTeacher(page);
   await openCatalogue(page);
   await page.getByRole("button", { name: "Add test" }).click();
@@ -155,7 +162,7 @@ test("an Afinion 2 test needs its analyte, and a taken name is refused at its fi
   await page.getByRole("option", { name: "Afinion 2" }).click();
   await dialog.getByRole("button", { name: "Add test" }).click();
   await expect(dialog.getByText("Enter the analyte name the Afinion 2 sends.")).toBeVisible();
-  await dialog.getByLabel("Analyte name on the Afinion 2").fill("CRP");
+  await dialog.getByLabel("Analyte name on the Afinion 2").fill(analyte);
   await dialog.getByRole("button", { name: "Add test" }).click();
   await expect(dialog).toHaveCount(0);
 
@@ -211,7 +218,36 @@ test("a ratio without a unit shows no unit in words (D9; maintainer 2026-11-19)"
   await dialog.getByRole("button", { name: "Add test" }).click();
   await expect(dialog).toHaveCount(0);
   await openCatalogue(page, name);
-  await expect(rowOf(page, name)).toContainText("No unit");
+  await expect(rowOf(page, name).getByRole("cell", { name: "No unit" })).toBeVisible();
+  await axe(page);
+});
+
+test("a second active Afinion 2 test with the same analyte is refused at its field (D9)", async ({
+  page,
+}) => {
+  const analyte = analyteName();
+  await signInAsTeacher(page);
+  await openCatalogue(page);
+  const dialog = page.getByRole("dialog", { name: "Add a test" });
+  for (const [name, typed] of [
+    [testName("HbA1c"), analyte],
+    [testName("HbA1c again"), analyte.toLowerCase()],
+  ] as const) {
+    await page.getByRole("button", { name: "Add test" }).click();
+    await dialog.getByLabel("Name").fill(name);
+    await dialog.getByLabel("Unit").fill("%");
+    await dialog.getByLabel("Material").fill("blood");
+    await dialog.getByRole("combobox", { name: "Source of the measurements" }).click();
+    await page.getByRole("option", { name: "Afinion 2" }).click();
+    await dialog.getByLabel("Analyte name on the Afinion 2").fill(typed);
+    await dialog.getByRole("button", { name: "Add test" }).click();
+  }
+  const field = dialog.getByLabel("Analyte name on the Afinion 2");
+  await expect(field).toHaveAttribute("aria-invalid", "true");
+  await expect(
+    dialog.getByText("Another active Afinion 2 test already has this analyte name."),
+  ).toBeVisible();
+  await axe(page);
 });
 
 async function usePreferences(

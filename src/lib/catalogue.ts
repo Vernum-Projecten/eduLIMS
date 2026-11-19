@@ -41,6 +41,36 @@ export type TestSource =
 export const TEST_USAGES = ["unused", "used", "running"] as const;
 export type TestUsage = (typeof TEST_USAGES)[number];
 
+/** The settings of a test that its usage can fix. */
+export type LockableTestField = "unit" | "source" | "analyte" | "material" | "calculatedBy";
+
+const FIXED_WHEN_USED: readonly LockableTestField[] = ["unit", "source", "analyte"];
+const FIXED_WHEN_RUNNING: readonly LockableTestField[] = [
+  ...FIXED_WHEN_USED,
+  "material",
+  "calculatedBy",
+];
+
+/**
+ * Returns the settings a test's usage fixes, the same rule the server enforces: a used test
+ * keeps its unit, source and analyte name; a running simulation fixes its material and who
+ * calculates too. The name is never fixed.
+ */
+export function lockedTestFields(usage: TestUsage): ReadonlySet<LockableTestField> {
+  switch (usage) {
+    case "unused":
+      return new Set();
+    case "used":
+      return new Set(FIXED_WHEN_USED);
+    case "running":
+      return new Set(FIXED_WHEN_RUNNING);
+    default: {
+      const unknown: never = usage;
+      return unknown;
+    }
+  }
+}
+
 /** Whether a test is offered to new simulations, or retired from them. */
 export const TEST_STATUSES = ["active", "retired"] as const;
 export type TestStatus = (typeof TEST_STATUSES)[number];
@@ -53,10 +83,22 @@ export const TEST_MATERIAL_MAX = 40;
 export const TEST_ANALYTE_MAX = 40;
 
 /**
- * The characters an analyte name may not hold: the HL7 v2 delimiters the Afinion 2 declares in
- * MSH-1 and MSH-2, and the segment end, which OBX-3 can never carry as text.
+ * Control and format characters (`\p{Cc}`, `\p{Cf}`: NUL, line breaks, bidi overrides,
+ * zero-width characters), which no catalogue text may hold (ASVS V2.2.1).
  */
-export const HL7_DELIMITERS = /[|^~\\&\r\n]/;
+export const CONTROL_OR_FORMAT = /[\p{Cc}\p{Cf}]/u;
+
+/**
+ * An analyte name the Afinion 2 can send in OBX-3: printable ASCII without the HL7 v2 delimiters
+ * it declares in MSH-1 and MSH-2 (`|^~\&`). The CHECK of migration 0017 holds the same rule.
+ */
+export const AFINION_ANALYTE = /^[\x20-\x7E]+$/;
+export const HL7_DELIMITERS = /[|^~\\&]/;
+
+/** Returns whether `value` is an analyte name the Afinion 2 can send. */
+export function isAfinionAnalyte(value: string): boolean {
+  return AFINION_ANALYTE.test(value) && !HL7_DELIMITERS.test(value);
+}
 
 /** Returns `value` when it names a {@link TestSourceKind}, else `undefined`. */
 export function parseTestSourceKind(value: unknown): TestSourceKind | undefined {

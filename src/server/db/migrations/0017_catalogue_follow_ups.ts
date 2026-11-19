@@ -3,7 +3,8 @@
 
 // Two rules of the test catalogue (D9, maintainer 2026-11-19 on #266): a test may have no unit,
 // for a dimensionless result such as a ratio, and the analyte name of an active Afinion 2 test is
-// unique regardless of case, so a result the analyser sends matches one test at most.
+// unique regardless of case, and holds only what the Afinion 2 can send in OBX-3: printable ASCII
+// without the HL7 delimiters (security review of #312, F3).
 import { type Kysely, sql } from "kysely";
 
 /** The longest unit (our own design, #266; `src/lib/catalogue.ts`). */
@@ -31,11 +32,22 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .where(sql.ref("source"), "=", "afinion")
     .where(sql.ref("retired_at"), "is", null)
     .execute();
+  await db.schema
+    .alterTable("catalogue_tests")
+    .addCheckConstraint(
+      "catalogue_tests_afinion_analyte_ascii",
+      sql`afinion_analyte is null or (afinion_analyte ~ '^[ -~]+$' and afinion_analyte !~ '[|^~\\\\&]')`,
+    )
+    .execute();
 }
 
 // NOTE: no requirement governs this: our own design. Reverting fails loud while a test has no
 // unit, rather than inventing one for it.
 export async function down(db: Kysely<unknown>): Promise<void> {
+  await db.schema
+    .alterTable("catalogue_tests")
+    .dropConstraint("catalogue_tests_afinion_analyte_ascii")
+    .execute();
   await db.schema.dropIndex("catalogue_tests_active_analyte_key").execute();
   await db.schema.alterTable("catalogue_tests").dropConstraint("catalogue_tests_unit").execute();
   await db.schema

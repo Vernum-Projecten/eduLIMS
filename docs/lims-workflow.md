@@ -252,7 +252,13 @@ who calculates, or entry by hand. Every teacher uses and changes the same
 catalogue, and each test records who created it. The names of active tests
 are unique regardless of case, and so are the analyte names of active
 Afinion 2 tests; matching a result to a test compares the exact text the
-analyser sends. A test that a simulation uses keeps its unit, its source and
+analyser sends. The Afinion matcher never resolves an analyte across the
+catalogue: it resolves it only among the tests the request names, from the
+lab number to the sample, then the request, then its requested tests
+(maintainer, 2026-11-19), so the uniqueness of active analytes is hygiene, not
+what the matching relies on. An analyte name is printable ASCII without the
+HL7 delimiters, and no catalogue text holds a control or format character. A
+test that a simulation uses keeps its unit, its source and
 its analyte name and cannot be deleted; while a running simulation uses it,
 its material and who calculates are fixed too. A teacher retires a test so
 new simulations no longer offer it, and can restore it.

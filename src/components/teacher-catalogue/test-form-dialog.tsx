@@ -21,11 +21,14 @@ import { FieldGroup } from "@/components/ui/field";
 import { m } from "@/i18n/messages";
 import {
   EPOCH_CALCULATORS,
+  type LockableTestField,
+  lockedTestFields,
   TEST_ANALYTE_MAX,
   TEST_MATERIAL_MAX,
   TEST_NAME_MAX,
   TEST_SOURCES,
   TEST_UNIT_MAX,
+  type TestSourceKind,
   type TestUsage,
 } from "@/lib/catalogue";
 import { applyServerRefusal, type ServerRefusal } from "@/lib/forms/server-refusal";
@@ -83,16 +86,37 @@ function refusalFor(code: CatalogueErrorCode): ServerRefusal<TestForm> {
   }
 }
 
+/** What a used test leaves open to change: only the settings of its own source are named. */
+function inUseDescription(source: TestSourceKind): string {
+  switch (source) {
+    case "afinion":
+      return m.catalogue_form_in_use_afinion();
+    case "epoch_upload":
+      return m.catalogue_form_in_use_epoch();
+    case "manual":
+      return m.catalogue_form_in_use_manual();
+    default: {
+      const unknown: never = source;
+      return unknown;
+    }
+  }
+}
+
 /** The dialog's description: what the use of the test leaves open to change. */
-function descriptionOf(usage: TestUsage | undefined): string {
-  switch (usage) {
+function descriptionOf(test: CatalogueTestRow | undefined): string {
+  switch (test?.usage) {
     case "used":
-      return m.catalogue_form_in_use();
+      return inUseDescription(test.source.kind);
     case "running":
       return m.catalogue_form_in_running_simulation();
     default:
       return m.catalogue_form_description();
   }
+}
+
+/** Why a field is read-only, beside it (WCAG 3.3.2); the same reason as the description. */
+function lockReason(usage: TestUsage): string {
+  return usage === "running" ? m.catalogue_locked_running() : m.catalogue_locked_used();
 }
 
 /** Where the dialog opens from: the parent controls it and gets focus back on close. */
@@ -105,8 +129,10 @@ export interface TestDialogControl {
 /**
  * The create and edit form of a test (D9, #266) in a dialog, on `useAppForm` with the schema the
  * server function validates with. The analyte shows for an Afinion 2 test and the calculator for
- * an Epoch 2 test, the only sources they belong to. A taken name or analyte shows at its field;
- * any other refusal at the top of the form, focused (WCAG 3.3.1).
+ * an Epoch 2 test, the only sources they belong to. A setting the test's usage fixes is
+ * read-only, still focusable, with its reason as its description; the server refuses the same
+ * change. A taken name or analyte shows at its field; any other refusal at the top of the form,
+ * focused (WCAG 3.3.1).
  */
 export function TestFormDialog({
   test,
@@ -143,6 +169,10 @@ export function TestFormDialog({
   });
 
   const title = test ? m.catalogue_edit_title({ name: test.name }) : m.catalogue_create_title();
+  const usage = test?.usage ?? "unused";
+  const locked = lockedTestFields(usage);
+  const help = (field: LockableTestField, description: string) =>
+    locked.has(field) ? lockReason(usage) : description;
 
   return (
     <Dialog
@@ -168,7 +198,7 @@ export function TestFormDialog({
           <form.AppForm>
             <DialogHeader>
               <DialogTitle>{title}</DialogTitle>
-              <DialogDescription>{descriptionOf(test?.usage)}</DialogDescription>
+              <DialogDescription>{descriptionOf(test)}</DialogDescription>
             </DialogHeader>
             <form.FormErrors />
             <FieldGroup>
@@ -186,7 +216,8 @@ export function TestFormDialog({
                 {(field) => (
                   <field.TextField
                     label={m.catalogue_unit_optional()}
-                    description={m.catalogue_unit_help()}
+                    description={help("unit", m.catalogue_unit_help())}
+                    readOnly={locked.has("unit")}
                     maxLength={TEST_UNIT_MAX}
                     autoComplete="off"
                     spellCheck={false}
@@ -197,7 +228,8 @@ export function TestFormDialog({
                 {(field) => (
                   <field.TextField
                     label={m.catalogue_material()}
-                    description={m.catalogue_material_help()}
+                    description={help("material", m.catalogue_material_help())}
+                    readOnly={locked.has("material")}
                     maxLength={TEST_MATERIAL_MAX}
                     autoComplete="off"
                   />
@@ -207,7 +239,8 @@ export function TestFormDialog({
                 {(field) => (
                   <field.SelectField
                     label={m.catalogue_source()}
-                    description={m.catalogue_source_help()}
+                    description={help("source", m.catalogue_source_help())}
+                    readOnly={locked.has("source")}
                     placeholder={m.catalogue_source_placeholder()}
                     options={TEST_SOURCES.map((source) => ({
                       value: source,
@@ -223,7 +256,8 @@ export function TestFormDialog({
                       {(field) => (
                         <field.TextField
                           label={m.catalogue_analyte()}
-                          description={m.catalogue_analyte_help()}
+                          description={help("analyte", m.catalogue_analyte_help())}
+                          readOnly={locked.has("analyte")}
                           maxLength={TEST_ANALYTE_MAX}
                           autoComplete="off"
                           spellCheck={false}
@@ -235,7 +269,8 @@ export function TestFormDialog({
                       {(field) => (
                         <field.RadioGroupField
                           label={m.catalogue_calculated_by()}
-                          description={m.catalogue_calculated_by_help()}
+                          description={help("calculatedBy", m.catalogue_calculated_by_help())}
+                          readOnly={locked.has("calculatedBy")}
                           options={EPOCH_CALCULATORS.map((calculator) => ({
                             value: calculator,
                             label: epochCalculatorLabel(calculator),
@@ -250,7 +285,7 @@ export function TestFormDialog({
             <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="outline">
-                  {m.admin_users_cancel()}
+                  {m.common_cancel()}
                 </Button>
               </DialogClose>
               <form.SubmitButton icon={<SaveIcon aria-hidden="true" data-icon="inline-start" />}>

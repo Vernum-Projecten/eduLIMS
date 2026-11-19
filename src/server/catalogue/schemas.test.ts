@@ -54,6 +54,27 @@ describe("testFormSchema (D9)", () => {
     }
   });
 
+  it("refuses an analyte the Afinion 2 cannot send: not printable ASCII (security review F3)", () => {
+    for (const analyte of ["Créat", "CR\u00A0P", "Hb\u2009A1c"]) {
+      expect(issuePaths({ ...FORM, analyte }), analyte).toEqual(["analyte"]);
+    }
+  });
+
+  it.each([
+    ["NUL", "\u0000"],
+    ["a vertical tab", "\u000B"],
+    ["a right-to-left override", "\u202E"],
+    ["a zero-width space", "\u200B"],
+  ])("refuses %s inside any text, at its field (ASVS V2.2.1)", (_name, character) => {
+    const inside = (text: string) => `${text.slice(0, 1)}${character}${text.slice(1)}`;
+    expect(issuePaths({ ...FORM, name: inside("HbA1c") })).toEqual(["name"]);
+    expect(issuePaths({ ...FORM, unit: inside("mg/L") })).toEqual(["unit"]);
+    expect(issuePaths({ ...FORM, material: inside("blood") })).toEqual(["material"]);
+    expect(issuePaths({ ...FORM, analyte: inside("HbA1c") })).toEqual(["analyte"]);
+    // The server function parses with the same rules, so it answers 400, never a 500.
+    expect(createTestInput.safeParse({ ...FORM, name: inside("HbA1c") }).success).toBe(false);
+  });
+
   it("requires who calculates for an Epoch 2 test only (S4)", () => {
     expect(issuePaths({ ...FORM, source: "epoch_upload" })).toEqual(["calculatedBy"]);
     expect(issuePaths({ ...FORM, source: "epoch_upload", calculatedBy: "team" })).toEqual([]);
@@ -102,6 +123,12 @@ describe("createTestInput and updateTestInput (D9)", () => {
     expect(createTestInput.safeParse({ ...FORM, createdBy: "someone" }).success).toBe(false);
     expect(createTestInput.safeParse({ ...FORM, source: "usb" }).success).toBe(false);
     expect(createTestInput.safeParse({ ...FORM, analyte: "" }).success).toBe(false);
+  });
+
+  it("reads an id in upper case as the same test (security review F6)", () => {
+    const upper = "01960000-0000-7000-8000-00000000000A";
+    expect(testIdInput.parse({ testId: upper }).testId).toBe(upper.toLowerCase());
+    expect(updateTestInput.parse({ testId: upper, test: FORM }).testId).toBe(upper.toLowerCase());
   });
 
   it("names the test of an edit by a UUID", () => {

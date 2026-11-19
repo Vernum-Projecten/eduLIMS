@@ -18,65 +18,22 @@ import type { DB } from "../db/schema.gen.ts";
 import { assertTeacher } from "../simulations/access.ts";
 import { usageOf } from "./in-use.ts";
 import { STORED_TEST_COLUMNS, type StoredTest, storedSource } from "./queries.ts";
+import { Refusal, refusedChange, type TestActionResult } from "./refusals.ts";
 import type { TestDefinition } from "./schemas.ts";
 
-/** Why a change was refused or failed; the screen maps each code to a translated message. */
-export const TEST_ACTION_ERRORS = [
-  "not_found",
-  "name_taken",
-  "retired",
-  "not_retired",
-  "in_use",
-  "in_running_simulation",
-  "analyte_taken",
-] as const;
-export type TestActionError = (typeof TEST_ACTION_ERRORS)[number];
-
-/** The outcome of a change: done with the test's id, or refused with a code. */
-export type TestActionResult =
-  | { ok: true; testId: CatalogueTestId }
-  | { ok: false; error: TestActionError };
+export {
+  isAnalyteTaken,
+  isNameTaken,
+  TEST_ACTION_ERRORS,
+  type TestActionError,
+  type TestActionResult,
+} from "./refusals.ts";
 
 /** What every change runs with: the database, the teacher and the server's time (Q-SIM-2). */
 export interface TestActionContext {
   db: Kysely<DB>;
   actor: Pick<SessionUser, "id" | "roles">;
   now: Date;
-}
-
-const NAME_CONSTRAINT = "catalogue_tests_active_name_key";
-const ANALYTE_CONSTRAINT = "catalogue_tests_active_analyte_key";
-
-/** A refusal raised inside a transaction, so the transaction rolls back before it is returned. */
-class Refusal extends Error {
-  readonly code: TestActionError;
-  constructor(code: TestActionError) {
-    super(code);
-    this.code = code;
-  }
-}
-
-function isUniqueViolation(error: unknown, constraint: string): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  return Reflect.get(error, "code") === "23505" && Reflect.get(error, "constraint") === constraint;
-}
-
-/** Returns whether `error` is PostgreSQL's unique violation of an active test's name. */
-export function isNameTaken(error: unknown): boolean {
-  return isUniqueViolation(error, NAME_CONSTRAINT);
-}
-
-/** Returns whether `error` is PostgreSQL's unique violation of an active Afinion 2 analyte. */
-export function isAnalyteTaken(error: unknown): boolean {
-  return isUniqueViolation(error, ANALYTE_CONSTRAINT);
-}
-
-/** Maps what a transaction threw to a result; anything unknown is rethrown (fail loud). */
-function refusalOf(error: unknown): TestActionResult {
-  if (error instanceof Refusal) return { ok: false, error: error.code };
-  if (isNameTaken(error)) return { ok: false, error: "name_taken" };
-  if (isAnalyteTaken(error)) return { ok: false, error: "analyte_taken" };
-  throw error;
 }
 
 function sourceColumns(source: TestSource) {
@@ -231,7 +188,7 @@ export async function createTest(
       return { ok: true, testId };
     });
   } catch (error) {
-    return refusalOf(error);
+    return refusedChange({ db: ctx.db, actorId: ctx.actor.id, action: "test_created" }, error);
   }
 }
 
@@ -273,7 +230,10 @@ export async function updateTest(
       return { ok: true, testId };
     });
   } catch (error) {
-    return refusalOf(error);
+    return refusedChange(
+      { db: ctx.db, actorId: ctx.actor.id, action: "test_changed", testId: input.testId },
+      error,
+    );
   }
 }
 
@@ -308,7 +268,10 @@ export async function retireTest(
       return { ok: true, testId };
     });
   } catch (error) {
-    return refusalOf(error);
+    return refusedChange(
+      { db: ctx.db, actorId: ctx.actor.id, action: "test_retired", testId: input.testId },
+      error,
+    );
   }
 }
 
@@ -344,6 +307,9 @@ export async function restoreTest(
       return { ok: true, testId };
     });
   } catch (error) {
-    return refusalOf(error);
+    return refusedChange(
+      { db: ctx.db, actorId: ctx.actor.id, action: "test_restored", testId: input.testId },
+      error,
+    );
   }
 }

@@ -53,35 +53,37 @@ export function TestRowActions({ test }: Readonly<{ test: CatalogueTestRow }>) {
     triggerRef.current?.focus();
   }
 
-  if (test.status === "retired") {
-    return (
-      <DataTableRowActions label={label} triggerRef={triggerRef}>
-        <DropdownMenuItem
-          disabled={restore.isPending}
-          onSelect={() => restore.mutate({ testId: test.id })}
-        >
-          <ArchiveRestoreIcon aria-hidden="true" />
-          {m.catalogue_restore()}
-        </DropdownMenuItem>
-      </DataTableRowActions>
-    );
-  }
+  const active = test.status === "active";
 
+  // The one menu button stays mounted when the status changes, so focus that returns to it after
+  // the retire confirmation stays on the row (WCAG 2.4.3).
   return (
     <>
       <DataTableRowActions label={label} triggerRef={triggerRef}>
-        <DropdownMenuItem onSelect={() => setDialog("edit")}>
-          <PencilIcon aria-hidden="true" />
-          {m.catalogue_edit()}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          disabled={retire.isPending}
-          onSelect={() => setDialog("retire")}
-        >
-          <ArchiveIcon aria-hidden="true" />
-          {m.catalogue_retire()}
-        </DropdownMenuItem>
+        {active ? (
+          <>
+            <DropdownMenuItem onSelect={() => setDialog("edit")}>
+              <PencilIcon aria-hidden="true" />
+              {m.catalogue_edit()}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={retire.isPending}
+              onSelect={() => setDialog("retire")}
+            >
+              <ArchiveIcon aria-hidden="true" />
+              {m.catalogue_retire()}
+            </DropdownMenuItem>
+          </>
+        ) : (
+          <DropdownMenuItem
+            disabled={restore.isPending}
+            onSelect={() => restore.mutate({ testId: test.id })}
+          >
+            <ArchiveRestoreIcon aria-hidden="true" />
+            {m.catalogue_restore()}
+          </DropdownMenuItem>
+        )}
       </DataTableRowActions>
       <TestFormDialog
         test={test}
@@ -101,7 +103,7 @@ export function TestRowActions({ test }: Readonly<{ test: CatalogueTestRow }>) {
             <AlertDialogDescription>{m.catalogue_retire_body()}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{m.admin_users_cancel()}</AlertDialogCancel>
+            <AlertDialogCancel>{m.common_cancel()}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {

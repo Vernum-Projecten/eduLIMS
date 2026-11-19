@@ -8,8 +8,9 @@
 import { z } from "zod";
 import { m } from "@/i18n/messages";
 import {
+  CONTROL_OR_FORMAT,
   EPOCH_CALCULATORS,
-  HL7_DELIMITERS,
+  isAfinionAnalyte,
   TEST_ANALYTE_MAX,
   TEST_MATERIAL_MAX,
   TEST_NAME_MAX,
@@ -91,7 +92,8 @@ export const listTestsInput = z.strictObject({
 });
 export type ListTestsInput = z.infer<typeof listTestsInput>;
 
-const testId = z.uuid();
+// NOTE: security review of #312 (F6); an id in upper case names the same test.
+const testId = z.uuid().transform((value) => value.toLowerCase());
 
 /** The input of the actions about one test: retire and restore. */
 export const testIdInput = z.strictObject({ testId });
@@ -99,29 +101,30 @@ export type TestIdInput = z.infer<typeof testIdInput>;
 
 const tooLong = (max: number) => () => m.form_too_long({ max: String(max) });
 
-function requiredText(max: number, required: () => string) {
+/** Free text without control or format characters (ASVS V2.2.1), trimmed, up to `max`. */
+function plainText(max: number) {
   return z
     .string()
     .trim()
-    .min(1, { error: required })
-    .max(max, { error: tooLong(max) });
+    .max(max, { error: tooLong(max) })
+    .refine((value) => !CONTROL_OR_FORMAT.test(value), {
+      error: () => m.catalogue_text_characters(),
+    });
+}
+
+function requiredText(max: number, required: () => string) {
+  return plainText(max).refine((value) => value !== "", { error: required });
 }
 
 const testFormFields = z.object({
   name: requiredText(TEST_NAME_MAX, () => m.catalogue_name_required()),
   // NOTE: maintainer 2026-11-19 (#266); a dimensionless result such as a ratio has no unit.
-  unit: z
-    .string()
-    .trim()
-    .max(TEST_UNIT_MAX, { error: tooLong(TEST_UNIT_MAX) }),
+  unit: plainText(TEST_UNIT_MAX),
   material: requiredText(TEST_MATERIAL_MAX, () => m.catalogue_material_required()),
   source: z
     .enum([...TEST_SOURCES, ""])
     .refine((value) => value !== "", { error: () => m.catalogue_source_required() }),
-  analyte: z
-    .string()
-    .trim()
-    .max(TEST_ANALYTE_MAX, { error: tooLong(TEST_ANALYTE_MAX) }),
+  analyte: plainText(TEST_ANALYTE_MAX),
   calculatedBy: z.enum([...EPOCH_CALCULATORS, ""]),
 });
 type TestFormValues = z.output<typeof testFormFields>;
@@ -131,11 +134,12 @@ function checkSourceSetting(value: TestFormValues, ctx: z.RefinementCtx): void {
   if (value.source === "afinion") {
     if (value.analyte === "") {
       ctx.addIssue({ code: "custom", path: ["analyte"], message: m.catalogue_analyte_required() });
-    } else if (HL7_DELIMITERS.test(value.analyte)) {
+    } else if (!CONTROL_OR_FORMAT.test(value.analyte) && !isAfinionAnalyte(value.analyte)) {
+      // A control or format character is already refused at the field, once.
       ctx.addIssue({
         code: "custom",
         path: ["analyte"],
-        message: m.catalogue_analyte_delimiters(),
+        message: m.catalogue_analyte_characters(),
       });
     }
   }
