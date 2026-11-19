@@ -115,12 +115,31 @@ export interface AckInput {
 
 const TIMESTAMP = /^\d{14}$/;
 const NUMBER = /^\d+(\.\d+)?$/;
-// Printable ASCII without the HL7 delimiters `|^~\&` of MSH-1 and MSH-2.
-const PLAIN_FIELD = /^[\x20-\x5b\x5d\x5f-\x7b\x7d]*$/;
+/** The HL7 delimiters of MSH-1 and MSH-2 as the Afinion 2 sends them (protocol §3.2). */
+const HL7_DELIMITERS: ReadonlySet<string> = new Set(["|", "^", "~", "\\", "&"]);
+
+/**
+ * Tells whether a character is printable ASCII (0x20 to 0x7E), compared by code point so no
+ * control character has to appear in the source.
+ */
+function isPrintableAscii(character: string): boolean {
+  const code = character.codePointAt(0) ?? -1;
+  return code >= 0x20 && code <= 0x7e;
+}
+
+/**
+ * Tells whether `value` can stand in one HL7 field: printable ASCII only, so no CR, MLLP block
+ * byte (0x0B, 0x1C) or DEL breaks the message, and no HL7 delimiter splits the field.
+ */
+export function isPlainField(value: string): boolean {
+  return [...value].every(
+    (character) => isPrintableAscii(character) && !HL7_DELIMITERS.has(character),
+  );
+}
 
 /** Returns `value` when it is a field value without HL7 delimiters or non-ASCII characters. */
 function field(name: string, value: string): string {
-  if (!PLAIN_FIELD.test(value)) {
+  if (!isPlainField(value)) {
     throw new RangeError(`${name} holds a character outside printable ASCII or an HL7 delimiter`);
   }
   return value;
@@ -286,8 +305,9 @@ export function buildAck(input: AckInput): string {
  *   use, so they are the same bytes in ASCII and ISO 8859-1.
  */
 export function messageBytes(message: string): Buffer {
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: CR is the HL7 segment terminator.
-  if (!/^[\x0d\x20-\x7e]*$/.test(message)) {
+  const allowed = (character: string) =>
+    character === SEGMENT_TERMINATOR || isPrintableAscii(character);
+  if (![...message].every(allowed)) {
     throw new RangeError("the message holds a character outside printable ASCII and CR");
   }
   return Buffer.from(message, "latin1");
