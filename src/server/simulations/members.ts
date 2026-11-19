@@ -11,6 +11,7 @@ import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 import {
   done,
+  logNotFound,
   refused,
   type SimulationActor,
   type SimulationResult,
@@ -29,7 +30,8 @@ async function placeOf(trx: Kysely<DB>, simulationId: string, userId: string) {
 
 /**
  * Moves a student of a simulation the actor teaches to another of its labs. A lab of another
- * simulation answers `not_found`, as an unknown one does.
+ * simulation answers `not_found`, as an unknown or malformed one does, and the probe is logged
+ * (ASVS V16.3.2).
  */
 export function moveMember(
   db: Kysely<DB>,
@@ -38,14 +40,19 @@ export function moveMember(
 ): Promise<SimulationResult> {
   return withSimulation(db, actor, input.simulationId, async (trx, simulationId) => {
     const labId = parseLabId(input.labId);
-    if (labId === null) return refused("not_found");
-    const target = await trx
-      .selectFrom("labs")
-      .select("id")
-      .where("id", "=", labId)
-      .where("simulation_id", "=", simulationId)
-      .executeTakeFirst();
-    if (!target) return refused("not_found");
+    const target =
+      labId === null
+        ? undefined
+        : await trx
+            .selectFrom("labs")
+            .select("id")
+            .where("id", "=", labId)
+            .where("simulation_id", "=", simulationId)
+            .executeTakeFirst();
+    if (!target) {
+      logNotFound(actor.id, "lab", input.labId);
+      return refused("not_found");
+    }
     const place = await placeOf(trx, simulationId, input.userId);
     if (!place) return refused("member_not_found");
     if (place.lab_id === target.id) return refused("same_lab");

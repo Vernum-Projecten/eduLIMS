@@ -12,7 +12,7 @@ import {
   listTeacherSimulations,
 } from "./queries.ts";
 import { findStudentLab } from "./student-access.ts";
-import { type Person, type World, world } from "./test-helpers.ts";
+import { notFoundLine, type Person, securityLines, type World, world } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -75,17 +75,41 @@ describe("getTeacherSimulation (D10, D11)", () => {
     );
   });
 
-  it.each(NOT_ITS_TEACHER)("returns null to %s", async (_who, actorOf) => {
+  it.each(NOT_ITS_TEACHER)(
+    "returns null to %s and logs the probe (V16.3.2)",
+    async (_w, actorOf) => {
+      const { database, w } = await open();
+      const actor = actorOf(w);
+      let page: unknown;
+      const lines = await securityLines(async () => {
+        page = await getTeacherSimulation(database, actor.id, w.simulationId);
+      });
+      expect(page).toBeNull();
+      expect(lines).toEqual([notFoundLine(actor.id, "simulation", w.simulationId)]);
+    },
+  );
+
+  it("returns null for a malformed or unknown id, and logs each", async () => {
     const { database, w } = await open();
-    expect(await getTeacherSimulation(database, actorOf(w).id, w.simulationId)).toBeNull();
+    const unknown = "01960000-0000-7000-8000-000000000001";
+    const pages: unknown[] = [];
+    const lines = await securityLines(async () => {
+      pages.push(await getTeacherSimulation(database, w.teacher.id, "not-a-uuid"));
+      pages.push(await getTeacherSimulation(database, w.teacher.id, unknown));
+    });
+    expect(pages).toEqual([null, null]);
+    expect(lines).toEqual([
+      notFoundLine(w.teacher.id, "simulation", "not-a-uuid"),
+      notFoundLine(w.teacher.id, "simulation", unknown),
+    ]);
   });
 
-  it("returns null for a malformed or unknown id", async () => {
+  it("logs nothing for the teacher's own simulation", async () => {
     const { database, w } = await open();
-    expect(await getTeacherSimulation(database, w.teacher.id, "not-a-uuid")).toBeNull();
-    expect(
-      await getTeacherSimulation(database, w.teacher.id, "01960000-0000-7000-8000-000000000001"),
-    ).toBeNull();
+    const lines = await securityLines(() =>
+      getTeacherSimulation(database, w.teacher.id, w.simulationId),
+    );
+    expect(lines).toEqual([]);
   });
 });
 
@@ -104,14 +128,28 @@ describe("getTeacherLab (D10, D11)", () => {
     expect(page?.simulation).toEqual({ id: w.simulationId, name: "Practice simulation" });
   });
 
-  it.each(NOT_ITS_TEACHER)("returns null to %s", async (_who, actorOf) => {
-    const { database, w } = await open();
-    expect(await getTeacherLab(database, actorOf(w).id, w.labId)).toBeNull();
-  });
+  it.each(NOT_ITS_TEACHER)(
+    "returns null to %s and logs the probe (V16.3.2)",
+    async (_w, actorOf) => {
+      const { database, w } = await open();
+      const actor = actorOf(w);
+      let page: unknown;
+      const lines = await securityLines(async () => {
+        page = await getTeacherLab(database, actor.id, w.labId);
+      });
+      expect(page).toBeNull();
+      expect(lines).toEqual([notFoundLine(actor.id, "lab", w.labId)]);
+    },
+  );
 
-  it("returns null for a malformed id", async () => {
+  it("returns null for a malformed id, and logs it", async () => {
     const { database, w } = await open();
-    expect(await getTeacherLab(database, w.teacher.id, "not-a-uuid")).toBeNull();
+    let page: unknown;
+    const lines = await securityLines(async () => {
+      page = await getTeacherLab(database, w.teacher.id, "not-a-uuid");
+    });
+    expect(page).toBeNull();
+    expect(lines).toEqual([notFoundLine(w.teacher.id, "lab", "not-a-uuid")]);
   });
 });
 
