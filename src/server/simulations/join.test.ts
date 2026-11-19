@@ -16,6 +16,7 @@ import {
   codeOf,
   context,
   DAY,
+  emptyLab,
   key,
   LIMITS,
   labOf,
@@ -190,12 +191,8 @@ describe("joinLabWithCode: a student in another lab of the simulation (S10, #288
   it("writes the row again in a new window, and once per lab (#323)", async () => {
     const database = await open();
     const w = await worldWithCode(database);
-    const third = await database
-      .insertInto("labs")
-      .values({ simulation_id: w.simulationId, name: "Third Lab" })
-      .returning("id")
-      .executeTakeFirstOrThrow();
-    const thirdCode = await codeOf(database, w.teacher, third.id);
+    const third = await emptyLab(database, w.simulationId, "Third Lab");
+    const thirdCode = await codeOf(database, w.teacher, third);
     const later = context({ now: new Date(NOW.getTime() + LIMITS.windowMs) });
     for (const [code, ctx] of [
       [w.code, context()],
@@ -206,7 +203,7 @@ describe("joinLabWithCode: a student in another lab of the simulation (S10, #288
       await joinLabWithCode(database, w.otherLabStudent, { code }, ctx);
     }
     const rows = await auditRows(database, "lab_join_failed");
-    expect(rows.map((row) => row.target_id)).toEqual([w.labId, third.id, w.labId]);
+    expect(rows.map((row) => row.target_id)).toEqual([w.labId, third, w.labId]);
   });
 });
 

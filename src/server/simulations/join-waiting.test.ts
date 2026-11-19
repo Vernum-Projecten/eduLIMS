@@ -13,9 +13,9 @@ import { createTestDb } from "../db/test-db.ts";
 import { addEmails } from "./emails.ts";
 import { joinLabWithCode } from "./join.ts";
 import { linkWaitingAddresses } from "./linking.ts";
-import { moveMember, removeMember } from "./members.ts";
+import { moveMember } from "./members.ts";
 import { NOW, person, type World } from "./test-helpers.ts";
-import { context, labOf, worldWithCode } from "./test-join.ts";
+import { context, emptyLab, labOf, removeStudent, worldWithCode } from "./test-join.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -55,14 +55,7 @@ async function joinRemoveAndLink(database: Kysely<DB>, w: World & { code: string
     value: expect.objectContaining({ status: "joined", labId: w.labId }),
   });
   expect(await waiting(database, w.stranger.email)).toEqual([]);
-  expect(
-    await removeMember(
-      database,
-      w.teacher,
-      { simulationId: w.simulationId, userId: w.stranger.id },
-      NOW,
-    ),
-  ).toEqual({ ok: true, value: null });
+  await removeStudent(database, w, w.stranger.id);
   expect(await linkWaitingAddresses(database, w.stranger.id, NOW)).toEqual({
     linked: 0,
     refused: 0,
@@ -71,21 +64,12 @@ async function joinRemoveAndLink(database: Kysely<DB>, w: World & { code: string
 }
 
 describe("a removed student and a waiting address a code join met (#323, R-01)", () => {
-  it("stays out after a sign-in when the address waited in the lab joined", async () => {
+  it.each([
+    ["the lab joined", (w: World) => w.labId],
+    ["another lab", (w: World) => w.otherLabId],
+  ])("stays out after a sign-in when the address waited in %s", async (_where, waitingIn) => {
     const { database, w } = await open();
-    await addAddress(database, w, w.labId, w.stranger.email);
-    await joinRemoveAndLink(database, w);
-    expect(await labOf(database, w.simulationId, w.stranger.id)).toBeNull();
-    expect(await removals(database)).toEqual([{ user_id: w.stranger.id }]);
-    expect(await joinLabWithCode(database, w.stranger, { code: w.code }, context())).toEqual({
-      ok: false,
-      error: "invalid_code",
-    });
-  });
-
-  it("stays out after a sign-in when the address waited in another lab", async () => {
-    const { database, w } = await open();
-    await addAddress(database, w, w.otherLabId, w.stranger.email);
+    await addAddress(database, w, waitingIn(w), w.stranger.email);
     await joinRemoveAndLink(database, w);
     expect(await labOf(database, w.simulationId, w.stranger.id)).toBeNull();
     expect(await removals(database)).toEqual([{ user_id: w.stranger.id }]);
@@ -145,12 +129,7 @@ describe("a code join and the student's waiting addresses (#323)", () => {
       true,
     );
     expect(await waiting(database, unverified.email)).toHaveLength(1);
-    await removeMember(
-      database,
-      w.teacher,
-      { simulationId: w.simulationId, userId: unverified.id },
-      NOW,
-    );
+    await removeStudent(database, w, unverified.id);
     expect(await waiting(database, unverified.email)).toEqual([]);
   });
 
@@ -172,12 +151,7 @@ describe("removing and moving a student delete their waiting addresses (#323)", 
         { simulation_id: w.outsideSimulationId, lab_id: w.outsideLabId, email: w.student.email },
       ])
       .execute();
-    await removeMember(
-      database,
-      w.teacher,
-      { simulationId: w.simulationId, userId: w.student.id },
-      NOW,
-    );
+    await removeStudent(database, w, w.student.id);
     expect(await waiting(database, w.student.email)).toEqual([
       { simulation_id: w.outsideSimulationId, lab_id: w.outsideLabId },
     ]);
@@ -186,26 +160,17 @@ describe("removing and moving a student delete their waiting addresses (#323)", 
   it("removal leaves another student's waiting address alone", async () => {
     const { database, w } = await open();
     await addAddress(database, w, w.labId, "waiting@example.test");
-    await removeMember(
-      database,
-      w.teacher,
-      { simulationId: w.simulationId, userId: w.student.id },
-      NOW,
-    );
+    await removeStudent(database, w, w.student.id);
     expect(await waiting(database, "waiting@example.test")).toHaveLength(1);
   });
 
   it("a move deletes an address waiting in another lab and keeps one in the target", async () => {
     const { database, w } = await open();
-    const third = await database
-      .insertInto("labs")
-      .values({ simulation_id: w.simulationId, name: "Third Lab" })
-      .returning("id")
-      .executeTakeFirstOrThrow();
+    const third = await emptyLab(database, w.simulationId, "Third Lab");
     await database
       .insertInto("lab_member_emails")
       .values([
-        { simulation_id: w.simulationId, lab_id: third.id, email: w.student.email },
+        { simulation_id: w.simulationId, lab_id: third, email: w.student.email },
         { simulation_id: w.outsideSimulationId, lab_id: w.outsideLabId, email: w.student.email },
       ])
       .execute();
