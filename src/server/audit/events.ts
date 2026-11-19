@@ -189,7 +189,7 @@ export const auditMetadataSchema = z.strictObject({
   /** The identity provider an `idp_*`, `admin_grant_*` or `scim_*` event is about. */
   provider_id: z.string().regex(PROVIDER_ID_PATTERN).optional(),
   protocol: z.enum(PROVIDER_PROTOCOLS).optional(),
-  /** The names of the settings an `idp_updated` changed: never their values. */
+  /** The names of the settings an `idp_updated` or a `test_changed` changed: never their values. */
   fields: z
     .array(z.string().regex(/^[a-z][a-z_]{0,39}$/))
     .max(40)

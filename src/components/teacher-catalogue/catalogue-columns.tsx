@@ -25,7 +25,8 @@ export const catalogueColumns = helper.columns([
     meta: { label: () => m.catalogue_col_unit() },
     enableColumnFilter: false,
     header: ({ column }) => <DataTableColumnHeader column={column} />,
-    cell: ({ row }) => row.original.unit,
+    cell: ({ row }) =>
+      row.original.unit ?? <span className="text-muted-foreground">{m.catalogue_no_unit()}</span>,
   }),
   helper.accessor("material", {
     id: "material",

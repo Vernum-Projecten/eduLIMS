@@ -3,6 +3,7 @@
 
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
+import type { CatalogueTestId, TestUsage } from "../../lib/catalogue.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import {
@@ -22,7 +23,7 @@ afterEach(async () => {
 });
 
 const BASE = new Date("2026-11-01T08:00:00Z");
-const none = () => Promise.resolve(new Set<never>());
+const none = () => Promise.resolve(new Map<CatalogueTestId, TestUsage>());
 
 /** Five invented tests of the fictional test set, changed one hour apart. */
 async function seeded(): Promise<Kysely<DB>> {
@@ -64,11 +65,11 @@ describe("listTests (D9)", () => {
       "HbA1c",
       "LDL (calculated)",
     ]);
-    expect(page.rows.map((row) => [row.name, row.source, row.status, row.inUse])).toContainEqual([
+    expect(page.rows.map((row) => [row.name, row.source, row.status, row.usage])).toContainEqual([
       "Albumin",
       { kind: "epoch_upload", calculatedBy: "edulims" },
       "retired",
-      false,
+      "unused",
     ]);
   });
 
@@ -98,10 +99,12 @@ describe("listTests (D9)", () => {
     expect(page.rows.at(0)?.name).toBe("LDL (calculated)");
   });
 
-  it("marks the tests the in-use rule names", async () => {
+  it("marks each test with the usage the rule names", async () => {
     const database = await seeded();
-    const page = await listTests(database, { q: "crp" }, (ids) => Promise.resolve(new Set(ids)));
-    expect(page.rows.map((row) => row.inUse)).toEqual([true]);
+    const page = await listTests(database, { q: "crp" }, (ids) =>
+      Promise.resolve(new Map(ids.map((id) => [id, "running" as const]))),
+    );
+    expect(page.rows.map((row) => row.usage)).toEqual(["running"]);
   });
 });
 
@@ -137,7 +140,7 @@ describe("a stored row the CHECKs should have refused", () => {
   });
 
   it("fails loud on an id that is not a UUID", () => {
-    expect(() => toCatalogueTestRow({ ...row, id: "1", source: "manual" }, false)).toThrow(
+    expect(() => toCatalogueTestRow({ ...row, id: "1", source: "manual" }, "unused")).toThrow(
       CatalogueTestRowInvalidError,
     );
   });

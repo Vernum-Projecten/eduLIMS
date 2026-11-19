@@ -36,7 +36,11 @@ describe("testFormSchema (D9)", () => {
   it("names every missing field of an empty form", () => {
     expect(
       issuePaths({ name: "", unit: " ", material: "", source: "", analyte: "", calculatedBy: "" }),
-    ).toEqual(["name", "unit", "material", "source"]);
+    ).toEqual(["name", "material", "source"]);
+  });
+
+  it("takes an empty unit for a dimensionless result (maintainer 2026-11-19)", () => {
+    expect(issuePaths({ ...FORM, unit: "   " })).toEqual([]);
   });
 
   it("requires the analyte of an Afinion 2 test only", () => {
@@ -81,6 +85,11 @@ describe("createTestInput and updateTestInput (D9)", () => {
     expect(
       createTestInput.parse({ ...FORM, source: "epoch_upload", calculatedBy: "edulims" }).source,
     ).toEqual({ kind: "epoch_upload", calculatedBy: "edulims" });
+  });
+
+  it("reads an empty unit as no unit, never an empty string", () => {
+    expect(createTestInput.parse({ ...FORM, unit: "  " }).unit).toBeNull();
+    expect(createTestInput.parse(FORM).unit).toBe("%");
   });
 
   it("reads a test entered by hand without a setting (O8)", () => {

@@ -196,6 +196,24 @@ test("a failing catalogue read shows the error state and its retry recovers (D9)
   await expect(page.getByRole("heading", { name: "No tests match" })).toBeVisible();
 });
 
+test("a ratio without a unit shows no unit in words (D9; maintainer 2026-11-19)", async ({
+  page,
+}) => {
+  const name = testName("Chol/HDL");
+  await signInAsTeacher(page);
+  await openCatalogue(page);
+  await page.getByRole("button", { name: "Add test" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add a test" });
+  await dialog.getByLabel("Name").fill(name);
+  await dialog.getByLabel("Material").fill("blood");
+  await dialog.getByRole("combobox", { name: "Source of the measurements" }).click();
+  await page.getByRole("option", { name: "Entry by hand" }).click();
+  await dialog.getByRole("button", { name: "Add test" }).click();
+  await expect(dialog).toHaveCount(0);
+  await openCatalogue(page, name);
+  await expect(rowOf(page, name)).toContainText("No unit");
+});
+
 async function usePreferences(
   context: BrowserContext,
   theme: "light" | "dark",

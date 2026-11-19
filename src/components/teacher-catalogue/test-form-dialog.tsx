@@ -26,8 +26,9 @@ import {
   TEST_NAME_MAX,
   TEST_SOURCES,
   TEST_UNIT_MAX,
+  type TestUsage,
 } from "@/lib/catalogue";
-import { applyServerRefusal } from "@/lib/forms/server-refusal";
+import { applyServerRefusal, type ServerRefusal } from "@/lib/forms/server-refusal";
 import {
   catalogueErrorMessage,
   epochCalculatorLabel,
@@ -36,6 +37,7 @@ import {
 import { createCatalogueTest, updateCatalogueTest } from "@/server/catalogue/functions";
 import type { CatalogueTestRow } from "@/server/catalogue/queries";
 import {
+  type CatalogueErrorCode,
   catalogueErrorCode,
   createTestMutationOptions,
   updateTestMutationOptions,
@@ -53,7 +55,7 @@ const EMPTY: TestForm = {
 
 function valuesOf(row: CatalogueTestRow | undefined): TestForm {
   if (!row) return EMPTY;
-  const base = { ...EMPTY, name: row.name, unit: row.unit, material: row.material };
+  const base = { ...EMPTY, name: row.name, unit: row.unit ?? "", material: row.material };
   switch (row.source.kind) {
     case "afinion":
       return { ...base, source: "afinion", analyte: row.source.analyte };
@@ -68,6 +70,31 @@ function valuesOf(row: CatalogueTestRow | undefined): TestForm {
   }
 }
 
+/** Where a refusal shows: a taken name or analyte at its field, anything else at the top. */
+function refusalFor(code: CatalogueErrorCode): ServerRefusal<TestForm> {
+  const message = catalogueErrorMessage(code);
+  switch (code) {
+    case "name_taken":
+      return { fields: { name: message } };
+    case "analyte_taken":
+      return { fields: { analyte: message } };
+    default:
+      return { form: message };
+  }
+}
+
+/** The dialog's description: what the use of the test leaves open to change. */
+function descriptionOf(usage: TestUsage | undefined): string {
+  switch (usage) {
+    case "used":
+      return m.catalogue_form_in_use();
+    case "running":
+      return m.catalogue_form_in_running_simulation();
+    default:
+      return m.catalogue_form_description();
+  }
+}
+
 /** Where the dialog opens from: the parent controls it and gets focus back on close. */
 export interface TestDialogControl {
   open: boolean;
@@ -78,8 +105,8 @@ export interface TestDialogControl {
 /**
  * The create and edit form of a test (D9, #266) in a dialog, on `useAppForm` with the schema the
  * server function validates with. The analyte shows for an Afinion 2 test and the calculator for
- * an Epoch 2 test, the only sources they belong to. A taken name shows at its field, a fixed unit
- * or source at the unit; any other refusal at the top of the form, focused (WCAG 3.3.1).
+ * an Epoch 2 test, the only sources they belong to. A taken name or analyte shows at its field;
+ * any other refusal at the top of the form, focused (WCAG 3.3.1).
  */
 export function TestFormDialog({
   test,
@@ -107,16 +134,7 @@ export function TestFormDialog({
         if (test) await update.mutateAsync({ testId: test.id, test: value });
         else await create.mutateAsync(value);
       } catch (error) {
-        const code = catalogueErrorCode(error);
-        const message = catalogueErrorMessage(code);
-        applyServerRefusal(
-          formApi,
-          code === "name_taken"
-            ? { fields: { name: message } }
-            : code === "in_use"
-              ? { fields: { unit: message } }
-              : { form: message },
-        );
+        applyServerRefusal(formApi, refusalFor(catalogueErrorCode(error)));
         return;
       }
       control.onOpenChange(false);
@@ -150,9 +168,7 @@ export function TestFormDialog({
           <form.AppForm>
             <DialogHeader>
               <DialogTitle>{title}</DialogTitle>
-              <DialogDescription>
-                {test?.inUse ? m.catalogue_form_in_use() : m.catalogue_form_description()}
-              </DialogDescription>
+              <DialogDescription>{descriptionOf(test?.usage)}</DialogDescription>
             </DialogHeader>
             <form.FormErrors />
             <FieldGroup>
@@ -169,7 +185,7 @@ export function TestFormDialog({
               <form.AppField name="unit">
                 {(field) => (
                   <field.TextField
-                    label={m.catalogue_unit()}
+                    label={m.catalogue_unit_optional()}
                     description={m.catalogue_unit_help()}
                     maxLength={TEST_UNIT_MAX}
                     autoComplete="off"

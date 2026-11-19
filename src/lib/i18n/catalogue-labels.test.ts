@@ -31,7 +31,15 @@ describe("test catalogue labels (D9, #266)", () => {
   });
 
   it("names every refusal, and anything else as a failure", () => {
-    for (const code of ["not_found", "name_taken", "retired", "not_retired", "in_use"]) {
+    for (const code of [
+      "not_found",
+      "name_taken",
+      "retired",
+      "not_retired",
+      "in_use",
+      "in_running_simulation",
+      "analyte_taken",
+    ]) {
       expect(catalogueErrorMessage(code)).not.toBe(catalogueErrorMessage("failed"));
     }
     expect(catalogueErrorMessage("anything")).toBe("The change could not be saved. Try again.");

@@ -109,7 +109,11 @@ function requiredText(max: number, required: () => string) {
 
 const testFormFields = z.object({
   name: requiredText(TEST_NAME_MAX, () => m.catalogue_name_required()),
-  unit: requiredText(TEST_UNIT_MAX, () => m.catalogue_unit_required()),
+  // NOTE: maintainer 2026-11-19 (#266); a dimensionless result such as a ratio has no unit.
+  unit: z
+    .string()
+    .trim()
+    .max(TEST_UNIT_MAX, { error: tooLong(TEST_UNIT_MAX) }),
   material: requiredText(TEST_MATERIAL_MAX, () => m.catalogue_material_required()),
   source: z
     .enum([...TEST_SOURCES, ""])
@@ -155,7 +159,8 @@ export type TestForm = z.input<typeof testFormSchema>;
 /** One test as the service takes it: the source carries only its own setting. */
 export interface TestDefinition {
   name: string;
-  unit: string;
+  /** `null` for a dimensionless result; never an empty string. */
+  unit: string | null;
   material: string;
   source: TestSource;
 }
@@ -188,7 +193,8 @@ export function testDefinitionOf(form: TestFormValues, ctx: z.RefinementCtx): Te
     ctx.addIssue({ code: "custom", path: ["source"], message: m.catalogue_source_required() });
     return z.NEVER;
   }
-  return { name: form.name, unit: form.unit, material: form.material, source };
+  const unit = form.unit === "" ? null : form.unit;
+  return { name: form.name, unit, material: form.material, source };
 }
 
 const strictTestForm = testFormFields.strict().superRefine(checkSourceSetting);

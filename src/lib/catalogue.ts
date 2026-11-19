@@ -34,6 +34,13 @@ export type TestSource =
   | { kind: "epoch_upload"; calculatedBy: EpochCalculator }
   | { kind: "manual" };
 
+/**
+ * How simulations use a test (D9; maintainer 2026-11-19 on #266). A used test keeps its unit and
+ * its source; while a running simulation uses it, its material and who calculates are fixed too.
+ */
+export const TEST_USAGES = ["unused", "used", "running"] as const;
+export type TestUsage = (typeof TEST_USAGES)[number];
+
 /** Whether a test is offered to new simulations, or retired from them. */
 export const TEST_STATUSES = ["active", "retired"] as const;
 export type TestStatus = (typeof TEST_STATUSES)[number];
