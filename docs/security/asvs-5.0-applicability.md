@@ -72,9 +72,9 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 174 |
-| Status met | 94 |
-| Status partial | 49 |
-| Status planned | 23 |
+| Status met | 96 |
+| Status partial | 54 |
+| Status planned | 16 |
 | Status open | 8 |
 | Status n-a | 171 |
 
@@ -133,7 +133,7 @@ Text: [vendor/asvs/en/0x10-V1-Encoding-and-Sanitization.md](vendor/asvs/en/0x10-
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V1.5.1 | 1 | yes | the `.xlsx` is zipped XML: the S4 parser must not resolve external entities (cheat sheet XML_External_Entity_Prevention) | unit test with an XXE fixture in S4 | planned |
+| V1.5.1 | 1 | yes | the `.xlsx` is zipped XML: the S4 parser reads its XML parts with its own reader, which refuses any document type declaration, so no entity is declared, expanded or fetched, and knows only the five predefined entities and character references (`src/server/upload/xml.ts`, `docs/gen5-export.md`; cheat sheet XML_External_Entity_Prevention) | unit `src/server/upload/xml.test.ts` (DTD, XXE, entity bomb, undeclared entity), `tests/unit/gen5-parser.test.ts` (an XXE sheet) | met |
 | V1.5.2 | 2 | yes | server function input is JSON parsed by TanStack Start and validated by Zod; no class-instantiating deserialiser | review | met |
 | V1.5.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -292,15 +292,15 @@ Text: [vendor/asvs/en/0x14-V5-File-Handling.md](vendor/asvs/en/0x14-V5-File-Hand
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.1.1 | 2 | yes | the Gen5 upload (S4) and the lab logo (D10, ADR 0021): types, extensions, packed and unpacked size, to be written down; the types and the size limit of a logo are not decided | review | planned |
+| V5.1.1 | 2 | yes | the Gen5 upload (S4) is documented in `docs/gen5-export.md`: `.xlsx` only, an OOXML workbook, 1 MiB packed, 8 MiB unpacked in total, 1 MiB unpacked per part, 50 entries, at most 5,000 elements, depth 32, 32 attributes per element and 64 namespace declarations in each XML part, one sheet, and what is refused; the lab logo (D10, ADR 0021) is not: its types and size limit are not decided | review | partial |
 
 #### V5.2 File Upload and Content
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.2.1 | 1 | yes | size limit on the Gen5 upload (S4) and on the lab logo (D10), `.claude/rules/auth-security.md` Uploads | unit tests with S4 and D10 | planned |
-| V5.2.2 | 1 | yes | `.xlsx` extension and zip content check (S4); extension and content check of the lab logo (D10) | unit tests with S4 and D10 | planned |
-| V5.2.3 | 2 | yes | the `.xlsx` is a zip: unpacked size and entry count checked before unzipping (S4) | unit test with a zip-bomb fixture in S4 | planned |
+| V5.2.1 | 1 | yes | in place: the Gen5 parser refuses a file over 1 MiB before it reads anything else, a part over 1 MiB unpacked before it inflates it, and an XML part over 5,000 elements, depth 32, 32 attributes on one element or 64 namespace declarations while it reads it; an element keeps only its own declarations and resolves a prefix by walking up at most 32 levels, so these caps bound the reader's memory per part and across the six parts it opens (`src/server/upload/gen5.ts`, `limits.ts`, `zip.ts`, `xml.ts`, S4); open: the request-body limit of the upload's server function (#156) and the lab logo (D10) | unit `tests/unit/gen5-parser.test.ts`, `tests/unit/gen5-parser-hardening.test.ts` (each cap at and one over, every opened part flooded at once), `src/server/upload/xml.test.ts` | partial |
+| V5.2.2 | 1 | yes | the Gen5 parser checks the `.xlsx` extension, the zip signature and the SpreadsheetML workbook content type, so a macro-enabled workbook, a template or a renamed file is refused (`src/server/upload/gen5.ts`, `workbook.ts`, S4); entries the reader never opens (styles, theme, printer settings, properties) are not inspected, which holds only while the original file is neither stored nor served; the extension and content check of the lab logo (D10) is not built | unit `tests/unit/gen5-parser.test.ts`, `src/server/upload/workbook.test.ts` | partial |
+| V5.2.3 | 2 | yes | the `.xlsx` is a zip: the entry count (50) and the declared unpacked size (8 MiB in total) are checked from the central directory before any entry is unpacked; a part the reader opens is refused over 1 MiB declared before it is inflated, and inflation stops once the output passes the declared size (`src/server/upload/zip.ts`, S4) | unit `src/server/upload/zip.test.ts`, `tests/unit/gen5-parser.test.ts`, `tests/unit/gen5-parser-hardening.test.ts` (zip bomb, limits at and one over) | met |
 | V5.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V5.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V5.2.6 | 3 | no | Level 3, above the L2 target; the lab logo (D10) is the one image upload | none | n-a |
@@ -310,7 +310,7 @@ Text: [vendor/asvs/en/0x14-V5-File-Handling.md](vendor/asvs/en/0x14-V5-File-Hand
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V5.3.1 | 1 | yes | the Gen5 upload is parsed in memory and never served from a public folder (S4); how a lab logo is stored and served is not designed yet (D10, #280) | review with S4 and D10 | planned |
-| V5.3.2 | 1 | yes | stored files get generated names (UUIDv7), never the uploaded name (S4, D10) | unit tests with S4 and D10 | planned |
+| V5.3.2 | 1 | yes | the Gen5 parser works in memory and reads the uploaded name only for its extension, and archive entry names are lookup keys, never paths (`src/server/upload/gen5.ts`, `zip.ts`); stored files get generated names (UUIDv7), never the uploaded name, once the upload (#155) and the logo (D10) store files | unit `tests/unit/gen5-parser.test.ts` (a name with path segments) | partial |
 | V5.3.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V5.4 File Download
@@ -788,7 +788,7 @@ Text: [vendor/asvs/en/0x24-V15-Secure-Coding-and-Architecture.md](vendor/asvs/en
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V15.2.1 | 1 | yes | `pnpm audit --prod`, dependency review on every PR, and Trivy before a tag (`.github/workflows/ci.yml`, `scan-and-tag.yml`) | CI `audit`, `dependency-review`, `scan-and-tag.yml` | met |
-| V15.2.2 | 2 | yes | limits on upload size and parse time (S4, Q-PERF-2); dashboard query limits (D11) | unit tests with S4 and D11 | planned |
+| V15.2.2 | 2 | yes | in place: the Gen5 parser's size, per-part, element, depth, attribute and namespace-declaration caps bound its memory and work, with no per-element copy of the namespace scope (S4, `src/server/upload/limits.ts`, `xml.ts`); a whole-file test floods all six opened parts to the caps at once inside a time budget, and a seeded mutation test holds 4,500 mutants to a time budget (`tests/unit/gen5-mutation.test.ts`); open: a parse-time measure of the upload in the test stack (Q-PERF-2) and the dashboard query limits (D11) | unit `tests/unit/gen5-parser-hardening.test.ts`, `tests/unit/gen5-mutation.test.ts` | partial |
 | V15.2.3 | 2 | yes | the image holds production dependencies only (`pnpm deploy --prod`); the dev login and demo accounts are refused in production | unit `src/server/env.test.ts`, `src/server/demo-accounts.test.ts` | met |
 | V15.2.4 | 3 | yes | the frozen lockfile with integrity hashes, the npm registry only, and pinned image digests (Level 3, done anyway) | CI `install` | met |
 | V15.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
