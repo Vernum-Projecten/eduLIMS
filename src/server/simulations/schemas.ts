@@ -6,6 +6,7 @@
 // before any query runs.
 import { z } from "zod";
 import { m } from "@/i18n/messages";
+import { formatNumber } from "@/lib/i18n/format";
 import {
   JOIN_CODE_DAYS_MAX,
   JOIN_CODE_INPUT_MAX,
@@ -136,8 +137,8 @@ export const waitingEmailInput = z.object({
   email: z.string().trim().min(1).max(EMAIL_LINE_MAX),
 });
 
-const validDaysError = () => m.labs_code_days_invalid({ max: String(JOIN_CODE_DAYS_MAX) });
-const maxUsesError = () => m.labs_code_uses_invalid({ max: String(JOIN_CODE_USES_MAX) });
+const validDaysError = () => m.labs_code_days_invalid({ max: formatNumber(JOIN_CODE_DAYS_MAX) });
+const maxUsesError = () => m.labs_code_uses_invalid({ max: formatNumber(JOIN_CODE_USES_MAX) });
 
 /**
  * The lab-code form (#288, #290): how many days the code works and how many students may join,

@@ -85,6 +85,28 @@ interface CopyResult {
 }
 
 /**
+ * Puts `text` on the clipboard and returns whether that worked: `false` when the browser has no
+ * clipboard (an insecure origin, an old browser) or refuses the write.
+ */
+async function writeClipboard(text: string): Promise<boolean> {
+  // NOTE: WCAG 4.1.3 (#331 review); `navigator.clipboard` is undefined outside a secure context.
+  const clipboard: Clipboard | undefined = navigator.clipboard;
+  if (typeof clipboard?.writeText !== "function") return false;
+  try {
+    await clipboard.writeText(text);
+    return true;
+  } catch {
+    // NOTE: WCAG 4.1.3; a refused write is answered with the failure message, never ignored.
+    return false;
+  }
+}
+
+/** Returns a code with a space between its symbols, so a screen reader spells it. */
+function spelled(code: string): string {
+  return [...code].join(" ");
+}
+
+/**
  * The new code, shown once (the server keeps only its hash), with a copy button whose outcome is
  * a status message (WCAG 4.1.3). It takes focus when it appears, so the teacher lands on it.
  */
@@ -96,17 +118,20 @@ function FreshCode({ fresh }: Readonly<{ fresh: NewJoinCode }>) {
       <h3 id={FRESH} tabIndex={-1} className={FOCUSABLE_HEADING}>
         {m.labs_code_new()}
       </h3>
-      <p className="font-mono text-2xl font-semibold tracking-widest break-all">{fresh.code}</p>
+      <p className="font-mono text-2xl font-semibold tracking-widest break-all">
+        <span aria-hidden="true">{fresh.code}</span>
+        <span className="sr-only">{spelled(fresh.code)}</span>
+      </p>
       <p className="text-muted-foreground">{m.labs_code_shown_once()}</p>
       <div>
         <Button
           type="button"
           variant="outline"
-          onClick={() => {
-            navigator.clipboard.writeText(fresh.code).then(
-              () => setCopied({ code: fresh.code, ok: true }),
-              () => setCopied({ code: fresh.code, ok: false }),
-            );
+          onClick={async () => {
+            // Emptied first, so a second copy is announced again.
+            setCopied(null);
+            const ok = await writeClipboard(fresh.code);
+            setCopied({ code: fresh.code, ok });
           }}
         >
           <ClipboardCopyIcon aria-hidden="true" data-icon="inline-start" />

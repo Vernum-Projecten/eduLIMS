@@ -8,7 +8,7 @@
 // dark and Dutch, and reflow at 320 px. One journey: each step uses the labs the first step made.
 import { randomBytes } from "node:crypto";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { axe, dutch } from "./admin-users-helpers";
+import { axe, dutch, failServerWrites } from "./admin-users-helpers";
 import { devLogin, expectHydrated } from "./fixtures";
 import { appUrl } from "./run-env";
 
@@ -109,7 +109,7 @@ test("a teacher turns a lab's code on and sees it once (S10, #290)", async ({ pa
   await expect(panel.getByText("The lab code is off.", { exact: true })).toBeVisible();
   const form = panel.getByRole("form", { name: "Turn on the lab code" });
   await expect(form.getByLabel("Valid for (days)")).toHaveValue("7");
-  await expect(form.getByLabel("Most students who can join")).toHaveValue("100");
+  await expect(form.getByLabel("Maximum number of students who can join")).toHaveValue("100");
   await form.getByLabel("Valid for (days)").fill("31");
   await form.getByRole("button", { name: "Turn on lab code" }).click();
   await expect(form.getByText("Enter a whole number of days from 1 to 30.")).toBeVisible();
@@ -123,13 +123,36 @@ test("a teacher turns a lab's code on and sees it once (S10, #290)", async ({ pa
   await expect(panel.getByText(/^On until /)).toBeVisible();
   await expect(panel.getByText("0 of 100 students joined with this code.")).toBeVisible();
 
-  // Copying is announced as a status message (WCAG 4.1.3).
-  await panel.getByRole("button", { name: "Copy code" }).click();
-  await expect(panel.getByRole("status").filter({ hasText: "Code copied." })).toBeVisible();
+  // A screen reader spells the code symbol by symbol.
+  await expect(panel.getByText(alphaCode.split("").join(" "), { exact: true })).toBeAttached();
+
+  // Copying is announced as a status message (WCAG 4.1.3); a second copy empties it first, so
+  // it is announced again.
+  const copy = panel.getByRole("button", { name: "Copy code" });
+  const status = panel.getByRole("status").filter({ hasText: "Code copied." });
+  await copy.click();
+  await expect(status).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(alphaCode);
+  await status.evaluate((region) => {
+    region.setAttribute("data-emptied", "no");
+    new MutationObserver(() => {
+      if (region.textContent === "") region.setAttribute("data-emptied", "yes");
+    }).observe(region, { childList: true, characterData: true, subtree: true });
+  });
+  await copy.click();
+  await expect(panel.locator('[role="status"][data-emptied="yes"]')).toHaveText("Code copied.");
   await axe(page);
 
-  // After a reload only the hash is left: the state shows, the code does not.
+  // Leaving the page within the app and coming back: the state shows, the code does not.
+  await page.getByRole("link", { name: `Back to ${SIMULATION}` }).click();
+  await expect(page.getByRole("heading", { level: 1, name: SIMULATION })).toBeVisible();
+  await page.getByRole("link", { name: ALPHA, exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: ALPHA })).toBeVisible();
+  await expect(panel.getByText(/^On until /)).toBeVisible();
+  await expect(panel.getByText(CODE)).toHaveCount(0);
+  await expect(panel.getByText(/showed the code once, when it was made/)).toBeVisible();
+
+  // After a reload only the hash is left too.
   await page.reload();
   await expect(panel.getByText(/^On until /)).toBeVisible();
   await expect(panel.getByText(CODE)).toHaveCount(0);
@@ -169,6 +192,16 @@ test("a student joins with the code; a wrong code is refused at the field (S10)"
   await expect(field).toHaveAttribute("aria-invalid", "true");
   await axe(page);
 
+  // A failure that is no refusal (here a 500) goes on top of the form, not under the code.
+  const restore = await failServerWrites(page);
+  await field.fill(alphaCode);
+  await send(page, field);
+  await expect(
+    form.getByText("Joining failed. Check your connection and try again."),
+  ).toBeVisible();
+  await expect(field).not.toHaveAttribute("aria-invalid", "true");
+  await restore();
+
   await field.fill(alphaCode.toLowerCase().replace("-", " "));
   await send(page, field);
   await expect(page.getByText(`You joined lab ${ALPHA} of ${SIMULATION}.`)).toBeVisible();
@@ -199,6 +232,11 @@ test("a code of another lab of the same simulation is refused at the field (S10,
 test("the rate limit stops a student who guesses (S10, ASVS V2.4.1)", async ({ page }) => {
   expect(alphaCode).toMatch(CODE);
   const form = await joinForm(page, GUESSER);
+  // The guesser is in no lab: the empty state says how a student gets into one.
+  const labs = page.getByRole("region", { name: "Your labs" });
+  await expect(labs.getByText("You are not in a lab yet", { exact: true })).toBeVisible();
+  await expect(labs.getByText(/adds your email address to a lab/)).toBeVisible();
+  await expect(labs.getByRole("listitem")).toHaveCount(0);
   const field = form.getByLabel("Lab code");
   const limited = form.getByText("Too many wrong codes. Wait a while, then try again.");
   // The per-student limit is 10 wrong codes; a retried run may already be over it.
@@ -249,6 +287,14 @@ test("the teacher sees the join counted and makes a new code (S10, #290)", async
   await expect(panel.getByRole("heading", { name: "The new lab code" })).toBeFocused();
   await expect(panel.getByText("0 of 100 students joined with this code.")).toBeVisible();
   await axe(page);
+
+  // This context has no clipboard permission: the copy fails, and the status says so.
+  await panel.getByRole("button", { name: "Copy code" }).click();
+  await expect(
+    panel
+      .getByRole("status")
+      .filter({ hasText: "The code could not be copied. Select it and copy it yourself." }),
+  ).toBeVisible();
 
   // The old code stopped working at once.
   const old = alphaCode;
@@ -370,7 +416,7 @@ test("a signed-in student whose address a teacher adds lands in the lab from the
   await student.goto("/student");
   const labs = student.getByRole("region", { name: "Your labs" });
   await expect(labs.getByText(BETA, { exact: true })).toBeVisible();
-  await expect(student.getByText("Labs your teacher added you to: 1.")).toBeVisible();
+  await expect(student.getByText(`You were added to lab ${BETA} of ${SIMULATION}.`)).toBeVisible();
   await studentContext.close();
 
   await page.reload();
