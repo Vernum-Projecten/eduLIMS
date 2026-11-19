@@ -4,6 +4,7 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { ArrowLeftIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { useRef, useState } from "react";
+import { useConfirmation } from "@/components/simulations/confirm-dialog";
 import { LabDialogs, useLabActions } from "@/components/simulations/labs-section";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
@@ -28,15 +29,22 @@ export function LabActions({
   simulation,
   lab,
 }: Readonly<{ simulation: { id: string; name: string }; lab: { id: string; name: string } }>) {
-  const [dialog, setDialog] = useState<"rename" | "delete" | null>(null);
+  const [renaming, setRenaming] = useState(false);
   const renameRef = useRef<HTMLButtonElement>(null);
-  const deleteRef = useRef<HTMLButtonElement>(null);
-  // The dialog is already closed when focus returns, so the button it came from is kept here.
-  const openedFrom = useRef<HTMLButtonElement | null>(null);
+  // A deleted lab's page goes, so a success leaves focus to the simulation page it lands on.
+  const confirmation = useConfirmation();
   const router = useRouter();
   const navigate = useNavigate();
-  const actions = useLabActions(simulation.id, lab.id, lab.name, () =>
-    navigate({ to: "/teacher/simulations/$simulationId", params: { simulationId: simulation.id } }),
+  const actions = useLabActions(
+    simulation.id,
+    lab.id,
+    lab.name,
+    () =>
+      navigate({
+        to: "/teacher/simulations/$simulationId",
+        params: { simulationId: simulation.id },
+      }),
+    confirmation,
   );
   return (
     <>
@@ -46,37 +54,29 @@ export function LabActions({
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => {
-          openedFrom.current = renameRef.current;
-          setDialog("rename");
-        }}
+        onClick={() => setRenaming(true)}
       >
         <PencilIcon aria-hidden="true" data-icon="inline-start" />
         {m.labs_rename()}
       </Button>
       <Button
-        ref={deleteRef}
+        ref={confirmation.triggerRef}
         type="button"
         variant="outline"
         size="sm"
         disabled={actions.remove.isPending}
-        onClick={() => {
-          openedFrom.current = deleteRef.current;
-          setDialog("delete");
-        }}
+        onClick={confirmation.show}
       >
         <Trash2Icon aria-hidden="true" data-icon="inline-start" />
         {m.labs_delete()}
       </Button>
       <LabDialogs
         lab={lab}
-        dialog={dialog}
-        setDialog={setDialog}
-        returnFocus={(event) => {
-          event.preventDefault();
-          openedFrom.current?.focus();
-        }}
+        renaming={renaming}
+        setRenaming={setRenaming}
+        renameFrom={renameRef}
         actions={actions}
+        confirmation={confirmation}
         afterRename={() => router.invalidate()}
       />
     </>

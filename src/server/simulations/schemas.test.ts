@@ -83,9 +83,18 @@ describe("the form schemas share the server's rules, with messages in words (ADR
   });
 
   it("refuses a pasted line over the limit and a list over the limit in words", () => {
-    const long = emailListFormSchema.safeParse({ emails: ["x".repeat(EMAIL_LINE_MAX + 1)] });
-    expect(long.error?.issues[0]?.message).toBe(
-      `An address has at most ${EMAIL_LINE_MAX} characters.`,
+    const long = emailListFormSchema.safeParse({
+      emails: ["ok@example.test", `${"x".repeat(EMAIL_LINE_MAX)}@example.test`],
+    });
+    // The issue belongs to the list, so the list field shows it (WCAG 3.3.1), and names the line.
+    expect(long.error?.issues).toEqual([
+      expect.objectContaining({
+        path: ["emails"],
+        message: `The line “${"x".repeat(24)}…” is longer than ${EMAIL_LINE_MAX} characters.`,
+      }),
+    ]);
+    expect(emailListFormSchema.safeParse({ emails: ["x".repeat(EMAIL_LINE_MAX)] }).success).toBe(
+      true,
     );
     const many = emailListFormSchema.safeParse({
       emails: Array(EMAIL_LIST_MAX + 1).fill("a@b.test"),

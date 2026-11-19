@@ -4,13 +4,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { toast } from "sonner";
 import { idpErrorField, idpErrorMessage } from "@/components/admin-idp/idp-labels";
 import {
   type ProviderFormValues,
   toCreateInput,
   toUpdateInput,
 } from "@/components/admin-idp/provider-form-schema";
+import { toast } from "@/components/ui/sonner";
 import { m } from "@/i18n/messages";
 import { createIdentityProvider, updateIdentityProvider } from "@/server/idp/functions";
 import {

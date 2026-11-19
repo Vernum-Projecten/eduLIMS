@@ -7,7 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeftIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { useRef, useState } from "react";
 import { simulationActionKeys } from "@/components/simulations/action-keys";
-import { ConfirmDialog } from "@/components/simulations/confirm-dialog";
+import { ConfirmDialog, useConfirmation } from "@/components/simulations/confirm-dialog";
 import { NameDialog } from "@/components/simulations/name-dialog";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,6 @@ import {
   simulationMutationOptions,
 } from "@/server/simulations/query-options";
 import { simulationFormSchema } from "@/server/simulations/schemas";
-
-type OpenDialog = "rename" | "delete" | null;
 
 /** The link back to the teacher's list of simulations. */
 export function BackToSimulations() {
@@ -42,9 +40,10 @@ export function SimulationActions({
   simulationId,
   name,
 }: Readonly<{ simulationId: string; name: string }>) {
-  const [dialog, setDialog] = useState<OpenDialog>(null);
+  const [renaming, setRenaming] = useState(false);
   const renameRef = useRef<HTMLButtonElement>(null);
-  const deleteRef = useRef<HTMLButtonElement>(null);
+  // A deleted simulation's page goes, so a success leaves focus to the list it lands on.
+  const confirmation = useConfirmation();
   const queryClient = useQueryClient();
   const router = useRouter();
   const navigate = useNavigate();
@@ -63,7 +62,11 @@ export function SimulationActions({
     deleteMutationOptions(queryClient, callDelete, keys.removed, keys.invalidates, () =>
       navigate({ to: "/teacher/simulations" }),
     ),
-    { success: () => m.simulations_deleted({ name }) },
+    {
+      success: () => m.simulations_deleted({ name }),
+      onDone: confirmation.done,
+      onFailed: confirmation.failed,
+    },
   );
 
   return (
@@ -74,26 +77,26 @@ export function SimulationActions({
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => setDialog("rename")}
+        onClick={() => setRenaming(true)}
       >
         <PencilIcon aria-hidden="true" data-icon="inline-start" />
         {m.simulations_rename()}
       </Button>
       <Button
-        ref={deleteRef}
+        ref={confirmation.triggerRef}
         type="button"
         variant="outline"
         size="sm"
         disabled={remove.isPending}
-        onClick={() => setDialog("delete")}
+        onClick={confirmation.show}
       >
         <Trash2Icon aria-hidden="true" data-icon="inline-start" />
         {m.simulations_delete()}
       </Button>
       <NameDialog
         control={{
-          open: dialog === "rename",
-          onOpenChange: (open) => setDialog(open ? "rename" : null),
+          open: renaming,
+          onOpenChange: setRenaming,
           onCloseAutoFocus: (event) => {
             event.preventDefault();
             renameRef.current?.focus();
@@ -113,17 +116,11 @@ export function SimulationActions({
         }}
       />
       <ConfirmDialog
-        control={{
-          open: dialog === "delete",
-          onOpenChange: (open) => setDialog(open ? "delete" : null),
-          onCloseAutoFocus: (event) => {
-            event.preventDefault();
-            deleteRef.current?.focus();
-          },
-        }}
+        confirmation={confirmation}
         title={m.simulations_delete_title({ name })}
         body={m.simulations_delete_body()}
         confirm={m.simulations_delete_confirm()}
+        pending={remove.isPending}
         onConfirm={() => remove.mutate({ simulationId })}
       />
     </>

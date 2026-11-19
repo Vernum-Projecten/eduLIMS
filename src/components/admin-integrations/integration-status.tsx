@@ -18,7 +18,6 @@ import {
   ShieldAlertIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,6 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { toast } from "@/components/ui/sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { m } from "@/i18n/messages";
 import {

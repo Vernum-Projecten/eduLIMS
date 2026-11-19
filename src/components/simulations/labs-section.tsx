@@ -5,12 +5,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { FlaskConicalIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { type RefObject, useMemo, useState } from "react";
 import { DataTableRowActions } from "@/components/data-table/data-table-row-actions";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { simulationActionKeys } from "@/components/simulations/action-keys";
-import { ConfirmDialog } from "@/components/simulations/confirm-dialog";
-import { focusById } from "@/components/simulations/focus";
+import {
+  type Confirmation,
+  ConfirmDialog,
+  useConfirmation,
+} from "@/components/simulations/confirm-dialog";
+import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
 import { ListTable } from "@/components/simulations/list-table";
 import { NameDialog } from "@/components/simulations/name-dialog";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
@@ -92,7 +96,7 @@ export function LabsSection({
     <section aria-labelledby={LABS_HEADING} className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-1">
-          <h2 id={LABS_HEADING} tabIndex={-1} className="text-lg font-semibold outline-none">
+          <h2 id={LABS_HEADING} tabIndex={-1} className={FOCUSABLE_HEADING}>
             {m.labs_heading()}
           </h2>
           <p className="text-muted-foreground">{m.labs_description()}</p>
@@ -154,38 +158,31 @@ function CreateLab({ simulationId }: Readonly<{ simulationId: string }>) {
   );
 }
 
-type OpenDialog = "rename" | "delete" | null;
-
 function LabRowActions({ lab }: Readonly<{ lab: LabRow }>) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [dialog, setDialog] = useState<OpenDialog>(null);
+  const [renaming, setRenaming] = useState(false);
+  const confirmation = useConfirmation(LABS_HEADING);
   const actions = useLabActions(
     lab.simulationId,
     lab.id,
     lab.name,
     async () => undefined,
-    () => focusById(LABS_HEADING),
+    confirmation,
   );
-
-  function returnFocus(event: Event) {
-    event.preventDefault();
-    triggerRef.current?.focus();
-  }
 
   return (
     <>
       <DataTableRowActions
         label={m.data_table_row_actions({ name: lab.name })}
-        triggerRef={triggerRef}
+        triggerRef={confirmation.triggerRef}
       >
-        <DropdownMenuItem onSelect={() => setDialog("rename")}>
+        <DropdownMenuItem onSelect={() => setRenaming(true)}>
           <PencilIcon aria-hidden="true" />
           {m.labs_rename()}
         </DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"
           disabled={actions.remove.isPending}
-          onSelect={() => setDialog("delete")}
+          onSelect={confirmation.show}
         >
           <Trash2Icon aria-hidden="true" />
           {m.labs_delete()}
@@ -193,10 +190,11 @@ function LabRowActions({ lab }: Readonly<{ lab: LabRow }>) {
       </DataTableRowActions>
       <LabDialogs
         lab={lab}
-        dialog={dialog}
-        setDialog={setDialog}
-        returnFocus={returnFocus}
+        renaming={renaming}
+        setRenaming={setRenaming}
+        renameFrom={confirmation.triggerRef}
         actions={actions}
+        confirmation={confirmation}
       />
     </>
   );
@@ -204,14 +202,15 @@ function LabRowActions({ lab }: Readonly<{ lab: LabRow }>) {
 
 /**
  * The rename and delete mutations of one lab. `leave` runs before the deleted lab's entry is
- * dropped: the lab's own page moves to its simulation first.
+ * dropped: the lab's own page moves to its simulation first. The delete closes `confirmation`
+ * with its outcome.
  */
 export function useLabActions(
   simulationId: string,
   labId: string,
   name: string,
   leave: () => Promise<void>,
-  afterDelete?: () => void,
+  confirmation: Confirmation,
 ) {
   const queryClient = useQueryClient();
   const callRename = useServerFn(renameLabFn);
@@ -227,7 +226,11 @@ export function useLabActions(
   const keys = simulationActionKeys.deleteLab(simulationId, labId);
   const remove = useSimulationAction(
     deleteMutationOptions(queryClient, callDelete, keys.removed, keys.invalidates, leave),
-    { success: () => m.labs_deleted({ name }), onDone: afterDelete },
+    {
+      success: () => m.labs_deleted({ name }),
+      onDone: confirmation.done,
+      onFailed: confirmation.failed,
+    },
   );
   return { rename, remove };
 }
@@ -235,26 +238,32 @@ export function useLabActions(
 /** The rename dialog and the delete confirmation of one lab. */
 export function LabDialogs({
   lab,
-  dialog,
-  setDialog,
-  returnFocus,
+  renaming,
+  setRenaming,
+  renameFrom,
   actions,
+  confirmation,
   afterRename,
 }: Readonly<{
   lab: { id: string; name: string };
-  dialog: OpenDialog;
-  setDialog: (dialog: OpenDialog) => void;
-  returnFocus: (event: Event) => void;
+  renaming: boolean;
+  setRenaming: (open: boolean) => void;
+  /** The button focus returns to when the rename dialog closes. */
+  renameFrom: RefObject<HTMLButtonElement | null>;
   actions: ReturnType<typeof useLabActions>;
+  confirmation: Confirmation;
   afterRename?: () => Promise<void>;
 }>) {
   return (
     <>
       <NameDialog
         control={{
-          open: dialog === "rename",
-          onOpenChange: (open) => setDialog(open ? "rename" : null),
-          onCloseAutoFocus: returnFocus,
+          open: renaming,
+          onOpenChange: setRenaming,
+          onCloseAutoFocus: (event) => {
+            event.preventDefault();
+            renameFrom.current?.focus();
+          },
         }}
         schema={labFormSchema}
         initial={lab.name}
@@ -269,14 +278,11 @@ export function LabDialogs({
         }}
       />
       <ConfirmDialog
-        control={{
-          open: dialog === "delete",
-          onOpenChange: (open) => setDialog(open ? "delete" : null),
-          onCloseAutoFocus: returnFocus,
-        }}
+        confirmation={confirmation}
         title={m.labs_delete_title({ name: lab.name })}
         body={m.labs_delete_body()}
         confirm={m.labs_delete_confirm()}
+        pending={actions.remove.isPending}
         onConfirm={() => actions.remove.mutate({ labId: lab.id })}
       />
     </>

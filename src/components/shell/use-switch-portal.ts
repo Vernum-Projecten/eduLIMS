@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { m } from "@/i18n/messages";
 import type { PortalNavigation } from "@/lib/navigation";
 import { PORTAL_HOTKEYS, portalShortcut } from "@/lib/shortcuts";

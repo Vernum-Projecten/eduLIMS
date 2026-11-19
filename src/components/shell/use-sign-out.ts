@@ -4,7 +4,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { m } from "@/i18n/messages";
 import { authClient } from "@/lib/auth-client";
 

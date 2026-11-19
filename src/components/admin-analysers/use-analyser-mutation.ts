@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { type UseMutationOptions, useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { analyserErrorMessage } from "@/lib/i18n/analyser-labels";
 import { analyserErrorCode } from "@/server/analysers/query-options";
 

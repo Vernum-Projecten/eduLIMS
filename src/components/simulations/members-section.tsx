@@ -4,12 +4,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRightLeftIcon, UserMinusIcon, UsersIcon } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { DataTableRowActions } from "@/components/data-table/data-table-row-actions";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { simulationActionKeys } from "@/components/simulations/action-keys";
-import { ConfirmDialog } from "@/components/simulations/confirm-dialog";
-import { focusById } from "@/components/simulations/focus";
+import { ConfirmDialog, useConfirmation } from "@/components/simulations/confirm-dialog";
+import { FOCUSABLE_HEADING, focusById } from "@/components/simulations/focus";
 import { ListTable } from "@/components/simulations/list-table";
 import { MoveDialog, type MoveTarget } from "@/components/simulations/move-dialog";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
@@ -103,7 +103,7 @@ export function MembersSection({ page, busy }: Readonly<{ page: TeacherLabPage; 
   return (
     <section aria-labelledby={MEMBERS_HEADING} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 id={MEMBERS_HEADING} tabIndex={-1} className="text-lg font-semibold outline-none">
+        <h2 id={MEMBERS_HEADING} tabIndex={-1} className={FOCUSABLE_HEADING}>
           {m.labs_members_heading()}
         </h2>
         <p className="text-muted-foreground">{m.labs_members_description()}</p>
@@ -153,8 +153,7 @@ function MembersEmpty() {
 }
 
 function MemberRowActions({ member }: Readonly<{ member: MemberRow }>) {
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [confirming, setConfirming] = useState(false);
+  const confirmation = useConfirmation(MEMBERS_HEADING);
   const queryClient = useQueryClient();
   const callRemove = useServerFn(removeMemberFn);
   const remove = useSimulationAction(
@@ -165,7 +164,8 @@ function MemberRowActions({ member }: Readonly<{ member: MemberRow }>) {
     ),
     {
       success: () => m.labs_member_removed({ name: member.name }),
-      onDone: () => focusById(MEMBERS_HEADING),
+      onDone: confirmation.done,
+      onFailed: confirmation.failed,
     },
   );
 
@@ -173,11 +173,11 @@ function MemberRowActions({ member }: Readonly<{ member: MemberRow }>) {
     <>
       <DataTableRowActions
         label={m.data_table_row_actions({ name: member.name })}
-        triggerRef={triggerRef}
+        triggerRef={confirmation.triggerRef}
       >
         <DropdownMenuItem
           disabled={!member.canMove}
-          onSelect={() => member.onMove(triggerRef.current)}
+          onSelect={() => member.onMove(confirmation.triggerRef.current)}
         >
           <ArrowRightLeftIcon aria-hidden="true" />
           {member.canMove ? m.labs_member_move() : m.labs_member_move_no_lab()}
@@ -185,24 +185,18 @@ function MemberRowActions({ member }: Readonly<{ member: MemberRow }>) {
         <DropdownMenuItem
           variant="destructive"
           disabled={remove.isPending}
-          onSelect={() => setConfirming(true)}
+          onSelect={confirmation.show}
         >
           <UserMinusIcon aria-hidden="true" />
           {m.labs_member_remove()}
         </DropdownMenuItem>
       </DataTableRowActions>
       <ConfirmDialog
-        control={{
-          open: confirming,
-          onOpenChange: setConfirming,
-          onCloseAutoFocus: (event) => {
-            event.preventDefault();
-            triggerRef.current?.focus();
-          },
-        }}
+        confirmation={confirmation}
         title={m.labs_member_remove_title({ name: member.name })}
         body={m.labs_member_remove_body()}
         confirm={m.labs_member_remove_confirm()}
+        pending={remove.isPending}
         onConfirm={() =>
           remove.mutate({ simulationId: member.simulationId, userId: member.userId })
         }

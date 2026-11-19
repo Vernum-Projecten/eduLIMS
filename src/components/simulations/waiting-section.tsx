@@ -4,11 +4,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { MailIcon, MailXIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { simulationActionKeys } from "@/components/simulations/action-keys";
-import { ConfirmDialog } from "@/components/simulations/confirm-dialog";
-import { focusById } from "@/components/simulations/focus";
+import { ConfirmDialog, useConfirmation } from "@/components/simulations/confirm-dialog";
+import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
 import { ListTable } from "@/components/simulations/list-table";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
 import { Button } from "@/components/ui/button";
@@ -77,7 +77,7 @@ export function WaitingSection({ page, busy }: Readonly<{ page: TeacherLabPage; 
   return (
     <section aria-labelledby={WAITING_HEADING} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 id={WAITING_HEADING} tabIndex={-1} className="text-lg font-semibold outline-none">
+        <h2 id={WAITING_HEADING} tabIndex={-1} className={FOCUSABLE_HEADING}>
           {m.labs_waiting_heading()}
         </h2>
         <p className="text-muted-foreground">{m.labs_waiting_description()}</p>
@@ -109,7 +109,7 @@ function WaitingEmpty() {
 }
 
 function RemoveWaiting({ row }: Readonly<{ row: WaitingRow }>) {
-  const [open, setOpen] = useState(false);
+  const confirmation = useConfirmation(WAITING_HEADING);
   const queryClient = useQueryClient();
   const call = useServerFn(removeEmailFn);
   const remove = useSimulationAction(
@@ -120,28 +120,31 @@ function RemoveWaiting({ row }: Readonly<{ row: WaitingRow }>) {
     ),
     {
       success: () => m.labs_waiting_removed({ email: row.email }),
-      onDone: () => focusById(WAITING_HEADING),
+      onDone: confirmation.done,
+      onFailed: confirmation.failed,
     },
   );
   const label = m.labs_waiting_remove({ email: row.email });
   return (
     <>
       <Button
+        ref={confirmation.triggerRef}
         type="button"
         variant="ghost"
         size="icon-sm"
         aria-label={label}
         title={label}
         disabled={remove.isPending}
-        onClick={() => setOpen(true)}
+        onClick={confirmation.show}
       >
         <MailXIcon aria-hidden="true" />
       </Button>
       <ConfirmDialog
-        control={{ open, onOpenChange: setOpen }}
+        confirmation={confirmation}
         title={m.labs_waiting_remove_title({ email: row.email })}
         body={m.labs_waiting_remove_body()}
         confirm={m.labs_waiting_remove_confirm()}
+        pending={remove.isPending}
         onConfirm={() => remove.mutate({ labId: row.labId, email: row.email })}
       />
     </>

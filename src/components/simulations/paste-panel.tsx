@@ -18,6 +18,7 @@ import { useId, useMemo } from "react";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { useAppForm } from "@/components/form/app-form";
 import { simulationActionKeys } from "@/components/simulations/action-keys";
+import { focusById } from "@/components/simulations/focus";
 import { ListTable } from "@/components/simulations/list-table";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,7 @@ export function PastePanel({
   labName,
 }: Readonly<{ simulationId: string; labId: string; labName: string }>) {
   const headingId = useId();
+  const fieldId = useId();
   const queryClient = useQueryClient();
   const callPreview = useServerFn(previewEmailsFn);
   const callAdd = useServerFn(addEmailsFn);
@@ -132,7 +134,7 @@ export function PastePanel({
       </div>
       <form
         noValidate
-        aria-labelledby={headingId}
+        aria-label={m.labs_paste_form()}
         className="flex flex-col gap-4 rounded-lg border p-4"
         onSubmit={(e) => {
           e.preventDefault();
@@ -145,6 +147,7 @@ export function PastePanel({
             <form.AppField name="emails">
               {(field) => (
                 <field.EmailListField
+                  id={fieldId}
                   label={m.labs_paste_label()}
                   description={m.labs_paste_help()}
                 />
@@ -196,6 +199,8 @@ export function PastePanel({
                       onSuccess: () => {
                         form.reset(empty);
                         preview.reset();
+                        // The button goes with the outcome: focus returns to the empty field.
+                        focusById(fieldId);
                       },
                     },
                   )

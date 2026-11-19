@@ -6,12 +6,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { UserMinusIcon, UserPlusIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { useAppForm } from "@/components/form/app-form";
 import { simulationActionKeys } from "@/components/simulations/action-keys";
-import { ConfirmDialog } from "@/components/simulations/confirm-dialog";
-import { focusById } from "@/components/simulations/focus";
+import { ConfirmDialog, useConfirmation } from "@/components/simulations/confirm-dialog";
+import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
 import { ListTable } from "@/components/simulations/list-table";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +88,7 @@ export function TeachersSection({
   return (
     <section aria-labelledby={TEACHERS_HEADING} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 id={TEACHERS_HEADING} tabIndex={-1} className="text-lg font-semibold outline-none">
+        <h2 id={TEACHERS_HEADING} tabIndex={-1} className={FOCUSABLE_HEADING}>
           {m.simulations_teachers_heading()}
         </h2>
         <p className="text-muted-foreground">{m.simulations_teachers_description()}</p>
@@ -125,8 +125,8 @@ function AddTeacher({ simulationId }: Readonly<{ simulationId: string }>) {
         await add.mutateAsync({ ...addTeacherFormSchema.parse(value), simulationId });
       } catch (error) {
         const code = simulationErrorCode(error);
-        const atField =
-          code === "not_a_teacher" || code === "already_teacher" || code === "teacher_not_found";
+        // Both answers are about the address the teacher typed; any other is about the form.
+        const atField = code === "not_a_teacher" || code === "already_teacher";
         applyServerRefusal(
           formApi,
           atField
@@ -175,7 +175,7 @@ function AddTeacher({ simulationId }: Readonly<{ simulationId: string }>) {
 }
 
 function RemoveTeacher({ teacher }: Readonly<{ teacher: TeacherRow }>) {
-  const [open, setOpen] = useState(false);
+  const confirmation = useConfirmation(TEACHERS_HEADING);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const callRemove = useServerFn(removeTeacherFn);
@@ -187,7 +187,8 @@ function RemoveTeacher({ teacher }: Readonly<{ teacher: TeacherRow }>) {
     ),
     {
       success: () => m.simulations_teacher_removed({ name: teacher.name }),
-      onDone: () => focusById(TEACHERS_HEADING),
+      onDone: confirmation.done,
+      onFailed: confirmation.failed,
     },
   );
   const leaveKeys = simulationActionKeys.leaveSimulation(teacher.simulationId);
@@ -195,27 +196,34 @@ function RemoveTeacher({ teacher }: Readonly<{ teacher: TeacherRow }>) {
     deleteMutationOptions(queryClient, callRemove, leaveKeys.removed, leaveKeys.invalidates, () =>
       navigate({ to: "/teacher/simulations" }),
     ),
-    { success: () => m.simulations_left() },
+    // Leaving moves to the list: no heading of this page to focus.
+    {
+      success: () => m.simulations_left(),
+      onDone: confirmation.done,
+      onFailed: confirmation.failed,
+    },
   );
   const label = teacher.self
     ? m.simulations_leave()
     : m.simulations_teacher_remove({ name: teacher.name });
   const input = { simulationId: teacher.simulationId, userId: teacher.userId };
+  const pending = remove.isPending || leave.isPending;
   return (
     <>
       <Button
+        ref={confirmation.triggerRef}
         type="button"
         variant="ghost"
         size="icon-sm"
         aria-label={label}
         title={label}
-        disabled={remove.isPending || leave.isPending}
-        onClick={() => setOpen(true)}
+        disabled={pending}
+        onClick={confirmation.show}
       >
         <UserMinusIcon aria-hidden="true" />
       </Button>
       <ConfirmDialog
-        control={{ open, onOpenChange: setOpen }}
+        confirmation={confirmation}
         title={
           teacher.self
             ? m.simulations_leave_title()
@@ -225,6 +233,7 @@ function RemoveTeacher({ teacher }: Readonly<{ teacher: TeacherRow }>) {
         confirm={
           teacher.self ? m.simulations_leave_confirm() : m.simulations_teacher_remove_confirm()
         }
+        pending={pending}
         onConfirm={() => (teacher.self ? leave.mutate(input) : remove.mutate(input))}
       />
     </>

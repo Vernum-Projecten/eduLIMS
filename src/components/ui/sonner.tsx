@@ -6,7 +6,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import type * as React from "react";
-import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { Toaster as Sonner, toast as sonnerToast, type ToasterProps } from "sonner";
 import { useTheme } from "@/components/theme/theme-provider";
 import { m } from "@/i18n/messages";
 
@@ -37,10 +37,31 @@ const Toaster = ({ ...props }: ToasterProps) => {
         classNames: {
           toast: "cn-toast",
         },
+        closeButtonAriaLabel: m.ui_close(),
       }}
       {...props}
     />
   );
 };
 
-export { Toaster };
+type ErrorToast = typeof sonnerToast.error;
+
+/**
+ * Sonner's `toast`, except that an error stays until the user closes it and has a close button:
+ * a refusal must not vanish before it is read (WCAG 2.2.1, 3.3.1). Every other kind keeps
+ * Sonner's timing. Import `toast` from here, never from `sonner`.
+ */
+const toast: typeof sonnerToast = Object.assign(
+  (...args: Parameters<typeof sonnerToast>) => sonnerToast(...args),
+  sonnerToast,
+  {
+    error: ((message, data) =>
+      sonnerToast.error(message, {
+        duration: Number.POSITIVE_INFINITY,
+        closeButton: true,
+        ...data,
+      })) satisfies ErrorToast,
+  },
+);
+
+export { Toaster, toast };

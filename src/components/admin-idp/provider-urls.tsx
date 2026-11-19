@@ -3,10 +3,10 @@
 
 import { CopyIcon } from "lucide-react";
 import { useId } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { toast } from "@/components/ui/sonner";
 import { m } from "@/i18n/messages";
 import type { ProviderDetail } from "@/server/idp/queries";
 

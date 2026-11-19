@@ -26,10 +26,11 @@ export const Route = createFileRoute("/_authed/admin/system/identity-providers/$
     ]);
     return { label: provider.label };
   },
-  head: ({ loaderData }) => ({
+  head: ({ loaderData, match }) => ({
     meta: [
       {
-        title: `${loaderData?.label ?? m.idp_title()} | ${m.idp_title()} | ${portalNavigation("admin").label()} | eduLIMS`,
+        // A provider the loader did not find gets the not-found page, and its title (WCAG 2.4.2).
+        title: `${match.status === "notFound" ? m.idp_not_found_title() : (loaderData?.label ?? m.idp_title())} | ${m.idp_title()} | ${portalNavigation("admin").label()} | eduLIMS`,
       },
     ],
   }),

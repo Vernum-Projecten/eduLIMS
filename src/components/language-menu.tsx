@@ -4,7 +4,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { LanguagesIcon } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,6 +13,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "@/components/ui/sonner";
 import { m } from "@/i18n/messages";
 import { getLocale, type Locale, localeName, locales, switchLocale } from "@/lib/i18n/locale";
 import { savePreferredLocale } from "@/server/preferences/functions";
