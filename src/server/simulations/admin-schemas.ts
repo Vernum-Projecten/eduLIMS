@@ -16,33 +16,48 @@ export const ADMIN_SIMULATION_SEARCH_MAX_LENGTH = 100;
 /** The highest page number the list accepts. */
 const MAX_PAGE = 100_000;
 
-const pageSize = z.coerce
-  .number()
-  .int()
-  .refine((value) => (ADMIN_SIMULATION_PAGE_SIZES as readonly number[]).includes(value));
+/** Control and format characters: PostgreSQL refuses a NUL in text, and none belongs in a name. */
+const UNSEARCHABLE = /[\p{Cc}\p{Cf}]/u;
+const UNSEARCHABLE_ALL = /[\p{Cc}\p{Cf}]/gu;
+
+function isPageSize(value: number): boolean {
+  return (ADMIN_SIMULATION_PAGE_SIZES as readonly number[]).includes(value);
+}
 
 /**
  * The list's state in the URL search params. Every key falls back to its default instead of
- * failing, so a hand-edited or old link still opens the list.
+ * failing, so a hand-edited or old link still opens the list; control and format characters
+ * are stripped from the search before it is trimmed (ASVS V2.2.1).
  */
 export const adminSimulationListSearchSchema = z.object({
   q: z
     .string()
     .transform((value) => {
-      const text = value.trim().slice(0, ADMIN_SIMULATION_SEARCH_MAX_LENGTH);
+      const text = value
+        .replace(UNSEARCHABLE_ALL, "")
+        .trim()
+        .slice(0, ADMIN_SIMULATION_SEARCH_MAX_LENGTH);
       return text === "" ? undefined : text;
     })
     .optional()
     .catch(undefined),
   page: z.coerce.number().int().min(1).max(MAX_PAGE).optional().catch(undefined),
-  size: pageSize.optional().catch(undefined),
+  size: z.coerce.number().int().refine(isPageSize).optional().catch(undefined),
 });
 export type AdminSimulationListSearch = z.infer<typeof adminSimulationListSearchSchema>;
 
-/** The input of `listAdminSimulationsFn`: the search params, strictly (a server function is an API). */
+/**
+ * The input of `listAdminSimulationsFn`: the search params, strictly (a server function is an
+ * API). A control or format character in the search is refused (ASVS V2.2.1), and the page size
+ * is an integer from the allow-list, never coerced.
+ */
 export const listAdminSimulationsInput = z.strictObject({
-  q: z.string().max(ADMIN_SIMULATION_SEARCH_MAX_LENGTH).optional(),
+  q: z
+    .string()
+    .max(ADMIN_SIMULATION_SEARCH_MAX_LENGTH)
+    .refine((value) => !UNSEARCHABLE.test(value))
+    .optional(),
   page: z.number().int().min(1).max(MAX_PAGE).optional(),
-  size: pageSize.optional(),
+  size: z.number().int().refine(isPageSize).optional(),
 });
 export type ListAdminSimulationsInput = z.infer<typeof listAdminSimulationsInput>;

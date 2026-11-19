@@ -11,6 +11,8 @@ import {
   readAdminSimulation,
   readAdminSimulationPage,
 } from "./admin-queries.ts";
+import { adminSimulationListSearchSchema, listAdminSimulationsInput } from "./admin-schemas.ts";
+import { adminSimulationListInput } from "./admin-table-state.ts";
 import { person, type World, world } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
@@ -170,6 +172,15 @@ describe("readAdminSimulationPage (B5: read-only, nothing of a lab's work)", () 
     expect(await ids("n_A")).toEqual([underscore]);
     expect(await ids("\\")).toEqual([backslash]);
     expect(await ids("%")).toEqual([percent]);
+  });
+
+  it("reads a link with a NUL in its search as the cleaned search, never an error (ASVS V2.2.1)", async () => {
+    const { database, w } = await open();
+    expect(listAdminSimulationsInput.safeParse({ q: "Prac\u0000tice" }).success).toBe(false);
+    const search = adminSimulationListSearchSchema.parse({ q: "Prac\u0000tice" });
+    const input = listAdminSimulationsInput.parse(adminSimulationListInput(search));
+    const page = await readAdminSimulationPage(database, w.admin, input);
+    expect(page.rows.map((row) => row.id)).toEqual([w.simulationId]);
   });
 
   it("marks a simulation whose teachers all lost the app role teacher (#291)", async () => {

@@ -32,6 +32,19 @@ describe("adminSimulationListSearchSchema (the URL)", () => {
     ).toEqual({ q: undefined, page: undefined, size: undefined });
   });
 
+  it.each([
+    ["a NUL", "a\u0000b"],
+    ["a tab and a line feed", "a\tb\n"],
+    ["a zero-width space and a right-to-left override", "a​b‮"],
+    ["a byte-order mark", "﻿ab"],
+  ])("strips %s from the search before trimming (ASVS V2.2.1)", (_case, q) => {
+    expect(adminSimulationListSearchSchema.parse({ q }).q).toBe("ab");
+  });
+
+  it("drops a search of only control and format characters", () => {
+    expect(adminSimulationListSearchSchema.parse({ q: " \u0000​ " }).q).toBeUndefined();
+  });
+
   it("cuts a long search to the maximum length", () => {
     const parsed = adminSimulationListSearchSchema.parse({ q: "x".repeat(500) });
     expect(parsed.q).toHaveLength(ADMIN_SIMULATION_SEARCH_MAX_LENGTH);
@@ -51,6 +64,11 @@ describe("listAdminSimulationsInput (the server function is an API)", () => {
     ["a fractional page", { page: 1.5 }],
     ["a search over the maximum length", { q: "x".repeat(ADMIN_SIMULATION_SEARCH_MAX_LENGTH + 1) }],
     ["an unknown key", { sort: "name" }],
+    ["a page size as text", { size: "50" }],
+    ["a page as text", { page: "2" }],
+    ["a NUL in the search", { q: "a\u0000b" }],
+    ["a control character in the search", { q: "a\u001Bb" }],
+    ["a format character in the search", { q: "a​b" }],
   ])("refuses %s", (_case, input) => {
     expect(listAdminSimulationsInput.safeParse(input).success).toBe(false);
   });

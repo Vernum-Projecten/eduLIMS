@@ -168,6 +168,17 @@ test("a failing list read shows the error state and its retry recovers (B5)", as
   await expect(page.getByRole("heading", { name: "No simulations match" })).toBeVisible();
 });
 
+test("a link with a NUL in its search opens the cleaned search (ASVS V2.2.1)", async ({ page }) => {
+  await signInAsAdmin(page);
+  const [head, tail] = [seeded.orphan.slice(0, 3), seeded.orphan.slice(3)];
+  await page.goto(`/admin/simulations?q=${encodeURIComponent(head)}%00${encodeURIComponent(tail)}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Simulations" })).toBeVisible();
+  await expect(rowOf(page, seeded.orphan)).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Search simulations by name" })).toHaveValue(
+    seeded.orphan,
+  );
+});
+
 test("an unknown simulation shows Not found (B5)", async ({ page }) => {
   await signInAsAdmin(page);
   await page.goto("/admin/simulations/01960000-0000-7000-8000-000000000001");
