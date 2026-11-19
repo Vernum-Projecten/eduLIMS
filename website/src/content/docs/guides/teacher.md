@@ -175,13 +175,23 @@ Choose your name at the foot of the sidebar, then **Sign out**. eduLIMS ends you
 
 ## Planned tasks
 
-| Task                                                                                                                                             | Requirement                       |
-| ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
-| Manage the test catalogue: add a test with its name, unit and material                                                                           | [D9](/development/requirements/)  |
-| Prepare a game: its teams and, beforehand, the correct value per test and sample                                                                 | [D10](/development/requirements/) |
-| Follow every team live on the [game dashboard](/development/game-dashboard/): the times of each request and the accuracy of each released result | [D11](/development/requirements/) |
-| Set a time target for urgent requests                                                                                                            | [D12](/development/requirements/) |
-| Set, per test, how far a result may be from the correct value for green, yellow and red                                                          | [D13](/development/requirements/) |
-| See the ranking of the teams on time and accuracy                                                                                                | [D14](/development/requirements/) |
+| Task                                                                                                                                                                                              | Requirement                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Manage the test catalogue: add a test with its name, unit and material                                                                                                                            | [D9](/development/requirements/)  |
+| Prepare a game: its teams and, beforehand, the correct value per test and sample, once for every team                                                                                             | [D10](/development/requirements/) |
+| Follow every team live on the [game dashboard](/development/game-dashboard/): the times of each request, every measurement with the released one marked, and the accuracy of each released result | [D11](/development/requirements/) |
+| Set, per test, how far a result may be from the correct value for green, yellow and red                                                                                                           | [D13](/development/requirements/) |
+
+You enter the correct values once per game. They hold for every team, so
+adding or removing a team is no extra work. A request for a control sample
+shows on the dashboard with its times and accuracy like any other.
+
+Each team picks its own lab name, and the dashboard shows a team under that
+name. A released result is final: the team cannot change it or release
+another measurement for that test.
+
+A time target for urgent requests ([D12](/development/requirements/)) and a
+ranking of the teams ([D14](/development/requirements/)) are not built in
+this iteration.
 
 Students never see a correct value or the accuracy of a result.

@@ -9,8 +9,9 @@ sidebar:
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
 The student portal (Studentportaal) is where your team runs its laboratory
-during a game: you register patients and requests from the paper forms, link
-the samples, measure, and release each result to the patient's record.
+during a game, under a lab name the team picks itself. You register patients
+and requests from the paper forms, link the samples, measure, and release
+each result to the patient's record.
 
 :::caution[Pre-release]
 eduLIMS is in development. This guide describes what works today and lists
@@ -88,16 +89,22 @@ Choose your name at the foot of the sidebar, then **Sign out**. eduLIMS ends you
 
 ## Planned tasks
 
-| Task                                                                                                              | Requirement                       |
-| ----------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| Work with your team in its shared patients, requests, samples and results                                         | [S10](/development/requirements/) |
-| Register a patient from the paper request form                                                                    | [S11](/development/requirements/) |
-| Record a request: its tests, routine or urgent, and each sample with the sample number and material from the form | [S12](/development/requirements/) |
-| Set your team's own tolerances per test before you measure                                                        | [S13](/development/requirements/) |
-| Upload a Gen5 Excel export of the plate reader by drag and drop                                                   | [S4](/development/requirements/)  |
-| See the measurements per sample, from the Afinion 2 and the Epoch 2                                               | [S5](/development/requirements/)  |
-| Measure a sample again; eduLIMS keeps every measurement                                                           | [S14](/development/requirements/) |
-| Release a result to the patient's record; eduLIMS warns you when the value is outside your team's tolerance       | [S15](/development/requirements/) |
+| Task                                                                                                                                                   | Requirement                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| Work with your team in its shared patients, requests, samples and results                                                                              | [S10](/development/requirements/) |
+| Pick your team's lab name; eduLIMS shows your team under that name                                                                                     | [S10](/development/requirements/) |
+| Register a patient from the paper request form                                                                                                         | [S11](/development/requirements/) |
+| Record a request: its tests and each sample with the sample number and material from the form; eduLIMS gives each sample a lab number                  | [S12](/development/requirements/) |
+| Record a request for a control sample, which has no patient; you measure and release it like any other, and its result goes to your team's control log | [S16](/development/requirements/) |
+| Set your team's own tolerances per test before you measure                                                                                             | [S13](/development/requirements/) |
+| Upload a Gen5 Excel export of the plate reader by drag and drop, see the plate with its 96 values, and say which well holds which sample               | [S4](/development/requirements/)  |
+| See the measurements per sample, from the Afinion 2 and the Epoch 2; on the Afinion 2 you enter the sample's lab number as the patient ID              | [S5](/development/requirements/)  |
+| Measure a sample again; eduLIMS keeps every measurement                                                                                                | [S14](/development/requirements/) |
+| Release a result to the patient's record; eduLIMS warns you when the value is outside your team's tolerance, and a released result is final            | [S15](/development/requirements/) |
+
+The sample number on the form is the same in every team. The lab number
+eduLIMS gives your sample is unique across the teams, so a result from the
+Afinion 2 reaches your team and no other.
 
 You and your team are the analysts. eduLIMS does not judge a result for you:
 the warning against your team's own tolerance is the one check it gives.

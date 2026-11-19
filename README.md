@@ -189,7 +189,7 @@ The sources in this repository:
 
 - [Architecture](docs/architecture.md): principles, integrations, data split,
   portals and roles, deployment, and quality requirements.
-- [Requirements](docs/requirements.md) (working draft, still under discussion): functional requirements S1 to S15, D1
+- [Requirements](docs/requirements.md) (working draft, still under discussion): functional requirements S1 to S16, D1
   to D14 and B1 to B4, the quality requirements, the risks, the dashboard
   measures and the open questions, each with a stable ID.
 - [The LIMS workflow](docs/lims-workflow.md): how the work of a team travels

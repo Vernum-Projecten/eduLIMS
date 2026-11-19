@@ -113,8 +113,7 @@ can end up in both bundles. The boundary is explicit:
 - **Dates:** store and compare instants in UTC (`timestamptz`); format for
   the user in the active locale and `APP_TIME_ZONE` at render time, through
   the `Intl` helpers in `src/lib/i18n/` (ADR 0011). Turnaround time
-  (G-01) and the urgent target (G-02) are computed from instants, never from
-  formatted strings.
+  (G-01) is computed from instants, never from formatted strings.
 
 ## Dependencies
 

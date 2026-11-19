@@ -24,8 +24,9 @@ pinned version.
    migration that has reached `main` is immutable: change the schema with a
    new one.
 3. A released result belongs in FerroEHR as a composition
-   (`integration.md`); where a measurement lives before its release is open
-   (O7). No student's or teacher's personal data goes to FerroEHR, and
+   (`integration.md`), and a released result is final (S15); where a
+   measurement lives before its release is a design matter, with the
+   proposal in `docs/lims-workflow.md`. No student's or teacher's personal data goes to FerroEHR, and
    correct values, tolerances and the link from a result to its team stay
    here (`database.md`).
 
@@ -46,10 +47,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn("team_id", "uuid", (c) =>
       c.notNull().references("teams.id").onDelete("restrict"),
     )
+    // A request for a control sample has no patient (S16).
     .addColumn("patient_id", "uuid", (c) =>
-      c.notNull().references("patients.id").onDelete("restrict"),
+      c.references("patients.id").onDelete("restrict"),
     )
-    .addColumn("urgent", "boolean", (c) => c.notNull())
+    .addColumn("phone_through", "boolean", (c) => c.notNull())
     // The time of entry is the server's, never the client's (Q-SIM-2).
     .addColumn("entered_at", "timestamptz", (c) => c.notNull().defaultTo(sql`now()`))
     .execute();

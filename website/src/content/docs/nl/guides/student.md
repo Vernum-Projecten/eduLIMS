@@ -8,10 +8,10 @@ sidebar:
 <!-- SPDX-FileCopyrightText: Ruben Talstra -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-In het Studentportaal draai je met je team een laboratorium tijdens een spel:
-je registreert patiënten en aanvragen vanaf de papieren formulieren, koppelt
-de monsters, meet, en geeft elk resultaat vrij naar het dossier van de
-patiënt.
+In het Studentportaal draai je met je groep een lab tijdens een spel, onder
+een labnaam die jullie zelf kiezen. Je registreert patiënten en aanvragen
+vanaf de papieren formulieren, koppelt de monsters, meet, en geeft elk
+resultaat vrij naar het dossier van de patiënt.
 
 :::caution[In ontwikkeling]
 eduLIMS is nog in ontwikkeling. Deze handleiding beschrijft wat nu werkt en
@@ -29,7 +29,7 @@ conceptrequirement, die nog kan veranderen.
 eduLIMS opent het Studentportaal. Heeft je account nog geen rol in eduLIMS,
 dan staat dat op de inlogpagina. Vraag een beheerder om je account de rol student te geven.
 
-Je ziet alleen het werk van je eigen team. Het werk van andere teams krijg je
+Je ziet alleen het werk van je eigen lab. Het werk van andere labs krijg je
 nooit te zien.
 
 ## Je weg vinden
@@ -90,19 +90,25 @@ server.
 
 ## Geplande taken
 
-| Taak                                                                                                                               | Requirement                       |
-| ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| Met je team werken in de gedeelde patiënten, aanvragen, monsters en resultaten                                                     | [S10](/development/requirements/) |
-| Een patiënt registreren vanaf het papieren aanvraagformulier                                                                       | [S11](/development/requirements/) |
-| Een aanvraag vastleggen: de bepalingen, routine of spoed, en elk monster met het monsternummer en het materiaal van het formulier  | [S12](/development/requirements/) |
-| Per bepaling de toleranties van je eigen team instellen voordat je meet                                                            | [S13](/development/requirements/) |
-| Een Gen5-export (Excel) van de platereader uploaden door die te slepen                                                             | [S4](/development/requirements/)  |
-| De metingen per monster bekijken, van de Afinion 2 en de Epoch 2                                                                   | [S5](/development/requirements/)  |
-| Een monster opnieuw meten; eduLIMS bewaart elke meting                                                                             | [S14](/development/requirements/) |
-| Een resultaat vrijgeven naar het dossier van de patiënt; eduLIMS waarschuwt je als de waarde buiten de tolerantie van je team valt | [S15](/development/requirements/) |
+| Taak                                                                                                                                                                             | Requirement                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Met je lab werken in de gedeelde patiënten, aanvragen, monsters en resultaten                                                                                                    | [S10](/development/requirements/) |
+| De labnaam van je lab kiezen; eduLIMS toont je lab onder die naam                                                                                                                | [S10](/development/requirements/) |
+| Een patiënt registreren vanaf het papieren aanvraagformulier                                                                                                                     | [S11](/development/requirements/) |
+| Een aanvraag vastleggen: de bepalingen en elk monster met het monsternummer en het materiaal van het formulier; eduLIMS geeft elk monster een labnummer                          | [S12](/development/requirements/) |
+| Een aanvraag voor een controlemonster vastleggen, zonder patiënt; je meet het en geeft het vrij zoals elk ander monster, en het resultaat komt in het controlelogboek van je lab | [S16](/development/requirements/) |
+| Per bepaling de toleranties van je eigen lab instellen voordat je meet                                                                                                           | [S13](/development/requirements/) |
+| Een Gen5-export (Excel) van de platereader uploaden door die te slepen, de plaat met de 96 waarden bekijken en aangeven welk monster in welke well zit                           | [S4](/development/requirements/)  |
+| De metingen per monster bekijken, van de Afinion 2 en de Epoch 2; op de Afinion 2 voer je het labnummer van het monster in als patiënt-ID                                        | [S5](/development/requirements/)  |
+| Een monster opnieuw meten; eduLIMS bewaart elke meting                                                                                                                           | [S14](/development/requirements/) |
+| Een resultaat vrijgeven naar het dossier van de patiënt; eduLIMS waarschuwt je als de waarde buiten de tolerantie van je lab valt, en een vrijgegeven resultaat is definitief    | [S15](/development/requirements/) |
 
-Jij en je team zijn de analisten. eduLIMS beoordeelt een resultaat niet voor
-je: de waarschuwing bij de tolerantie van je eigen team is de enige controle
+Het monsternummer op het formulier is in elk lab hetzelfde. Het labnummer
+dat eduLIMS aan je monster geeft is uniek over alle labs, dus een resultaat
+van de Afinion 2 komt bij jouw lab terecht en bij geen ander.
+
+Jij en je lab zijn de analisten. eduLIMS beoordeelt een resultaat niet voor
+je: de waarschuwing bij de tolerantie van je eigen lab is de enige controle
 die je krijgt.
 
 De requirements zijn in het Engels.

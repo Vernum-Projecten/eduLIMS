@@ -43,10 +43,11 @@ keeps its row with the status "Dropped".
 | Term | Meaning |
 |---|---|
 | Game | One run of the simulation, with its teams, its samples and its correct values. |
-| Team | The group of students that runs one laboratory in a game. Students always work in a team. |
+| Team | The group of students that runs one laboratory in a game. Students always work in a team, and each team competes under a lab name it picks itself. |
 | Patient | A fictional person a request is for. The team registers the patient from the paper form. |
-| Request | The tests a requester asks for one patient, on a paper request form. A request is routine or urgent. |
+| Request | The tests a requester asks for, on a paper request form: for one patient, or for a control sample that has no patient. |
 | Sample | The material of a request (blood, urine), identified by the sample number printed on the form. |
+| Lab number | The number eduLIMS gives a team's sample when the team records it. It is unique across the teams of every game, so it names one team's sample where the sample number on the form cannot. |
 | Test | One determination from the test catalogue (for example glucose), with its unit and material. |
 | Measurement | One measured value for a test on a sample, from an analyser or an upload. A team can measure several times. |
 | Result | The measurement the team releases to the patient's record. Releasing is final for the clock. |
@@ -68,14 +69,15 @@ keeps its row with the status "Dropped".
 | ID | Requirement | Priority | Acceptance criterion | Risk |
 |---|---|---|---|---|
 | S1 | Sign in with the institution account through OIDC (Microsoft Entra ID or Keycloak). | Must | A student signs in through the institution's identity provider and lands in the student portal; without a valid account there is no access. | R-01 |
-| S4 | Upload the Gen5 export of the Epoch 2 (Excel) by drag and drop; eduLIMS reads the measured values from it. Revised 2026-11-19. | Must | *(proposed)* A file in the supplied export layout (a header block and a 96-well grid of absorbance values at one wavelength) is read and its values are shown to the team within 10 seconds; a file in another layout is rejected with a clear error message. Open: how a well is linked to a sample, and who calculates a concentration (O5). | R-06 |
-| S5 | See the measurements per sample (Afinion 2 and Epoch 2). Revised 2026-11-19. | Must | An Afinion measurement appears with the right sample in the team's work within 1 minute of measuring. Open: how a result finds the right team (O13). | R-11 |
-| S10 | Work in a team: every member works in the team's shared patients, requests, samples and results. | Must | *(proposed)* Two members of one team see the same work; a student of another team sees none of it. Open: team roles (O10). | R-01 |
+| S4 | Upload the Gen5 export of the Epoch 2 (Excel) by drag and drop; eduLIMS loads the plate and shows its values, as a real LIMS does. Revised 2026-11-19. | Must | *(proposed)* A file in the supplied export layout (a header block and a 96-well grid of absorbance values at one wavelength) is read and its 96 values are shown to the team as a plate within 10 seconds; a file in another layout is rejected with a clear error message. The team says which well holds which sample (the export does not). Open: what else a real LIMS does with a plate, such as the calibration line (O5). | R-06 |
+| S5 | See the measurements per sample (Afinion 2 and Epoch 2). Revised 2026-11-19. | Must | An Afinion measurement appears with the right sample in the team's work within 1 minute of measuring. The measurement finds its team through the patient ID the team enters on the Afinion 2 (owner, 2026-11-19): that value is the lab number of S12. | R-11 |
+| S10 | Work in a team: every member works in the team's shared patients, requests, samples and results. A team picks its own lab name and competes as that lab. | Must | *(proposed)* Two members of one team see the same work; a student of another team sees none of it. The team sets its lab name, and eduLIMS shows the team under that name. Open: team roles (O10). | R-01 |
 | S11 | Register a patient from the paper request form. | Must | *(proposed)* The team registers a patient with the details on the form (name, date of birth, sex, patient ID); eduLIMS fills in or corrects nothing for them. The patient's record in FerroEHR carries those fictional details (owner, 2026-11-19). | |
-| S12 | Record a request for a patient as it stands on the form: the requester, the requested tests, routine or urgent, whether the result must be phoned through, the remarks, and the samples with the sample number and material. | Must | *(proposed)* The team records a request with its tests and links each sample by its sample number; eduLIMS records the time of entry on the server. Open: a request for a control sample, which has no patient (O14). | R-12 |
+| S12 | Record a request for a patient as it stands on the form: the requester, the requested tests, whether the result must be phoned through, the remarks, and the samples with the sample number and material. eduLIMS gives each sample a lab number that is unique across the teams. | Must | *(proposed)* The team records a request with its tests and links each sample by its sample number; eduLIMS logs the time of entry on the server and shows the sample's lab number. Two teams that record the same sample number get different lab numbers. An urgent request is not built in this iteration (D12). | R-12 |
 | S13 | Set the team's own tolerances per test before measuring. | Must | *(proposed)* The team enters a lower and an upper limit per test; the limits are the team's own and no other team sees them. Open: O6. | |
-| S14 | Measure a sample again: a requested test can have several measurements before a result is released. | Must | *(proposed)* A second measurement for the same test and sample is kept beside the first, and the team sees both. Open: O7. | |
-| S15 | Release a result to the patient's record. Before the release, eduLIMS warns when the value is outside the team's own tolerance. | Must | *(proposed)* The team picks one measurement and releases it; eduLIMS records the time of release on the server, and the result is in the patient's record in FerroEHR. A value outside the team's tolerance shows a warning with an icon and text before the release is confirmed. Open: corrections after a release (O7). | R-12 |
+| S14 | Measure a sample again: a requested test can have several measurements before a result is released. | Must | *(proposed)* A second measurement for the same test and sample is kept beside the first, and the team sees both. |  |
+| S15 | Release a result to the patient's record. Before the release, eduLIMS warns when the value is outside the team's own tolerance. A released result is final. | Must | *(proposed)* The team picks one measurement and releases it; eduLIMS logs the time of release on the server, and the result is in the patient's record in FerroEHR. A value outside the team's tolerance shows a warning with an icon and text before the release is confirmed. After the release nobody can change the result or release another measurement for that requested test (owner, 2026-11-19). | R-12 |
+| S16 | Record a request for a control sample: a quality-control sample with no patient. Its sample gets a lab number like any other; the team measures and releases it like any other, and the result goes to the control log of the team, never to a patient's record. | Must | *(proposed)* The team records a control request without a patient, measures and releases it; the released result is in no patient's record, and the teacher sees it on the dashboard with its times and its accuracy like any other result. | |
 | S2 | View the practical assignment and measurement protocol. | Dropped | Dropped 2026-11-19 with the practical model. | |
 | S3 | Register samples; eduLIMS creates a unique sample ID for each sample. | Dropped | Dropped 2026-11-19: the sample number comes from the request form (S12). | |
 | S6 | Submit the lab report before a deadline. | Dropped | Dropped 2026-11-19: no lab report. | |
@@ -88,11 +90,11 @@ keeps its row with the status "Dropped".
 | ID | Requirement | Priority | Acceptance criterion | Risk |
 |---|---|---|---|---|
 | D9 | Manage the test catalogue, so a test can be added without a change to the code. | Must | *(proposed)* A teacher adds a test with its name, unit and material, and teams can request it in the next game. Open: which test runs on which analyser (O4). | |
-| D10 | Prepare a game: its teams and, beforehand, the correct value per test and sample. | Must | *(proposed)* A teacher enters the correct value for each test of each sample before the game starts; no student account can read one. Open: how much of the scenario a teacher prepares in eduLIMS (O11). | R-01 |
-| D11 | Follow every team live on a dashboard: per request the time of entry, the time of release and the time between them, and per released result the accuracy as green, yellow or red. | Must | *(proposed)* A released result shows on the dashboard without a manual reload, with its times and its accuracy status as a colour with an icon and text. A teacher sees only their own games. | R-01, R-09 |
-| D12 | Set a time target for urgent requests; the dashboard shows whether a team met it. | Must | *(proposed)* An urgent request shows as within or past its target. Open: the targets and when the clock starts (O1). | |
+| D10 | Prepare a game: its teams and, beforehand, the correct value per test and sample. The correct values are entered once per game and hold for every team, so adding or removing a team is no extra work. | Must | *(proposed)* A teacher enters the correct value for each test of each sample number once, before the game starts; a team added afterwards is judged against the same values without any new entry. No student account can read a correct value. Open: how much of the scenario a teacher prepares in eduLIMS (O11). | R-01 |
+| D11 | Follow every team live on a dashboard: per request the time of entry, the time of release and the time between them; every measurement of a requested test, with the released one marked as the one that counts; and per released result the accuracy as green, yellow or red. | Must | *(proposed)* A released result shows on the dashboard without a manual reload, with its times and its accuracy status as a colour with an icon and text. The teacher sees the earlier measurements beside the released one. A teacher sees only their own games. | R-01, R-09 |
+| D12 | Mark a request as urgent and set a time target for it; the dashboard shows whether a team met it. | Won't in this iteration | Owner, 2026-11-19: not built yet, and what counts as urgent is not defined yet. eduLIMS only logs the time of entry and the time of release (G-01). Open: O1. | |
 | D13 | Set, per test, how far a result may be from the correct value for green, yellow and red. | Must | *(proposed)* A teacher sets the limits; the dashboard colours a result by them. Open: whether a limit is a percentage, an absolute distance or either (O2). | |
-| D14 | See the ranking of the teams on time and accuracy. | Must | Open: the ranking rule and who sees it (O3). No criterion is proposed until the owner answers. | |
+| D14 | See the ranking of the teams on time and accuracy. | Won't in this iteration | Owner, 2026-11-19: the ranking rule is not decided and comes in the next iteration. Open: O3. | |
 | D1 | Create a practical with assignment, protocol, deadline and rubric. | Dropped | Dropped 2026-11-19 with the practical model; a game is prepared with D10. | |
 | D2 | Link classes or individual students to a practical. | Dropped | Dropped 2026-11-19 with the practical model. | |
 | D3 | View the measurement results of all students of a practical. | Dropped | Dropped 2026-11-19; replaced by D11. | |
@@ -147,7 +149,7 @@ Classified by the ISO/IEC 25010 quality characteristics.
 | Q-PRIV-2 | Privacy | An average never reveals an individual grade. | Dropped 2026-11-19: no grading (W6). |
 | Q-PRIV-3 | Privacy | AI tools and test environments never see real personal data. | The repository and the development and test databases hold only the pseudonymised test set. |
 | Q-PRIV-4 | Privacy | The teachers' game material stays out of everything public. | The repository, the tracker and the documentation hold no scenario, patient list, request form or correct value of a real game; fixtures and demo data are invented for the purpose. |
-| Q-TRACE-1 | Traceability | Every measurement links through its sample number to device, sample, patient and team. | For any measurement in FerroEHR, eduLIMS shows the device, the sample, the patient and the team. |
+| Q-TRACE-1 | Traceability | Every measurement links through its lab number to device, sample, team and, for a patient request, the patient. | For any measurement in FerroEHR, eduLIMS shows the device, the sample, the team and the patient or the control request. |
 | Q-REL-1 | Reliability | Available during a game. | On a game day eduLIMS is reachable 99% of the game hours; recovery within one working day. |
 | Q-PERF-1 | Performance | Fast pages. | Pages load within 2 seconds. |
 | Q-PERF-2 | Performance | Fast upload. | An Excel upload is processed within 10 seconds. |
@@ -176,12 +178,12 @@ requirement.
 | R-03 | Dropped 2026-11-19 (an average reveals an individual grade): no grading. | | | | | |
 | R-04 | Measurement data ends up somewhere without proper agreements (for example a cloud region outside the EU). | Security | 1 | 3 | 3 | Local inside the institution's network, or in Azure only in an EU region with GDPR agreements (Q-SEC-3). |
 | R-05 | A vulnerable library in a container. | Security | 2 | 2 | 4 | Scan dependencies in the pipeline; update images monthly (Q-SEC-4). |
-| R-06 | A value from an Excel upload is attached to the wrong sample. | Data quality | 3 | 2 | 6 | The upload validates the file layout; the link from well to sample is open (S4, O5). |
+| R-06 | A value from an Excel upload is attached to the wrong sample. | Data quality | 3 | 2 | 6 | The upload validates the file layout, and a well can be linked only to a sample of the uploader's own team (S4). |
 | R-07 | The AI coding assistant writes insecure code. | Security | 2 | 2 | 4 | No merge without green tests; review by a person by convention (Q-SEC-5). |
 | R-08 | Unnecessary energy use from separate services. | Sustainability | 2 | 1 | 2 | One environment; unused containers off (Q-SUST-1). |
 | R-09 | A colour-blind or visually impaired user cannot read the dashboard. | Accessibility | 2 | 2 | 4 | Signals with icon and text, not colour alone; WCAG 2.1 AA (Q-ACC-2). |
 | R-10 | A screen reader cannot use the forms. | Accessibility | 2 | 2 | 4 | Labels on all fields; test with axe and keyboard (Q-ACC-3). |
-| R-11 | An analyser result reaches the wrong team, because every team works the same sample numbers. | Data quality | 3 | 3 | 9 | *(proposed score)* Open: how a result finds its team (S5, O13). |
+| R-11 | An analyser result reaches the wrong team, because every team works the same sample numbers. | Data quality | 3 | 3 | 9 | *(proposed score)* The team enters the sample's lab number, unique across the teams, as the patient ID on the analyser (S5, S12); a result eduLIMS cannot link is shown to administrators only (#163). |
 | R-12 | A time on the dashboard is wrong or can be changed by a team. | Fairness | 2 | 3 | 6 | *(proposed score)* Times are taken on the server (Q-SIM-2). |
 | R-13 | Students find the scenario or the correct values of a game. | Fairness | 2 | 3 | 6 | *(proposed score)* The teachers' material stays out of the repository and the tracker (Q-PRIV-4); correct values are readable by teachers only (D10). |
 
@@ -210,14 +212,14 @@ in [game-dashboard.md](game-dashboard.md).
 
 | ID | Measure | Calculation | Level | Seen by | Status |
 |---|---|---|---|---|---|
-| G-01 | Turnaround time | Time between the entry of a request and the release of its result, on the server clock | per request and per team | Teacher | Decided; start of the clock open (O1) |
-| G-02 | Urgent within target | Whether an urgent request was released within its time target | per urgent request and per team | Teacher | Decided; target open (O1) |
+| G-01 | Turnaround time | Time between the entry of a request and the release of its result, both logged on the server clock | per request and per team | Teacher | Decided |
+| G-02 | Urgent within target | Whether an urgent request was released within its time target | per urgent request and per team | Teacher | Not in this iteration (D12, O1) |
 | G-03 | Accuracy | Distance between a released result and the correct value, shown as green, yellow or red by the limits the teacher set (D13) | per released result and per team | Teacher | Decided |
-| G-04 | Ranking | The teams ordered on time and accuracy | per game | Teacher; teams open | Rule open (O3) |
+| G-04 | Ranking | The teams ordered on time and accuracy | per game | Teacher; teams open | Not in this iteration (D14, O3) |
 | K-09 | Analyser usage | Measurements per device per week | per device | Administrator | Proposal |
 
-K-01 to K-08, the KPIs of the grading model, are dropped (2026-11-19). G-01,
-G-02 and G-04 are calculated with SQL on the eduLIMS database; G-03 compares
+K-01 to K-08, the KPIs of the grading model, are dropped (2026-11-19). G-01
+is calculated with SQL on the eduLIMS database; G-03 compares
 a released result with the correct value, which only eduLIMS holds.
 
 ## Open questions
@@ -227,20 +229,20 @@ document.
 
 | ID | Question | Status |
 |---|---|---|
-| O1 | What is the time target for an urgent and for a routine request, and when does the clock start and stop? | Open. The owner named "within 30 minutes or so" for urgent as an example. |
+| O1 | What is the time target for an urgent and for a routine request, what counts as urgent, and when does the clock start? | Answered in part, 2026-11-19: the clock starts when the team enters the request and stops at the release (G-01). Held open by the owner: targets and urgent requests; nothing is built for them in this iteration. |
 | O2 | How far from the correct value is yellow, and how far is red? | Answered 2026-11-19: the teacher sets it (D13). Still open: whether a limit is a percentage, an absolute distance or either. |
-| O3 | How do time and accuracy combine into a ranking, and do teams see it during a game? | Open |
+| O3 | How do time and accuracy combine into a ranking, and do teams see it during a game? | Held open by the owner, 2026-11-19: decided in the next iteration; nothing is built for it now. |
 | O4 | Which test runs on which analyser, and which results are entered by hand? | Open in part: the Afinion 2 is used (owner, 2026-11-19). |
-| O5 | How is a well of the Epoch export linked to a sample, and who calculates the concentration? | Open. Proposal of the maintainer: the team records the plate layout in eduLIMS; per test the teacher chooses whether eduLIMS calculates the concentration from the team's own standards and shows the calibration line for the team to judge, or the team enters the calculated result. |
+| O5 | How is a well of the Epoch export linked to a sample, and who calculates the concentration? | Answered in part, 2026-11-19: eduLIMS loads the values of the export and does what a real LIMS does with them. The team links wells to samples, because the export holds no sample number. Still open, to confirm with the teachers: whether eduLIMS also calculates a concentration from the standards on the plate (the calibration line), as the software of a real laboratory does, or shows the absorbance only. |
 | O6 | Is a team's tolerance a reference range, a quality-control limit or both; can it change during a game; does the teacher see it? | Open |
-| O7 | Does the teacher see every measurement or only the released result, and can a team correct a released result? | Open |
+| O7 | Does the teacher see every measurement or only the released result, and can a team correct a released result? | Answered 2026-11-19: a result in the patient's record is final and cannot be changed. The teacher sees every measurement; the one the team released is the one that counts. |
 | O8 | Is a result that is calculated from other results entered by the team, with a correct value like any other test? | Open |
 | O9 | May the fictional patient details go into FerroEHR, or does a pseudonym go there? | Answered 2026-11-19: the fictional name and date of birth go into FerroEHR. |
 | O10 | Does every student sign in with their own account, and are there team roles with different rights? | Open |
 | O11 | How much of a game does a teacher prepare in eduLIMS (teams, samples, requests, release times), and can a game be reused? | Open |
 | O12 | Is grading in scope? | Answered 2026-11-19: no (W6). Still open: whether eduLIMS records anything else a teacher does during a game. |
-| O13 | How does an analyser result find the right team, when every team works the same sample numbers? | Open |
-| O14 | Can a request be for a quality-control sample with no patient, and where does its result go when no patient record exists? | Open |
+| O13 | How does an analyser result find the right team, when every team works the same sample numbers? | Answered 2026-11-19: through the patient ID the team enters on the Afinion 2. The maintainer's design for it: the team enters the lab number eduLIMS gave the sample (S12), which is unique across the teams. |
+| O14 | Can a request be for a quality-control sample with no patient, and where does its result go when no patient record exists? | Answered 2026-11-19: a control sample is its own kind of request (S16). |
 
 ## Traceability
 
@@ -248,6 +250,6 @@ document.
 |---|---|---|
 | S1, B1, Q-SEC-1, Q-SEC-2 | [Portals and roles](architecture.md#portals-and-roles), [ADR 0005](adr/0005-better-auth-entra-id.md), [ADR 0010](adr/0010-vendor-neutral-oidc-entra-and-keycloak.md) | security, integration |
 | S4, S5, S14, S15, Q-TRACE-1 | [Integrations](architecture.md#context-and-integrations), [Data](architecture.md#data), [The LIMS workflow](lims-workflow.md) | data, integration |
-| S10 to S13, D9, D10, Q-SIM-1 | [Data](architecture.md#data), [ADR 0020](adr/0020-workplace-simulation.md) | unit, security, acceptance |
+| S10 to S13, S16, D9, D10, Q-SIM-1 | [Data](architecture.md#data), [ADR 0020](adr/0020-workplace-simulation.md) | unit, security, acceptance |
 | D11 to D14, G-01 to G-04, Q-SIM-2 | [game-dashboard.md](game-dashboard.md) | unit, performance, user test |
 | Q-ACC-* | [Quality](architecture.md#quality-requirements) | accessibility |

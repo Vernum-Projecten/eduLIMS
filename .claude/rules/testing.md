@@ -35,7 +35,7 @@ is a question for the owner, never a number you pick.
 
 | Level | What | Tool | Where | Runs |
 |---|---|---|---|---|
-| Unit | Core rules: turnaround time (G-01), urgent within target (G-02), the accuracy status (G-03, D13), the tolerance warning (S15), times taken on the server (Q-SIM-2) | Vitest | `*.test.ts` next to the code, or `tests/unit/` | every change (`pnpm test`) |
+| Unit | Core rules: turnaround time (G-01), the accuracy status (G-03, D13), the tolerance warning (S15), the final release (S15), the lab number unique across the teams (S12), times taken on the server (Q-SIM-2) | Vitest | `*.test.ts` next to the code, or `tests/unit/` | every change (`pnpm test`) |
 | Data | Gen5 Excel: the header block, the 96-well grid, a file in another layout (S4); Afinion HL7 to openEHR (S5) | Vitest with the fixed good and bad files | `tests/unit/` with `tests/fixtures/` | every change |
 | Integration | eduLIMS with FerroEHR (REST, AQL), FerroBRIDGE with an HL7 message, sign-in | Vitest or Playwright against the Compose test stack; the HL7 message is simulated | `tests/integration/` | the `integration` lane: pull requests that touch the integration, and nightly on `main` (#150) |
 | Security | Role isolation: a student sees nothing of another team and no correct value or accuracy status, a teacher only their own classes and games (Q-SEC-2, Q-SIM-1); vulnerable libraries | role-scoped negative tests with test accounts; dependency scan in CI | next to the server function | every change and every release |
