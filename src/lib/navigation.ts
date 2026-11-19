@@ -9,6 +9,7 @@ import {
   CableIcon,
   ChartColumnIcon,
   ClipboardCheckIcon,
+  ClipboardListIcon,
   FlaskConicalIcon,
   FlaskRoundIcon,
   GraduationCapIcon,
@@ -147,6 +148,13 @@ const TEACHER = {
       icon: ChartColumnIcon,
       label: m.nav_kpi_dashboard,
       description: m.section_teacher_kpi_dashboard,
+    },
+    {
+      id: "catalogue",
+      to: "/teacher/catalogue",
+      icon: ClipboardListIcon,
+      label: m.nav_test_catalogue,
+      description: m.section_teacher_catalogue,
     },
   ],
 } as const satisfies PortalNavigation;

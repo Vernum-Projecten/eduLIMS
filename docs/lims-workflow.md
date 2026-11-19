@@ -245,7 +245,14 @@ control log of the team (S16).
 
 Before a simulation a teacher manages the test catalogue (D9), where the
 teacher also chooses per test who calculates the concentration from an
-Epoch 2 plate. The teacher then prepares the simulation (D10): gives it a
+Epoch 2 plate. A test has a name, a unit, a material the teacher types, and
+a source: the Afinion 2 with the analyte name the analyser sends in OBX-3,
+the Epoch 2 upload with who calculates, or entry by hand. Every teacher uses
+and changes the same catalogue, and each test records who created it. The
+names of active tests are unique regardless of case. A test that a
+simulation uses keeps its unit and its source and cannot be deleted; a
+teacher retires it so new simulations no longer offer it, and can restore it.
+The teacher then prepares the simulation (D10): gives it a
 name, creates its labs, each with the name and the logo the team made up,
 and adds the members of a lab by pasting their email addresses. The teacher
 enters the correct value per test and sample number, and sets the limits for

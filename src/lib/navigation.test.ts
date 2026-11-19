@@ -59,6 +59,7 @@ describe("navigationFor (B1: a user sees only the screens of their role)", () =>
       "results",
       "grading",
       "kpi-dashboard",
+      "catalogue",
     ]);
     expect(ids("admin")).toEqual(["users", "simulations", "integrations", "activity", "system"]);
   });
