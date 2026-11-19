@@ -143,6 +143,26 @@ describe("removeTeacher (D10)", () => {
     expect(await teachersOf(database, w.simulationId)).toEqual([w.teacher.id]);
   });
 
+  it("counts no teacher row whose user lost the teacher role (#300 review, S1)", async () => {
+    const { database, w } = await open();
+    await database
+      .updateTable("user")
+      .set({ role: "student" })
+      .where("id", "=", w.coTeacher.id)
+      .execute();
+    const result = await removeTeacher(database, w.teacher, {
+      simulationId: w.simulationId,
+      userId: w.teacher.id,
+    });
+    expect(result).toEqual({ ok: false, error: "last_teacher" });
+    expect(await teachersOf(database, w.simulationId)).toEqual(
+      [w.teacher.id, w.coTeacher.id].sort(),
+    );
+    expect(await auditRows(database, "simulation_teacher_removed")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "last_teacher" }),
+    ]);
+  });
+
   it("never removes the last teacher, and logs the refusal", async () => {
     const { database, w } = await open();
     await removeTeacher(database, w.teacher, {

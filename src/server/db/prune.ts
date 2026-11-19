@@ -27,10 +27,10 @@ export async function pruneCommand(args: readonly string[], out: Out): Promise<n
       out("Another prune is running; this one removed nothing.");
       return 0;
     }
-    const { auditEvents, sessions, adminGrants } = outcome.counts;
+    const { auditEvents, sessions, waitingAddresses, adminGrants } = outcome.counts;
     out(
-      `Pruned ${auditEvents} activity-log events, ${sessions} ended sessions ` +
-        `and ${adminGrants} expired admin grants.`,
+      `Pruned ${auditEvents} activity-log events, ${sessions} ended sessions, ` +
+        `${waitingAddresses} unlinked lab addresses and ${adminGrants} expired admin grants.`,
     );
     return 0;
   } catch (error) {

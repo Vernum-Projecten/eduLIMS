@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseLabId } from "../../lib/simulations.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { createLab, deleteLab, renameLab } from "./labs.ts";
+import { deleteSimulation } from "./simulations.ts";
 import { teacherWriteRefusals } from "./test-access.ts";
 import { auditRows, NOW, type World, world } from "./test-helpers.ts";
 
@@ -75,6 +76,34 @@ describe("createLab (D10)", () => {
     expect(result.ok).toBe(true);
   });
 
+  it.each([
+    ["Lab İstanbul", "lab i̇stanbul"],
+    ["Lab Σigma", "lab σigma"],
+    ["Lab ǅ", "lab ǆ"],
+    ["Lab Kelvin", "lab Kelvin"],
+  ])("decides %s against %s as the unique index does, never with a 500", async (first, second) => {
+    const { database, w } = await open();
+    const created = await createLab(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId, name: first },
+      NOW,
+    );
+    expect(created.ok).toBe(true);
+    const { rows } = await sql<{
+      same: boolean;
+    }>`select lower(${first}::text) = lower(${second}::text) as same`.execute(database);
+    const same = rows[0]?.same === true;
+    const result = await createLab(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId, name: second },
+      NOW,
+    );
+    expect(result.ok).toBe(!same);
+    if (!result.ok) expect(result.error).toBe("lab_name_taken");
+  });
+
   it("holds the unique name in the database too, case-insensitively", async () => {
     const { database, w } = await open();
     await expect(
@@ -134,8 +163,42 @@ describe("renameLab (D10)", () => {
 });
 
 describe("deleteLab (#280)", () => {
-  it("deletes a lab with its places and waiting addresses, logged", async () => {
+  it("refuses a lab with a student in it, logged, and deletes nothing (#300 review, S3)", async () => {
     const { database, w } = await open();
+    const result = await deleteLab(database, w.teacher, { labId: w.labId });
+    expect(result).toEqual({ ok: false, error: "has_students" });
+    const members = await database
+      .selectFrom("lab_members")
+      .select("user_id")
+      .where("lab_id", "=", w.labId)
+      .execute();
+    expect(members).toHaveLength(6);
+    expect(await auditRows(database, "lab_deleted")).toEqual([
+      expect.objectContaining({
+        outcome: "refused",
+        reason_code: "has_students",
+        target_id: w.labId,
+      }),
+    ]);
+  });
+
+  it("gives no way round deleteSimulation's has_students by deleting the labs first", async () => {
+    const { database, w } = await open();
+    for (const labId of [w.labId, w.otherLabId]) {
+      expect(await deleteLab(database, w.teacher, { labId })).toEqual({
+        ok: false,
+        error: "has_students",
+      });
+    }
+    expect(await deleteSimulation(database, w.teacher, { simulationId: w.simulationId })).toEqual({
+      ok: false,
+      error: "has_students",
+    });
+  });
+
+  it("deletes an empty lab with its waiting addresses, logged", async () => {
+    const { database, w } = await open();
+    await database.deleteFrom("lab_members").where("lab_id", "=", w.labId).execute();
     await database
       .insertInto("lab_member_emails")
       .values({ simulation_id: w.simulationId, lab_id: w.labId, email: "waits@example.test" })

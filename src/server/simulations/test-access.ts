@@ -11,7 +11,14 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
 import type { SimulationResult } from "./access.ts";
-import { notFoundLine, type Person, securityLines, type World, world } from "./test-helpers.ts";
+import {
+  notFoundLine,
+  type Person,
+  person,
+  securityLines,
+  type World,
+  world,
+} from "./test-helpers.ts";
 
 /** One teacher write under test. */
 export interface TeacherWrite {
@@ -84,6 +91,23 @@ export function teacherWriteRefusals(write: TeacherWrite): void {
       expect(await snapshot(database)).toEqual(before);
     });
   }
+
+  it("refuses a former teacher of this simulation (row kept, app role now student) with 403", async () => {
+    const { db: database, w } = await open();
+    const former = await person(database, "former-teacher", ["student"]);
+    await database
+      .insertInto("simulation_teachers")
+      .values({ simulation_id: w.simulationId, user_id: former.id, added_by: w.teacher.id })
+      .execute();
+    const before = await snapshot(database);
+    const error = await write.call(database, w, former, write.target(w).id).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+    expect(error).toBeInstanceOf(AuthError);
+    expect(error).toMatchObject({ status: 403 });
+    expect(await snapshot(database)).toEqual(before);
+  });
 
   it("answers not_found to a teacher of another simulation, logs it, changes nothing (D11)", async () => {
     const { db: database, w } = await open();

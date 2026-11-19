@@ -99,8 +99,13 @@ export function previewEmails(
   actor: SimulationActor,
   input: { labId: string; emails: readonly string[] },
 ): Promise<SimulationResult<EmailLine[]>> {
-  return withLab(db, actor, input.labId, async (trx, lab) =>
-    done(await classifyEmails(trx, lab.simulationId, lab.labId, input.emails)),
+  // NOTE: #300 review; nothing is stored, so the preview shares the simulation row.
+  return withLab(
+    db,
+    actor,
+    input.labId,
+    async (trx, lab) => done(await classifyEmails(trx, lab.simulationId, lab.labId, input.emails)),
+    "share",
   );
 }
 

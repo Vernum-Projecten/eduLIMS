@@ -40,6 +40,25 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .on("simulation_teachers")
     .column("user_id")
     .execute();
+  // NOTE: D10 (#300 review); a simulation keeps one teacher row, checked at commit so a delete
+  // of the whole simulation, whose cascade removes every row, still passes.
+  await sql`
+    create function simulation_teachers_keep_one() returns trigger language plpgsql as $$
+    begin
+      if exists (select 1 from simulations where id = old.simulation_id)
+        and not exists (
+          select 1 from simulation_teachers where simulation_id = old.simulation_id
+        ) then
+        raise exception 'a simulation keeps at least one teacher'
+          using errcode = '23514', constraint = 'simulation_teachers_last_teacher';
+      end if;
+      return null;
+    end $$`.execute(db);
+  await sql`
+    create constraint trigger simulation_teachers_last_teacher
+    after delete on simulation_teachers
+    deferrable initially deferred
+    for each row execute function simulation_teachers_keep_one()`.execute(db);
 
   await db.schema
     .createTable("labs")
@@ -152,5 +171,6 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropTable("lab_members").execute();
   await db.schema.dropTable("labs").execute();
   await db.schema.dropTable("simulation_teachers").execute();
+  await sql`drop function simulation_teachers_keep_one()`.execute(db);
   await db.schema.dropTable("simulations").execute();
 }
