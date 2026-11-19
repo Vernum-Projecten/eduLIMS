@@ -7,7 +7,7 @@ import type { Auth } from "../auth.ts";
 import { UUID_PATTERN } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { authOnTestDb, createUser, signIn } from "../users/test-helpers.ts";
-import { ONLY_SIMULATION_TEACHER } from "./auth-plugins.ts";
+import { isOnlyTeacherOfASimulation, ONLY_SIMULATION_TEACHER } from "./auth-plugins.ts";
 import { addEmails } from "./emails.ts";
 import { createLab } from "./labs.ts";
 import { createSimulation } from "./simulations.ts";
@@ -140,6 +140,63 @@ describe("simulationTeacherGuard (D10: never the last teacher)", () => {
     expect(refused).toEqual([
       { outcome: "refused", reason_code: ONLY_SIMULATION_TEACHER, target_id: onlyId },
     ]);
+  });
+
+  it("refuses when the only co-teacher row belongs to a former teacher (#311 finding 1)", async () => {
+    const { auth, db: database } = await setup();
+    await createUser(auth, "admin@example.test", ["admin"]);
+    const onlyId = await createUser(auth, "only@example.test", ["teacher"]);
+    const formerId = await createUser(auth, "former@example.test", ["teacher"]);
+    const { simulationId } = await simulationWithLab(database, onlyId);
+    await database
+      .insertInto("simulation_teachers")
+      .values({ simulation_id: simulationId, user_id: formerId, added_by: onlyId })
+      .execute();
+    await database.updateTable("user").set({ role: "admin" }).where("id", "=", formerId).execute();
+    const headers = await signIn(auth, "admin@example.test");
+    await expect(auth.api.removeUser({ body: { userId: onlyId }, headers })).rejects.toThrow(
+      ONLY_SIMULATION_TEACHER,
+    );
+    const still = await database.selectFrom("user").select("id").where("id", "=", onlyId).execute();
+    expect(still).toHaveLength(1);
+  });
+
+  it("deletes a former teacher whose row is the last of a simulation (#311)", async () => {
+    const { auth, db: database } = await setup();
+    await createUser(auth, "admin@example.test", ["admin"]);
+    const formerId = await createUser(auth, "former@example.test", ["teacher"]);
+    await simulationWithLab(database, formerId);
+    await database
+      .updateTable("user")
+      .set({ role: "student" })
+      .where("id", "=", formerId)
+      .execute();
+    expect(await isOnlyTeacherOfASimulation(database, formerId)).toBe(false);
+    const headers = await signIn(auth, "admin@example.test");
+    await auth.api.removeUser({ body: { userId: formerId }, headers });
+    const gone = await database
+      .selectFrom("user")
+      .select("id")
+      .where("id", "=", formerId)
+      .execute();
+    expect(gone).toEqual([]);
+  });
+
+  it("counts a co-teacher who holds teacher and admin (#311 finding 1)", async () => {
+    const { auth, db: database } = await setup();
+    await createUser(auth, "admin@example.test", ["admin"]);
+    const firstId = await createUser(auth, "first@example.test", ["teacher"]);
+    const bothId = await createUser(auth, "both@example.test", ["teacher", "admin"]);
+    const { simulationId } = await simulationWithLab(database, firstId);
+    await database
+      .insertInto("simulation_teachers")
+      .values({ simulation_id: simulationId, user_id: bothId, added_by: firstId })
+      .execute();
+    expect(await isOnlyTeacherOfASimulation(database, firstId)).toBe(false);
+    const headers = await signIn(auth, "admin@example.test");
+    await auth.api.removeUser({ body: { userId: firstId }, headers });
+    const gone = await database.selectFrom("user").select("id").where("id", "=", firstId).execute();
+    expect(gone).toEqual([]);
   });
 
   it("deletes a teacher once another teacher teaches the simulation too", async () => {

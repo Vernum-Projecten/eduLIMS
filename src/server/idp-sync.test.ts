@@ -415,16 +415,37 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
     expect(data.user["role"]).toBeUndefined();
   });
 
-  it("does not mark a non-ASCII address verified, even through an authoritative provider", async () => {
+  // NOTE: #311 finding 3 (maintainer, 2026-11-19); the verified flag follows the provider, and
+  // the ASCII gate applies only where an address is matched against a stored one.
+  it("marks a non-ASCII address verified through an authoritative provider (#311)", async () => {
     const { sync, ctx } = authoritative();
     const data = oauth(
       "create-user",
       "entra",
       { roles: ["edulims-student"] },
-      { email: "Kelvin@example.test" },
+      { email: "jos\u00e9@school.example" },
     );
     expect(await sync(data, ctx)).toBeUndefined();
-    expect(data.user.emailVerified).toBe(false);
+    expect(data.user.emailVerified).toBe(true);
+  });
+
+  it("never consumes a pending admin grant for a KELVIN SIGN address (#311 finding 3)", async () => {
+    const consumeAdminGrant = vi.fn(async () => true);
+    const { sync, ctx } = authoritative({ consumeAdminGrant });
+    const data = oauth("create-user", "entra", {}, { email: "\u212aim@example.test" });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(consumeAdminGrant).not.toHaveBeenCalled();
+    expect(data.user["role"]).toBeUndefined();
+  });
+
+  it("refuses jos\u00e9@school.example on the student grant and the admin grant (#311)", async () => {
+    const hasWaitingLabAddress = vi.fn(async () => true);
+    const consumeAdminGrant = vi.fn(async () => true);
+    const { sync, ctx } = authoritative({ hasWaitingLabAddress, consumeAdminGrant });
+    const data = oauth("create-user", "entra", {}, { email: "jos\u00e9@school.example" });
+    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
+    expect(hasWaitingLabAddress).not.toHaveBeenCalled();
+    expect(consumeAdminGrant).not.toHaveBeenCalled();
   });
 
   it("never grants a waiting address's student role to a SCIM-provisioned user (S10, #45)", async () => {

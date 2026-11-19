@@ -40,20 +40,64 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .on("simulation_teachers")
     .column("user_id")
     .execute();
-  // NOTE: D10 (#300 review); a simulation keeps one teacher row, checked at commit so a delete
-  // of the whole simulation, whose cascade removes every row, still passes.
+  // NOTE: D10 (#311, maintainer 2026-11-19); a simulation keeps an active teacher: a teacher row
+  // whose user holds the role teacher (the stored sets of `user_role_allowed_set`). Checked at
+  // commit, so the cascade of a simulation's own delete passes; a deleted user is judged below.
   await sql`
     create function simulation_teachers_keep_one() returns trigger language plpgsql as $$
+    declare
+      gone_role text;
     begin
-      if exists (select 1 from simulations where id = old.simulation_id)
-        and not exists (
-          select 1 from simulation_teachers where simulation_id = old.simulation_id
-        ) then
+      if not exists (select 1 from simulations where id = old.simulation_id) then
+        return null;
+      end if;
+      select role into gone_role from "user" where id = old.user_id;
+      if not found or gone_role is null or gone_role not in ('teacher', 'teacher,admin') then
+        return null;
+      end if;
+      perform 1
+        from simulation_teachers st
+        join "user" u on u.id = st.user_id
+        where st.simulation_id = old.simulation_id
+          and u.role in ('teacher', 'teacher,admin')
+        for share of st, u;
+      if not found then
         raise exception 'a simulation keeps at least one teacher'
           using errcode = '23514', constraint = 'simulation_teachers_last_teacher';
       end if;
       return null;
     end $$`.execute(db);
+  // NOTE: D10 (#311); a deleted user's role is gone at commit, so the deletion of an active
+  // teacher is judged before the row goes, with the other teachers' rows locked.
+  await sql`
+    create function user_keep_simulation_teacher() returns trigger language plpgsql as $$
+    begin
+      if old.role is null or old.role not in ('teacher', 'teacher,admin') then
+        return old;
+      end if;
+      if exists (
+        select 1
+          from simulation_teachers mine
+          where mine.user_id = old.id
+            and not exists (
+              select 1
+                from simulation_teachers st
+                join "user" u on u.id = st.user_id
+                where st.simulation_id = mine.simulation_id
+                  and st.user_id <> old.id
+                  and u.role in ('teacher', 'teacher,admin')
+                for share of st, u
+            )
+      ) then
+        raise exception 'a simulation keeps at least one teacher'
+          using errcode = '23514', constraint = 'simulation_teachers_last_teacher';
+      end if;
+      return old;
+    end $$`.execute(db);
+  await sql`
+    create trigger user_keep_simulation_teacher
+    before delete on "user"
+    for each row execute function user_keep_simulation_teacher()`.execute(db);
   await sql`
     create constraint trigger simulation_teachers_last_teacher
     after delete on simulation_teachers
@@ -144,6 +188,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .on("lab_member_emails")
     .column("email")
     .execute();
+  // NOTE: #311; the prune of waiting addresses finds its rows by age.
+  await db.schema
+    .createIndex("lab_member_emails_added_at_idx")
+    .on("lab_member_emails")
+    .column("added_at")
+    .execute();
 
   // The students a teacher removed: a removed student cannot rejoin with a lab's code (#288).
   await db.schema
@@ -170,6 +220,8 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropTable("lab_member_emails").execute();
   await db.schema.dropTable("lab_members").execute();
   await db.schema.dropTable("labs").execute();
+  await sql`drop trigger user_keep_simulation_teacher on "user"`.execute(db);
+  await sql`drop function user_keep_simulation_teacher()`.execute(db);
   await db.schema.dropTable("simulation_teachers").execute();
   await sql`drop function simulation_teachers_keep_one()`.execute(db);
   await db.schema.dropTable("simulations").execute();

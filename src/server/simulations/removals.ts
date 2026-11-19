@@ -6,6 +6,7 @@
 // Relative imports and no server-only marker: the sign-in link loads this in plain Node.
 import type { Kysely } from "kysely";
 import type { DB } from "../db/schema.gen.ts";
+import { storedEmailIsAscii } from "./ascii-email.ts";
 
 /** Records that `userId` was removed from the simulation by `actorId`. */
 export async function recordRemoval(
@@ -54,7 +55,10 @@ export async function clearRemoval(
     .execute();
 }
 
-/** Clears the removals of the accounts with these (normalised) addresses: a teacher added them again. */
+/**
+ * Clears the removals of the accounts with these (normalised) addresses: a teacher added them
+ * again. An account whose stored address is not plain ASCII never matches.
+ */
 export async function clearRemovalsOfAddresses(
   trx: Kysely<DB>,
   simulationId: string,
@@ -68,7 +72,8 @@ export async function clearRemovalsOfAddresses(
       q
         .selectFrom("user")
         .select("id")
-        .where((eb) => eb(eb.fn("lower", ["email"]), "in", [...emails])),
+        .where((eb) => eb(eb.fn("lower", ["email"]), "in", [...emails]))
+        .where(storedEmailIsAscii()),
     )
     .execute();
 }
