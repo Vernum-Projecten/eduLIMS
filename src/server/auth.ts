@@ -12,13 +12,6 @@ import { HOST_COOKIE_PREFIX } from "../lib/cookies.ts";
 import { ADMIN_ROLE, accessControl, DEFAULT_ROLE, roles } from "../lib/roles.ts";
 import { consumePendingAdminGrant } from "./admin-grant/grants.ts";
 import { auditDatabase, auditLog } from "./audit/better-auth-hooks.ts";
-import { hasPendingStudentInvitation } from "./classes/acceptance.ts";
-import {
-  CLASS_ORGANIZATION_PATHS,
-  classOrganizationGuard,
-  classOrganizations,
-} from "./classes/plugin.ts";
-import { classInvitationAcceptance } from "./classes/sign-in.ts";
 import { isSecureOrigin } from "./cookie-security.ts";
 import { newId } from "./db/ids.ts";
 import { getPool } from "./db/index.ts";
@@ -39,6 +32,8 @@ import { scimPlugins } from "./scim/provisioning.ts";
 import { scimSignInResolver } from "./scim/sign-in.ts";
 import { type ScimSessionOptions, staticScimSupport } from "./scim/support.ts";
 import { SESSION_EXPIRES_IN_SECONDS, SESSION_UPDATE_AGE_SECONDS } from "./session-policy.ts";
+import { labSignInLink, simulationTeacherGuard } from "./simulations/auth-plugins.ts";
+import { hasWaitingLabAddress } from "./simulations/linking.ts";
 import { lastSignInMethod, lastSignInTime } from "./users/sign-in-tracking.ts";
 
 /** Where an identity provider returns the user after signing out of it: the eduLIMS sign-in page. */
@@ -98,7 +93,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
   return betterAuth({
     advanced: {
       ...authCookieOptions(env.BETTER_AUTH_URL),
-      // NOTE: owner decision on #28; every better-auth id is a UUIDv7, classes included.
+      // NOTE: owner decision on #28; every better-auth id is a UUIDv7.
       database: { generateId: () => newId() },
       // NOTE: #45 (second review, finding 2); X-Forwarded-For is read only through the proxies
       // the operator lists, walked right to left, so a client cannot pick its own address.
@@ -111,7 +106,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
     secret: env.BETTER_AUTH_SECRET,
     database: adapter,
     // NOTE: ADR 0015; the plugin's management endpoints let any signed-in user register an IdP.
-    disabledPaths: [...SSO_DISABLED_PATHS, ...CLASS_ORGANIZATION_PATHS],
+    disabledPaths: [...SSO_DISABLED_PATHS],
     // NOTE: ASVS V1.3.6; the app origin is always trusted, and besides it only the operator's
     // private IdP origins: every other IdP endpoint gets the sso plugin's DNS check at fetch time.
     trustedOrigins: [...env.EDULIMS_IDP_PRIVATE_ORIGINS],
@@ -172,7 +167,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
           return testOfState(db, { state, providerId, now: new Date() });
         },
         recordTest: (test, outcome) => recordTestOutcome(db, { test, outcome, now: new Date() }),
-        hasStudentInvitation: (email) => hasPendingStudentInvitation(db, email, new Date()),
+        hasWaitingLabAddress: (email) => hasWaitingLabAddress(db, email),
       }),
     },
     // Every role write (IdP sync, seed, admin create-user, set-role, update-user) is validated.
@@ -186,7 +181,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
       sso({
         // NOTE: ADR 0015; providers come only from the admin service, never from a user.
         providersLimit: 0,
-        // NOTE: #28; SSO never adds anyone to a class organisation.
+        // NOTE: ADR 0015; eduLIMS runs no organization plugin, and SSO never provisions one.
         organizationProvisioning: { disabled: true },
         // NOTE: #45 (ADR 0017); a sign-in becomes the user the directory provisioned, matched
         // on the directory's externalId, never on email.
@@ -204,10 +199,10 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         },
       }),
       ssoGuards(db),
-      // Classes and lab groups (#28, ADR 0018); written only by the class service.
-      classOrganizations(),
-      classOrganizationGuard(db),
-      classInvitationAcceptance(db),
+      // Simulations and labs (ADR 0021): the link of waiting addresses at sign-in (S10), and no
+      // deleting the only teacher of a simulation (D10).
+      labSignInLink(db),
+      simulationTeacherGuard(db),
       // Answers 501 when SCIM cannot run here; rate limit, size cap and activity log (#45).
       scimGate(db, scimSupport, { trustedProxies: env.EDULIMS_TRUSTED_PROXIES }),
       ...scimPlugins(db, scimSupport),

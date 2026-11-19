@@ -142,7 +142,7 @@ Option 3, with `@better-auth/sso` and `better-auth` both at exactly 1.7.20.
   open. better-auth's `encryptOAuthTokens` was not enough: it does not reach
   the sso plugin's account creation.
 - **Organisations:** `organizationProvisioning` is off; SSO never adds anyone
-  to a class.
+  to an organisation, and eduLIMS runs no organization plugin (ADR 0021).
 
 ## Consequences
 

@@ -25,8 +25,8 @@ export const STALE_TIME = {
    * screen counts it stale at once and refetches on the interval in {@link INTEGRATION_REFETCH_MS}.
    */
   integrationStatus: 0,
-  /** Classes, their members, invitations and lab groups: co-teachers change them, rarely at once. */
-  classes: 30_000,
+  /** Simulations, their labs and members: co-teachers change them, rarely within a minute. */
+  simulations: 30_000,
   /** A provider's SCIM section: its token's last use moves with every directory sync. */
   scimDetail: 15_000,
   /** The overview's counts and latest events (#36): a snapshot, refreshed on the next visit. */

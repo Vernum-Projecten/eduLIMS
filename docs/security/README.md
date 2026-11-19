@@ -53,7 +53,7 @@ They are not published on the documentation site.
 | Roles, ownership, simulations as tenants | Authorization, Access_Control, Insecure_Direct_Object_Reference_Prevention, Multi_Tenant_Security, Authorization_Testing_Automation, Mass_Assignment |
 | The browser | Cross-Site_Request_Forgery_Prevention, Cross_Site_Scripting_Prevention, DOM_based_XSS_Prevention, Content_Security_Policy, HTTP_Headers, HTTP_Strict_Transport_Security, Clickjacking_Defense, Unvalidated_Redirects_and_Forwards, Third_Party_Javascript_Management, Web_Cache_Security |
 | Input, uploads, queries | Input_Validation, File_Upload, XML_External_Entity_Prevention (the `.xlsx` is zipped XML), SQL_Injection_Prevention, Query_Parameterization, Injection_Prevention, Server_Side_Request_Forgery_Prevention, REST_Security |
-| Invitations (#28) | Email_Validation_and_Verification |
+| Lab email lists (D10, S10) | Email_Validation_and_Verification |
 | Errors, logs, availability | Error_Handling, Logging, Logging_Vocabulary, Denial_of_Service |
 | Secrets, cryptography, transport, database | Secrets_Management, Cryptographic_Storage, Transport_Layer_Security, Database_Security |
 | Node.js, TypeScript, containers | Nodejs_Security, JavaScript_and_TypeScript_Security, Prototype_Pollution_Prevention, NPM_Security, Docker_Security, NodeJS_Docker |

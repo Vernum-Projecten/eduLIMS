@@ -37,8 +37,8 @@ describe("activity log labels (#36)", () => {
     );
     expect(names).toEqual([
       "A session",
-      "A class",
-      "An invitation",
+      "A simulation",
+      "A lab",
       "An upload",
       "Identity provider Keycloak (lab)",
       "An administrator grant",
@@ -64,13 +64,7 @@ describe("activity log labels (#36)", () => {
     expect(activityReasonLabel("rate_limited")).toBe("code rate_limited");
   });
 
-  it("puts the reasons of a refused join with a code in words (#49)", () => {
-    expect(activityReasonLabel("removed")).toBe("a teacher removed the student from the class");
-    expect(activityReasonLabel("unknown_code")).toBe("no class has this join code");
-    expect(activityReasonLabel("rate_limited_ip")).toBe(
-      "too many wrong join codes from one address",
-    );
-    expect(activityReasonLabel("class_archived")).toBe("the class is archived");
+  it("shows an inherited property name as a code, never as a label", () => {
     expect(activityReasonLabel("toString")).toBe("code toString");
   });
 
@@ -104,21 +98,6 @@ describe("activity log labels (#36)", () => {
         metadata: { ban_expires_at: "2026-11-20T23:00:00.000Z" },
       }),
     ).toEqual([expect.stringMatching(/^Blocked until Nov 21, 2026/)]);
-  });
-
-  it("names the previous owner of a transferred class by id (#37)", () => {
-    expect(
-      activityDetails({
-        reason: null,
-        provider: null,
-        metadata: { user_id: "new-owner-id", previous_user_id: "old-owner-id" },
-      }),
-    ).toEqual(["Person new-owner-id", "Previous owner old-owner-id"]);
-    expect(activityReasonLabel("already_owner")).toBe("the chosen teacher already owns the class");
-    expect(activityReasonLabel("not_archived")).toBe("the class is not archived");
-    expect(activityReasonLabel("not_a_teacher")).toBe(
-      "the chosen owner does not have the teacher role",
-    );
   });
 
   it("summarises the identity provider metadata", () => {
@@ -242,38 +221,39 @@ describe("activity log labels (#36)", () => {
     }
   });
 
-  it("summarises the class metadata (#28): ids as ids, codes in words", () => {
+  it("summarises the simulation metadata (D10, S10): ids as ids, codes in words", () => {
     expect(
       activityDetails({
-        reason: "forbidden",
+        reason: "in_other_lab",
         provider: null,
         metadata: {
-          class_id: "01960000-0000-7000-8000-000000000001",
-          class_role: "teacher",
+          simulation_id: "01960000-0000-7000-8000-000000000001",
           user_id: "u-1",
-          group_change: "split",
-          team_id: "01960000-0000-7000-8000-000000000002",
+          previous_lab_id: "01960000-0000-7000-8000-000000000002",
+          join_via: "email",
           count: 3,
-          removed_invitations: 2,
         },
       }),
     ).toEqual([
-      "Reason: the class role does not allow it",
-      "Class 01960000-0000-7000-8000-000000000001",
-      "Class role: Co-teacher",
+      "Reason: the student is already in another lab of the simulation",
+      "Simulation 01960000-0000-7000-8000-000000000001",
       "Person u-1",
-      "Lab groups: the class split into groups",
-      "Lab group 01960000-0000-7000-8000-000000000002",
+      "Previous lab 01960000-0000-7000-8000-000000000002",
+      "Joined through the email list",
       "Number: 3",
-      "2 ended class invitations removed",
     ]);
+    expect(
+      activityDetails({ reason: null, provider: null, metadata: { join_via: "code" } }),
+    ).toEqual(["Joined through the lab code"]);
   });
 
-  it("names the refusals of the class service and the class-owner delete guard (#28)", () => {
-    expect(activityReasonLabel("archived")).toBe("the class is archived");
-    expect(activityReasonLabel("forbidden")).toBe("the class role does not allow it");
-    expect(activityReasonLabel("has_work")).toBe("the class has practicals, submissions or grades");
-    expect(activityReasonLabel("owns_class")).toBe("the user owns a class");
+  it("names the refusals of the simulation service and the teacher delete guard (D10)", () => {
+    expect(activityReasonLabel("has_students")).toBe("the simulation has students in its labs");
+    expect(activityReasonLabel("last_teacher")).toBe("the simulation would have no teacher left");
+    expect(activityReasonLabel("not_a_teacher")).toBe("the account does not have the teacher role");
+    expect(activityReasonLabel("only_simulation_teacher")).toBe(
+      "the user is the only teacher of a simulation",
+    );
   });
 
   it("says when the metadata cannot be read, and returns nothing for an event without details", () => {

@@ -1,0 +1,59 @@
+// SPDX-FileCopyrightText: Ruben Talstra
+// SPDX-License-Identifier: Apache-2.0
+
+// The students a teacher removed from a simulation (#280): a removed student cannot rejoin with a
+// lab's code (#288) until a teacher adds their address to a lab again, which clears the record.
+// Relative imports and no server-only marker: the sign-in link loads this in plain Node.
+import type { Kysely } from "kysely";
+import type { DB } from "../db/schema.gen.ts";
+
+/** Records that `userId` was removed from the simulation by `actorId`. */
+export async function recordRemoval(
+  trx: Kysely<DB>,
+  simulationId: string,
+  userId: string,
+  actorId: string,
+  now: Date,
+): Promise<void> {
+  await trx
+    .insertInto("simulation_removals")
+    .values({ simulation_id: simulationId, user_id: userId, removed_by: actorId, removed_at: now })
+    .onConflict((conflict) =>
+      conflict
+        .columns(["simulation_id", "user_id"])
+        .doUpdateSet({ removed_by: actorId, removed_at: now }),
+    )
+    .execute();
+}
+
+/** Clears the removal of `userId` from the simulation: they are back in it. */
+export async function clearRemoval(
+  trx: Kysely<DB>,
+  simulationId: string,
+  userId: string,
+): Promise<void> {
+  await trx
+    .deleteFrom("simulation_removals")
+    .where("simulation_id", "=", simulationId)
+    .where("user_id", "=", userId)
+    .execute();
+}
+
+/** Clears the removals of the accounts with these (normalised) addresses: a teacher added them again. */
+export async function clearRemovalsOfAddresses(
+  trx: Kysely<DB>,
+  simulationId: string,
+  emails: readonly string[],
+): Promise<void> {
+  if (emails.length === 0) return;
+  await trx
+    .deleteFrom("simulation_removals")
+    .where("simulation_id", "=", simulationId)
+    .where("user_id", "in", (q) =>
+      q
+        .selectFrom("user")
+        .select("id")
+        .where((eb) => eb(eb.fn("lower", ["email"]), "in", [...emails])),
+    )
+    .execute();
+}

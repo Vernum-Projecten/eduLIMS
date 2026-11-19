@@ -53,14 +53,8 @@ describe("navigationFor (B1: a user sees only the screens of their role)", () =>
     const ids = (role: "student" | "teacher" | "admin") =>
       portalNavigation(role).sections.map((section) => section.id);
     expect(ids("student")).toEqual(["practicals", "samples", "results", "submissions", "grades"]);
-    expect(ids("teacher")).toEqual([
-      "practicals",
-      "classes",
-      "results",
-      "grading",
-      "kpi-dashboard",
-    ]);
-    expect(ids("admin")).toEqual(["users", "classes", "integrations", "activity", "system"]);
+    expect(ids("teacher")).toEqual(["practicals", "results", "grading", "kpi-dashboard"]);
+    expect(ids("admin")).toEqual(["users", "integrations", "activity", "system"]);
   });
 
   it("keeps every path unique", () => {
@@ -114,10 +108,10 @@ describe("breadcrumbFor", () => {
   });
 
   it("names the section of a page below it, marked nested (#28)", () => {
-    const crumb = breadcrumbFor("/teacher/classes/01960000-0000-7000-8000-000000000001");
-    expect(crumb?.page.id).toBe("classes");
+    const crumb = breadcrumbFor("/admin/users/01960000-0000-7000-8000-000000000001");
+    expect(crumb?.page.id).toBe("users");
     expect(crumb?.nested).toBe(true);
-    expect(breadcrumbFor("/teacher/classes")?.nested).toBe(false);
+    expect(breadcrumbFor("/admin/users")?.nested).toBe(false);
   });
 
   it("returns null outside the portals", () => {

@@ -25,7 +25,7 @@ export function portalPageTitle(portal: PortalNavigation, page: NavItem): string
 
 /**
  * A portal's overview: a welcome with the user's name, the portal's own content (`children`,
- * such as a student's classes) and one card per section.
+ * such as a student's labs) and one card per section.
  */
 export function PortalOverview({
   portal,

@@ -6,7 +6,6 @@
 import {
   ActivityIcon,
   BackpackIcon,
-  BookOpenCheckIcon,
   CableIcon,
   ChartColumnIcon,
   ClipboardCheckIcon,
@@ -21,7 +20,6 @@ import {
   ShieldCheckIcon,
   TestTubesIcon,
   UsersIcon,
-  UsersRoundIcon,
 } from "lucide-react";
 import { m } from "@/i18n/messages";
 import type { Role } from "@/lib/roles";
@@ -122,13 +120,6 @@ const TEACHER = {
       description: m.section_teacher_practicals,
     },
     {
-      id: "classes",
-      to: "/teacher/classes",
-      icon: UsersRoundIcon,
-      label: m.nav_classes,
-      description: m.section_teacher_classes,
-    },
-    {
       id: "results",
       to: "/teacher/results",
       icon: MicroscopeIcon,
@@ -170,13 +161,6 @@ const ADMIN = {
       icon: UsersIcon,
       label: m.nav_users_roles,
       description: m.section_admin_users,
-    },
-    {
-      id: "classes",
-      to: "/admin/classes",
-      icon: BookOpenCheckIcon,
-      label: m.nav_classes,
-      description: m.section_admin_classes,
     },
     {
       id: "integrations",
@@ -253,7 +237,7 @@ export function portalOfPath(pathname: string): PortalNavigation | null {
 
 /**
  * The breadcrumb trail of a page: its portal, then its section. `nested` is set on a page
- * below a section (`/teacher/classes/<id>`), whose own name the route supplies.
+ * below a section (`/admin/users/<id>`), whose own name the route supplies.
  */
 export interface Breadcrumb {
   portal: PortalNavigation;
