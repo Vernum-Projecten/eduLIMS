@@ -8,6 +8,7 @@ import "@tanstack/react-start/server-only";
 import type { BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import type { Kysely } from "kysely";
+import { storedRoleSetsWith } from "../../lib/roles.ts";
 import { auditRecorderOf, requestIdOf } from "../audit/better-auth-hooks.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { linkWaitingAddresses } from "./linking.ts";
@@ -53,28 +54,39 @@ function field(value: unknown, key: string): unknown {
   return typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
 }
 
+const TEACHER_ROLE_VALUES = storedRoleSetsWith("teacher");
+
 /**
- * Returns whether `userId` is the only teacher of at least one simulation, which deleting the
- * account would leave without a teacher (D10).
+ * Returns whether `userId` teaches a simulation in which no other teacher row belongs to a user
+ * who holds the app role teacher, so deleting the account would leave it without a teacher
+ * (D10). It applies the rule of `removeTeacher`; the other teachers' user rows are read
+ * `FOR SHARE`.
  */
 export async function isOnlyTeacherOfASimulation(db: Kysely<DB>, userId: string): Promise<boolean> {
-  const row = await db
-    .selectFrom("simulation_teachers as mine")
-    .select("mine.simulation_id")
-    .where("mine.user_id", "=", userId)
-    .where(({ not, exists, selectFrom }) =>
-      not(
-        exists(
-          selectFrom("simulation_teachers as other")
-            .select("other.user_id")
-            .whereRef("other.simulation_id", "=", "mine.simulation_id")
-            .where("other.user_id", "<>", userId),
-        ),
-      ),
-    )
-    .limit(1)
-    .executeTakeFirst();
-  return row !== undefined;
+  return db.transaction().execute(async (trx) => {
+    const mine = await trx
+      .selectFrom("simulation_teachers")
+      .select("simulation_id")
+      .where("user_id", "=", userId)
+      .orderBy("simulation_id")
+      .execute();
+    if (mine.length === 0) return false;
+    const covered = await trx
+      .selectFrom("simulation_teachers")
+      .innerJoin("user", "user.id", "simulation_teachers.user_id")
+      .select("simulation_teachers.simulation_id")
+      .where(
+        "simulation_teachers.simulation_id",
+        "in",
+        mine.map((row) => row.simulation_id),
+      )
+      .where("simulation_teachers.user_id", "<>", userId)
+      .where("user.role", "in", TEACHER_ROLE_VALUES)
+      .forShare("user")
+      .execute();
+    const taught = new Set(covered.map((row) => row.simulation_id));
+    return mine.some((row) => !taught.has(row.simulation_id));
+  });
 }
 
 /**

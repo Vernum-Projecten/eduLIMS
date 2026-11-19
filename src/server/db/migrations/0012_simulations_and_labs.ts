@@ -40,15 +40,22 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .on("simulation_teachers")
     .column("user_id")
     .execute();
-  // NOTE: D10 (#300 review); a simulation keeps one teacher row, checked at commit so a delete
-  // of the whole simulation, whose cascade removes every row, still passes.
+  // NOTE: D10 (#300 review, #311); a simulation keeps a teacher row whose user holds the role
+  // teacher (the stored sets of `user_role_allowed_set`), checked at commit with the user rows
+  // locked, so a delete of the whole simulation, whose cascade removes every row, still passes.
   await sql`
     create function simulation_teachers_keep_one() returns trigger language plpgsql as $$
     begin
-      if exists (select 1 from simulations where id = old.simulation_id)
-        and not exists (
-          select 1 from simulation_teachers where simulation_id = old.simulation_id
-        ) then
+      if not exists (select 1 from simulations where id = old.simulation_id) then
+        return null;
+      end if;
+      perform 1
+        from simulation_teachers st
+        join "user" u on u.id = st.user_id
+        where st.simulation_id = old.simulation_id
+          and u.role in ('teacher', 'teacher,admin')
+        for share of u;
+      if not found then
         raise exception 'a simulation keeps at least one teacher'
           using errcode = '23514', constraint = 'simulation_teachers_last_teacher';
       end if;
@@ -143,6 +150,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .createIndex("lab_member_emails_email_idx")
     .on("lab_member_emails")
     .column("email")
+    .execute();
+  // NOTE: #311; the prune of waiting addresses finds its rows by age.
+  await db.schema
+    .createIndex("lab_member_emails_added_at_idx")
+    .on("lab_member_emails")
+    .column("added_at")
     .execute();
 
   // The students a teacher removed: a removed student cannot rejoin with a lab's code (#288).

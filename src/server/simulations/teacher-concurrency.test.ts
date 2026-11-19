@@ -50,6 +50,56 @@ describe("the last-teacher trigger (D10, S2)", () => {
     expect(rows).toEqual([{ user_id: teacher.id }]);
   });
 
+  it("refuses at commit when the only teacher row left belongs to a former teacher (#311)", async () => {
+    const db = await open();
+    const teacher = await person(db, "only", ["teacher"]);
+    const former = await person(db, "former", ["teacher"]);
+    const created = await createSimulation(db, teacher, { name: "Trigger run" }, NOW);
+    if (!created.ok) throw new Error(created.error);
+    const { simulationId } = created.value;
+    await db
+      .insertInto("simulation_teachers")
+      .values({ simulation_id: simulationId, user_id: former.id, added_by: teacher.id })
+      .execute();
+    await db.updateTable("user").set({ role: "student" }).where("id", "=", former.id).execute();
+    const error = await db
+      .deleteFrom("user")
+      .where("id", "=", teacher.id)
+      .execute()
+      .then(
+        () => null,
+        (thrown: unknown) => thrown,
+      );
+    expect(isLastTeacherViolation(error)).toBe(true);
+    const rows = await db
+      .selectFrom("simulation_teachers")
+      .select("user_id")
+      .where("simulation_id", "=", simulationId)
+      .orderBy("user_id")
+      .execute();
+    expect(rows.map((row) => row.user_id).sort()).toEqual([teacher.id, former.id].sort());
+  });
+
+  it("lets a teacher row go while another teacher with the role stays (#311)", async () => {
+    const db = await open();
+    const teacher = await person(db, "first", ["teacher"]);
+    const both = await person(db, "both", ["teacher", "admin"]);
+    const created = await createSimulation(db, teacher, { name: "Trigger run" }, NOW);
+    if (!created.ok) throw new Error(created.error);
+    const { simulationId } = created.value;
+    await db
+      .insertInto("simulation_teachers")
+      .values({ simulation_id: simulationId, user_id: both.id, added_by: teacher.id })
+      .execute();
+    await db.deleteFrom("user").where("id", "=", teacher.id).execute();
+    const rows = await db
+      .selectFrom("simulation_teachers")
+      .select("user_id")
+      .where("simulation_id", "=", simulationId)
+      .execute();
+    expect(rows).toEqual([{ user_id: both.id }]);
+  });
+
   it("lets a simulation go with all its teacher rows", async () => {
     const db = await open();
     const teacher = await person(db, "only", ["teacher"]);

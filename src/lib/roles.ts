@@ -61,6 +61,16 @@ export function formatRoles(roles: Iterable<Role>): string {
 }
 
 /**
+ * Returns the stored forms of every allowed role set that holds `role` (`teacher` gives
+ * `teacher` and `teacher,admin`), for a SQL filter on the `role` column.
+ */
+export function storedRoleSetsWith(role: Role): string[] {
+  return ALLOWED_ROLE_SETS.filter((set) => (set as readonly Role[]).includes(role)).map((set) =>
+    formatRoles(set),
+  );
+}
+
+/**
  * Validates a value about to be written to better-auth's `role` column: a comma-separated
  * string or a string array, as the admin plugin accepts. Every entry must name a role
  * (`unknown` otherwise), and the set must be allowed.

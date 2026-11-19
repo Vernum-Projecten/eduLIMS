@@ -165,6 +165,27 @@ describe("linkWaitingAddresses (S10: in the lab without doing anything)", () => 
     expect(await hasWaitingLabAddress(database, "\u212aelvin@example.test")).toBe(false);
   });
 
+  it("links nothing for a verified non-ASCII address such as josé@school.example (#311)", async () => {
+    const { database, w } = await open();
+    const jose = await person(database, "jose", ["student"], { verified: true });
+    await database
+      .updateTable("user")
+      .set({ email: "josé@school.example" })
+      .where("id", "=", jose.id)
+      .execute();
+    await database
+      .insertInto("lab_member_emails")
+      .values({ simulation_id: w.simulationId, lab_id: w.otherLabId, email: "josé@school.example" })
+      .execute();
+    expect(await linkWaitingAddresses(database, jose.id, NOW)).toEqual({
+      linked: 0,
+      refused: 0,
+      failed: 0,
+    });
+    expect(await placesOf(database, jose.id)).toEqual([]);
+    expect(await hasWaitingLabAddress(database, "josé@school.example")).toBe(false);
+  });
+
   it("consumes a waiting row of the lab the student is already in, without a second place", async () => {
     const { database, w } = await open();
     await database

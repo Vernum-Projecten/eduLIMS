@@ -180,8 +180,8 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       return { error: PROVIDER_DISABLED_ERROR, errorDescription: "Identity provider disabled" };
     }
     const email = typeof user.email === "string" ? user.email : "";
-    // NOTE: #300 review; a non-ASCII address can fold onto another address when lower-cased, so
-    // it is never verified and never matches a lab's list.
+    // NOTE: #311 finding 3; a non-ASCII address can fold onto another one when lower-cased, so
+    // it never matches a stored address: a lab's list or a pending admin grant.
     const plainEmail = isAsciiEmail(email);
     // NOTE: S10 and #45; an address on a lab's list grants only `student`, to a verified email the
     // IdP sends no role for, at a first sign-in of a user eduLIMS does not hold yet, so never to
@@ -202,7 +202,7 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       decision.reason === NO_ROLE_ERROR &&
       source.action === "create-user" &&
       settings.emailAuthoritative &&
-      email !== "" &&
+      plainEmail &&
       (await options.consumeAdminGrant?.(email, providerId))
     ) {
       decision = { kind: "default", roles: ["admin"] };
@@ -224,7 +224,7 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       }
       return { error: NO_ROLE_ERROR, errorDescription: "No eduLIMS role assigned" };
     }
-    const emailVerified = settings.emailAuthoritative && plainEmail;
+    const emailVerified = settings.emailAuthoritative;
     if (source.action === "create-user") {
       // NOTE: better-auth 1.7.20 validates the exact record it then inserts
       // (internal-adapter.mjs createUser), so these fields are stored with the user.

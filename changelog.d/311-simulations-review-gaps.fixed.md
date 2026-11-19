@@ -1,0 +1,1 @@
+- An administrator can no longer delete the only teacher of a simulation when its other teachers have lost the teacher role, and an email address that is not plain ASCII never takes a pending admin grant. Such an address is marked verified again when its identity provider's email is authoritative (D10).
