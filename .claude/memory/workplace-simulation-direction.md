@@ -1,6 +1,6 @@
 ---
 name: workplace-simulation-direction
-description: "eduLIMS is the LIMS of a workplace simulation: teams compete on turnaround time and accuracy; the practical, lab report, rubric, grade and KPI model is dropped; #264 rewrites the requirements; owner 2026-11-19"
+description: "eduLIMS is the LIMS of a workplace simulation: teams compete on turnaround time and accuracy; no grading, a teacher dashboard of the games; the practical, lab report, rubric, grade and KPI model is dropped; #264 rewrites the requirements; owner 2026-11-19"
 metadata:
   type: project
 ---
@@ -23,6 +23,8 @@ time and on accuracy. The owner's input, 2026-11-19:
 - eduLIMS gives students no other suggestion: they are the analysts.
 - A teacher enters the correct values beforehand and follows every team
   live, on time and on accuracy (green, yellow, red).
+- There is no grading of any kind. The teacher side is a dashboard that
+  shows the progress and the process of the games.
 - Teachers can add other tests later, so the test set is data, never code.
 - The Epoch 2 export is uploaded by drag and drop.
 
