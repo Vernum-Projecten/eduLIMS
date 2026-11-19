@@ -25,8 +25,13 @@ time and on accuracy. The owner's input, 2026-11-19:
   live, on time and on accuracy (green, yellow, red).
 - There is no grading of any kind. The teacher side is a dashboard that
   shows the progress and the process of the games.
-- Each team picks its own lab name and competes as that lab; the Dutch UI
-  word for the group is "lab".
+- There are no classes. The unit is a simulation with a name of its own
+  (for example "Simulation 2026"): it holds the correct values and the labs.
+  Say simulation, never game.
+- A team is a lab, with the name and the logo the team made up. A teacher
+  creates the labs and adds the email addresses of their members; a student
+  who signs in with one of those addresses is in that lab at once, and a lab
+  code is the fallback (ADR 0021). The Dutch UI word for the group is "lab".
 - A result released to the patient's record is final. The teacher sees every
   measurement; the released one counts.
 - An Afinion 2 result finds its team through the patient ID the team enters
@@ -45,6 +50,8 @@ time and on accuracy. The owner's input, 2026-11-19:
 - Per test the teacher sets who calculates the concentration from an Epoch
   plate: the team by its own procedure, or eduLIMS from the standards the
   team marked. Both ways are built.
+  When eduLIMS calculates: subtract the blank, fit a straight line through
+  the standards, and give a sample outside their range no number.
 - Teachers can add other tests later, so the test set is data, never code.
 - The Epoch 2 export is uploaded by drag and drop.
 

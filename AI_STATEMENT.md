@@ -98,7 +98,7 @@ weaken a test or a gate.
 
 AI tools see code and the pseudonymised test set only. They **shall not**
 receive real names, student numbers or measurements of real people, nor the
-teachers' game material (the scenario and the correct values of a game).
+teachers' simulation material (the scenario and the correct values of a simulation).
 The development and test databases hold only that test set, so a prompt
 cannot contain real personal data by accident. This rule is also in
 `CLAUDE.md`.

@@ -265,6 +265,16 @@ retirement is recorded in the activity log.
 
 ## Classes
 
+:::note[Classes are being replaced]
+The class screens below work today, and they are the earlier model. The
+product owner decided on 2026-11-19 that eduLIMS has no classes: a teacher
+will prepare a simulation with its labs and add the students to a lab (see
+the [teacher guide](/guides/teacher/#planned-tasks)). Creating classes as an
+administrator is no longer a requirement. Until that rework lands, the
+screens work as this section describes; what the admin portal shows of
+simulations and labs afterwards is not decided.
+:::
+
 Teachers create their own classes and invite their students and
 co-teachers; see the teacher guide. **Classes** in the admin portal lists
 every class in eduLIMS, newest academic year first, with its owner, its

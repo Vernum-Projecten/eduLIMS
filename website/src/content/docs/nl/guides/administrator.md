@@ -280,6 +280,17 @@ buitengebruikstelling komt in het activiteitenlogboek.
 
 ## Klassen
 
+:::note[Klassen worden vervangen]
+De schermen voor klassen hieronder werken nu, en ze horen bij het eerdere
+model. De product owner heeft op 19 november 2026 besloten dat eduLIMS geen
+klassen heeft: een docent bereidt straks een simulatie met haar labs voor en
+voegt de studenten aan een lab toe (zie de
+[handleiding voor docenten](/nl/guides/teacher/#geplande-taken)). Klassen
+aanmaken als beheerder is geen requirement meer. Tot die verbouwing klaar
+is, werken de schermen zoals dit hoofdstuk beschrijft; wat het Beheerportaal
+daarna van simulaties en labs toont, is nog niet besloten.
+:::
+
 Docenten maken hun eigen klassen aan en nodigen hun studenten en
 mededocenten uit; zie de handleiding voor docenten. **Klassen** in het
 Beheerportaal toont elke klas in eduLIMS, het nieuwste studiejaar eerst, met

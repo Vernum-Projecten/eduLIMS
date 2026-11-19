@@ -28,7 +28,7 @@ a question the draft leaves open.
 2. `docs/lims-workflow.md` for the chain from request form to released
    result, `docs/architecture.md` for where a requirement lands in the design
    (portals, databases, the openEHR template, the integrations), and
-   `docs/game-dashboard.md` for the teacher dashboard.
+   `docs/teacher-dashboard.md` for the teacher dashboard.
 3. The closed and open issues that cite the ID
    (`gh issue list --state all --search "S4 in:body"`): an owner decision
    recorded on an issue is newer than the document and wins over it.

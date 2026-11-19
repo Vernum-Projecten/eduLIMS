@@ -89,7 +89,7 @@ generated file by hand (`generated_file_guard.sh` blocks it).
 - Each constraint has a negative test: a request without a team is refused
   (S10), a delete that the foreign key restricts is refused.
 - Queries that use the new table filter by team, or by the teacher's own
-  games, in SQL and have their role isolation tests (`auth-security.md`).
+  simulations, in SQL and have their role isolation tests (`auth-security.md`).
 
 ## Report
 

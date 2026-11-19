@@ -10,9 +10,9 @@ adding one, and update it instead of duplicating.
 ## Owner decisions
 
 - [Workplace simulation direction](workplace-simulation-direction.md): a
-  LIMS for a workplace simulation where teams compete on turnaround time and
-  accuracy; the practical, lab report, rubric, grade and KPI model is
-  dropped; #264 rewrites the requirements; owner 2026-11-19
+  LIMS for a workplace simulation; labs (teams) in a named simulation compete
+  on turnaround time and accuracy; no classes, no grading, no hints, the
+  teachers' material never public; owner 2026-11-19
 - [Requirements are a draft](requirements-are-draft.md): the requirement
   IDs, the quality requirements, the acceptance criteria and the dashboard
   measures are under discussion; cite IDs, flag gaps and ask the owner, never
@@ -69,6 +69,9 @@ adding one, and update it instead of duplicating.
 - [Env file workflow](env-file-workflow.md): never read or edit the local env
   file; update the example and end with "run `! pnpm env:sync`"; use a
   separate worktree while the owner runs `pnpm dev`
+- [Sub-workers on Opus](sub-workers-on-opus.md): the orchestrator may run on
+  the most capable model; every sub-worker it spawns runs on Opus, set on the
+  spawn; owner 2026-11-19
 - [Clean up worktrees](clean-up-worktrees.md): remove each worktree and its
   branches as soon as its PR merges or its agent finishes; owner 2026-11-12
 

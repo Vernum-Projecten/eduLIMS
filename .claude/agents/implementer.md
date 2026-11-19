@@ -35,16 +35,16 @@ Non-negotiables (violations are rejected at review):
   accepts.
 - **Access is enforced on the server.** Every server function runs the
   session and role middleware, validates input with a Zod schema in
-  `.validator()`, and filters by team or by the teacher's own games in SQL
+  `.validator()`, and filters by team or by the teacher's own simulations in SQL
   (S10, D10, D11). Every role-scoped function gets negative tests per role
   (`auth-security.md`).
 - **No hint for students (Q-SIM-1, W7).** Nothing a student can call returns
   a correct value, an accuracy status, a teacher's limit or another team's
   work. Times the dashboard uses are taken on the server (Q-SIM-2).
 - **Privacy:** no real personal data anywhere; FerroEHR holds the fictional
-  patients of a game and no student's or teacher's name, student number or
+  patients of a simulation and no student's or teacher's name, student number or
   e-mail address; logs carry ids, never names, correct values or tokens.
-  Nothing from the teachers' game material enters a file, a fixture or a
+  Nothing from the teachers' simulation material enters a file, a fixture or a
   message: invent the data (Q-PRIV-4).
 - **TypeScript:** no `any`, no non-null `!`, no lying casts, `import type`,
   typed errors, branded ids (`typescript-style.md`). Server-only code lives in

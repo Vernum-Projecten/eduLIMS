@@ -84,7 +84,7 @@ specification governs a choice (retry timing, the client's caching), flag it:
   runs named stored queries, never ad-hoc AQL. eduLIMS checks session, role
   and ownership before every call, because FerroEHR sees only the client.
 - **No real person crosses the boundary (Q-PRIV-1).** FerroEHR holds the
-  fictional patients of a game: the EHR is the patient's, with the fictional
+  fictional patients of a simulation: the EHR is the patient's, with the fictional
   details the team registered from the form (S11; O9, answered 2026-11-19).
   No student's or teacher's name, student number or e-mail address ever
   appears in a composition, an EHR subject, an AQL query, a log line, or an
@@ -103,7 +103,7 @@ specification governs a choice (retry timing, the client's caching), flag it:
   sample, patient and team (Q-TRACE-1). The sample number alone does not
   name the team, because every team works the same numbers (R-11). The lab
   number eduLIMS gives the sample (S12) does: it is unique across the teams
-  of every game.
+  of every simulation.
 - **AQL uses parameters.** Pass values through `query_parameters`
   (`WHERE … = $sample_number`); never interpolate a value into the AQL string
   (OWASP A05). Queries are named constants with a test against the template's

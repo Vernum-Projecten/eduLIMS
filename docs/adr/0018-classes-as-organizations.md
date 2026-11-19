@@ -3,7 +3,7 @@
 
 # 0018. A class is a better-auth organization, a lab group a team
 
-- Status: Proposed
+- Status: Superseded by 0021
 - Date: 2026-11-12
 - Deciders: maintainer (design on #28, owner decisions on the issue)
 

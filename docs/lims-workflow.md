@@ -3,8 +3,8 @@
 
 # The LIMS workflow
 
-This page shows how the work of a team travels through eduLIMS during a
-game, from the paper request form to the result in the patient's record and
+This page shows how the work of a lab travels through eduLIMS during a
+simulation, from the paper request form to the result in the patient's record and
 on the teacher's dashboard. Teams practise the workflow of a real clinical
 laboratory, so eduLIMS follows the chain a real LIMS follows
 ([ADR 0020](adr/0020-workplace-simulation.md)).
@@ -37,7 +37,7 @@ flowchart LR
 | Request | The team records the request as it stands on the form: the requester, the requested tests, whether the result must be phoned through, and the remarks. eduLIMS records the time of entry on the server. An urgent request is not built in this iteration (D12). | team, eduLIMS | S12, Q-SIM-2 |
 | Control request | A control sample is a quality-control sample with no patient, and it is its own kind of request. The team records it without a patient, then measures and releases it like any other. | team, eduLIMS | S16 |
 | Sample | The team links each sample by the sample number and the material on the form. | team | S12 |
-| Lab number | eduLIMS gives the sample a lab number and shows it to the team. The sample number on the form is the same in every team; the lab number is unique across the teams of every game, so it names one team's sample. | eduLIMS | S12, R-11 |
+| Lab number | eduLIMS gives the sample a lab number and shows it to the team. The sample number on the form is the same in every team; the lab number is unique across the teams of every simulation, so it names one team's sample. | eduLIMS | S12, R-11 |
 | Measurement | The team measures. A value arrives from the Afinion 2, from the Epoch 2 upload, or is entered by hand where a test has no analyser route (Open, O4 and O8). A team can measure again; every measurement is kept. | team, analyser | S4, S5, S14 |
 | Check | When the team picks a measurement to release, eduLIMS compares it with the team's own tolerance and warns when it is outside. The team decides. | eduLIMS, team | S15 |
 | Release | The team releases the result to the patient's record. eduLIMS records the time of release on the server. The result of a control request goes to the control log of the team, never to a patient's record. A released result is final. | team, eduLIMS | S15, S16, Q-SIM-2 |
@@ -49,19 +49,21 @@ team gets, and it uses only what the team entered itself.
 
 ## Who owns what, and where it lives
 
-The work belongs to the team. Every patient, request, sample, measurement
-and result hangs under the team within a game, and every server function
-checks that in its database query (S10). A teacher sees the teams of their
-own games.
+The work belongs to the lab: the team of students that runs one laboratory
+in a simulation. Every patient, request, sample, measurement and result
+hangs under the lab within a simulation, and every server function checks
+that in its database query (S10). A teacher sees the labs of their own
+simulations ([ADR 0021](adr/0021-simulations-and-labs.md)).
 
 ```mermaid
 erDiagram
-    GAME ||--o{ TEAM : "is played by"
-    GAME ||--o{ CORRECT_VALUE : "holds, for teachers only"
-    TEST ||--o{ CORRECT_VALUE : "per sample number, once per game"
-    TEAM ||--o{ TOLERANCE : "sets per test"
-    TEAM ||--o{ PATIENT : "registers"
-    TEAM ||--o{ REQUEST : "records"
+    SIMULATION ||--o{ LAB : "has, created by a teacher"
+    SIMULATION ||--o{ CORRECT_VALUE : "holds, for teachers only"
+    TEST ||--o{ CORRECT_VALUE : "per sample number, once per simulation"
+    LAB ||--o{ MEMBER : "has, by email address or by code"
+    LAB ||--o{ TOLERANCE : "sets per test"
+    LAB ||--o{ PATIENT : "registers"
+    LAB ||--o{ REQUEST : "records"
     PATIENT |o--o{ REQUEST : "is requested for, none for a control sample"
     REQUEST ||--o{ REQUESTED_TEST : "asks"
     TEST ||--o{ REQUESTED_TEST : "from the catalogue"
@@ -72,7 +74,7 @@ erDiagram
 
 | Data | Lives in | Holds no |
 |---|---|---|
-| Games, teams with their lab names, the test catalogue, correct values, tolerances, patients, requests, samples with their lab numbers, the times of entry and release, the upload log and the audit log | the eduLIMS database | |
+| Simulations, labs with their names, logos and members, the test catalogue, correct values, tolerances, patients, requests, samples with their lab numbers, the times of entry and release, the upload log and the audit log | the eduLIMS database | |
 | Each result of a patient's request as an openEHR composition on the `eduLIMS-lab` template, in the EHR of the patient, with the sample number, the analyte, the value, the device and the time | FerroEHR | correct value, tolerance, accuracy status, or the name, student number or email address of a student or a teacher (Q-PRIV-1) |
 
 - The patient's EHR in FerroEHR carries the fictional details the team
@@ -83,11 +85,15 @@ erDiagram
   control log of the team and is in no patient's record. Where a released
   control result is stored, in FerroEHR or in the eduLIMS database, is a
   design decision that is not made yet.
-- A correct value is entered once per game, keyed by sample number and test,
-  and holds for every team (D10). A team added later is judged against the
-  same values.
-- A team works under the lab name it picked, and eduLIMS shows the team
-  under that name (S10).
+- A correct value is entered once per simulation, keyed by sample number and
+  test, and holds for every lab (D10). A lab added later is judged against
+  the same values.
+- A teacher creates each lab with the name and the logo its team made up,
+  and eduLIMS shows the lab under them (D10, S10).
+- Every student has their own account. A student who signs in with an email
+  address a teacher added to a lab is linked to that lab; eduLIMS sends no
+  email. A student who signs in with another address joins with the lab's
+  code (S10). Open: team roles with different rights (O10).
 - A result released to the patient's record is final: nobody can change it
   or release another measurement for that requested test (S15; owner,
   2026-11-19, O7). The teacher sees every measurement of a requested test,
@@ -135,7 +141,7 @@ sequenceDiagram
 
 - Every team works the same sample numbers, so the sample number alone does
   not say whose result arrived (R-11). The lab number does: it is unique
-  across the teams of every game, and eduLIMS links the result to the one
+  across the teams of every simulation, and eduLIMS links the result to the one
   sample that carries it. Its format and length are not decided; the patient
   ID field takes up to 16 characters.
 - **Open, #209:** which HL7 fields carry the entered patient ID. The manual
@@ -198,7 +204,10 @@ sequenceDiagram
   standards with their concentrations and the blanks, and eduLIMS shows the
   calibration line it used, so the team can judge it before a release.
   Neither way uses a correct value (Q-SIM-1).
-- **Open, O5:** the calibration model eduLIMS uses when it calculates.
+- When eduLIMS calculates, it subtracts the blank and fits a straight line
+  through the standards. A sample outside the range of the standards gets no
+  number but the message that it is outside the range (S4; owner,
+  2026-11-19, O5).
 
 ## The states of a requested test
 
@@ -222,16 +231,22 @@ control log of the team (S16).
 
 ## The teacher's side
 
-Before a game a teacher manages the test catalogue (D9), prepares the game
-and enters the correct value per test and sample number (D10), and sets the
-limits for green, yellow and red (D13). The correct values are entered once
-per game and hold for every team, so adding or removing a team is no extra
-work. During the game the dashboard shows every
-team's requests with their times, every measurement of a requested test with
+Before a simulation a teacher manages the test catalogue (D9), where the
+teacher also chooses per test who calculates the concentration from an
+Epoch 2 plate. The teacher then prepares the simulation (D10): gives it a
+name, creates its labs, each with the name and the logo the team made up,
+and adds the members of a lab by pasting their email addresses. The teacher
+enters the correct value per test and sample number, and sets the limits for
+green, yellow and red (D13). The correct values are entered once per
+simulation and hold for every lab, so adding or removing a lab is no extra
+work. Open: copying a simulation to a next year (O11).
+
+During the simulation the dashboard shows every
+lab's requests with their times, every measurement of a requested test with
 the released one marked, and the accuracy of each released result (D11). A
 time target for urgent requests (D12, O1) and the ranking of the teams (D14,
 O3) are not built in this iteration. The design is in
-[game-dashboard.md](game-dashboard.md).
+[teacher-dashboard.md](teacher-dashboard.md).
 
 ## Setting up an Afinion 2
 
@@ -250,4 +265,5 @@ O3) are not built in this iteration. The design is in
   open questions.
 - [ADR 0020](adr/0020-workplace-simulation.md): the decision for the
   simulation.
+- [ADR 0021](adr/0021-simulations-and-labs.md): simulations and labs.
 - [ADR 0013](adr/0013-internal-transport-security.md): the MLLP transport.

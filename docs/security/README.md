@@ -50,7 +50,7 @@ They are not published on the documentation site.
 | Area | Sheets |
 |---|---|
 | Sign-in and sessions (better-auth, OIDC with PKCE) | Authentication, OAuth2, JSON_Web_Token, Session_Management, Cookie_Theft_Mitigation |
-| Roles, ownership, classes as tenants | Authorization, Access_Control, Insecure_Direct_Object_Reference_Prevention, Multi_Tenant_Security, Authorization_Testing_Automation, Mass_Assignment |
+| Roles, ownership, simulations as tenants | Authorization, Access_Control, Insecure_Direct_Object_Reference_Prevention, Multi_Tenant_Security, Authorization_Testing_Automation, Mass_Assignment |
 | The browser | Cross-Site_Request_Forgery_Prevention, Cross_Site_Scripting_Prevention, DOM_based_XSS_Prevention, Content_Security_Policy, HTTP_Headers, HTTP_Strict_Transport_Security, Clickjacking_Defense, Unvalidated_Redirects_and_Forwards, Third_Party_Javascript_Management, Web_Cache_Security |
 | Input, uploads, queries | Input_Validation, File_Upload, XML_External_Entity_Prevention (the `.xlsx` is zipped XML), SQL_Injection_Prevention, Query_Parameterization, Injection_Prevention, Server_Side_Request_Forgery_Prevention, REST_Security |
 | Invitations (#28) | Email_Validation_and_Verification |
@@ -74,7 +74,7 @@ and GitHub_Actions_Security sheets cover the same ground for this pipeline.
 ## How the pieces are used
 
 - **Designing a feature:** read the ASVS chapter of the area (V5 for the Gen5
-  upload, V8 for class membership in #28) and the matching cheat sheet before
+  upload, V8 for the membership of a simulation and its labs) and the matching cheat sheet before
   you write the plan; name the ASVS ids the feature has to meet in the issue.
 - **Building it:** the rows of the applicability table say what the feature
   must do and how it is verified. When a test proves a row, change its status

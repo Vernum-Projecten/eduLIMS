@@ -7,26 +7,26 @@ description: What eduLIMS is, who uses it, and where it stands.
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
 eduLIMS is an open-source laboratory information management system (LIMS) for
-a workplace simulation in laboratory education. Teams of students run a
-simulated clinical laboratory: they register patients and requests from paper
-forms, link the samples, measure on the lab analysers, and release each
-result to the patient's record. The teams compete on turnaround time and
-accuracy. Teachers enter the correct values beforehand and follow every team
-on a live dashboard; there is no grading. Administrators manage users and
+a workplace simulation in laboratory education. Each team of students runs a
+simulated clinical laboratory, its lab: the team registers patients and
+requests from paper forms, links the samples, measures on the lab analysers,
+and releases each result to the patient's record. The labs compete on
+turnaround time and accuracy. Teachers prepare a simulation with its labs,
+enter the correct values beforehand and follow every lab on a live dashboard; there is no grading. Administrators manage users and
 roles and watch the integrations.
 
 Results are stored as openEHR compositions in
 [FerroEHR](https://github.com/FerroHEALTH/FerroEHR), an openEHR clinical data
 repository. Results from analysers that send HL7 v2 arrive through
 [FerroBRIDGE](https://github.com/FerroHEALTH/FerroBRIDGE). Everything else
-about a game (teams, the test catalogue, correct values, tolerances, requests
-and their times) stays in the eduLIMS database.
+about a simulation (its labs, the test catalogue, correct values, tolerances,
+requests and their times) stays in the eduLIMS database.
 
 :::caution[Pre-release]
 eduLIMS is pre-release software. The [requirements](/development/requirements/)
 are a working draft with open questions, and the application, its
 configuration and this documentation can change between releases without a
-deprecation period. The patients of a game are fictional; eduLIMS is not
+deprecation period. The patients of a simulation are fictional; eduLIMS is not
 meant for real patient data.
 :::
 

@@ -74,7 +74,7 @@ const STATIC_SOURCES: readonly Source[] = [
   { file: "docs/architecture.md", slug: "development/architecture" },
   { file: "docs/requirements.md", slug: "development/requirements" },
   { file: "docs/test-strategy.md", slug: "development/test-strategy" },
-  { file: "docs/game-dashboard.md", slug: "development/game-dashboard" },
+  { file: "docs/teacher-dashboard.md", slug: "development/teacher-dashboard" },
   { file: "docs/VERSIONS.md", slug: "development/versions" },
   { file: "docs/ci-cd.md", slug: "development/ci-cd" },
   {

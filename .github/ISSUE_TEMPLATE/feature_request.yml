@@ -18,20 +18,19 @@ body:
         - "S1: Sign in with the institution account (Entra ID or Keycloak)"
         - "S4: Upload the Gen5 Excel export of the Epoch 2"
         - "S5: See the measurements per sample (Afinion, Epoch)"
-        - "S10: Work in a team"
+        - "S10: Work in a lab"
         - "S11: Register a patient from the request form"
         - "S12: Record a request with its tests and samples"
         - "S13: Set the team's own tolerances per test"
         - "S14: Measure a sample again"
         - "S15: Release a result to the patient's record"
         - "D9: Manage the test catalogue"
-        - "D10: Prepare a game and its correct values"
+        - "D10: Prepare a simulation with its labs and correct values"
         - "D11: Follow every team live on the dashboard"
         - "D12: Set a time target for urgent requests"
         - "D13: Set the accuracy limits per test"
         - "D14: See the ranking of the teams"
         - "B1: Manage users and roles"
-        - "B2: Manage classes"
         - "B3: Manage analysers and integrations"
         - "B4: View the log of uploads, HL7 messages and errors"
         - "Quality requirement (ISO 25010: security, privacy, accessibility, ...)"
@@ -43,7 +42,7 @@ body:
     attributes:
       label: User story
       description: Who wants what, and why.
-      placeholder: As a teacher, I want to see every measurement of a requested test, so that I can follow the game.
+      placeholder: As a teacher, I want to see every measurement of a requested test, so that I can follow the simulation.
     validations:
       required: true
   - type: textarea

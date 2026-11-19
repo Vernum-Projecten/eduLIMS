@@ -180,7 +180,7 @@ definitions) and <https://tanstack.com/charts/latest>, never from memory.
   before the release is confirmed, with an icon and text, and uses only the
   limits the team entered itself. The team decides.
 - The teacher dashboard (D11) updates without a manual reload and shows only
-  the teacher's own games.
+  the teacher's own simulations.
 - A result shows the fictional patient and the sample number. No name or
   student number of a student or a teacher comes from FerroEHR.
 

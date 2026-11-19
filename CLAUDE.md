@@ -4,22 +4,25 @@
 # CLAUDE.md
 
 **eduLIMS** is an open-source laboratory information management system (LIMS)
-for a workplace simulation in laboratory education (ADR 0020). Teams of
-students run a simulated clinical laboratory in a game: they register
-patients and requests from paper request forms, link each sample by the
+for a workplace simulation in laboratory education (ADR 0020). In a
+**simulation**, teams of students each run a simulated clinical laboratory,
+their **lab**, which a teacher creates with the name and the logo the team
+made up (ADR 0021). The students register patients and requests from paper request forms, link each sample by the
 sample number on the form, set their own tolerances, measure on the Abbott
 Afinion 2 and the BioTek Epoch 2 (several times when they want), upload the
-Gen5 Excel export, and release each result to the patient's record. The teams
+Gen5 Excel export, and release each result to the patient's record. The labs
 compete on turnaround time and accuracy. Teachers manage the test catalogue,
-prepare a game with its correct values, and follow every team on a live
-dashboard; administrators manage users, roles, classes, analysers and the
-integrations. There is no grading of any kind. One web app serves three
+prepare a simulation with its labs and its correct values, and follow every
+lab on a live dashboard; administrators manage users, roles, analysers and
+the integrations. There are no classes: the class screens and the class
+service in the code are the earlier model, and #280 reworks them into
+simulations and labs. There is no grading of any kind. One web app serves three
 portals: the **Student portal** (`/student`), the **Teacher portal**
 (`/teacher`) and the **Admin portal** (`/admin`), for the roles `student`,
 `teacher` and `admin`.
 
 Two databases hold the data, on one PostgreSQL 18 server: the **eduLIMS
-database** for the simulation (users, classes, games, teams, the test
+database** for the simulation (users, simulations, labs, the test
 catalogue, correct values, tolerances, patients, requests, samples, the times
 of entry and release, logs) and **FerroEHR**, an openEHR CDR, for the results
 as compositions on the `eduLIMS-lab` template. Afinion results arrive as HL7
@@ -136,15 +139,15 @@ pnpm check                # the local gate: typecheck, lint, test
   cite it in the PR.
 - **Privacy: never real personal data.** Code, fixtures, seeds, logs,
   screenshots, issues and PRs use invented data only: the fixed
-  pseudonymised test set. FerroEHR holds the fictional patients of a game
+  pseudonymised test set. FerroEHR holds the fictional patients of a simulation
   (S11). No personal data of a real person reaches it: no student's or
   teacher's name, student number or e-mail address in a composition, an EHR
   subject or an AQL query (Q-PRIV-1). Logs carry ids, never names, correct
   values or tokens.
-- **The teachers' game material never becomes public.** The repository and
+- **The teachers' simulation material never becomes public.** The repository and
   the tracker are public, and students could find the scenario and the
   correct values there. No scenario, patient list, request form or correct
-  value of a real game enters a file, a fixture, a seed, an issue, a comment,
+  value of a real simulation enters a file, a fixture, a seed, an issue, a comment,
   a PR or a commit message. Describe a format without its content, and invent
   fixtures and demo data for the purpose (Q-PRIV-4, R-13).
 - **eduLIMS gives students no hint.** No feature shows a student a correct
@@ -155,7 +158,7 @@ pnpm check                # the local gate: typecheck, lint, test
   server route checks the session, the role and the ownership (in the SQL
   query) before it reads data. A student sees only the work of their own team
   and never a correct value or an accuracy status (S10, Q-SIM-1); a teacher
-  sees only their own games (D10, D11, Q-SEC-2). Route guards are navigation,
+  sees only their own simulations (D10, D11, Q-SEC-2). Route guards are navigation,
   never the security boundary. Every role-scoped function has negative tests
   per role (`.claude/rules/auth-security.md`).
 - **WCAG 2.1 AA** on every screen: keyboard operable, labelled, never colour
@@ -311,8 +314,9 @@ headers.
 - `docs/architecture.md`: the design (portals, data split, integrations,
   platform).
 - `docs/lims-workflow.md`: the chain from the paper request form to the
-  released result; `docs/game-dashboard.md`: the teacher dashboard;
-  `docs/adr/0020-workplace-simulation.md`: the decision for the simulation.
+  released result; `docs/teacher-dashboard.md`: the teacher dashboard;
+  `docs/adr/0020-workplace-simulation.md`: the decision for the simulation;
+  `docs/adr/0021-simulations-and-labs.md`: simulations and labs.
 - `docs/ci-cd.md`, `docs/release.md`: the pipeline and the release cut.
 - openEHR ITS-REST 1.1.0:
   <https://specifications.openehr.org/releases/ITS-REST/Release-1.1.0>

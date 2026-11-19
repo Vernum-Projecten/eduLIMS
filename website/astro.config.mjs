@@ -90,7 +90,7 @@ export default defineConfig({
             "development/architecture",
             "development/requirements",
             "development/test-strategy",
-            "development/game-dashboard",
+            "development/teacher-dashboard",
             {
               label: "Decisions",
               translations: { nl: "Besluiten" },
