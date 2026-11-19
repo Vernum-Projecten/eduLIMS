@@ -10,8 +10,8 @@ import {
   toCreateInput,
   toUpdateInput,
 } from "@/components/admin-idp/provider-form-schema";
-import { toast } from "@/components/ui/sonner";
 import { m } from "@/i18n/messages";
+import { toast } from "@/lib/toast";
 import { createIdentityProvider, updateIdentityProvider } from "@/server/idp/functions";
 import {
   createProviderMutationOptions,

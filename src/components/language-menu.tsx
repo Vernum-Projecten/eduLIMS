@@ -13,9 +13,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "@/components/ui/sonner";
 import { m } from "@/i18n/messages";
 import { getLocale, type Locale, localeName, locales, switchLocale } from "@/lib/i18n/locale";
+import { toast } from "@/lib/toast";
 import { savePreferredLocale } from "@/server/preferences/functions";
 import { saveLocaleMutationOptions } from "@/server/preferences/query-options";
 

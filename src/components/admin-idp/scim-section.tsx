@@ -13,9 +13,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/sonner";
 import { m } from "@/i18n/messages";
 import { formatDateTime } from "@/lib/i18n/format";
+import { toast } from "@/lib/toast";
 import {
   createScimTokenFn,
   revokeScimTokenFn,

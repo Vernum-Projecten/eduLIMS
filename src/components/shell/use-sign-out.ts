@@ -4,9 +4,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "@/components/ui/sonner";
 import { m } from "@/i18n/messages";
 import { authClient } from "@/lib/auth-client";
+import { toast } from "@/lib/toast";
 
 /**
  * Signs the user out; a failure shows a toast. The Query cache is emptied on every path (before

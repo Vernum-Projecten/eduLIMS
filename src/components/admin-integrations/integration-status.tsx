@@ -27,7 +27,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { toast } from "@/components/ui/sonner";
 import { Spinner } from "@/components/ui/spinner";
 import { m } from "@/i18n/messages";
 import {
@@ -49,6 +48,7 @@ import {
   type IntegrationDisplayState,
   type StepState,
 } from "@/lib/integrations";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { checkIntegrationsNow } from "@/server/integrations/functions";
 import { checkNowMutationOptions } from "@/server/integrations/query-options";

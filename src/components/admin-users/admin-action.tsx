@@ -16,9 +16,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/sonner";
 import { m } from "@/i18n/messages";
 import { adminActionErrorMessage } from "@/lib/i18n/user-labels";
+import { toast } from "@/lib/toast";
 import { actionErrorCode } from "@/server/users/query-options";
 
 /**

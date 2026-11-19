@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { type UseMutationOptions, useMutation } from "@tanstack/react-query";
-import { toast } from "@/components/ui/sonner";
 import { simulationErrorMessage } from "@/lib/i18n/simulation-labels";
+import { toast } from "@/lib/toast";
 import { simulationErrorCode } from "@/server/simulations/query-options";
 
 /** What the screen does with the outcome of an action. */

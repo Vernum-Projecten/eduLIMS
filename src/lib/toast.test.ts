@@ -2,23 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The application's toast (#328): an error stays until it is closed and has a close button
-// (WCAG 2.2.1, 3.3.1); every other kind keeps Sonner's timing; nothing imports Sonner's own.
+// (WCAG 2.2.1, 3.3.1); every other kind keeps Sonner's timing; nothing takes Sonner's own.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-const sonner = vi.hoisted(() => {
-  const base = Object.assign(vi.fn(), {
-    success: vi.fn(),
-    error: vi.fn(),
-    dismiss: vi.fn(),
-  });
-  // The Toaster is not rendered here; a placeholder value keeps the import resolvable.
-  return { toast: base, Toaster: null };
-});
+const sonner = vi.hoisted(() => ({
+  toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), dismiss: vi.fn() }),
+}));
 vi.mock("sonner", () => sonner);
 
-const { toast } = await import("@/components/ui/sonner");
+const { toast } = await import("./toast");
 
 describe("toast", () => {
   it("keeps an error until it is closed, with a close button", () => {
@@ -50,16 +44,19 @@ describe("toast", () => {
 });
 
 describe("the toast import", () => {
-  const ROOT = join(import.meta.dirname, "..", "..");
-  const files = readdirSync(join(ROOT, "src"), { recursive: true, encoding: "utf8" }).filter(
+  const SRC = join(import.meta.dirname, "..");
+  // The generated message modules are skipped: they never import a library.
+  const files = readdirSync(SRC, { recursive: true, encoding: "utf8" }).filter(
     (path) => /\.(ts|tsx)$/.test(path) && !path.startsWith("i18n") && !path.endsWith(".gen.ts"),
   );
+  const allowed = new Set([join("lib", "toast.ts"), join("components", "ui", "sonner.tsx")]);
 
-  it("comes from the application's toast, never from Sonner directly", () => {
+  it("takes `toast` from src/lib/toast.ts, never from Sonner directly", () => {
     const direct = files.filter(
       (path) =>
-        path !== join("components", "ui", "sonner.tsx") &&
-        /from\s+["']sonner["']/.test(readFileSync(join(ROOT, "src", path), "utf8")),
+        !allowed.has(path) &&
+        !path.endsWith(".test.ts") &&
+        /\btoast\b[^;]*from\s+["']sonner["']/.test(readFileSync(join(SRC, path), "utf8")),
     );
     expect(direct).toEqual([]);
   });
