@@ -186,7 +186,9 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   await expect(waitingTable(page).getByRole("row")).toHaveCount(6);
 
   const waiting = invented[0] ?? "";
-  await page.getByRole("button", { name: `Remove ${waiting}` }).click();
+  const removeWaiting = page.getByRole("button", { name: `Remove ${waiting}` });
+  await expectHydrated(removeWaiting);
+  await removeWaiting.click();
   await page
     .getByRole("alertdialog", { name: `Remove ${waiting}?` })
     .getByRole("button", { name: "Remove address" })

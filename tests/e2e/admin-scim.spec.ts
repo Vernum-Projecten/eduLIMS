@@ -39,6 +39,7 @@ test("an administrator issues a SCIM token once, the directory provisions a user
   // A token left by an earlier run is revoked first, so the journey starts from none.
   const leftover = page.getByRole("button", { name: "Revoke token" });
   if (await leftover.isVisible()) {
+    await expectHydrated(leftover);
     await leftover.click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Revoke token" }).click();
   }
@@ -83,7 +84,9 @@ test("an administrator issues a SCIM token once, the directory provisions a user
   await axe(page);
 
   await openScim(page);
-  await page.getByRole("button", { name: "Replace token" }).click();
+  const replaceToken = page.getByRole("button", { name: "Replace token" });
+  await expectHydrated(replaceToken);
+  await replaceToken.click();
   const replace = page.getByRole("alertdialog", { name: "Replace the SCIM token?" });
   await expect(replace).toBeVisible();
   await axe(page);

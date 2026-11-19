@@ -5,7 +5,7 @@
 // sheet and dialog controls (#27, #55), each checked with axe in light, dark and Dutch.
 import { readFileSync } from "node:fs";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { devLogin, expectNoA11yViolations } from "./fixtures";
+import { devLogin, expectHydrated, expectNoA11yViolations } from "./fixtures";
 import { appUrl } from "./run-env";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
@@ -54,10 +54,12 @@ test.describe("the mobile sidebar sheet (#27)", () => {
       await expect(page.locator("html")).toHaveAttribute("lang", "nl");
       await expect(page.locator("html")).toHaveClass(new RegExp(`\\b${theme}\\b`));
 
-      await page
+      // A click before hydration finds no handler and the sheet never opens (#314).
+      const toggle = page
         .getByRole("banner")
-        .getByRole("button", { name: dutch("sidebar_toggle") })
-        .click();
+        .getByRole("button", { name: dutch("sidebar_toggle") });
+      await expectHydrated(toggle);
+      await toggle.click();
       const sheet = page.getByRole("dialog", { name: dutch("ui_sidebar_title") });
       await expect(sheet).toBeVisible();
       await expect(sheet).toHaveAccessibleDescription(dutch("ui_sidebar_description"));
@@ -69,10 +71,11 @@ test.describe("the mobile sidebar sheet (#27)", () => {
   test("announces its English title and description in English", async ({ page }) => {
     await devLogin(page, "student@example.test");
     await expect(page).toHaveURL(/\/student$/);
-    await page
+    const toggle = page
       .getByRole("banner")
-      .getByRole("button", { name: "Show or hide the sidebar" })
-      .click();
+      .getByRole("button", { name: "Show or hide the sidebar" });
+    await expectHydrated(toggle);
+    await toggle.click();
     const sheet = page.getByRole("dialog", { name: "Menu" });
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAccessibleDescription("The sections of this portal.");
@@ -91,10 +94,12 @@ test.describe("destructive buttons in a sheet and a dialog (#54)", () => {
         await usePreferences(context, theme, locale);
         await page.goto("/admin/users?q=Test%20Student");
         await expect(page.locator("html")).toHaveAttribute("lang", locale);
-        await page
+        const link = page
           .getByRole("table")
-          .getByRole("link", { name: "Test Student", exact: true })
-          .click();
+          .getByRole("link", { name: "Test Student", exact: true });
+        // Before hydration the link loads the sheet as a new document, whose buttons are inert.
+        await expectHydrated(link);
+        await link.click();
         const sheet = page.getByRole("dialog", { name: "Test Student" });
         await expect(sheet).toBeVisible();
         await settle(page);
@@ -128,7 +133,9 @@ test.describe("a toast in the dark theme", () => {
     await page.route("**/_serverFn/**", (route) =>
       route.request().method() === "POST" ? route.abort() : route.continue(),
     );
-    await page.getByRole("button", { name: "Language: English" }).click();
+    const language = page.getByRole("button", { name: "Language: English" });
+    await expectHydrated(language);
+    await language.click();
     await page.getByRole("menuitemradio", { name: "Nederlands" }).click();
     await expect(
       page.getByText("Your language could not be saved. Please try again."),
