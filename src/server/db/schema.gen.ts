@@ -68,6 +68,20 @@ export interface AuditEvent {
   target_type: string | null;
 }
 
+export interface CatalogueTests {
+  afinion_analyte: string | null;
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  epoch_calculated_by: string | null;
+  id: Generated<string>;
+  material: string;
+  name: string;
+  retired_at: Timestamp | null;
+  source: string;
+  unit: string;
+  updated_at: Generated<Timestamp>;
+}
+
 export interface IdentityProvider {
   attest_pkce: Generated<boolean>;
   created_at: Generated<Timestamp>;
@@ -356,6 +370,7 @@ export interface DB {
   account: Account;
   analysers: Analysers;
   audit_event: AuditEvent;
+  catalogue_tests: CatalogueTests;
   identity_provider: IdentityProvider;
   identity_provider_domain: IdentityProviderDomain;
   integration_checks: IntegrationChecks;

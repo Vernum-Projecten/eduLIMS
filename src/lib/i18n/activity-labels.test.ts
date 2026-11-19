@@ -39,6 +39,7 @@ describe("activity log labels (#36)", () => {
       "A session",
       "A simulation",
       "A lab",
+      "A test",
       "An upload",
       "Identity provider Keycloak (lab)",
       "An administrator grant",

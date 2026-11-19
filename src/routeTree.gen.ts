@@ -32,6 +32,7 @@ import { Route as AuthedStudentResultsRouteImport } from './routes/_authed/stude
 import { Route as AuthedStudentSamplesRouteImport } from './routes/_authed/student/samples'
 import { Route as AuthedStudentSubmissionsRouteImport } from './routes/_authed/student/submissions'
 import { Route as AuthedTeacherIndexRouteImport } from './routes/_authed/teacher/index'
+import { Route as AuthedTeacherCatalogueRouteImport } from './routes/_authed/teacher/catalogue'
 import { Route as AuthedTeacherGradingRouteImport } from './routes/_authed/teacher/grading'
 import { Route as AuthedTeacherKpiDashboardRouteImport } from './routes/_authed/teacher/kpi-dashboard'
 import { Route as AuthedTeacherPracticalsRouteImport } from './routes/_authed/teacher/practicals'
@@ -159,6 +160,11 @@ const AuthedTeacherIndexRoute = AuthedTeacherIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedTeacherRoute,
 } as any)
+const AuthedTeacherCatalogueRoute = AuthedTeacherCatalogueRouteImport.update({
+  id: '/catalogue',
+  path: '/catalogue',
+  getParentRoute: () => AuthedTeacherRoute,
+} as any)
 const AuthedTeacherGradingRoute = AuthedTeacherGradingRouteImport.update({
   id: '/grading',
   path: '/grading',
@@ -240,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/student/results': typeof AuthedStudentResultsRoute
   '/student/samples': typeof AuthedStudentSamplesRoute
   '/student/submissions': typeof AuthedStudentSubmissionsRoute
+  '/teacher/catalogue': typeof AuthedTeacherCatalogueRoute
   '/teacher/grading': typeof AuthedTeacherGradingRoute
   '/teacher/kpi-dashboard': typeof AuthedTeacherKpiDashboardRoute
   '/teacher/practicals': typeof AuthedTeacherPracticalsRoute
@@ -272,6 +279,7 @@ export interface FileRoutesByTo {
   '/student/results': typeof AuthedStudentResultsRoute
   '/student/samples': typeof AuthedStudentSamplesRoute
   '/student/submissions': typeof AuthedStudentSubmissionsRoute
+  '/teacher/catalogue': typeof AuthedTeacherCatalogueRoute
   '/teacher/grading': typeof AuthedTeacherGradingRoute
   '/teacher/kpi-dashboard': typeof AuthedTeacherKpiDashboardRoute
   '/teacher/practicals': typeof AuthedTeacherPracticalsRoute
@@ -309,6 +317,7 @@ export interface FileRoutesById {
   '/_authed/student/results': typeof AuthedStudentResultsRoute
   '/_authed/student/samples': typeof AuthedStudentSamplesRoute
   '/_authed/student/submissions': typeof AuthedStudentSubmissionsRoute
+  '/_authed/teacher/catalogue': typeof AuthedTeacherCatalogueRoute
   '/_authed/teacher/grading': typeof AuthedTeacherGradingRoute
   '/_authed/teacher/kpi-dashboard': typeof AuthedTeacherKpiDashboardRoute
   '/_authed/teacher/practicals': typeof AuthedTeacherPracticalsRoute
@@ -346,6 +355,7 @@ export interface FileRouteTypes {
     | '/student/results'
     | '/student/samples'
     | '/student/submissions'
+    | '/teacher/catalogue'
     | '/teacher/grading'
     | '/teacher/kpi-dashboard'
     | '/teacher/practicals'
@@ -378,6 +388,7 @@ export interface FileRouteTypes {
     | '/student/results'
     | '/student/samples'
     | '/student/submissions'
+    | '/teacher/catalogue'
     | '/teacher/grading'
     | '/teacher/kpi-dashboard'
     | '/teacher/practicals'
@@ -414,6 +425,7 @@ export interface FileRouteTypes {
     | '/_authed/student/results'
     | '/_authed/student/samples'
     | '/_authed/student/submissions'
+    | '/_authed/teacher/catalogue'
     | '/_authed/teacher/grading'
     | '/_authed/teacher/kpi-dashboard'
     | '/_authed/teacher/practicals'
@@ -606,6 +618,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedTeacherIndexRouteImport
       parentRoute: typeof AuthedTeacherRoute
     }
+    '/_authed/teacher/catalogue': {
+      id: '/_authed/teacher/catalogue'
+      path: '/catalogue'
+      fullPath: '/teacher/catalogue'
+      preLoaderRoute: typeof AuthedTeacherCatalogueRouteImport
+      parentRoute: typeof AuthedTeacherRoute
+    }
     '/_authed/teacher/grading': {
       id: '/_authed/teacher/grading'
       path: '/grading'
@@ -752,6 +771,7 @@ const AuthedStudentRouteWithChildren = AuthedStudentRoute._addFileChildren(
 )
 
 interface AuthedTeacherRouteChildren {
+  AuthedTeacherCatalogueRoute: typeof AuthedTeacherCatalogueRoute
   AuthedTeacherGradingRoute: typeof AuthedTeacherGradingRoute
   AuthedTeacherKpiDashboardRoute: typeof AuthedTeacherKpiDashboardRoute
   AuthedTeacherPracticalsRoute: typeof AuthedTeacherPracticalsRoute
@@ -760,6 +780,7 @@ interface AuthedTeacherRouteChildren {
 }
 
 const AuthedTeacherRouteChildren: AuthedTeacherRouteChildren = {
+  AuthedTeacherCatalogueRoute: AuthedTeacherCatalogueRoute,
   AuthedTeacherGradingRoute: AuthedTeacherGradingRoute,
   AuthedTeacherKpiDashboardRoute: AuthedTeacherKpiDashboardRoute,
   AuthedTeacherPracticalsRoute: AuthedTeacherPracticalsRoute,
