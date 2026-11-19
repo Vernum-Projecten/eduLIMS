@@ -5,13 +5,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { BanIcon, LogOutIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { ConfirmDialog, useUsersMutation } from "@/components/admin-users/admin-action";
 import { BlockDialog } from "@/components/admin-users/block-user-dialog";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { formatNumber } from "@/lib/i18n/format";
 import { adminActionErrorMessage } from "@/lib/i18n/user-labels";
+import { toast } from "@/lib/toast";
 import type { BulkActionResult } from "@/server/users/actions";
 import { bulkBlockAdminUsers, bulkEndAdminUserSessions } from "@/server/users/functions";
 import {

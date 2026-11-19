@@ -1,0 +1,1 @@
+- Error messages now stay on screen until you close them, and a pasted email address that is too long is named at the field. On the simulation screens, focus lands on the section heading after a removal, and adding a co-teacher no longer reveals whether some other account uses the address (D10).

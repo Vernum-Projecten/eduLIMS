@@ -28,8 +28,16 @@ describe("simulationErrorMessage (D10)", () => {
     expect(simulationErrorMessage(null)).toBe("The change could not be saved. Try again.");
   });
 
-  it("tells a teacher why another account cannot teach", () => {
-    expect(simulationErrorMessage("not_a_teacher")).toContain("teacher role");
+  it("tells only that no teacher account uses the address (#328)", () => {
+    // One answer for an unknown address and for a student's or an administrator's: the message
+    // must not reveal that some other account exists.
+    expect(simulationErrorMessage("not_a_teacher")).toBe("No teacher account uses this address.");
+  });
+
+  it("says a teacher to remove does not teach the simulation, apart from the add refusal", () => {
+    expect(simulationErrorMessage("teacher_not_found")).toBe(
+      "This person does not teach this simulation.",
+    );
   });
 });
 
