@@ -65,6 +65,8 @@ export function activityTargetLabel(
       return m.admin_activity_target_simulation();
     case "lab":
       return m.admin_activity_target_lab();
+    case "test":
+      return m.admin_activity_target_test();
     case "upload":
       return m.admin_activity_target_upload();
     case "identity_provider":
