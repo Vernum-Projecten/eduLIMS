@@ -86,9 +86,10 @@ sample number, no plate layout and no concentration. The parser validates the
 layout strictly and rejects a file in another layout with a clear message
 (S4). eduLIMS loads the 96 values and shows the plate, as a real LIMS does,
 and the team says which well holds which sample (owner, 2026-11-19, O5,
-R-06). Open, to confirm with the teachers: whether eduLIMS also calculates a
-concentration from the standards on the plate (the calibration line) or
-shows the absorbance only (O5).
+R-06). Who calculates the concentration is the teacher's choice per test in the
+test catalogue (D9): the team, by its own procedure, or eduLIMS, from the
+standards and blanks the team marked on the plate. Open: the calibration
+model eduLIMS uses (O5).
 
 ### The sample number and the lab number
 
@@ -265,8 +266,8 @@ every measurement in FerroEHR as Preliminary and makes the released one Final
 design matter since the owner answered O7. The Afinion 2 analytes, HbA1c and CRP, are fixed by the
 device; which tests of a game run on which analyser is open (O4). The Epoch 2
 assays stay generic, an analyte name and a value per well and wavelength,
-until the open part of O5 (a concentration from the standards, or the
-absorbance only) is answered. No element carries the name, the student number or the
+and the concentration is entered by the team or calculated by eduLIMS, as
+the teacher chose for the test (D9, O5). No element carries the name, the student number or the
 email address of a student or a teacher (Q-PRIV-1). The EHR subject is the
 fictional patient the team registers (S11, O9).
 

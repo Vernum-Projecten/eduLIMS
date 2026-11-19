@@ -42,6 +42,9 @@ time and on accuracy. The owner's input, 2026-11-19:
   result is released.
 - The Epoch 2 export: eduLIMS loads the values and shows the plate as a real
   LIMS does; the team links wells to samples.
+- Per test the teacher sets who calculates the concentration from an Epoch
+  plate: the team by its own procedure, or eduLIMS from the standards the
+  team marked. Both ways are built.
 - Teachers can add other tests later, so the test set is data, never code.
 - The Epoch 2 export is uploaded by drag and drop.
 

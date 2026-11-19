@@ -178,7 +178,12 @@ sequenceDiagram
         E-->>T: the plate with its 96 values
     end
     T->>E: say which well holds which sample
-    Note over T,E: Open, O5: a concentration from the standards, or the absorbance only
+    alt the teacher chose that the team calculates
+        T->>E: enter the calculated result for the sample
+    else the teacher chose that eduLIMS calculates
+        T->>E: mark the standards with their concentrations, and the blanks
+        E-->>T: the calibration line and the concentration per sample
+    end
     T->>E: pick a measurement and release it
     E->>E: compare with the team's tolerance, warn when outside
     E->>F: the result in the patient's record
@@ -186,11 +191,14 @@ sequenceDiagram
 
 - The team links wells to samples, because the export holds no sample
   number (S4; owner, 2026-11-19, O5).
-- **Open, O5:** whether eduLIMS also calculates a concentration from the
-  standards on the plate (the calibration line), as the software of a real
-  laboratory does, or shows the absorbance only. The teachers confirm this.
-  Nothing is built for the calculation until then, and no correct value is
-  used in it either way.
+- Per test, the teacher chooses in the test catalogue who calculates the
+  concentration (D9; owner, 2026-11-19). When the team calculates, it works
+  by its own procedure and enters the result; eduLIMS keeps the wells the
+  result came from beside it. When eduLIMS calculates, the team marks the
+  standards with their concentrations and the blanks, and eduLIMS shows the
+  calibration line it used, so the team can judge it before a release.
+  Neither way uses a correct value (Q-SIM-1).
+- **Open, O5:** the calibration model eduLIMS uses when it calculates.
 
 ## The states of a requested test
 
