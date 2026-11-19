@@ -225,7 +225,7 @@ another address joins with the lab's code.
 The code today still has the earlier model of
 [ADR 0018](adr/0018-classes-as-organizations.md), in which the organization
 is a class and the team a lab group. The rework to simulations and labs is
-part of #264; it changes the service and keeps its mechanisms:
+#280; it changes the service and keeps its mechanisms:
 
 - The service is `src/server/classes/`. Today a person joins every class
   that invited their verified email address when they sign in. The rework

@@ -81,4 +81,9 @@ time and on accuracy at once".
   commit message. Describe a format (the form's fields, the export's
   layout) without its content, and invent fixtures and demo data from
   scratch ([[neutral-project-context]]). One of the files also holds real
-  student names.
+  student names. One exception, cleared by the owner on
+  2026-11-19: the Gen5 export of an empty plate (it measured air) is the
+  fixture `tests/fixtures/gen5/epoch2-endpoint-750nm-air.xlsx`, committed
+  with the names in its metadata replaced. Check the metadata of any file
+  before it is committed: that export carried a person's name, a user folder
+  and an institution's address outside its cells.
