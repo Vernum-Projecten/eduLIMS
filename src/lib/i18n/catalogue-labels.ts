@@ -78,6 +78,10 @@ export function catalogueErrorMessage(code: string): string {
       return m.catalogue_error_not_retired();
     case "in_use":
       return m.catalogue_error_in_use();
+    case "in_running_simulation":
+      return m.catalogue_error_in_running_simulation();
+    case "analyte_taken":
+      return m.catalogue_error_analyte_taken();
     default:
       return m.catalogue_error_failed();
   }

@@ -16,56 +16,24 @@ import { recordAudit } from "../audit/record.ts";
 import type { SessionUser } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { assertTeacher } from "../simulations/access.ts";
-import { isTestInUse } from "./in-use.ts";
+import { usageOf } from "./in-use.ts";
 import { STORED_TEST_COLUMNS, type StoredTest, storedSource } from "./queries.ts";
+import { Refusal, refusedChange, type TestActionResult } from "./refusals.ts";
 import type { TestDefinition } from "./schemas.ts";
 
-/** Why a change was refused or failed; the screen maps each code to a translated message. */
-export const TEST_ACTION_ERRORS = [
-  "not_found",
-  "name_taken",
-  "retired",
-  "not_retired",
-  "in_use",
-] as const;
-export type TestActionError = (typeof TEST_ACTION_ERRORS)[number];
-
-/** The outcome of a change: done with the test's id, or refused with a code. */
-export type TestActionResult =
-  | { ok: true; testId: CatalogueTestId }
-  | { ok: false; error: TestActionError };
+export {
+  isAnalyteTaken,
+  isNameTaken,
+  TEST_ACTION_ERRORS,
+  type TestActionError,
+  type TestActionResult,
+} from "./refusals.ts";
 
 /** What every change runs with: the database, the teacher and the server's time (Q-SIM-2). */
 export interface TestActionContext {
   db: Kysely<DB>;
   actor: Pick<SessionUser, "id" | "roles">;
   now: Date;
-}
-
-const NAME_CONSTRAINT = "catalogue_tests_active_name_key";
-
-/** A refusal raised inside a transaction, so the transaction rolls back before it is returned. */
-class Refusal extends Error {
-  readonly code: TestActionError;
-  constructor(code: TestActionError) {
-    super(code);
-    this.code = code;
-  }
-}
-
-/** Returns whether `error` is PostgreSQL's unique violation of an active test's name. */
-export function isNameTaken(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  return (
-    Reflect.get(error, "code") === "23505" && Reflect.get(error, "constraint") === NAME_CONSTRAINT
-  );
-}
-
-/** Maps what a transaction threw to a result; anything unknown is rethrown (fail loud). */
-function refusalOf(error: unknown): TestActionResult {
-  if (error instanceof Refusal) return { ok: false, error: error.code };
-  if (isNameTaken(error)) return { ok: false, error: "name_taken" };
-  throw error;
 }
 
 function sourceColumns(source: TestSource) {
@@ -114,6 +82,50 @@ async function assertNameFree(
   if (await query.executeTakeFirst()) throw new Refusal("name_taken");
 }
 
+/**
+ * Refuses an analyte name another active Afinion 2 test holds, compared case-insensitively in
+ * SQL (maintainer, 2026-11-19), so a result the analyser sends matches one test at most. The
+ * partial unique index holds the same rule under parallel writes.
+ */
+async function assertAnalyteFree(
+  trx: Transaction<DB>,
+  source: TestSource,
+  except: CatalogueTestId | null,
+): Promise<void> {
+  if (source.kind !== "afinion") return;
+  const analyte = source.analyte;
+  let query = trx
+    .selectFrom("catalogue_tests")
+    .select("id")
+    .where("source", "=", "afinion")
+    .where((eb) => eb(eb.fn("lower", ["afinion_analyte"]), "=", eb.fn("lower", [eb.val(analyte)])))
+    .where("retired_at", "is", null);
+  if (except !== null) query = query.where("id", "<>", except);
+  if (await query.executeTakeFirst()) throw new Refusal("analyte_taken");
+}
+
+/**
+ * Refuses a change that the use of the test forbids (D9; maintainer, 2026-11-19): a used test
+ * keeps its unit and its source (`in_use`); while a running simulation uses it, its material and
+ * who calculates are fixed too (`in_running_simulation`). The name may always change.
+ */
+async function assertChangeAllowed(
+  trx: Transaction<DB>,
+  testId: CatalogueTestId,
+  current: StoredTest,
+  next: TestDefinition,
+): Promise<void> {
+  const fixedWhenUsed =
+    current.unit !== next.unit || !sameSource(storedSource(current), next.source);
+  const fixedWhenRunning =
+    current.material !== next.material ||
+    current.epoch_calculated_by !== sourceColumns(next.source).epoch_calculated_by;
+  if (!fixedWhenUsed && !fixedWhenRunning) return;
+  const usage = await usageOf(trx, testId);
+  if (fixedWhenUsed && usage !== "unused") throw new Refusal("in_use");
+  if (fixedWhenRunning && usage === "running") throw new Refusal("in_running_simulation");
+}
+
 /** Locks one test (`FOR UPDATE`) and returns it, or refuses with `not_found`. */
 async function lockTest(trx: Transaction<DB>, testId: string): Promise<StoredTest> {
   const id = parseCatalogueTestId(testId);
@@ -154,6 +166,7 @@ export async function createTest(
   try {
     return await ctx.db.transaction().execute(async (trx) => {
       await assertNameFree(trx, input.name, null);
+      await assertAnalyteFree(trx, input.source, null);
       const row = await trx
         .insertInto("catalogue_tests")
         .values({
@@ -175,14 +188,14 @@ export async function createTest(
       return { ok: true, testId };
     });
   } catch (error) {
-    return refusalOf(error);
+    return refusedChange({ db: ctx.db, actorId: ctx.actor.id, action: "test_created" }, error);
   }
 }
 
 /**
  * Changes an active test and logs `test_changed` with the names of the changed settings. A test
- * a simulation uses keeps its unit and its source (D9); switching who calculates an Epoch 2
- * concentration stays allowed.
+ * a simulation uses keeps its unit and its source (D9); while a running simulation uses it, its
+ * material and who calculates are fixed as well.
  *
  * @throws AuthError 403 without the app role teacher.
  */
@@ -197,10 +210,9 @@ export async function updateTest(
       const testId = parseCatalogueTestId(current.id);
       if (testId === null) throw new Refusal("not_found");
       if (current.retired_at !== null) throw new Refusal("retired");
-      const fixedChanged =
-        current.unit !== input.test.unit || !sameSource(storedSource(current), input.test.source);
-      if (fixedChanged && (await isTestInUse(trx, testId))) throw new Refusal("in_use");
+      await assertChangeAllowed(trx, testId, current, input.test);
       await assertNameFree(trx, input.test.name, testId);
+      await assertAnalyteFree(trx, input.test.source, testId);
       const fields = changedFields(current, input.test);
       if (fields.length === 0) return { ok: true, testId };
       await trx
@@ -218,7 +230,10 @@ export async function updateTest(
       return { ok: true, testId };
     });
   } catch (error) {
-    return refusalOf(error);
+    return refusedChange(
+      { db: ctx.db, actorId: ctx.actor.id, action: "test_changed", testId: input.testId },
+      error,
+    );
   }
 }
 
@@ -253,7 +268,10 @@ export async function retireTest(
       return { ok: true, testId };
     });
   } catch (error) {
-    return refusalOf(error);
+    return refusedChange(
+      { db: ctx.db, actorId: ctx.actor.id, action: "test_retired", testId: input.testId },
+      error,
+    );
   }
 }
 
@@ -274,6 +292,7 @@ export async function restoreTest(
       if (testId === null) throw new Refusal("not_found");
       if (current.retired_at === null) throw new Refusal("not_retired");
       await assertNameFree(trx, current.name, testId);
+      await assertAnalyteFree(trx, storedSource(current), testId);
       await trx
         .updateTable("catalogue_tests")
         .set({ retired_at: null, updated_at: ctx.now })
@@ -288,6 +307,9 @@ export async function restoreTest(
       return { ok: true, testId };
     });
   } catch (error) {
-    return refusalOf(error);
+    return refusedChange(
+      { db: ctx.db, actorId: ctx.actor.id, action: "test_restored", testId: input.testId },
+      error,
+    );
   }
 }

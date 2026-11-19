@@ -20,6 +20,7 @@ import * as m0013 from "./0013_scim.ts";
 import * as m0014 from "./0014_lab_join_code.ts";
 import * as m0015 from "./0015_integration_check_steps.ts";
 import * as m0016 from "./0016_test_catalogue.ts";
+import * as m0017 from "./0017_catalogue_follow_ups.ts";
 
 export const migrations: Record<string, Migration> = {
   "0001_auth": m0001,
@@ -38,6 +39,7 @@ export const migrations: Record<string, Migration> = {
   "0014_lab_join_code": m0014,
   "0015_integration_check_steps": m0015,
   "0016_test_catalogue": m0016,
+  "0017_catalogue_follow_ups": m0017,
 };
 
 export const migrationProvider: MigrationProvider = {

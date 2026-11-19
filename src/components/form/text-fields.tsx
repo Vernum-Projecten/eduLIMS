@@ -10,7 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 
 type InputExtras = Pick<
   ComponentProps<"input">,
-  "autoComplete" | "inputMode" | "maxLength" | "placeholder" | "spellCheck" | "disabled"
+  | "autoComplete"
+  | "inputMode"
+  | "maxLength"
+  | "placeholder"
+  | "spellCheck"
+  | "disabled"
+  | "readOnly"
 >;
 
 /** A one-line text field for a `string` value. */

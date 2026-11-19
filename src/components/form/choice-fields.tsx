@@ -33,7 +33,11 @@ export interface FieldOption<T extends string> {
   readonly disabled?: boolean;
 }
 
-/** A select for one of `options`; `""` is no choice yet and shows `placeholder`. */
+/**
+ * A select for one of `options`; `""` is no choice yet and shows `placeholder`. With `readOnly`
+ * the trigger stays focusable and announces `aria-readonly`, but the list does not open, so a
+ * value that may not change can still be read and its description reached (WCAG 3.3.2).
+ */
 export function SelectField<T extends string>({
   label,
   description,
@@ -41,9 +45,11 @@ export function SelectField<T extends string>({
   id,
   options,
   placeholder,
+  readOnly = false,
 }: BaseFieldProps & {
   readonly options: readonly FieldOption<T>[];
   readonly placeholder: string;
+  readonly readOnly?: boolean;
 }) {
   const field = useFieldContext<T | "">();
   const a11y = useFieldA11y(field, description, id);
@@ -53,9 +59,10 @@ export function SelectField<T extends string>({
       <Select
         name={field.name}
         value={field.state.value}
+        {...(readOnly ? { open: false } : {})}
         onValueChange={(value) => {
           const option = options.find((o) => o.value === value);
-          if (option) field.handleChange(option.value);
+          if (option && !readOnly) field.handleChange(option.value);
         }}
         onOpenChange={(open) => {
           if (!open) field.handleBlur();
@@ -63,6 +70,7 @@ export function SelectField<T extends string>({
       >
         <SelectTrigger
           id={a11y.controlId}
+          aria-readonly={readOnly || undefined}
           aria-invalid={a11y.isInvalid}
           aria-describedby={a11y.controlProps["aria-describedby"]}
           className="w-full sm:w-72"
@@ -191,14 +199,21 @@ export function CheckboxGroupField<T extends string>({
   );
 }
 
-/** A radio group for one of `options`, named by its legend; `""` is no choice yet. */
+/**
+ * A radio group for one of `options`, named by its legend; `""` is no choice yet. With `readOnly` the group stays focusable and
+ * announces `aria-readonly`, but no choice changes the value (WCAG 3.3.2).
+ */
 export function RadioGroupField<T extends string>({
   label,
   description,
   className,
   id,
   options,
-}: BaseFieldProps & { readonly options: readonly FieldOption<T>[] }) {
+  readOnly = false,
+}: BaseFieldProps & {
+  readonly options: readonly FieldOption<T>[];
+  readonly readOnly?: boolean;
+}) {
   const field = useFieldContext<T | "">();
   const a11y = useFieldA11y(field, description, id);
   const base = useId();
@@ -214,9 +229,10 @@ export function RadioGroupField<T extends string>({
         value={field.state.value}
         onValueChange={(value) => {
           const option = options.find((o) => o.value === value);
-          if (option) field.handleChange(option.value);
+          if (option && !readOnly) field.handleChange(option.value);
         }}
         onBlur={field.handleBlur}
+        aria-readonly={readOnly || undefined}
         aria-labelledby={legendId}
         aria-invalid={a11y.isInvalid}
         aria-describedby={a11y.controlProps["aria-describedby"]}
