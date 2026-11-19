@@ -20,6 +20,7 @@ import {
   buildAfinionOru,
   dammCheckDigit,
   inventedLabNumber,
+  isPlainField,
   messageBytes,
 } from "../fixtures/hl7/afinion-oru.ts";
 
@@ -210,9 +211,38 @@ describe("buildAfinionOru refusals", () => {
     expect(() => buildAfinionOru({ ...base, measuredAt: "2026-11-16" })).toThrow(RangeError);
   });
 
-  it("refuses a patient ID with an HL7 delimiter", () => {
-    const patientId = { field: "PID-3", value: "12|34" } as const;
+  // Built from code points, so no control character appears in the test source.
+  const refused: readonly (readonly [string, string])[] = [
+    ["CR", String.fromCodePoint(0x0d)],
+    ["LF", String.fromCodePoint(0x0a)],
+    ["VT, the MLLP start block", String.fromCodePoint(0x0b)],
+    ["FS, the MLLP end block", String.fromCodePoint(0x1c)],
+    ["DEL", String.fromCodePoint(0x7f)],
+    ["a non-ASCII character", "\u00e9"],
+    ["the field separator |", "|"],
+    ["the component separator ^", "^"],
+    ["the repetition separator ~", "~"],
+    ["the escape character \\", "\\"],
+    ["the subcomponent separator &", "&"],
+  ];
+
+  it.each(refused)("refuses a patient ID that holds %s", (_, character) => {
+    const patientId = { field: "PID-3", value: `12${character}34` } as const;
+    expect(isPlainField(patientId.value)).toBe(false);
     expect(() => buildAfinionOru({ ...base, patientId })).toThrow(RangeError);
+  });
+
+  it.each(refused)("refuses an operator ID that holds %s", (_, character) => {
+    expect(() => buildAfinionOru({ ...base, operatorId: `OP${character}1` })).toThrow(RangeError);
+  });
+
+  it("accepts every printable ASCII character that is no HL7 delimiter", () => {
+    const printable = Array.from({ length: 0x7e - 0x20 + 1 }, (_, i) =>
+      String.fromCodePoint(0x20 + i),
+    )
+      .filter((character) => !"|^~\\&".includes(character))
+      .join("");
+    expect(isPlainField(printable)).toBe(true);
   });
 
   it("refuses a value that is no decimal number", () => {
@@ -224,8 +254,15 @@ describe("buildAfinionOru refusals", () => {
     expect(() => buildAfinionOru({ ...base, runNumber: 0 })).toThrow(RangeError);
   });
 
-  it("refuses a message with a character outside ASCII when it becomes bytes", () => {
-    expect(() => messageBytes("MSH|é\r")).toThrow(RangeError);
+  it.each(refused.filter(([name]) => !name.startsWith("the ") && name !== "CR"))(
+    "refuses a message that holds %s when it becomes bytes",
+    (_, character) => {
+      expect(() => messageBytes(`MSH|${character}\r`)).toThrow(RangeError);
+    },
+  );
+
+  it("keeps CR, the segment terminator, when a message becomes bytes", () => {
+    expect([...messageBytes("MSH|a\rPID|1\r")]).toContain(0x0d);
   });
 
   it("builds an ACK with the code it is given", () => {
