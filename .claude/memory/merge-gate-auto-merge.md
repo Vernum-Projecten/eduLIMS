@@ -28,3 +28,11 @@ step), not a branch rule.
   new PR instead.
 - After a merge: `git fetch --prune`, delete local branches whose upstream is
   gone, branch new work from `origin/HEAD`.
+- **Keep every open PR free of conflicts** (owner, 2026-11-19: "always keep
+  checking if there are merge conflicts, otherwise it will never merge"). An
+  armed PR with a conflict waits forever and says nothing. Check
+  `gh pr list --state open --json number,mergeable` after every merge into
+  `main` and while PRs are open; resolve a conflict by merging `origin/main`
+  into the branch (no force-push), rerun the checks of the touched area, push,
+  and confirm `mergeable` reads `MERGEABLE`. A generated file (the ASVS
+  summary, the route tree, the Kysely types) is regenerated, never hand-merged.
