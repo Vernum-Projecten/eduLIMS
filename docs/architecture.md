@@ -288,8 +288,12 @@ student's place and a waiting address point at their lab through the pair
   refunded on a join; a wrong, expired, used-up or deleted lab's code and a
   removed student all get the same answer, with the real reason in the
   activity log. A student already in another lab of the simulation is
-  refused as such, at no cost. A removed student cannot rejoin with a code
-  until a teacher adds their address again. A join locks the simulation row
+  refused as such, at no cost, and that refusal is logged once per student,
+  lab and 15 minutes. A removed student cannot rejoin with a code until a
+  teacher adds their address again. A place and a waiting address of the
+  same student never stand side by side: a code join, a removal and a move
+  delete the student's waiting addresses in the simulation in the same
+  transaction, so the next link cannot put a removed student back. A join locks the simulation row
   (shared) before the code row, and lets go and retries when the code row is
   taken, so it never deadlocks with a writer. The code panel is on the
   teacher's lab page; the Student portal overview lists the student's labs

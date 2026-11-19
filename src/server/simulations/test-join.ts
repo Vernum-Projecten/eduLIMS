@@ -10,6 +10,7 @@ import type { SimulationActor } from "./access.ts";
 import type { JoinContext } from "./join.ts";
 import { enableJoinCode, joinCodeKey } from "./join-code.ts";
 import type { JoinLimits } from "./join-limits.ts";
+import { removeMember } from "./members.ts";
 import { NOW, world } from "./test-helpers.ts";
 
 export const key = joinCodeKey("join-test-secret-that-is-long-enough-to-use");
@@ -45,6 +46,31 @@ export async function worldWithCode(
 ) {
   const w = await world(database);
   return { ...w, code: await codeOf(database, w.teacher, w.labId, settings) };
+}
+
+/** Creates a lab with no student in the simulation, bypassing the service, and returns its id. */
+export async function emptyLab(database: Kysely<DB>, simulationId: string, name: string) {
+  const row = await database
+    .insertInto("labs")
+    .values({ simulation_id: simulationId, name })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  return row.id;
+}
+
+/** Removes `userId` from the simulation as the world's first teacher, and expects it done. */
+export async function removeStudent(
+  database: Kysely<DB>,
+  w: { teacher: SimulationActor; simulationId: string },
+  userId: string,
+) {
+  const removed = await removeMember(
+    database,
+    w.teacher,
+    { simulationId: w.simulationId, userId },
+    NOW,
+  );
+  if (!removed.ok) throw new Error(removed.error);
 }
 
 /** Returns the lab `userId` is in within the simulation, or `null`. */
