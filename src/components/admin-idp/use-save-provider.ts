@@ -4,7 +4,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { toast } from "sonner";
 import { idpErrorField, idpErrorMessage } from "@/components/admin-idp/idp-labels";
 import {
   type ProviderFormValues,
@@ -12,6 +11,7 @@ import {
   toUpdateInput,
 } from "@/components/admin-idp/provider-form-schema";
 import { m } from "@/i18n/messages";
+import { toast } from "@/lib/toast";
 import { createIdentityProvider, updateIdentityProvider } from "@/server/idp/functions";
 import {
   createProviderMutationOptions,

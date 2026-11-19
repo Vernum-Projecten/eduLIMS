@@ -18,7 +18,6 @@ import {
   ShieldAlertIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -49,6 +48,7 @@ import {
   type IntegrationDisplayState,
   type StepState,
 } from "@/lib/integrations";
+import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { checkIntegrationsNow } from "@/server/integrations/functions";
 import { checkNowMutationOptions } from "@/server/integrations/query-options";

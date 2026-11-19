@@ -6,10 +6,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback } from "react";
-import { toast } from "sonner";
 import { m } from "@/i18n/messages";
 import type { PortalNavigation } from "@/lib/navigation";
 import { PORTAL_HOTKEYS, portalShortcut } from "@/lib/shortcuts";
+import { toast } from "@/lib/toast";
 import { saveLastPortal } from "@/server/preferences/functions";
 import { saveLastPortalMutationOptions } from "@/server/preferences/query-options";
 

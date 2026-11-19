@@ -8,12 +8,11 @@ import { Page } from "@/components/shell/page-header";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { BackToSimulation, LabActions } from "@/components/simulations/lab-actions";
 import { MembersSection } from "@/components/simulations/members-section";
-import { SimulationNotFound } from "@/components/simulations/not-found";
+import { SimulationNotFound, simulationPageTitle } from "@/components/simulations/not-found";
 import { PastePanel } from "@/components/simulations/paste-panel";
 import { WaitingSection } from "@/components/simulations/waiting-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/i18n/messages";
-import { portalNavigation, sectionOf } from "@/lib/navigation";
 import { labPageQueryOptions } from "@/server/simulations/query-options";
 
 export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId/labs/$labId")({
@@ -25,10 +24,13 @@ export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId
     if (page.simulation.id !== params.simulationId) throw notFound();
     return { crumb: page.name, simulation: page.simulation.name };
   },
-  head: ({ loaderData }) => ({
+  head: ({ loaderData, match }) => ({
     meta: [
       {
-        title: `${loaderData ? `${loaderData.crumb} | ${loaderData.simulation}` : m.labs_page_title()} | ${sectionOf("teacher", "simulations").label()} | ${portalNavigation("teacher").label()} | eduLIMS`,
+        title: simulationPageTitle(
+          match.status,
+          loaderData ? `${loaderData.crumb} | ${loaderData.simulation}` : m.labs_page_title(),
+        ),
       },
     ],
   }),

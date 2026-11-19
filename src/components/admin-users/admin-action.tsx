@@ -4,7 +4,6 @@
 import { type UseMutationOptions, useMutation } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { adminActionErrorMessage } from "@/lib/i18n/user-labels";
+import { toast } from "@/lib/toast";
 import { actionErrorCode } from "@/server/users/query-options";
 
 /**

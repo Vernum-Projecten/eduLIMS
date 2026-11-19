@@ -5,12 +5,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { FlaskConicalIcon, PowerIcon, PowerOffIcon, Trash2Icon } from "lucide-react";
-import { toast } from "sonner";
 import { idpErrorMessage } from "@/components/admin-idp/idp-labels";
 import { ProviderStatusBadge } from "@/components/admin-idp/providers-table";
 import { ConfirmButton } from "@/components/admin-users/admin-action";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
+import { toast } from "@/lib/toast";
 import {
   deleteIdentityProvider,
   setIdentityProviderEnabled,

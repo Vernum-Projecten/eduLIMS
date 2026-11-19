@@ -116,6 +116,7 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   const createDialog = page.getByRole("dialog", { name: "Create a simulation" });
   await createDialog.getByRole("button", { name: "Create simulation" }).click();
   await expect(createDialog.getByText("Enter a name for the simulation.")).toBeVisible();
+  await axe(page);
   await createDialog.getByRole("button", { name: "Cancel" }).click();
 
   const simulationId = await createSimulation(page, simulation);
@@ -133,6 +134,19 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
     labDialog.getByText("Another lab of this simulation already has this name."),
   ).toBeVisible();
   await labDialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(labDialog).toBeHidden();
+
+  // A lab deleted from its row menu: focus goes to the Labs heading (WCAG 2.4.3).
+  const delta = `Delta ${id}`;
+  await createLab(page, delta);
+  await page.getByRole("button", { name: `Actions for ${delta}` }).click();
+  await page.getByRole("menuitem", { name: "Delete lab" }).click();
+  const deleteDelta = page.getByRole("alertdialog", { name: `Delete lab ${delta}?` });
+  await axe(page);
+  await deleteDelta.getByRole("button", { name: "Delete lab" }).click();
+  await expect(labsTable(page).getByRole("link", { name: delta })).toHaveCount(0);
+  await settle(page);
+  await expect(page.getByRole("heading", { level: 2, name: "Labs", exact: true })).toBeFocused();
 
   // One address waits in Beta, so the list for Alpha can name it as taken.
   await openLab(page, beta);
@@ -156,6 +170,8 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   await expect(page.getByText(`Addresses now waiting for lab ${alpha}: 6.`)).toBeVisible();
   await expect(waitingTable(page).getByRole("row")).toHaveCount(7);
   await expect(page.getByRole("table", { name: "Outcome per line" })).toHaveCount(0);
+  await expect(page.getByLabel("Email addresses", { exact: true })).toBeFocused();
+  await expect(page.getByRole("form", { name: "Addresses to check" })).toBeVisible();
 
   // The student signs in elsewhere and is linked to Alpha at sign-in (S10).
   const studentContext = await browser.newContext();
@@ -169,6 +185,19 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   await expect(membersTable(page)).toContainText("By email address");
   await expect(waitingTable(page).getByRole("row")).toHaveCount(6);
 
+  const waiting = invented[0] ?? "";
+  await page.getByRole("button", { name: `Remove ${waiting}` }).click();
+  await page
+    .getByRole("alertdialog", { name: `Remove ${waiting}?` })
+    .getByRole("button", { name: "Remove address" })
+    .click();
+  await expect(page.getByText(`${waiting} no longer waits for this lab.`)).toBeVisible();
+  await expect(waitingTable(page).getByRole("row")).toHaveCount(5);
+  await settle(page);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Waiting addresses", exact: true }),
+  ).toBeFocused();
+
   // A simulation with a student in a lab cannot be deleted; the refusal says why.
   await page.getByRole("link", { name: `Back to ${simulation}` }).click();
   await page.getByRole("button", { name: "Delete simulation" }).click();
@@ -176,8 +205,17 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
     .getByRole("alertdialog", { name: `Delete ${simulation}?` })
     .getByRole("button", { name: "Delete simulation" })
     .click();
-  await expect(page.getByText("This simulation has students in its labs")).toBeVisible();
+  const refusal = page.getByText("This simulation has students in its labs");
+  await expect(refusal).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: simulation })).toBeVisible();
+  // An error toast stays past Sonner's 4 s until it is closed (WCAG 2.2.1, #328).
+  await page.waitForTimeout(5_000);
+  await expect(refusal).toBeVisible();
+  await page
+    .getByRole("region", { name: /Notifications/ })
+    .getByRole("button", { name: "Close" })
+    .click();
+  await expect(refusal).toHaveCount(0);
 
   // Move the student to Beta with the keyboard alone (WCAG 2.1.1).
   await openLab(page, alpha);
@@ -190,6 +228,7 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   await page.keyboard.press("Enter");
   const moveDialog = page.getByRole("dialog", { name: "Move Test Student" });
   await expect(moveDialog.getByRole("radio", { name: beta })).toBeChecked();
+  await axe(page);
   await pressUntilFocused(page, "Tab", moveDialog.getByRole("button", { name: "Move student" }), 6);
   await page.keyboard.press("Enter");
   await expect(page.getByText(`Test Student moved to lab ${beta}.`)).toBeVisible();
@@ -214,10 +253,15 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   });
   // The safe choice takes the first focus (WCAG 3.3.4).
   await expect(confirm.getByRole("button", { name: "Cancel" })).toBeFocused();
+  await axe(page);
   await pressUntilFocused(page, "Tab", confirm.getByRole("button", { name: "Remove student" }));
   await page.keyboard.press("Enter");
   await expect(page.getByText("Test Student removed from the simulation.")).toBeVisible();
   await expect(page.getByText("No students in this lab yet", { exact: true })).toBeVisible();
+  await settle(page);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Students", exact: true }),
+  ).toBeFocused();
 
   // Rename the lab with the keyboard alone.
   const renamed = `Gamma ${id}`;
@@ -249,6 +293,7 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   await expect(page.getByRole("link", { name: simulation })).toHaveCount(0);
   await page.goto(`/teacher/simulations/${simulationId}`);
   await expect(page.getByRole("heading", { level: 1, name: "Not found" })).toBeVisible();
+  await expect(page).toHaveTitle("Not found | Simulations | Teacher portal | eduLIMS");
 });
 
 /** Makes every server function read whose payload carries `text` fail with a 500. */
@@ -296,7 +341,11 @@ test("another teacher's simulation answers not found (D11)", async ({ page, brow
   await devLogin(other, "teacher-admin@example.test");
   await other.goto(`/teacher/simulations/${simulationId}`);
   await expect(other.getByRole("heading", { level: 1, name: "Not found" })).toBeVisible();
+  await expect(other).toHaveTitle("Not found | Simulations | Teacher portal | eduLIMS");
   await expect(other.getByText(name)).toHaveCount(0);
+  await other.goto(`/teacher/simulations/${simulationId}/labs/${simulationId}`);
+  await expect(other.getByRole("heading", { level: 1, name: "Not found" })).toBeVisible();
+  await expect(other).toHaveTitle("Not found | Simulations | Teacher portal | eduLIMS");
   await context.close();
 });
 
@@ -328,6 +377,7 @@ for (const [theme, locale] of [
     // The seeded demo simulation of the dev teacher: Lab Aurora has six students.
     await page.goto("/teacher/simulations");
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(page.locator("html")).toHaveClass(new RegExp(`\\b${theme}\\b`));
     await expect(
       page.getByRole("heading", { level: 1, name: t("nav_simulations", "Simulations") }),
     ).toBeVisible();
@@ -381,8 +431,112 @@ test("the three screens reflow at 320 px without horizontal scrolling (WCAG 1.4.
   }
 });
 
-test("a student cannot open the teacher's simulation screens (D11, A01)", async ({ page }) => {
+test("a student who opens the teacher's simulations lands on the Student portal (D11, A01)", async ({
+  page,
+}) => {
   await devLogin(page, STUDENT);
   await page.goto("/teacher/simulations");
+  await expect(page).toHaveURL(/\/student$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Student portal" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Simulations" })).toHaveCount(0);
+});
+
+test("the administrator's simulations entry opens its page, axe-clean (B5, #291)", async ({
+  page,
+}) => {
+  await devLogin(page, "admin@example.test");
+  await page
+    .getByRole("navigation", { name: "Main menu" })
+    .getByRole("link", { name: "Simulations" })
+    .click();
+  await expect(page).toHaveURL(/\/admin\/simulations$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Simulations" })).toBeVisible();
+  await expect(page).toHaveTitle("Simulations | Admin portal | eduLIMS");
+  await axe(page);
+});
+
+test("a pasted line that is too long is refused at the field, naming the line (#328)", async ({
+  page,
+}) => {
+  await signInAsTeacher(page);
+  await page.goto("/teacher/simulations");
+  const simulationLink = page.getByRole("link", { name: "Demo simulation", exact: true });
+  await expectHydrated(simulationLink);
+  await simulationLink.click();
+  await page.getByRole("link", { name: "Lab Aurora", exact: true }).click();
+  const field = page.getByLabel("Email addresses", { exact: true });
+  await expectHydrated(field);
+  const long = `${"y".repeat(320)}@example.test`;
+  await field.fill(long);
+  await field.press("Enter");
+  await page.getByRole("button", { name: "Check the list" }).click();
+  await expect(field).toHaveAttribute("aria-invalid", "true");
+  await expect(
+    page.getByText(`The line “${"y".repeat(24)}…” is longer than 320 characters.`),
+  ).toBeVisible();
+  await expect(page.getByRole("table", { name: "Outcome per line" })).toHaveCount(0);
+});
+
+test("a teacher adds, removes and leaves as a teacher of a simulation (D10, #328)", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const id = suffix();
+  const name = `Teachers ${id}`;
+  await signInAsTeacher(page);
+  await createSimulation(page, name);
+  const teachers = page.getByRole("table", { name: `Teachers of ${name}` });
+  const form = page.getByRole("form", { name: "Add a teacher" });
+  const address = form.getByLabel("Email address of the teacher");
+  await expectHydrated(address);
+
+  // A student's address and an unknown one get the same answer: no account is revealed.
+  for (const email of [STUDENT, `nobody.${id}@example.test`]) {
+    await address.fill(email);
+    await form.getByRole("button", { name: "Add teacher" }).click();
+    await expect(form.getByText("No teacher account uses this address.")).toBeVisible();
+    await expect(address).toHaveAttribute("aria-invalid", "true");
+  }
+
+  await address.fill("teacher-admin@example.test");
+  await form.getByRole("button", { name: "Add teacher" }).click();
+  await expect(teachers.getByRole("cell", { name: "Test Coordinator", exact: true })).toBeVisible();
+  await address.fill("teacher-admin@example.test");
+  await form.getByRole("button", { name: "Add teacher" }).click();
+  await expect(form.getByText("This person already teaches this simulation.")).toBeVisible();
+
+  // Removing a teacher asks first, and focus goes to the Teachers heading.
+  await page.getByRole("button", { name: "Remove Test Coordinator" }).click();
+  const remove = page.getByRole("alertdialog", { name: "Remove Test Coordinator as a teacher?" });
+  await axe(page);
+  await remove.getByRole("button", { name: "Remove teacher" }).click();
+  await expect(teachers.getByRole("cell", { name: "Test Coordinator", exact: true })).toHaveCount(
+    0,
+  );
+  await settle(page);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Teachers", exact: true }),
+  ).toBeFocused();
+
+  // With a second teacher back, the teacher leaves and lands on their list without it.
+  await address.fill("teacher-admin@example.test");
+  await form.getByRole("button", { name: "Add teacher" }).click();
+  await expect(teachers.getByRole("cell", { name: "Test Coordinator", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Leave this simulation" }).click();
+  await page
+    .getByRole("alertdialog", { name: "Leave this simulation?" })
+    .getByRole("button", { name: "Leave simulation" })
+    .click();
+  await expect(page).toHaveURL(/\/teacher\/simulations$/);
+  await expect(page.getByText("You left the simulation.")).toBeVisible();
+  await expect(page.getByRole("link", { name, exact: true })).toHaveCount(0);
+});
+
+test("an identity provider that does not exist has a not-found title (WCAG 2.4.2, #328)", async ({
+  page,
+}) => {
+  await devLogin(page, "admin@example.test");
+  await page.goto("/admin/system/identity-providers/does-not-exist");
+  await expect(page.getByRole("alert")).toContainText("This provider no longer exists.");
+  await expect(page).toHaveTitle(/^Provider not found \| /);
 });
