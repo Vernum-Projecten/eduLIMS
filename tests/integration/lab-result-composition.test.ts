@@ -133,6 +133,19 @@ describe.skipIf(!reachable && !REQUIRED)("the writer against FerroEHR (#148)", (
     expect(text).toContain('"magnitude":48.5');
   });
 
+  it("writes a result entered by hand under the fixed device identity, with no person", async () => {
+    const ehrId = await freshEhr();
+    const written = await writeFinalLabResult(
+      client,
+      { ...result(ehrId), device: { kind: "manual" } },
+      SETTINGS,
+    );
+    if (written.outcome !== "written") expect.fail(JSON.stringify(written.error));
+    const text = await readBack(ehrId, written.versionUid);
+    expect(text).toContain('"eduLIMS manual entry"');
+    expect(text).toContain('"id":"manual"');
+  });
+
   it("answers a retry after the commit with the same version: no second composition", async () => {
     const ehrId = await freshEhr();
     const input = result(ehrId);
@@ -216,6 +229,15 @@ describe.skipIf(!reachable && !REQUIRED)("a release end to end (#148, S15)", () 
     for (const secret of [w.student.id, w.student.email, w.toleranceId]) {
       expect(text).not.toContain(secret);
     }
+  });
+
+  it("writes a measurement entered by hand with the default device lookup", async () => {
+    const { database, w } = await world();
+    const id = await release(database, w);
+    const plain: ResultWriteDeps = { db: database, client, settings: SETTINGS };
+    expect(await writeReleasedResult(plain, id)).toBe("written");
+    const { versionUid, ehrId } = await written(database, id);
+    expect(await readBack(ehrId, versionUid)).toContain('"eduLIMS manual entry"');
   });
 
   it("retries a write whose answer was lost and finds the one composition", async () => {

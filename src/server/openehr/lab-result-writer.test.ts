@@ -194,7 +194,11 @@ describe("writeFinalLabResult (ITS-REST 1.1.0, Create CONTRIBUTION with a suppli
   it("calls FerroEHR not at all for a result it cannot build", async () => {
     const { client } = memoryFerroEhr();
     expect(
-      await writeFinalLabResult(client, result({ device: { kind: "manual" } }), SETTINGS),
+      await writeFinalLabResult(
+        client,
+        result({ device: { kind: "epoch_2", serialNumber: null } }),
+        SETTINGS,
+      ),
     ).toEqual({
       outcome: "failed",
       error: { kind: "build", reason: "no_device_identifier" },

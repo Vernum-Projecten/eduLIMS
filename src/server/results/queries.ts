@@ -22,6 +22,7 @@ import {
 import {
   type MeasurementId,
   type MeasurementSource,
+  type PatientRecordState,
   parseMeasurementId,
   parseMeasurementSource,
   type RequestedTestState,
@@ -64,7 +65,13 @@ export interface RequestedTestRow {
   /** The lab's own tolerance in force now, or `null` when it has none (S13). */
   tolerance: ToleranceRef | null;
   /** The release with the tolerance that was in force at it (S15), or `null`. */
-  release: { measurementId: MeasurementId; releasedAt: string; tolerance: Tolerance } | null;
+  release: {
+    measurementId: MeasurementId;
+    releasedAt: string;
+    tolerance: Tolerance;
+    /** Where the result stands in the patient's record (#148). */
+    record: PatientRecordState;
+  } | null;
   /** Every measurement, oldest first (S14). */
   measurements: MeasurementRow[];
 }
@@ -93,6 +100,16 @@ export interface LabResults {
 function stored<T>(value: T | null | undefined, what: string): T {
   if (value === null || value === undefined) throw new Error(`the database holds a bad ${what}`);
   return value;
+}
+
+/**
+ * Returns where a release stands in the patient's record from its write row (#148): no row is a
+ * control request, which writes nothing (S16).
+ */
+function recordState(state: string | null): PatientRecordState {
+  if (state === null) return "none";
+  if (state === "written" || state === "pending") return state;
+  throw new Error("the database holds a bad result write state");
 }
 
 /**
@@ -127,6 +144,7 @@ async function labResults(db: Kysely<DB>, labId: string): Promise<LabResults> {
       .selectFrom("request_tests as rt")
       .innerJoin("catalogue_tests as t", "t.id", "rt.test_id")
       .leftJoin("lab_tolerances as lt", "lt.id", "rt.released_tolerance_id")
+      .leftJoin("result_ehr_writes as w", "w.measurement_id", "rt.released_measurement_id")
       .select([
         "rt.request_id",
         "t.id",
@@ -137,6 +155,7 @@ async function labResults(db: Kysely<DB>, labId: string): Promise<LabResults> {
         "rt.released_measurement_id",
         sql<string | null>`lt.lower_limit::text`.as("lower"),
         sql<string | null>`lt.upper_limit::text`.as("upper"),
+        "w.state as record_state",
       ])
       .where("rt.request_id", "in", ids)
       .orderBy(sql`lower(t.name)`)
@@ -238,6 +257,7 @@ async function labResults(db: Kysely<DB>, labId: string): Promise<LabResults> {
                       lower: stored(test.lower, "release tolerance"),
                       upper: stored(test.upper, "release tolerance"),
                     },
+                    record: recordState(test.record_state),
                   },
             measurements: own,
           };

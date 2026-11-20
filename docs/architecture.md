@@ -675,14 +675,20 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
   still marks its row. Each failure logs `ferroehr_result_pending` with the
   measurement id and the code, never a value. A written row never changes
   again (a trigger), as the released result never does.
-- **Not written yet.** FerroEHR accepts eduLIMS's compositions only as a
-  device act whose composer names the analyser by its serial number. A
-  measurement does not record its analyser yet (#158, #152), and a
-  measurement entered by hand has none, so such a result stays pending with
-  `build:no_device_identifier` until the maintainer decides its composer
-  (#148). The committer is the client `edulims-ferroehr`, by name only; the
-  composition names the facility of `FERROEHR_FACILITY_ISSUER` and
-  `FERROEHR_FACILITY_ID` and the territory of `FERROEHR_TERRITORY`.
+- **The device.** FerroEHR accepts eduLIMS's compositions only as a device
+  act whose composer names the device. A result entered by hand names the
+  fixed device `eduLIMS manual entry` (identifier `manual`), with no person
+  (maintainer, 2026-11-20 on #148). An analyser's result names the analyser
+  by its serial number, which a measurement does not record yet: until #158
+  and #152 record it (`ResultWriteDeps.resolveDevice` is the seam), such a
+  result stays pending with `build:no_device_identifier`. The committer is
+  the client `edulims-ferroehr`, by name only; the composition names the
+  facility of `FERROEHR_FACILITY_ISSUER` and `FERROEHR_FACILITY_ID` and the
+  territory of `FERROEHR_TERRITORY`.
+- **On screen.** The team's results page and the teacher's view show per
+  released result whether it is in the patient's record or still pending,
+  with an icon and text; the release itself says so in its message, and a
+  refusal `ehr_pending` keeps the confirmation open with its reason.
 - **Who reads.** The team reads every measurement of its own lab with its own
   tolerance; the teachers of the simulation read the same with the released
   measurement marked and the tolerance kept at the release (D11). Neither
@@ -738,7 +744,7 @@ delegation on #146, within the CKM archetypes, W4):
 | Material | `specimen.v1` | Specimen type (`at0029`) | `DV_TEXT` | optional |
 | Well position (Epoch 2) | `specimen.v1` | Specimen label (`at0098`) | `DV_TEXT` | optional; not written yet, a measurement does not record its well |
 | Request | `laboratory_test_result.v1` | Test request details (`at0094`), Requester order identifier (`at0062`): the request's eduLIMS UUID (maintainer, 2026-11-20 on #148) | `DV_IDENTIFIER` | optional |
-| Requester as typed from the form | `laboratory_test_result.v1` | Test request details (`at0094`), Requester (`at0090`) | a slot the template closes | not written: the template has no element for it (#148) |
+| Requester as typed from the form | none | the request id in `at0062` names the request | | stays in eduLIMS, not written to FerroEHR (maintainer, 2026-11-20 on #148) |
 | Test name | `laboratory_test_result.v1` | Test name (`at0005`) | `DV_TEXT` | required, as in the archetype |
 | Analyte name; for the Epoch 2 it includes the wavelength | `laboratory_test_analyte.v1` | Analyte name (`at0024`) | `DV_TEXT` | required, one |
 | Value and unit | `laboratory_test_analyte.v1` | Analyte result (`at0001`) | `DV_QUANTITY` (`magnitude`, `units`; `magnitude_status` for a value outside the measuring range) | required, one |
@@ -747,12 +753,12 @@ delegation on #146, within the CKM archetypes, W4):
 | Time of the measurement | `laboratory_test_analyte.v1` | Analysis performed time (`at0031`), and the observation's event time | `DV_DATE_TIME` | optional |
 | Analyser | `device.v1` | Device name (`at0001`), Serial number (`at0020`), Other identifier (`at0024`) | `DV_TEXT`, `DV_TEXT`, `DV_IDENTIFIER` | Device name required, as in the archetype |
 | Lab (facility) | the reference model | `COMPOSITION.context.health_care_facility` | `PARTY_IDENTIFIED` with the identifier of the system client's facility | FerroEHR refuses a composition without it |
-| Composer | the reference model | `COMPOSITION.composer` | `PARTY_IDENTIFIED` naming the analyser, its serial number as identifier under the issuer `https://edulims.eu/id/analyser` | FerroEHR checks it for the `device` origin |
+| Composer | the reference model | `COMPOSITION.composer` | `PARTY_IDENTIFIED` naming the analyser, its serial number as identifier under the issuer `https://edulims.eu/id/analyser`; for a result entered by hand the fixed device `eduLIMS manual entry` with the identifier `manual` under the same issuer, and no person (maintainer, 2026-11-20 on #148) | FerroEHR checks it for the `device` origin |
 
-The result status has two values, Preliminary and Final. One design keeps
-every measurement in FerroEHR as Preliminary and makes the released one Final
-([LIMS workflow](lims-workflow.md)); it is the maintainer's proposal, and a
-design matter since the owner answered O7. The Afinion 2 analytes, HbA1c and CRP, are fixed by the
+The result status has two values, Preliminary and Final. FerroEHR holds only
+the released result, written once as Final; every measurement and every
+earlier value stays in the eduLIMS database, where the teacher sees them
+(maintainer, 2026-11-20 on #148). The Afinion 2 analytes, HbA1c and CRP, are fixed by the
 device; per test the teacher sets whether its measurements come from the Afinion 2, the Epoch 2 upload or entry by hand (D9). The Epoch 2
 assays stay generic, an analyte name and a value per well and wavelength,
 and the concentration is entered by the team or calculated by eduLIMS, as

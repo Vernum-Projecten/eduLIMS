@@ -12,6 +12,7 @@ import { parsePatientId, parseRequestId } from "../../lib/lab-records.ts";
 import {
   type MeasurementId,
   type MeasurementSource,
+  type PatientRecordState,
   parseMeasurementId,
   parseMeasurementSource,
 } from "../../lib/results.ts";
@@ -31,7 +32,7 @@ import { findStudentLab } from "../simulations/student-access.ts";
 import { done, type ResultsActor, type ResultsResult, refused } from "./access.ts";
 
 /** Where a released result stands in the patient's record, as the release reports it. */
-export type ResultEhrState = "written" | "pending" | "none";
+export type ResultEhrState = PatientRecordState;
 
 /** What a write needs: the database, the FerroEHR client and the write settings. */
 export interface ResultWriteDeps {
@@ -182,12 +183,12 @@ async function loadRelease(db: Kysely<DB>, measurementId: MeasurementId) {
 }
 
 /**
- * Returns the device of a measurement from its source alone (D9): the analyser without its serial
- * number, which a measurement does not record yet, or `manual`.
+ * Returns the device of a measurement from its source alone (D9): `manual`, or the analyser
+ * without its serial number, which a measurement does not record yet.
  */
 export function deviceOfSource(measurement: { source: MeasurementSource }): ResultDevice {
-  // TODO(#148): the analyser's serial number of a measurement comes with #158 and #152; until
-  // then an analyser's result stays pending with `build:no_device_identifier`.
+  // TODO(#158): the Afinion 2 route records the analyser's serial number, and TODO(#152) the
+  // Epoch 2 upload; until then such a result stays pending with `build:no_device_identifier`.
   switch (measurement.source) {
     case "afinion":
       return { kind: "afinion_2", serialNumber: null };

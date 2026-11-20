@@ -36,7 +36,10 @@ export interface FinalLabResult {
   measurementId: MeasurementId;
   /** The request, eduLIMS's own order identifier (maintainer, 2026-11-20 on #148). */
   requestId: RequestId;
-  /** The requester as typed from the paper form (fictional), or `null` when none was typed. */
+  /**
+   * The requester as typed from the paper form (fictional), or `null`. It stays in eduLIMS and is
+   * not written: the request id names the request (maintainer, 2026-11-20 on #148).
+   */
   requester: string | null;
   sample: {
     /** The lab number eduLIMS gave the sample (S12), unique across the teams. */
@@ -86,6 +89,26 @@ const ARCHETYPES = {
 } as const;
 
 const DEVICE_NAMES = { afinion_2: "Afinion 2", epoch_2: "Epoch 2" } as const;
+
+/**
+ * The fixed device identity of a result entered by hand: no person, and an identifier under the
+ * analyser issuer, so FerroEHR admits it as a device act (maintainer, 2026-11-20 on #148).
+ */
+export const MANUAL_ENTRY_DEVICE = { name: "eduLIMS manual entry", id: "manual" } as const;
+
+/** The device a composition names: its name, its identifier and, for an analyser, its serial. */
+interface DeviceIdentity {
+  name: string;
+  id: string;
+  serial: string | null;
+}
+
+/** Returns the identity of `device`, or `null` for an analyser whose serial number is unknown. */
+function deviceIdentity(device: ResultDevice): DeviceIdentity | null {
+  if (device.kind === "manual") return { ...MANUAL_ENTRY_DEVICE, serial: null };
+  if (device.serialNumber === null) return null;
+  return { name: DEVICE_NAMES[device.kind], id: device.serialNumber, serial: device.serialNumber };
+}
 
 const text = (value: string): JsonObject => ({ _type: "DV_TEXT", value });
 const dateTime = (value: string): JsonObject => ({ _type: "DV_DATE_TIME", value });
@@ -145,10 +168,11 @@ export function quantityOf(value: string, unit: string | null): JsonObject | nul
 }
 
 /**
- * Builds the COMPOSITION of one released result: status Final (`at0018`), the analyser as the
- * composer and the device cluster, the lab's facility in the context.
+ * Builds the COMPOSITION of one released result: status Final (`at0018`), the device as the
+ * composer and in the device cluster (the analyser, or {@link MANUAL_ENTRY_DEVICE} for a result
+ * entered by hand), the lab's facility in the context.
  *
- * `no_device_identifier` when no analyser serial number is known: FerroEHR accepts a system
+ * `no_device_identifier` when an analyser's serial number is unknown: FerroEHR accepts a system
  * client's composition only as a device act whose composer names the device (FerroEHR book
  * v5.7.0, `identity-providers.md`, "Who the caller is"). `value_invalid` for a value that is not
  * a canonical decimal.
@@ -157,17 +181,11 @@ export function buildFinalLabResult(
   result: FinalLabResult,
   settings: LabResultSettings,
 ): LabResultBuild {
-  const device = result.device;
-  // TODO(#148): the composer of a measurement entered by hand, which has no device, waits on the
-  // maintainer; until then such a result stays pending.
-  if (device.kind === "manual" || device.serialNumber === null) {
-    return { ok: false, error: "no_device_identifier" };
-  }
+  const device = deviceIdentity(result.device);
+  if (device === null) return { ok: false, error: "no_device_identifier" };
   const quantity = quantityOf(result.value, result.test.unit);
   if (quantity === null) return { ok: false, error: "value_invalid" };
-  const deviceName = DEVICE_NAMES[device.kind];
-  const serial = device.serialNumber;
-  const deviceId = identifier(serial, ANALYSER_ID_ISSUER);
+  const deviceId = identifier(device.id, ANALYSER_ID_ISSUER);
   return {
     ok: true,
     composition: {
@@ -179,12 +197,12 @@ export function buildFinalLabResult(
       language: code("ISO_639-1", "en"),
       territory: code("ISO_3166-1", settings.territory),
       category: coded("event", "openehr", "433"),
-      // NOTE: #146; a device act names the analyser in `composer`, with the identifier that is
-      // also `feeder_audit.originating_system_audit.system_id` (FerroEHR book v5.7.0).
-      composer: { _type: "PARTY_IDENTIFIED", name: deviceName, identifiers: [deviceId] },
+      // NOTE: #146, #148; a device act names the device in `composer`, with the identifier that
+      // is also `feeder_audit.originating_system_audit.system_id` (FerroEHR book v5.7.0).
+      composer: { _type: "PARTY_IDENTIFIED", name: device.name, identifiers: [deviceId] },
       feeder_audit: {
         _type: "FEEDER_AUDIT",
-        originating_system_audit: { _type: "FEEDER_AUDIT_DETAILS", system_id: serial },
+        originating_system_audit: { _type: "FEEDER_AUDIT_DETAILS", system_id: device.id },
       },
       context: {
         _type: "EVENT_CONTEXT",
@@ -195,7 +213,7 @@ export function buildFinalLabResult(
           identifiers: [identifier(settings.facility.id, settings.facility.issuer)],
         },
       },
-      content: [observation(result, quantity, deviceName, serial, deviceId)],
+      content: [observation(result, quantity, device, deviceId)],
     },
   };
 }
@@ -203,8 +221,7 @@ export function buildFinalLabResult(
 function observation(
   result: FinalLabResult,
   quantity: JsonObject,
-  deviceName: string,
-  serial: string,
+  device: DeviceIdentity,
   deviceId: JsonObject,
 ): JsonObject {
   return {
@@ -244,8 +261,8 @@ function observation(
       archetype_node_id: "at0004",
       name: text("Tree"),
       items: [
-        // TODO(#148): the requester as typed has no element: the template closes the
-        // Requester slot (at0090) of Test request details, so it waits on the maintainer.
+        // NOTE: maintainer, 2026-11-20 on #148; the request id names the request, and the
+        // requester as typed stays in eduLIMS (the template closes the Requester slot, at0090).
         {
           _type: "CLUSTER",
           archetype_node_id: "at0094",
@@ -253,8 +270,10 @@ function observation(
           items: [element("at0062", "Requester order identifier", identifier(result.requestId))],
         },
         cluster(ARCHETYPES.device, "Medical device", [
-          element("at0001", "Device name", text(deviceName)),
-          element("at0020", "Serial number", text(serial)),
+          element("at0001", "Device name", text(device.name)),
+          ...(device.serial === null
+            ? []
+            : [element("at0020", "Serial number", text(device.serial))]),
           element("at0024", "Other identifier", deviceId),
         ]),
       ],

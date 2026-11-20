@@ -17,6 +17,7 @@ import {
   type FinalLabResult,
   LAB_RESULT_TEMPLATE_ID,
   type LabResultSettings,
+  MANUAL_ENTRY_DEVICE,
   quantityOf,
 } from "./lab-result.ts";
 import { compositionNodes, optNodes } from "./test-opt.ts";
@@ -229,6 +230,45 @@ describe("the content of a released result (S15, Q-TRACE-1)", () => {
   });
 });
 
+describe("a result entered by hand (maintainer, 2026-11-20 on #148)", () => {
+  const manual = composition({ device: { kind: "manual" } });
+  const manualId = { _type: "DV_IDENTIFIER", issuer: ANALYSER_ID_ISSUER, id: "manual" };
+
+  it("names the fixed device identity as the composer, with no person", () => {
+    expect(MANUAL_ENTRY_DEVICE).toEqual({ name: "eduLIMS manual entry", id: "manual" });
+    expect(manual["composer"]).toEqual({
+      _type: "PARTY_IDENTIFIED",
+      name: "eduLIMS manual entry",
+      identifiers: [manualId],
+    });
+    expect(at(manual, "feeder_audit", "originating_system_audit", "system_id")).toBe("manual");
+  });
+
+  it("names it in the device cluster, with no serial number", () => {
+    expect(at(elementValue(manual, `${DEVICE}/items[at0001]`), "value")).toBe(
+      "eduLIMS manual entry",
+    );
+    expect(elementValue(manual, `${DEVICE}/items[at0024]`)).toEqual(manualId);
+    expect(elementValue(manual, `${DEVICE}/items[at0020]`)).toBeUndefined();
+  });
+
+  it.each(
+    compositionNodes(manual as Record<string, unknown>).map(
+      (node) => [node.path || "(root)", node] as const,
+    ),
+  )("%s is a node of the template", (_, node) => {
+    expect(TEMPLATE.get(node.path), node.path).toBeDefined();
+  });
+});
+
+describe("the requester as typed (maintainer, 2026-11-20 on #148)", () => {
+  it("stays in eduLIMS: the composition names the request by its id only", () => {
+    const text = JSON.stringify(composition({ requester: "Invented GP practice" }));
+    expect(text).not.toContain("Invented GP practice");
+    expect(text).toContain(ids().requestId);
+  });
+});
+
 describe("what a composition never carries (Q-PRIV-1, Q-SIM-1)", () => {
   it("holds no student, no tolerance, no correct value and no accuracy status", () => {
     const text = JSON.stringify(composition());
@@ -239,13 +279,6 @@ describe("what a composition never carries (Q-PRIV-1, Q-SIM-1)", () => {
 });
 
 describe("refusals of the builder", () => {
-  it("refuses a measurement entered by hand: no device to name (TODO #148)", () => {
-    expect(buildFinalLabResult(result({ device: { kind: "manual" } }), SETTINGS)).toEqual({
-      ok: false,
-      error: "no_device_identifier",
-    });
-  });
-
   it("refuses an analyser result without its serial number", () => {
     const device = { kind: "afinion_2", serialNumber: null } as const;
     expect(buildFinalLabResult(result({ device }), SETTINGS)).toEqual({

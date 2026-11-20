@@ -193,13 +193,28 @@ describe("writeReleasedResult (#148)", () => {
     expect(client.createContribution).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves a result entered by hand pending, logged with ids only (no device yet, TODO #148)", async () => {
+  it("writes a result entered by hand under the fixed device identity (maintainer, 2026-11-20)", async () => {
+    const { database, w } = await open();
+    const id = await released(database, w);
+    const { client } = ferroEhr();
+    expect(await writeReleasedResult({ db: database, client, settings: SETTINGS }, id)).toBe(
+      "written",
+    );
+    const [, body] = client.createContribution.mock.calls[0] ?? [];
+    expect(body?.versions[0]?.data["composer"]).toMatchObject({ name: "eduLIMS manual entry" });
+  });
+
+  it("leaves an analyser's result without its serial number pending, logged with ids only (#158, #152)", async () => {
     const { database, w } = await open();
     const id = await released(database, w, "5.37");
     const { client } = ferroEhr();
-    const lines = await securityLines(() =>
-      writeReleasedResult({ db: database, client, settings: SETTINGS }, id),
-    );
+    const deps = {
+      db: database,
+      client,
+      settings: SETTINGS,
+      resolveDevice: () => ({ kind: "afinion_2", serialNumber: null }) as const,
+    };
+    const lines = await securityLines(() => writeReleasedResult(deps, id));
     expect(await writeRow(database, id)).toMatchObject({
       state: "pending",
       attempts: 1,

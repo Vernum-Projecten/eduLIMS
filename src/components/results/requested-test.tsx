@@ -6,6 +6,8 @@ import {
   CircleAlertIcon,
   CircleCheckIcon,
   CircleDashedIcon,
+  ClockIcon,
+  FileCheckIcon,
   FlaskConicalIcon,
   PlusIcon,
   SendIcon,
@@ -26,9 +28,13 @@ import {
 } from "@/components/ui/table";
 import { m } from "@/i18n/messages";
 import { formatDateTime, formatDecimal } from "@/lib/i18n/format";
-import { measurementSourceLabel, requestedTestStateLabel } from "@/lib/i18n/results-labels";
+import {
+  measurementSourceLabel,
+  patientRecordLabel,
+  requestedTestStateLabel,
+} from "@/lib/i18n/results-labels";
 import { formatLabNumber } from "@/lib/lab-number";
-import type { RequestedTestState } from "@/lib/results";
+import type { PatientRecordState, RequestedTestState } from "@/lib/results";
 import { cn } from "@/lib/utils";
 import type { MeasurementRow, RequestedTestRow } from "@/server/results/queries";
 
@@ -83,6 +89,25 @@ function Range({ lower, upper, unit }: Readonly<{ lower: string; upper: string; 
   );
 }
 
+/**
+ * Where a released result stands in the patient's record (#148), with an icon and text, never
+ * colour alone (WCAG 1.4.1); nothing for a control request, which has no patient (S16).
+ */
+function PatientRecord({ state }: Readonly<{ state: PatientRecordState }>) {
+  const label = patientRecordLabel(state);
+  if (label === null) return null;
+  const Icon = state === "written" ? FileCheckIcon : ClockIcon;
+  return (
+    <>
+      <dt className="text-muted-foreground">{m.results_record()}</dt>
+      <dd className="flex items-center gap-1.5">
+        <Icon aria-hidden="true" className="size-4 shrink-0" />
+        <span>{label}</span>
+      </dd>
+    </>
+  );
+}
+
 /** The team's own tolerance and the release, or what the test lacks for a release (S13, S15). */
 function ReleaseFacts({ test, labId }: Readonly<{ test: RequestedTestRow; labId: string | null }>) {
   const unit = test.unit ?? "";
@@ -97,6 +122,7 @@ function ReleaseFacts({ test, labId }: Readonly<{ test: RequestedTestRow; labId:
         <dd>
           <Range {...test.release.tolerance} unit={unit} />
         </dd>
+        <PatientRecord state={test.release.record} />
       </dl>
     );
   }

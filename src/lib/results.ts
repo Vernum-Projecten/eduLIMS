@@ -25,6 +25,12 @@ export function parseMeasurementSource(value: unknown): MeasurementSource | unde
   return MEASUREMENT_SOURCES.find((source) => source === value);
 }
 
+/**
+ * Where a released result stands in the patient's record in FerroEHR (#148): `written`, `pending`
+ * while eduLIMS retries the write, or `none` for a control request, which has no patient (S16).
+ */
+export type PatientRecordState = "written" | "pending" | "none";
+
 /** The state of a requested test (`docs/lims-workflow.md`, "The states of a requested test"). */
 export type RequestedTestState = "requested" | "measured" | "released";
 
