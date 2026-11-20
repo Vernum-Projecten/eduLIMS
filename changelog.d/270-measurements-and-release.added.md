@@ -1,0 +1,1 @@
+- A team keeps every measurement of a requested test, enters one by hand for a test measured by hand, and releases one measurement as the result. The release needs the team's own tolerance, checks the value against it, takes its time from the database clock and is final; a second release is refused by the database (#270).

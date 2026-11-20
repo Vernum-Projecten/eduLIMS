@@ -69,11 +69,55 @@ export async function requestFor(
   return result.value;
 }
 
-/** Marks every requested test of `requestId` released, as #270 will (test set-up only). */
+/**
+ * Releases every requested test of `requestId`, bypassing the service (test set-up only): a
+ * tolerance and a measurement on the request's first sample per test, then the release, which
+ * the database stamps with its own clock.
+ */
 export async function release(db: Kysely<DB>, requestId: string): Promise<void> {
-  await db
-    .updateTable("request_tests")
-    .set({ released_at: NOW })
+  const request = await db
+    .selectFrom("requests")
+    .innerJoin("samples", "samples.request_id", "requests.id")
+    .select(["requests.simulation_id", "requests.lab_id", "samples.id as sample_id"])
+    .where("requests.id", "=", requestId)
+    .orderBy("samples.created_at")
+    .orderBy("samples.id")
+    .executeTakeFirstOrThrow();
+  const tests = await db
+    .selectFrom("request_tests")
+    .select("test_id")
     .where("request_id", "=", requestId)
     .execute();
+  for (const { test_id } of tests) {
+    const tolerance = await db
+      .insertInto("lab_tolerances")
+      .values({
+        simulation_id: request.simulation_id,
+        lab_id: request.lab_id,
+        test_id,
+        lower_limit: "1",
+        upper_limit: "9",
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    const measurement = await db
+      .insertInto("measurements")
+      .values({
+        simulation_id: request.simulation_id,
+        lab_id: request.lab_id,
+        request_id: requestId,
+        test_id,
+        sample_id: request.sample_id,
+        value: "5.5",
+        source: "manual",
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await db
+      .updateTable("request_tests")
+      .set({ released_measurement_id: measurement.id, released_tolerance_id: tolerance.id })
+      .where("request_id", "=", requestId)
+      .where("test_id", "=", test_id)
+      .execute();
+  }
 }

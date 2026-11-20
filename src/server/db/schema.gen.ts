@@ -206,6 +206,19 @@ export interface LabTolerances {
   upper_limit: Numeric;
 }
 
+export interface Measurements {
+  id: Generated<string>;
+  lab_id: string;
+  recorded_at: Generated<Timestamp>;
+  recorded_by: string | null;
+  request_id: string;
+  sample_id: string;
+  simulation_id: string;
+  source: string;
+  test_id: string;
+  value: Numeric;
+}
+
 export interface Patients {
   created_at: Generated<Timestamp>;
   created_by: string | null;
@@ -257,6 +270,9 @@ export interface Requests {
 
 export interface RequestTests {
   released_at: Timestamp | null;
+  released_by: string | null;
+  released_measurement_id: string | null;
+  released_tolerance_id: string | null;
   request_id: string;
   test_id: string;
 }
@@ -493,6 +509,7 @@ export interface DB {
   lab_members: LabMembers;
   lab_tolerances: LabTolerances;
   labs: Labs;
+  measurements: Measurements;
   patients: Patients;
   pending_admin_grant: PendingAdminGrant;
   record_corrections: RecordCorrections;

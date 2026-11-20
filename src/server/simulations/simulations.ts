@@ -78,8 +78,9 @@ export function renameSimulation(
 
 /**
  * Deletes a simulation the actor teaches, with its labs and waiting addresses, unless it runs
- * (`running`; maintainer, 2026-11-20 on #267) or a student is in one of its labs
- * (`has_students`), each refusal logged.
+ * (`running`; maintainer, 2026-11-20 on #267), a student is in one of its labs (`has_students`),
+ * or one of its labs holds a patient, a request, a tolerance or a measurement (`has_records`;
+ * maintainer on #370), each refusal logged.
  */
 export function deleteSimulation(
   db: Kysely<DB>,
@@ -106,6 +107,23 @@ export function deleteSimulation(
     if (member) {
       await recordAudit(trx, { ...event, outcome: "refused", reason: "has_students" });
       return refused("has_students");
+    }
+    // NOTE: maintainer on #370 (Q2); a lab's records outlive its simulation's students, as
+    // `deleteLab` keeps them, so a released result is never deleted with its simulation.
+    const record = await trx
+      .selectFrom("patients")
+      .select("id")
+      .where("simulation_id", "=", simulationId)
+      .union(trx.selectFrom("requests").select("id").where("simulation_id", "=", simulationId))
+      .union(
+        trx.selectFrom("lab_tolerances").select("id").where("simulation_id", "=", simulationId),
+      )
+      .union(trx.selectFrom("measurements").select("id").where("simulation_id", "=", simulationId))
+      .limit(1)
+      .executeTakeFirst();
+    if (record) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: "has_records" });
+      return refused("has_records");
     }
     await trx.deleteFrom("simulations").where("id", "=", simulationId).execute();
     await recordAudit(trx, { ...event, outcome: "success" });

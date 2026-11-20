@@ -27,6 +27,8 @@ export function recordsErrorMessage(code: RecordsActionError | null): string {
       return m.records_error_test_retired();
     case "released":
       return m.records_error_released();
+    case "test_removed":
+      return m.records_error_test_removed();
     case "requester_required":
       return m.records_requester_required();
     case "birth_in_future":
@@ -111,6 +113,7 @@ export type RequestRefusalField = "testIds" | "patientId" | "requester" | "sampl
 const REQUEST_REFUSAL_FIELD: Partial<Record<RecordsActionError, RequestRefusalField>> = {
   test_not_found: "testIds",
   test_retired: "testIds",
+  test_removed: "testIds",
   patient_not_found: "patientId",
   requester_required: "requester",
   sample_not_found: "samples",

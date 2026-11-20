@@ -84,9 +84,8 @@ erDiagram
   subject.
 - A request is for one patient or for a control sample, which has no
   patient (S16). The released result of a control request goes to the
-  control log of the team and is in no patient's record. Where a released
-  control result is stored, in FerroEHR or in the eduLIMS database, is a
-  design decision that is not made yet.
+  control log of the team and is in no patient's record. A released control
+  result is stored in the eduLIMS database only (#270).
 - A correct value is entered once per simulation, keyed by sample number and
   test, and holds for every lab (D10). A lab added later is judged against
   the same values.
@@ -102,11 +101,11 @@ erDiagram
   or release another measurement for that requested test (S15; owner,
   2026-11-19, O7). The teacher sees every measurement of a requested test,
   and the released one is marked as the one that counts (D11).
-- Where a measurement lives before its release is a design matter for the
-  maintainer. The template has a result status (Preliminary, Final), so the
-  proposal keeps every measurement in FerroEHR as Preliminary and makes the
-  released one Final. The Afinion 2 route already writes to FerroEHR on
-  arrival, which fits that design.
+- Every measurement is a row in the eduLIMS database, and the release names
+  one of them (#270), so the one-release rule and the time of release hold
+  in one transaction. The template has a result status (Preliminary, Final):
+  the Afinion 2 route writes to FerroEHR on arrival as Preliminary, and the
+  release makes the released one Final (#148).
 
 ## A measurement on the Afinion 2
 

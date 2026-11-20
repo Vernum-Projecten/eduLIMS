@@ -97,16 +97,13 @@ G-01 is calculated with SQL on the eduLIMS database. G-03
 compares a released result with the correct value, which only eduLIMS holds:
 a correct value, a limit and an accuracy status never reach FerroEHR.
 
-Where a measurement lives before its release is a design matter for the
-maintainer. The proposal in [The LIMS workflow](lims-workflow.md) keeps
-every measurement in FerroEHR as a Preliminary composition and makes the
-released one Final; with it, the measurements of a requested test also come
-from FerroEHR.
+Every measurement of a requested test and its release are rows in the
+eduLIMS database (#270), so the dashboard reads the measurements, the
+released one and the time of release there.
 
 The released result of a control request goes to the control log of the team
-and is in no patient's record (S16). Where it is stored, in FerroEHR or in
-the eduLIMS database, is a design decision that is not made yet, so its
-source for G-03 is not fixed either.
+and is in no patient's record (S16). It is stored in the eduLIMS database
+like every release (#270), which is its source for G-03.
 
 ## Charts
 

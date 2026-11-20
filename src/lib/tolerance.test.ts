@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { checkTolerance, sameTolerance } from "./tolerance.ts";
+import { checkMeasuredValue, checkTolerance, sameTolerance } from "./tolerance.ts";
 
 // Invented limits (Q-PRIV-4).
 const TOLERANCE = { lower: "4.2", upper: "6.35" };
@@ -60,5 +60,25 @@ describe("sameTolerance", () => {
     );
     expect(sameTolerance({ lower: "4.2", upper: "6" }, { lower: "4.2", upper: "6.1" })).toBe(false);
     expect(sameTolerance({ lower: "4.1", upper: "6" }, { lower: "4.2", upper: "6" })).toBe(false);
+  });
+});
+
+describe("checkMeasuredValue (S15; the security review of #352)", () => {
+  it("checks a value within the bounds like checkTolerance, a comma included", () => {
+    expect(checkMeasuredValue("4.2", TOLERANCE)).toBe("inside");
+    expect(checkMeasuredValue("6,350001", TOLERANCE)).toBe("above");
+    expect(checkMeasuredValue("4.199999", TOLERANCE)).toBe("below");
+    expect(checkMeasuredValue("999999999.999999", TOLERANCE)).toBe("above");
+  });
+
+  it.each(["1e5", "1.5E+01", "1234567890", "4.2000001", "", "NaN", "Infinity", "0x10"])(
+    "returns null for %j and never throws",
+    (value) => {
+      expect(checkMeasuredValue(value, TOLERANCE)).toBeNull();
+    },
+  );
+
+  it("returns null for a limit that is no decimal within the bounds", () => {
+    expect(checkMeasuredValue("5", { lower: "1e0", upper: "6" })).toBeNull();
   });
 });
