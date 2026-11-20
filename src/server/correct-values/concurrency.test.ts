@@ -1,17 +1,20 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// Starting a simulation against a catalogue edit on a committed database (D9, D10; the security
-// note on #268): the start locks the tests its correct values name `FOR SHARE`, so an edit that a
-// running simulation forbids waits for the start to commit and is then refused, never slipped in
-// while the simulation reads as prepared.
+// Races on a committed database (D9, D10; the security note on #268 and the review of #341): a
+// start against a catalogue edit, a student's write against a finish, and a first correct value
+// against a retirement. Each lock makes the later transaction wait, then see the committed state.
 import type { Pool, PoolClient } from "pg";
 import { afterEach, describe, expect, it } from "vitest";
-import { updateTest } from "../catalogue/actions.ts";
+import { retireTest, updateTest } from "../catalogue/actions.ts";
 import { type CommittedTestDb, createCommittedTestDb } from "../db/test-committed-db.ts";
-import { startSimulation } from "../simulations/state.ts";
+import { finishSimulation, startSimulation } from "../simulations/state.ts";
+import { findWorkingStudentLab } from "../simulations/student-access.ts";
 import { NOW, world } from "../simulations/test-helpers.ts";
-import { seedSecrets } from "./test-helpers.ts";
+import { setCorrectValues } from "./actions.ts";
+import { catalogueTest, seedSecrets } from "./test-helpers.ts";
+
+const LATER = new Date("2026-11-19T12:00:00Z");
 
 let committed: CommittedTestDb | undefined;
 let holder: PoolClient | undefined;
@@ -77,5 +80,87 @@ describe("a start and a catalogue edit at once (D9, #267)", () => {
       .where("id", "=", testId)
       .executeTakeFirstOrThrow();
     expect(stored.material).toBe("plasma");
+  });
+});
+
+/** A promise and the function that settles it, for holding a transaction open in a test. */
+function gate(): { opened: Promise<void>; open: () => void } {
+  let open: () => void = () => undefined;
+  const opened = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return { opened, open };
+}
+
+describe("a student's write and a finish at once (D10, #341 review S2)", () => {
+  it("makes the finish wait while the student's transaction holds the running check", async () => {
+    committed = await createCommittedTestDb(6);
+    const { db, pool } = committed;
+    const w = await world(db);
+    await seedSecrets(db, w);
+    await startSimulation(db, w.teacher, { simulationId: w.simulationId }, NOW);
+    const checked = gate();
+    const release = gate();
+    const student = db.transaction().execute(async (trx) => {
+      const lab = await findWorkingStudentLab(trx, w.student.id, w.labId);
+      checked.open();
+      await release.opened;
+      // The stub of the lab's work: a write inside the same transaction.
+      if (lab) {
+        await trx
+          .updateTable("labs")
+          .set({ updated_at: LATER })
+          .where("id", "=", lab.labId)
+          .execute();
+      }
+      return lab;
+    });
+    await checked.opened;
+    let finishedFirst = false;
+    const finish = finishSimulation(db, w.teacher, { simulationId: w.simulationId }, LATER).then(
+      (result) => {
+        finishedFirst = true;
+        return result;
+      },
+    );
+    await waitForLockWaiters(pool, 1);
+    expect(finishedFirst).toBe(false);
+    release.open();
+    expect(await student).toEqual({ labId: w.labId, simulationId: w.simulationId });
+    expect(await finish).toEqual({ ok: true, value: null });
+    const state = await db
+      .selectFrom("simulations")
+      .select("state")
+      .where("id", "=", w.simulationId)
+      .executeTakeFirstOrThrow();
+    expect(state.state).toBe("finished");
+  });
+});
+
+describe("a first value and a retirement at once (D9, #341 review S4)", () => {
+  it("makes the value wait for the retirement and then refuses it", async () => {
+    committed = await createCommittedTestDb(6);
+    const { db, pool } = committed;
+    const w = await world(db);
+    const testId = await catalogueTest(db, "Retiring test (invented)");
+    // Hold the retirement after it locked the test: the activity log takes no insert meanwhile.
+    holder = await pool.connect();
+    await holder.query("begin");
+    await holder.query("lock table audit_event in share mode");
+    const retire = retireTest({ db, actor: w.coTeacher, now: NOW }, { testId });
+    await waitForLockWaiters(pool, 1);
+    const value = setCorrectValues(
+      db,
+      w.teacher,
+      { simulationId: w.simulationId, rows: [{ sampleNumber: "S-1", testId, value: "1" }] },
+      NOW,
+    );
+    await waitForLockWaiters(pool, 2);
+    await holder.query("commit");
+    holder.release();
+    holder = undefined;
+    expect(await retire).toEqual({ ok: true, testId });
+    expect(await value).toEqual({ ok: false, error: "test_retired" });
+    expect(await db.selectFrom("correct_values").select("id").execute()).toEqual([]);
   });
 });

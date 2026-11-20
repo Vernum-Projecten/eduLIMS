@@ -278,7 +278,11 @@ student's place and a waiting address point at their lab through the pair
   every teacher, while a teacher sets the limits while preparing their own
   simulation, and a copy of a simulation takes its limits along (D15). Every
   change of a value or a limit leaves an activity-log row with the ids of the
-  simulation, the test and the value, never the value itself (B4).
+  simulation, the test and the value, never the value itself (B4). While a
+  simulation runs, a value for a test without limits is refused
+  (`missing_limits`), and no function removes limits, so a running
+  simulation never holds a test with a value and no limits (maintainer,
+  2026-11-20).
 - **The email list.** A teacher pastes the addresses of a lab's members. The
   server classifies each line (invalid, repeated, already in this lab, in
   another lab of the simulation, new) and stores the new ones; no answer

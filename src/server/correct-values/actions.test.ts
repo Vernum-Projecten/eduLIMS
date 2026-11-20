@@ -11,7 +11,14 @@ import { createTestDb } from "../db/test-db.ts";
 import { createLab, deleteLab } from "../simulations/labs.ts";
 import { finishSimulation, startSimulation } from "../simulations/state.ts";
 import { teacherWriteRefusals } from "../simulations/test-access.ts";
-import { auditRows, NOW, securityLines, type World, world } from "../simulations/test-helpers.ts";
+import {
+  auditRows,
+  NOW,
+  notFoundLine,
+  securityLines,
+  type World,
+  world,
+} from "../simulations/test-helpers.ts";
 import { removeCorrectValue, setCorrectValues, setLimits } from "./actions.ts";
 import {
   catalogueTest,
@@ -84,6 +91,42 @@ describe("setting correct values (D10)", () => {
     expect(await values(database, w.simulationId)).toEqual([
       { sample_number: "S-001", test_id: testId, value: "5.4" },
     ]);
+  });
+
+  it("counts the same value with other trailing zeros as unchanged (#341 review, N1)", async () => {
+    const { db: database, w, testId } = await open();
+    await set(database, w, [{ sampleNumber: "S-001", testId, value: "5.2" }]);
+    const result = await set(database, w, [{ sampleNumber: "S-001", testId, value: "5.20" }]);
+    expect(result).toEqual({ ok: true, value: { added: 0, changed: 0, unchanged: 1 } });
+    expect(await auditRows(database, "simulation_value_changed")).toEqual([]);
+    expect((await values(database, w.simulationId)).map((row) => row.value)).toEqual(["5.2"]);
+  });
+
+  it("refuses, while it runs, a value for a test without limits, and takes it once they exist (maintainer, #341 review S3)", async () => {
+    const { db: database, w } = await open();
+    await seedSecrets(database, w);
+    await startSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    const late = await catalogueTest(database, "Late test (invented)");
+    const row = { sampleNumber: "S-050", testId: late, value: "4" };
+    expect(await set(database, w, [row])).toEqual({
+      ok: false,
+      error: "missing_limits",
+      testIds: [late],
+    });
+    expect(await auditRows(database, "simulation_value_set")).toContainEqual(
+      expect.objectContaining({ outcome: "refused", reason_code: "missing_limits" }),
+    );
+    expect(await values(database, w.simulationId)).toHaveLength(1);
+    await setLimits(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId, testId: late, kind: "percent", yellow: "5", red: "10" },
+      NOW,
+    );
+    expect(await set(database, w, [row])).toEqual({
+      ok: true,
+      value: { added: 1, changed: 0, unchanged: 0 },
+    });
   });
 
   it("writes nothing for an unchanged value", async () => {
@@ -254,11 +297,17 @@ describe("removing a correct value (D10)", () => {
     await seedSecrets(database, w);
     const [row] = await database.selectFrom("correct_values").select("id").execute();
     if (!row) throw new Error("no value");
-    const result = await removeCorrectValue(database, w.outsiderTeacher, {
-      simulationId: w.outsideSimulationId,
-      correctValueId: row.id,
+    let result: unknown;
+    const lines = await securityLines(async () => {
+      result = await removeCorrectValue(database, w.outsiderTeacher, {
+        simulationId: w.outsideSimulationId,
+        correctValueId: row.id,
+      });
     });
     expect(result).toEqual({ ok: false, error: "value_not_found" });
+    // The probe is logged once, as the foreign target lab of a move is (#341 review, B1).
+    expect(lines).toEqual([notFoundLine(w.outsiderTeacher.id, "correct_value", row.id)]);
+    expect(lines[0]).toMatchObject({ reason: "not_simulation_value" });
     expect(await values(database, w.simulationId)).toHaveLength(1);
   });
 
@@ -322,6 +371,27 @@ describe("setting accuracy limits (D13)", () => {
       NOW,
     );
     expect(result).toEqual({ ok: false, error: "test_not_found" });
+    expect(await auditRows(database, "simulation_limits_set")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "test_not_found" }),
+    ]);
+  });
+
+  it("refuses a retired test the simulation does not use, and logs it (D9)", async () => {
+    const { db: database, w } = await open();
+    const retired = await catalogueTest(database, "Old limits (invented)", { retired: true });
+    const result = await setLimits(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId, testId: retired, kind: "percent", yellow: "1", red: "2" },
+      NOW,
+    );
+    expect(result).toEqual({ ok: false, error: "test_retired" });
+    expect(await auditRows(database, "simulation_limits_set")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "test_retired" }),
+    ]);
+    expect(await database.selectFrom("simulation_test_limits").select("test_id").execute()).toEqual(
+      [],
+    );
   });
 
   it("is refused by the database when red is closer than yellow (D13)", async () => {

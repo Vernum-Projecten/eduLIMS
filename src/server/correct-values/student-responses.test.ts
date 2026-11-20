@@ -5,8 +5,8 @@
 // Q-SIM-1, R-13). Two halves: every server function a student can reach is named here, so a new
 // one fails this test until its response is checked; and the responses of the ones that read a
 // simulation are serialised, with the secrets in the database, and searched for them.
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import { sep } from "node:path";
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
@@ -19,43 +19,57 @@ import { startSimulation } from "../simulations/state.ts";
 import { findStudentLab, findWorkingStudentLab } from "../simulations/student-access.ts";
 import { NOW, person, world } from "../simulations/test-helpers.ts";
 import { codeOf, context } from "../simulations/test-join.ts";
+import { handWrittenSources } from "../test-source-files.ts";
 import { SECRET_RED, SECRET_VALUE, SECRET_YELLOW, seedSecrets } from "./test-helpers.ts";
 
-/** Every file that defines server functions. */
-function serverFunctionFiles(): string[] {
-  const files: string[] = ["src/lib/session.functions.ts", "src/lib/dev-tools.functions.ts"];
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir)) {
-      const path = join(dir, entry);
-      if (statSync(path).isDirectory()) walk(path);
-      else if (entry.endsWith(".ts") && !entry.endsWith(".test.ts")) {
-        if (readFileSync(path, "utf8").includes("createServerFn(")) files.push(path);
-      }
-    }
-  };
-  walk("src/server");
-  return files.sort();
+/** A call of `createServerFn(` in code, wherever it stands. */
+const CALL = /\bcreateServerFn\(/g;
+/** A server function bound to a name, exported or not, up to its handler. */
+const CHAIN = /(?:export\s+)?const\s+(\w+)\s*=\s*createServerFn\(([\s\S]*?)\.handler\(/g;
+
+/** What the scanner found in one source: the unguarded names, and every call it could not place. */
+interface ScanResult {
+  unguarded: string[];
+  calls: number;
+  placed: number;
 }
 
-/** The exported server functions whose middleware is not the teacher's or the admin's. */
-function reachableByAStudent(): string[] {
-  const names: string[] = [];
-  for (const file of serverFunctionFiles()) {
-    const source = readFileSync(file, "utf8");
-    const aliases = [...source.matchAll(/const (\w+) = requireRole\("(teacher|admin)"\);/g)].map(
-      (match) => match[1] ?? "",
-    );
-    for (const match of source.matchAll(
-      /export const (\w+) = createServerFn\(([\s\S]*?)\.handler\(/g,
-    )) {
-      const chain = match[2] ?? "";
-      const guarded =
-        /requireRole\("(teacher|admin)"\)/.test(chain) ||
-        aliases.some((alias) => chain.includes(`.middleware([${alias}])`));
-      if (!guarded) names.push(`${file}#${match[1] ?? ""}`);
-    }
+/**
+ * Returns the server functions of `source` whose middleware is not the teacher's or the admin's,
+ * by the name of the `const` they are bound to, exported directly or not. `calls` counts every
+ * `createServerFn(` and `placed` those bound to a name, so a shape the scanner does not know
+ * (an inline call, a call passed as an argument) shows as a difference instead of a gap.
+ */
+function scanSource(source: string): ScanResult {
+  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "");
+  const aliases = [...code.matchAll(/const (\w+) = requireRole\("(teacher|admin)"\);/g)].map(
+    (match) => match[1] ?? "",
+  );
+  const unguarded: string[] = [];
+  let placed = 0;
+  for (const match of code.matchAll(CHAIN)) {
+    placed += 1;
+    const chain = match[2] ?? "";
+    const guarded =
+      /requireRole\("(teacher|admin)"\)/.test(chain) ||
+      aliases.some((alias) => chain.includes(`.middleware([${alias}])`));
+    if (!guarded) unguarded.push(match[1] ?? "");
   }
-  return names.sort();
+  return { unguarded, calls: [...code.matchAll(CALL)].length, placed };
+}
+
+/** Every unguarded server function under src/, as `file#name`, and the files with stray calls. */
+async function reachableByAStudent(): Promise<{ names: string[]; stray: string[] }> {
+  const names: string[] = [];
+  const stray: string[] = [];
+  const sources = await handWrittenSources("src");
+  for (const [file, source] of sources) {
+    if (!/\.tsx?$/.test(file) || /\.test\.tsx?$/.test(file)) continue;
+    const scan = scanSource(source);
+    if (scan.calls !== scan.placed) stray.push(file);
+    for (const name of scan.unguarded) names.push(`${file.split(sep).join("/")}#${name}`);
+  }
+  return { names: names.sort(), stray };
 }
 
 /**
@@ -99,10 +113,36 @@ afterEach(async () => {
   db = undefined;
 });
 
-describe("what a student can call (Q-SIM-1)", () => {
-  it("is exactly the known list, so a new function is checked before it ships", () => {
-    expect(reachableByAStudent()).toEqual(Object.keys(STUDENT_REACHABLE).sort());
+describe("the scanner of server functions (#341 review, N2)", () => {
+  it("finds an exported function and one exported later under its name", () => {
+    const source = [
+      'const teacher = requireRole("teacher");',
+      'export const open = createServerFn({ method: "GET" }).handler(() => 1);',
+      'const hidden = createServerFn({ method: "POST" })',
+      "  .middleware([authMiddleware])",
+      "  .handler(() => 2);",
+      "export { hidden };",
+      'export const guarded = createServerFn({ method: "GET" }).middleware([teacher]).handler(() => 3);',
+    ].join("\n");
+    expect(scanSource(source)).toEqual({ unguarded: ["open", "hidden"], calls: 3, placed: 3 });
   });
+
+  it("counts a call it cannot place, so a new shape fails the list test", () => {
+    const source = "export default { fn: createServerFn().handler(() => 1) };";
+    expect(scanSource(source)).toEqual({ unguarded: [], calls: 1, placed: 0 });
+  });
+
+  it("ignores a mention in a comment", () => {
+    expect(scanSource("// attach to every createServerFn( call\n").calls).toBe(0);
+  });
+});
+
+describe("what a student can call (Q-SIM-1)", () => {
+  it("is exactly the known list, so a new function is checked before it ships", async () => {
+    const { names, stray } = await reachableByAStudent();
+    expect(stray).toEqual([]);
+    expect(names).toEqual(Object.keys(STUDENT_REACHABLE).sort());
+  }, 60_000);
 
   it("never imports the correct-values module into a student-reachable file", () => {
     for (const name of Object.keys(STUDENT_REACHABLE)) {
