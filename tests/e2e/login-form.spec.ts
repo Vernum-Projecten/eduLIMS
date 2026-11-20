@@ -150,9 +150,9 @@ test("a navigation right after devLogin lands on the page, not on the login form
   page,
 }) => {
   await devLogin(page, "teacher@example.test");
-  await page.goto("/teacher/results");
-  await expect(page).toHaveURL(/\/teacher\/results$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Results" })).toBeVisible();
+  await page.goto("/teacher/dashboard");
+  await expect(page).toHaveURL(/\/teacher\/dashboard$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
   await axe(page);
 });
 

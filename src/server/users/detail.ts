@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The read of the user detail sheet (#34, B1): profile, roles and their source, linked
-// accounts, live sessions, the block and the user's recent activity. No grades, results or
-// submissions (R-01); no session token, IP address or provider token leaves the server.
+// accounts, live sessions, the block and the user's recent activity. Nothing of a lab's work and
+// no correct value (R-01, B5); no session token, IP address or provider token leaves the server.
 import "@tanstack/react-start/server-only";
 import type { Kysely } from "kysely";
 import { isLocallyEditable, parseRoleSource, type RoleSource } from "../../lib/role-source.ts";
