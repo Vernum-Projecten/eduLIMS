@@ -19,9 +19,9 @@ test catalogue; correct values;
 tolerances; patients, requests and samples with their lab numbers; the times
 of entry and release; the upload log and the audit log
 ([lims-workflow.md](../../docs/lims-workflow.md#who-owns-what-and-where-it-lives)).
-Results live in FerroEHR as compositions (`integration.md`); where a
-measurement lives before its release is a design matter, with the
-maintainer's proposal in `docs/lims-workflow.md`.
+Results live in FerroEHR as compositions (`integration.md`); every
+measurement and the release that names one of them are rows here as well
+(`measurements`, `request_tests`, #270).
 A request is for one patient or for a control sample, which has no patient
 (S16). The correct values are keyed by simulation, sample number and test,
 never by lab (D10). Simulations, their teachers, labs, members and

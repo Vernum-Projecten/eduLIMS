@@ -250,6 +250,11 @@ export function correctRequest(
     const after = new Set(input.testIds);
     const refusal = await testRefusal(trx, [...after], before);
     if (refusal !== null) return refused(refusal);
+    // NOTE: S14; a measurement is never removed, so neither is the requested test it belongs to.
+    const dropped = [...before].filter((testId) => !after.has(testId));
+    if (dropped.length > 0 && (await hasMeasurement(trx, id, dropped))) {
+      return refused("test_measured");
+    }
     const storedSamples = await trx
       .selectFrom("samples")
       .select(["id", "sample_number", "material"])
@@ -298,6 +303,22 @@ export function correctRequest(
     await recordAudit(trx, { ...event, outcome: "success" });
     return done({ changed: changes.length });
   });
+}
+
+/** Returns whether one of `testIds` of the request has a measurement (S14). */
+async function hasMeasurement(
+  trx: Transaction<DB>,
+  requestId: string,
+  testIds: readonly string[],
+): Promise<boolean> {
+  const row = await trx
+    .selectFrom("measurements")
+    .select("id")
+    .where("request_id", "=", requestId)
+    .where("test_id", "in", testIds)
+    .limit(1)
+    .executeTakeFirst();
+  return row !== undefined;
 }
 
 /** Returns the stored kind of a request as a {@link RequestKind}. */

@@ -30,12 +30,12 @@ patient's record in FerroEHR, and eduLIMS reads back by one route
 Per test the teacher sets where a measurement comes from: the Afinion 2, the
 Epoch 2 upload or entry by hand (D9). A result calculated from other results
 is a test with entry by hand. Every result is a number with a unit; a result
-that is not a number stays outside eduLIMS (W8). Where a measurement lives
-before its release is a design matter for the maintainer: the proposal in
-`docs/lims-workflow.md` keeps it in FerroEHR as Preliminary and makes the
-released one Final. A released result is final (S15). Where a released
-control result is stored, in FerroEHR or in the eduLIMS database, is a
-design decision that is not made yet: build no storage for it until it is.
+that is not a number stays outside eduLIMS (W8). Every measurement is a row
+in the eduLIMS database and the release names one of them
+(`src/server/results/`, #270); in FerroEHR a measurement is Preliminary and
+the released one Final (#148). A released result is final (S15). A released
+control result is stored in the eduLIMS database only and never reaches
+FerroEHR (#270).
 
 FerroEHR and FerroBRIDGE are configured, never developed here (scope, plan of
 approach §1.5). A defect in either is reported to its own repository.

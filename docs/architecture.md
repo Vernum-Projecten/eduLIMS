@@ -218,8 +218,10 @@ design matter for the maintainer; the proposal is under
 
 A control request has no patient, so its released result is in no patient's
 record: it goes to the control log of the team (S16; owner, 2026-11-19,
-O14). Where that result is stored, in FerroEHR or in the eduLIMS database,
-is a design decision that is not made yet.
+O14). The release of a control result lives in the eduLIMS database, like
+every release, and is never written to FerroEHR (#270); the control log is
+the lab's released control results. Whether an Afinion 2 control run that
+arrives with `Q` in MSH-11 joins it is settled in #160.
 
 The correct values of a simulation are entered once, keyed by sample number
 and test, and hold for every lab (D10). Adding or removing a lab changes no
@@ -441,7 +443,7 @@ A team's records from the paper request form live in the eduLIMS database
 |---|---|
 | `patients` | a patient as the team typed it: name, date of birth, sex and the patient ID of the form; who registered it and when |
 | `requests` | a request for a patient of the same lab, or for a control sample with no patient (S16); the requester, the phone-through flag and the remarks; the time of entry |
-| `request_tests` | the catalogue tests a request names, by foreign key to `catalogue_tests`; the time of release, which #270 writes |
+| `request_tests` | the catalogue tests a request names, by foreign key to `catalogue_tests`; the release: the released measurement, the tolerance in force at the release, who released it and the time of release (#270) |
 | `samples` | the samples of a request: the sample number and the material of the form, and the lab number |
 | `record_corrections` | every correction of a patient or a request: the fields with their value before and after, who corrected and when |
 
@@ -476,8 +478,8 @@ A team's records from the paper request form live in the eduLIMS database
 - **Corrections** are allowed until a requested test of the request, or of
   one of the patient's requests, has a time of release. A correction locks
   the request or patient `FOR UPDATE` (a patient correction also reads the
-  patient's requests `FOR SHARE`), so the release of #270 must lock the
-  request `FOR UPDATE` to serialise with it. A correction never removes a
+  patient's requests `FOR SHARE`), and the release locks the request
+  `FOR UPDATE` too, so the two serialise. A correction never removes a
   sample and never changes the patient or the kind of a request; a new
   sample gets a fresh lab number. Each correction writes a
   `record_corrections` row and an activity-log row with ids only.
@@ -496,6 +498,55 @@ A team's records from the paper request form live in the eduLIMS database
 - **FerroEHR.** Registering a patient returns the subject of its EHR (the
   form's details and the patient's id, nothing about the lab or a student);
   #147 creates the EHR from it after the transaction commits.
+
+### Measurements and the release of a result
+
+A team's measurements and the release of one of them as the result live in
+the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
+
+| Table | What it holds |
+|---|---|
+| `measurements` | every measurement of a requested test: its sample, the value as `numeric` within the bounds of a correct value, where it came from (`manual`, `afinion`, `epoch_upload`), who entered it (none for an analyser) and the database clock at the insert |
+| `request_tests` | the release, on the requested test itself: one row per requested test, so at most one released measurement |
+
+- **Kept as they arrived.** A trigger refuses any change to a measurement and
+  any direct delete; only its lab's cascade removes one. A correction that
+  would drop a requested test with a measurement is refused
+  (`test_measured`), and the foreign key from a measurement to its requested
+  test holds the same rule.
+- **The release.** A member of the lab picks a measurement and confirms. In
+  one transaction the service checks the lab (`findWorkingStudentLab`),
+  takes the lab row `FOR SHARE` (a tolerance change takes it `FOR NO KEY
+  UPDATE`) and the request `FOR UPDATE` (as a correction does), then reads
+  the tolerance in force. A test without a tolerance is `no_tolerance`, and a
+  tolerance that changed since the team saw the warning is
+  `tolerance_changed`, so the warning the team confirmed is the one against
+  the tolerance stored with the release. The value is checked with
+  `checkMeasuredValue` (`src/lib/tolerance.ts`), which parses and bounds it
+  first and never throws. eduLIMS warns and never blocks (S15).
+- **Final.** The trigger `request_tests_release` sets the time of release
+  from the transaction's clock whatever the update carries, refuses a
+  tolerance of another lab or test, and refuses any change or direct delete
+  once a requested test is released, so a second release fails in the
+  database too. No function updates a measurement or a release.
+- **Who releases.** Every read and write matches the request, the test, the
+  sample and the measurement to the lab in the same query. An analyser
+  result is matched by the lab number alone (maintainer on #270), lands on
+  that sample, and only the lab whose sample it is can release it.
+- **The seam for the analysers.** `insertMeasurement` parses and bounds the
+  value (`value_invalid`) and writes the activity-log row; the Afinion 2
+  route (#158) and the Epoch 2 upload (#152) call it after they have matched
+  the sample, checked that its simulation runs and locked the request
+  `FOR SHARE`. Entry by hand is allowed only for a test whose source is
+  entry by hand (D9).
+- **FerroEHR.** The release returns what goes to the patient's record (the
+  patient, the released measurement, the sample number, the test, the value
+  and the time), and #148 writes it as Final after the transaction commits,
+  idempotent on the measurement. A control request returns nothing to write.
+- **Who reads.** The team reads every measurement of its own lab with its own
+  tolerance; the teachers of the simulation read the same with the released
+  measurement marked and the tolerance kept at the release (D11). Neither
+  read holds a correct value, a limit or an accuracy status (Q-SIM-1).
 
 ### Template `eduLIMS-lab`
 
