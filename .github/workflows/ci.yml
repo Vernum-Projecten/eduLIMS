@@ -157,6 +157,8 @@ jobs:
           fi
       # The bootstrap superuser's password of the test and e2e service containers, new for each
       # run. A service starts before its job's steps, so it can only come from a job before it.
+      # It is unmasked by design: GitHub drops a masked job output, and the runner logs the
+      # service's env. It guards only a throwaway service container on the runner.
       - id: postgres
         run: echo "password=$(openssl rand -hex 24)" >> "$GITHUB_OUTPUT"
 

@@ -87,7 +87,9 @@ creates its own run database beside the base database, as on a developer
 machine. CI writes no database password into the workflow: the `install` job
 draws the superuser's password for the service containers, and the step above
 draws the `edulims` password, masks it and builds the URL from it, each new
-for every run. A change to the role or its grants goes into those scripts, so the
+for every run. The superuser's password is unmasked by design: GitHub drops a
+masked job output, and the runner logs the service's env, so it guards only a
+throwaway service container on the runner. A change to the role or its grants goes into those scripts, so the
 dev stack and CI stay the same.
 
 ## The merge gate

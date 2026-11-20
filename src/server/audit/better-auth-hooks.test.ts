@@ -13,10 +13,10 @@ import { keyringOf } from "../idp/crypto.ts";
 import { insertTestProvider } from "../idp/test-providers.ts";
 import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
+import { TEST_PASSWORD } from "../users/test-helpers.ts";
 import { auditDatabase, auditRecorderOf, providerOf, requestIdOf } from "./better-auth-hooks.ts";
 import type { AuditAction } from "./events.ts";
 
-const PASSWORD = "correct-horse-battery";
 let db: Kysely<DB> | undefined;
 
 beforeEach(() => {
@@ -41,14 +41,14 @@ async function setup() {
 
 async function createUser(auth: Auth, email: string, role: "student" | "teacher" | "admin") {
   const { user } = await auth.api.createUser({
-    body: { email, name: "Audit Person", password: PASSWORD, role },
+    body: { email, name: "Audit Person", password: TEST_PASSWORD, role },
   });
   return user.id;
 }
 
 async function signIn(auth: Auth, email: string): Promise<Headers> {
   const response = await auth.api.signInEmail({
-    body: { email, password: PASSWORD },
+    body: { email, password: TEST_PASSWORD },
     asResponse: true,
   });
   const cookie = response.headers.getSetCookie().map((c) => c.split(";")[0]);
@@ -100,7 +100,7 @@ describe("the activity log of better-auth flows (B4)", () => {
     const { auth, database } = await setup();
     const id = await createUser(auth, "student@example.test", "student");
     await auth.api.signInEmail({
-      body: { email: "student@example.test", password: PASSWORD },
+      body: { email: "student@example.test", password: TEST_PASSWORD },
       headers: new Headers({ "x-request-id": "req-login" }),
     });
     expect(await events(database, "authn_login_success")).toEqual([
@@ -138,7 +138,7 @@ describe("the activity log of better-auth flows (B4)", () => {
   it("records authn_login_fail for an unknown account without a target", async () => {
     const { auth, database } = await setup();
     await expect(
-      auth.api.signInEmail({ body: { email: "nobody@example.test", password: PASSWORD } }),
+      auth.api.signInEmail({ body: { email: "nobody@example.test", password: TEST_PASSWORD } }),
     ).rejects.toThrow();
     expect(await events(database, "authn_login_fail")).toEqual([
       expect.objectContaining({ target_type: null, target_id: null, outcome: "failure" }),

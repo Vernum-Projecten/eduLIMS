@@ -13,8 +13,8 @@ import { insertTestProvider } from "./idp/test-providers.ts";
 // the Set-Cookie headers of a real sign-in.
 import { createTestAuth } from "./test-auth.ts";
 import { VALID_ENV } from "./test-env.ts";
+import { TEST_PASSWORD } from "./users/test-helpers.ts";
 
-const PASSWORD = "correct-horse-battery";
 const EMAIL = "student@example.test";
 let db: Kysely<DB> | undefined;
 
@@ -31,10 +31,12 @@ async function signInCookies(baseURL: string): Promise<string[]> {
     db: database,
     type: "postgres",
   });
-  await auth.api.createUser({ body: { email: EMAIL, name: "Test Student", password: PASSWORD } });
+  await auth.api.createUser({
+    body: { email: EMAIL, name: "Test Student", password: TEST_PASSWORD },
+  });
   await database.updateTable("user").set({ locale: "nl" }).where("email", "=", EMAIL).execute();
   const response = await auth.api.signInEmail({
-    body: { email: EMAIL, password: PASSWORD },
+    body: { email: EMAIL, password: TEST_PASSWORD },
     asResponse: true,
   });
   expect(response.status).toBe(200);

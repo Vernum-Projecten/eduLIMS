@@ -32,7 +32,7 @@ export function invalidatedKeys(queryClient: QueryClient): string[] {
     .getAll()
     .filter((query) => query.state.isInvalidated)
     .map((query) => JSON.stringify(query.queryKey))
-    .sort((a, b) => (a < b ? -1 : Number(a > b)));
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 /**

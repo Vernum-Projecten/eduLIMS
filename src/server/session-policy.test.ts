@@ -16,8 +16,8 @@ import {
 // Session lifetimes (#42, ASVS V7.3.1, V7.3.2) against better-auth and the real database.
 import { createTestAuth } from "./test-auth.ts";
 import { VALID_ENV } from "./test-env.ts";
+import { TEST_PASSWORD } from "./users/test-helpers.ts";
 
-const PASSWORD = "correct-horse-battery";
 const HOUR_MS = 60 * 60 * 1000;
 let db: Kysely<DB> | undefined;
 
@@ -34,12 +34,12 @@ async function signedIn() {
     body: {
       email: "teacher@example.test",
       name: "Test Teacher",
-      password: PASSWORD,
+      password: TEST_PASSWORD,
       role: "teacher",
     },
   });
   const response = await auth.api.signInEmail({
-    body: { email: "teacher@example.test", password: PASSWORD },
+    body: { email: "teacher@example.test", password: TEST_PASSWORD },
     asResponse: true,
   });
   const cookie = response.headers
