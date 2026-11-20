@@ -1,14 +1,12 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { EyeOffIcon } from "lucide-react";
-import {
-  PasteCorrectValues,
-  useAddCorrectValue,
-  useHasCorrectValues,
-  ValuesByTest,
-} from "@/components/correct-values/values-by-test";
+import { useState } from "react";
+import { useGridPaste } from "@/components/correct-values/grid-paste";
+import { ValuesGrid } from "@/components/correct-values/values-grid";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { PageFrame } from "@/components/shell/page-frame";
 import { RouteErrorState } from "@/components/shell/route-error";
@@ -50,26 +48,33 @@ function ValuesPending() {
 }
 
 /**
- * The correct values and accuracy limits of a simulation (D10, D13, #381), one table per test.
- * Teacher-scoped: a student never reaches this page or its data (Q-SIM-1).
+ * The correct values and accuracy limits of a simulation as one grid (D10, D13, #401): pasted
+ * from a spreadsheet, then edited cell by cell. Teacher-scoped: a student never reaches this page
+ * or its data (Q-SIM-1).
  */
 function ValuesPage() {
   const { simulationId } = Route.useParams();
-  const filled = useHasCorrectValues(simulationId);
-  const add = useAddCorrectValue(simulationId);
+  const { data: page } = useSuspenseQuery(correctValuesQueryOptions(simulationId));
+  // What the last save or paste did, in the page itself: the toasts sit below a dialog's
+  // overlay, so a status line on the page says it too (WCAG 4.1.3).
+  const [saved, setSaved] = useState("");
+  const paste = useGridPaste(simulationId, setSaved);
   return (
     <PageFrame
       title={m.simulation_nav_values()}
       description={m.simulation_values_description()}
-      secondary={<PasteCorrectValues simulationId={simulationId} />}
-      action={filled ? add.button : undefined}
+      // With no test yet, the empty state holds the one action instead (#384).
+      action={page.tests.length > 0 ? paste.button : undefined}
     >
       <p className="inline-flex items-center gap-1.5 text-muted-foreground text-sm">
         <EyeOffIcon aria-hidden="true" className="size-4 shrink-0" />
         {m.correct_values_secret()}
       </p>
-      <ValuesByTest simulationId={simulationId} emptyAction={add.button} />
-      {add.dialog}
+      <p role="status" className="text-sm empty:hidden">
+        {saved}
+      </p>
+      <ValuesGrid simulationId={simulationId} emptyAction={paste.button} onSaved={setSaved} />
+      {paste.dialog}
     </PageFrame>
   );
 }

@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { CORRECT_VALUES_BATCH_MAX, SAMPLE_NUMBER_MAX } from "../../lib/correct-values.ts";
+import {
+  CORRECT_VALUES_BATCH_MAX,
+  type GridProblem,
+  SAMPLE_NUMBER_MAX,
+} from "../../lib/correct-values.ts";
 import {
   correctValueIdInput,
   correctValueRowSchema,
+  gridPasteSchema,
+  gridProblemMessage,
   limitsFormSchema,
-  pasteFormSchema,
-  pasteProblemMessage,
   setCorrectValuesInput,
   setLimitsInput,
 } from "./schemas.ts";
@@ -86,47 +90,49 @@ describe("an entry of correct values (D10)", () => {
   });
 });
 
-describe("the paste form (D10)", () => {
-  const schema = pasteFormSchema([{ id: TEST, name: "Glucose" }]);
+describe("the paste of a grid (D10, #401)", () => {
+  const schema = gridPasteSchema([{ id: TEST, name: "Glucose" }]);
 
-  it("accepts lines that read", () => {
-    expect(schema.safeParse({ text: "S-1\tGlucose\t5,2" }).success).toBe(true);
+  it("accepts a grid that reads", () => {
+    expect(schema.safeParse({ text: "Sample\tGlucose\nS-1\t5,2" }).success).toBe(true);
   });
 
-  it("asks for at least one row", () => {
-    expect(messages(schema.safeParse({ text: "\n" }))).toEqual(["Paste at least one row."]);
-  });
-
-  it("names every line that does not read", () => {
-    expect(
-      messages(schema.safeParse({ text: "S-1\tAlbumin\t1\nS-2\tGlucose\tx\nS-3;Glucose" })),
-    ).toEqual([
-      "Line 1: the catalogue has no active test named “Albumin”.",
-      "Line 2: the value is not a number, for example 6.5.",
-      "Line 3: enter three columns, the sample number, the test and the value.",
+  it("asks for at least one value", () => {
+    expect(messages(schema.safeParse({ text: "Sample\tGlucose\nS-1\t" }))).toEqual([
+      "Paste at least one correct value under a test.",
     ]);
   });
 
-  it("refuses more rows than one entry takes", () => {
-    const text = Array.from(
-      { length: CORRECT_VALUES_BATCH_MAX + 1 },
-      (_, n) => `S-${n};Glucose;1`,
-    ).join("\n");
+  it("counts the parts that do not read, which the preview marks", () => {
+    expect(messages(schema.safeParse({ text: "Sample\tAlbumin\tGlucose\nS-1\t1\tx" }))).toEqual([
+      "2 parts of the paste need a fix. They are marked in the preview.",
+    ]);
+    expect(messages(schema.safeParse({ text: "Sample\tAlbumin\nS-1\t1" }))).toEqual([
+      "1 part of the paste needs a fix. It is marked in the preview.",
+    ]);
+  });
+
+  it("refuses more values than one entry takes", () => {
+    const rows = Array.from({ length: CORRECT_VALUES_BATCH_MAX + 1 }, (_, n) => `S-${n};1`);
+    const text = ["Sample;Glucose", ...rows].join("\n");
     expect(messages(schema.safeParse({ text }))).toEqual([
       `Save at most ${CORRECT_VALUES_BATCH_MAX} values at a time.`,
     ]);
   });
 
   it("words every problem", () => {
-    for (const reason of [
-      "columns",
-      "unknown_test",
-      "sample_number",
-      "number",
-      "repeated",
-    ] as const) {
-      expect(pasteProblemMessage({ line: 4, reason, text: "X" })).toContain("Line 4");
-    }
+    const problems: GridProblem[] = [
+      { kind: "header", column: 1, reason: "unknown_test", text: "Albumin" },
+      { kind: "header", column: 1, reason: "empty_test", text: "" },
+      { kind: "header", column: 1, reason: "repeated_test", text: "" },
+      { kind: "row", row: 1, reason: "sample_number" },
+      { kind: "row", row: 1, reason: "repeated_sample" },
+      { kind: "row", row: 1, reason: "columns" },
+      { kind: "cell", row: 1, column: 1, reason: "number" },
+    ];
+    const words = problems.map(gridProblemMessage);
+    expect(words[0]).toContain("Albumin");
+    expect(new Set(words).size).toBe(problems.length);
   });
 });
 
