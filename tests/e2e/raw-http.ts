@@ -21,9 +21,21 @@ export interface RawResult {
 }
 
 /**
+ * How long {@link rawPost} waits after the headers for an answer before it writes the body. A
+ * server that refuses on the declared length answers here, and no body byte is then in flight.
+ */
+const EARLY_ANSWER_MS = 1_000;
+
+/**
  * POSTs to `path` on the app with `headers` and a `Content-Length` of `declared`, then writes
- * `send` body bytes in 64 KiB writes until the server closes the socket. After the whole body it
- * waits 2 s for the answer, then ends the socket.
+ * `send` body bytes in 64 KiB writes until the server closes the socket. It pauses up to
+ * {@link EARLY_ANSWER_MS} after the headers and again after `declared` bytes, so an answer at
+ * either point is read before more bytes are in flight. After the whole body it waits 2 s for the
+ * answer, then ends the socket.
+ *
+ * A server that closes with unread bytes in its socket sends a reset, and the reset can discard
+ * an answer the client has not read yet (#358): up to the declared length, writing stops at the
+ * first answer byte; the overrun past it is still sent, after the answer was read.
  */
 export function rawPost(
   path: string,
@@ -56,23 +68,45 @@ export function rawPost(
         closedEarly: written < send,
       });
     };
+    let answered = false;
+    let ending = false;
+    const endSoon = () => {
+      if (ending || closed) return;
+      ending = true;
+      setTimeout(() => socket.end(), 2_000);
+    };
     socket.on("data", (chunk: Buffer) => {
       answer += chunk.toString("latin1");
+      answered = true;
+      endSoon();
     });
     socket.on("close", finish);
     socket.on("error", finish);
     const chunk = Buffer.alloc(64 * 1024, 0x61);
+    let pausedAtDeclared = false;
     const pump = () => {
-      while (!closed && written < send) {
-        const size = Math.min(chunk.length, send - written);
+      // Up to the declared length, an answer means the server will read no more of it; past it,
+      // the bytes are the overrun under test and go out whatever the answer said.
+      while (!closed && written < send && !(answered && written < declared)) {
+        if (written === declared && !pausedAtDeclared) {
+          pausedAtDeclared = true;
+          setTimeout(pump, EARLY_ANSWER_MS);
+          return;
+        }
+        const limit = written < declared ? declared : send;
+        const size = Math.min(chunk.length, limit - written);
         written += size;
         if (!socket.write(chunk.subarray(0, size))) {
           socket.once("drain", pump);
           return;
         }
       }
-      if (!closed) setTimeout(() => socket.end(), 2_000);
+      endSoon();
     };
-    socket.write(head, pump);
+    socket.write(head, () => {
+      setTimeout(() => {
+        if (!closed && !answered) pump();
+      }, EARLY_ANSWER_MS);
+    });
   });
 }

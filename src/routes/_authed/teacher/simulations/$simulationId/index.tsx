@@ -6,6 +6,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CorrectValuesSection } from "@/components/correct-values/correct-values-section";
 import { LimitsSection } from "@/components/correct-values/limits-section";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
+import { CorrectionLogSection } from "@/components/lab-records/correction-log-section";
 import { Page } from "@/components/shell/page-header";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { LabsSection } from "@/components/simulations/labs-section";
@@ -17,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/i18n/messages";
 import { formatDate } from "@/lib/i18n/format";
 import { correctValuesQueryOptions } from "@/server/correct-values/query-options";
+import { correctionLogQueryOptions } from "@/server/lab-records/query-options";
 import { simulationPageQueryOptions } from "@/server/simulations/query-options";
 
 export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId/")({
@@ -24,6 +26,7 @@ export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId
     const [page] = await Promise.all([
       context.queryClient.ensureQueryData(simulationPageQueryOptions(params.simulationId)),
       context.queryClient.ensureQueryData(correctValuesQueryOptions(params.simulationId)),
+      context.queryClient.ensureQueryData(correctionLogQueryOptions(params.simulationId)),
     ]);
     return { crumb: page.name };
   },
@@ -71,6 +74,7 @@ function SimulationPage() {
       <LimitsSection simulationId={page.id} />
       <LabsSection page={page} busy={isFetching} />
       <TeachersSection page={page} userId={user.id} busy={isFetching} />
+      <CorrectionLogSection simulationId={page.id} />
     </Page>
   );
 }

@@ -29,7 +29,7 @@ export function TextField({
   ...input
 }: BaseFieldProps &
   InputExtras & {
-    readonly type?: "text" | "email" | "url" | "search" | "tel" | "password";
+    readonly type?: "text" | "email" | "url" | "search" | "tel" | "password" | "date";
   }) {
   const field = useFieldContext<string>();
   const a11y = useFieldA11y(field, description, id);

@@ -29,6 +29,8 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.simulations_error_teacher_not_found();
     case "has_students":
       return m.simulations_error_has_students();
+    case "has_records":
+      return m.labs_error_has_records();
     case "member_not_found":
       return m.labs_error_member_not_found();
     case "same_lab":
@@ -61,6 +63,8 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.simulations_error_missing_limits();
     case "running":
       return m.simulations_error_running();
+    case "lab_has_students":
+      return m.labs_error_has_students();
     case null:
       return m.simulations_error_failed();
     default: {

@@ -5,6 +5,7 @@ import { getMigrations } from "better-auth/db/migration";
 import { type Kysely, sql } from "kysely";
 import { NO_MIGRATIONS } from "kysely/migration";
 import { afterEach, describe, expect, it } from "vitest";
+import { isLabNumber, withCheckDigit } from "../../lib/lab-number.ts";
 import { createAuth } from "../auth.ts";
 import { parseEnv } from "../env.ts";
 import { VALID_ENV } from "../test-env.ts";
@@ -59,6 +60,8 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
@@ -89,6 +92,8 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
@@ -119,6 +124,8 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
@@ -173,6 +180,8 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
@@ -210,6 +219,8 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
@@ -250,6 +261,8 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0010_integration_check");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
@@ -276,6 +289,8 @@ describe("migrations", () => {
     // The migration below 0013 is 0012_simulations_and_labs; 0015, 0014 and then 0013 revert.
     const down = await migrator.migrateTo("0012_simulations_and_labs");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
@@ -387,6 +402,8 @@ describe("migrations", () => {
           values ('ferrobridge', 'not_ready', now(), 'readiness_down')`);
     const down = await migrator.migrateTo("0014_lab_join_code");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
@@ -420,6 +437,8 @@ describe("migrations", () => {
     await expect(insert("GLUCOSE", false)).rejects.toThrow(/catalogue_tests_active_name_key/);
     const down = await migrator.migrateTo("0015_integration_check_steps");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
@@ -473,6 +492,8 @@ describe("migrations", () => {
     await inSavepoint(sql`delete from catalogue_tests`);
     const down = await migrator.migrateTo("0016_test_catalogue");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
@@ -531,6 +552,8 @@ describe("migrations", () => {
     ).rejects.toThrow(/correct_values_test_id_fkey/);
     const down = await migrator.migrateTo("0017_catalogue_follow_ups");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
     ]);
@@ -539,6 +562,51 @@ describe("migrations", () => {
     );
     await expect(inSavepoint(sql`select state from simulations`)).rejects.toThrow(
       /column "state" does not exist/,
+    );
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
+  });
+
+  it("0020_patients_requests_samples checks a lab number by Damm, and reverts (S12, #268)", async () => {
+    const database = await createTestDb();
+    db = database;
+    const migrator = createMigrator(database);
+    // The database function and src/lib/lab-number.ts agree, on valid numbers and on each typo.
+    const good = ["100000000", "123456789", "908172635"].map(withCheckDigit);
+    // Every single-digit typo and every swap of two neighbours of each (review of #351, N1).
+    const typos = good.flatMap((number) =>
+      [...number].flatMap((char, position) =>
+        [..."0123456789"]
+          .filter((digit) => digit !== char)
+          .map((digit) => `${number.slice(0, position)}${digit}${number.slice(position + 1)}`),
+      ),
+    );
+    const swaps = good.flatMap((number) =>
+      [...number.slice(0, -1)].map(
+        (char, position) =>
+          `${number.slice(0, position)}${number[position + 1]}${char}${number.slice(position + 2)}`,
+      ),
+    );
+    const candidates = [...good, ...typos, ...swaps, "5724", "12345678a0", "12345678901"];
+    const checked = await sql<{ ok: boolean }>`
+        select lab_number_is_valid(v) as ok
+          from unnest(${candidates}::text[]) with ordinality as t(v, n) order by n`.execute(
+      database,
+    );
+    expect(checked.rows.map((row) => row.ok)).toEqual(candidates.map(isLabNumber));
+    expect(checked.rows.map((row) => row.ok).slice(0, 3)).toEqual([true, true, true]);
+    expect(typos.some(isLabNumber)).toBe(false);
+    const down = await migrator.migrateTo("0019_lab_logos");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
+    ]);
+    const inSavepoint = (query: ReturnType<typeof sql>) =>
+      database.transaction().execute((trx) => query.execute(trx));
+    await expect(inSavepoint(sql`select id from samples`)).rejects.toThrow(
+      /relation "samples" does not exist/,
+    );
+    await expect(inSavepoint(sql`select lab_number_is_valid('1')`)).rejects.toThrow(
+      /function lab_number_is_valid/,
     );
     expect((await migrator.migrateToLatest()).error).toBeUndefined();
   });
@@ -594,10 +662,61 @@ describe("migrations", () => {
     expect(left.rows).toEqual([]);
     const down = await migrator.migrateTo("0018_simulation_state_and_correct_values");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+      ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
     ]);
     await expect(inSavepoint(sql`select lab_id from lab_logos`)).rejects.toThrow(
       /relation "lab_logos" does not exist/,
+    );
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
+  });
+
+  it("0021_lab_tolerances holds its rules and reverts (#269)", async () => {
+    const database = await createTestDb();
+    db = database;
+    const migrator = createMigrator(database);
+    const inSavepoint = (query: ReturnType<typeof sql>) =>
+      database.transaction().execute((trx) => query.execute(trx));
+    const simulation = await sql<{ id: string }>`
+        insert into simulations (name) values ('Migration run') returning id`.execute(database);
+    const simulationId = simulation.rows[0]?.id ?? "";
+    const lab = await sql<{ id: string }>`insert into labs (simulation_id, name)
+        values (${simulationId}, 'Migration lab') returning id`.execute(database);
+    const labId = lab.rows[0]?.id ?? "";
+    const test = await sql<{
+      id: string;
+    }>`insert into catalogue_tests (name, unit, material, source)
+        values ('Migration test', 'mmol/L', 'plasma', 'manual') returning id`.execute(database);
+    const testId = test.rows[0]?.id ?? "";
+    const tolerance = (lower: string, upper: string) =>
+      inSavepoint(sql`insert into lab_tolerances (simulation_id, lab_id, test_id, lower_limit, upper_limit)
+          values (${simulationId}, ${labId}, ${testId}, ${lower}::numeric, ${upper}::numeric)`);
+    await tolerance("4.20", "6");
+    await tolerance("5", "5");
+    await expect(tolerance("6.1", "6")).rejects.toThrow(/lab_tolerances_limits/);
+    await expect(tolerance("1.1234567", "2")).rejects.toThrow(/lab_tolerances_limits/);
+    await expect(tolerance("1", "1000000000")).rejects.toThrow(/lab_tolerances_limits/);
+    const stored = await sql<{ lower: string; set_at: Date | null }>`
+        select lower_limit::text as lower, set_at from lab_tolerances order by set_at, id`.execute(
+      database,
+    );
+    expect(stored.rows.map((row) => row.lower)).toEqual(["4.20", "5"]);
+    expect(stored.rows.every((row) => row.set_at instanceof Date)).toBe(true);
+    await expect(
+      inSavepoint(sql`delete from catalogue_tests where id = ${testId}`),
+    ).rejects.toThrow(/lab_tolerances_test_id_fkey/);
+    await inSavepoint(sql`delete from labs where id = ${labId}`);
+    const left = await sql<{ n: string }>`select count(*)::text as n from lab_tolerances`.execute(
+      database,
+    );
+    expect(left.rows).toEqual([{ n: "0" }]);
+    const down = await migrator.migrateTo("0020_patients_requests_samples");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0021_lab_tolerances", "Success"],
+    ]);
+    await expect(inSavepoint(sql`select id from lab_tolerances`)).rejects.toThrow(
+      /relation "lab_tolerances" does not exist/,
     );
     expect((await migrator.migrateToLatest()).error).toBeUndefined();
   });

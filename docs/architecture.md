@@ -246,6 +246,7 @@ and all students of a year take part in it. The service is
 | `simulation_removals` | the students a teacher removed, so a lab's code does not let them back in |
 | `correct_values` | the correct value per simulation, sample number and catalogue test, never per lab; one per sample number (regardless of case) and test; the value as `numeric`, never a float (D10) |
 | `simulation_test_limits` | per simulation and test, the kind of limit (a percentage of the correct value or an absolute distance) and the yellow and red limits (D13) |
+| `lab_tolerances` | a lab's own tolerance per catalogue test: a lower and an upper limit as `numeric`, the lower not above the upper; every change is a new row, never an update, and the newest row of a lab and test is the one in force (S13, #269) |
 | `lab_join_codes`, `lab_join_attempts` | the join code of a lab, stored only as an HMAC with its key's fingerprint, and the wrong-code counters per student and per client IP, stored only as keyed hashes (#288) |
 
 Every foreign key to a simulation or a lab cascades on delete, and a
@@ -283,6 +284,23 @@ student's place and a waiting address point at their lab through the pair
   (`missing_limits`), and no function removes limits, so a running
   simulation never holds a test with a value and no limits (maintainer,
   2026-11-20).
+- **Tolerances.** The service is `src/server/tolerances/`. A member of the
+  lab sets a tolerance through `findWorkingStudentLab`, so only while the
+  simulation runs, and the lab row is locked so its members write one at a
+  time. A first tolerance for a retired test is refused. Every change is a
+  new row with an activity-log row of ids only (`lab_tolerance_set`, never a
+  limit), and no function removes one, so the release (S15, #270) can name
+  the row in force. The student's page lists the active catalogue with the
+  lab's own current tolerances; the teachers of the simulation see the
+  tolerance in force per test and every change, newest first, 50 to a page.
+  `findWorkingStudentLab` locks the student's `lab_members` row as well, so a
+  write that waited behind a removal or a move of the student finds no place
+  in the lab. A test with a tolerance counts as used in the catalogue (its
+  unit is fixed), and a lab with a tolerance cannot be deleted
+  (`has_records`; maintainer on #352). No write rate limit applies, since the
+  draft names none. The one check, `checkTolerance` in
+  `src/lib/tolerance.ts`, compares a value with the limits as decimals, and a
+  value equal to a limit is inside (S13).
 - **The email list.** A teacher pastes the addresses of a lab's members. The
   server classifies each line (invalid, repeated, already in this lab, in
   another lab of the simulation, new) and stores the new ones; no answer
@@ -351,7 +369,8 @@ student's place and a waiting address point at their lab through the pair
   refuses any commit that leaves an existing simulation without a teacher
   row, stay as the last line.
 - **Deleting.** A lab can be deleted with its waiting addresses and its
-  code once no student is in it, and a simulation only while no student is in
+  code once no student is in it and it holds no patient or request
+  (`has_records`, maintainer, 2026-11-20), and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.
 - **The administrator** reads each simulation with its teachers' names and
   its labs with their member counts, and nothing else (B5). The list in
@@ -427,6 +446,71 @@ The lab logo is an upload, held to the upload rules of the security baseline
   The preview of a chosen file is a `data:` address, which is why the CSP
   allows `img-src data:`. The administrator's view
   (B5) reads no logo and renders no logo address.
+
+### Patients, requests and samples
+
+A team's records from the paper request form live in the eduLIMS database
+(S11, S12, S16, #268). The service is `src/server/lab-records/`.
+
+| Table | What it holds |
+|---|---|
+| `patients` | a patient as the team typed it: name, date of birth, sex and the patient ID of the form; who registered it and when |
+| `requests` | a request for a patient of the same lab, or for a control sample with no patient (S16); the requester, the phone-through flag and the remarks; the time of entry |
+| `request_tests` | the catalogue tests a request names, by foreign key to `catalogue_tests`; the time of release, which #270 writes |
+| `samples` | the samples of a request: the sample number and the material of the form, and the lab number |
+| `record_corrections` | every correction of a patient or a request: the fields with their value before and after, who corrected and when |
+
+- **Ownership in the schema.** Each row points at its lab through the pair
+  (lab, simulation), and a request and a sample point at their patient and
+  request through the pair (id, lab), so no row can name another lab's
+  patient or request. Every key cascades with its lab.
+- **Access.** Every write starts with `findWorkingStudentLab` in its own
+  transaction, so the simulation row and the student's place stay locked
+  `FOR SHARE` until the write commits: a finish cannot overtake it, and a
+  removal or move that commits first leaves the waiting write no row. A member of a lab in a simulation
+  that does not run gets `not_running`; anyone else gets `not_found`, and the
+  probe goes to the security log. Every read joins the student's own
+  `lab_members` row. Only a teacher of the simulation reads the correction
+  log.
+- **The time of entry** is the database clock of the transaction that stores
+  the request: a trigger sets it on insert, whatever the insert carries, and
+  refuses any change to it (G-01, Q-SIM-2).
+- **What a form check refuses:** a missing required field, a date that is no
+  date, a text past its bound, a control or format character (the remarks
+  keep tab and line breaks), and a date of birth after today in
+  Europe/Amsterdam by the database clock (maintainer, 2026-11-20). Nothing
+  is checked against the scenario, and a second patient with the same
+  patient ID in a lab is allowed.
+- **The lab number** is ten digits: nine from `crypto.randomInt`, the first
+  never zero, and a Damm check digit. A database function checks the digit
+  in a CHECK, and a unique constraint holds it across every simulation; a
+  drawn number that is taken is drawn again (`on conflict do nothing`), and
+  five collisions in a row fail loud. A trigger refuses any change to a
+  sample's lab number. A sample number has no unique key: a lab may record
+  the same one twice (a second tube).
+- **Corrections** are allowed until a requested test of the request, or of
+  one of the patient's requests, has a time of release. A correction locks
+  the request or patient `FOR UPDATE` (a patient correction also reads the
+  patient's requests `FOR SHARE`), so the release of #270 must lock the
+  request `FOR UPDATE` to serialise with it. A correction never removes a
+  sample and never changes the patient or the kind of a request; a new
+  sample gets a fresh lab number. Each correction writes a
+  `record_corrections` row and an activity-log row with ids only.
+- **The catalogue.** A request reads its tests `FOR SHARE` in id order, so a
+  catalogue edit, which holds the test `FOR UPDATE`, serialises with it, and
+  a test a request names counts as used (running while its simulation runs).
+- **Screens.** The Student portal's Patients and requests page shows one of
+  the student's labs at a time (`?lab=`, the newest by default), its
+  patients and its requests with every sample's lab number in groups of
+  three, three and four digits. The copy action copies the digits and says
+  so in a status region (WCAG 4.1.3). Writing is open only while the
+  simulation runs. The date of birth is the browser's native date input,
+  shown in the reader's locale and sent as `YYYY-MM-DD`. The correction log
+  is a section of the teacher's simulation page; it names a patient by its
+  fictional name and a request by its samples' lab numbers.
+- **FerroEHR.** Registering a patient returns the subject of its EHR (the
+  form's details and the patient's id, nothing about the lab or a student);
+  #147 creates the EHR from it after the transaction commits.
 
 ### Template `eduLIMS-lab`
 

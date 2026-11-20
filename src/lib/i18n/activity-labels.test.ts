@@ -271,6 +271,10 @@ describe("activity log labels (#36)", () => {
 
   it("names the refusals of the simulation service and the teacher delete guard (D10)", () => {
     expect(activityReasonLabel("has_students")).toBe("the simulation has students in its labs");
+    expect(activityReasonLabel("lab_has_students")).toBe("the lab still has students");
+    expect(activityReasonLabel("has_records")).toBe(
+      "the lab holds patients, requests or tolerances",
+    );
     expect(activityReasonLabel("last_teacher")).toBe("the simulation would have no teacher left");
     expect(activityReasonLabel("not_a_teacher")).toBe("the account does not have the teacher role");
     expect(activityReasonLabel("only_simulation_teacher")).toBe(
