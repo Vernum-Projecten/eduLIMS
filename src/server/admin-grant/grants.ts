@@ -17,6 +17,7 @@ import { auditProvider } from "../audit/events.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { isLastAdministrator, LAST_ADMIN, lockUserForRoleChange } from "../users/administrators.ts";
+import { revokeSessionsForRoleChange } from "../users/revoke-sessions.ts";
 
 /** How long a pending grant waits for its first sign-in (owner decision on #46/#48). */
 export const PENDING_GRANT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -256,7 +257,6 @@ export async function revokeAdmin(
       .set({ role, role_source: LOCAL_ROLE_SOURCE, role_channel: "local", updatedAt: input.now })
       .where("id", "=", user.id)
       .execute();
-    await trx.deleteFrom("session").where("userId", "=", user.id).execute();
     await recordAudit(trx, {
       action: "authz_role_change",
       actor: { type: "system" },
@@ -265,6 +265,7 @@ export async function revokeAdmin(
       reason: "admin_revoke",
       metadata: { ...(role ? { roles: role } : {}), previous_roles: formatRoles(current) },
     });
+    await revokeSessionsForRoleChange(trx, user.id, { type: "system" });
     return { ok: true, kind: "revoked" };
   });
 }

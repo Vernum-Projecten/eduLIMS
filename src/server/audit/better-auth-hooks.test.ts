@@ -241,45 +241,37 @@ describe("the activity log of better-auth flows (B4)", () => {
     ]);
   });
 
-  it("records authz_role_change with the new role set", async () => {
+  it.each([
+    ["set-role on a student", "student", { kind: "set-role", role: "teacher" }],
+    ["set-role on the administrator", "admin", { kind: "set-role", role: ["teacher", "admin"] }],
+    [
+      "set-role with a conflicting set",
+      "student",
+      { kind: "set-role", role: ["student", "admin"] },
+    ],
+    ["update-user with a role", "student", { kind: "update-user", role: "teacher" }],
+  ] as const)("answers 404 to %s and records no role change (#345)", async (_, who, call) => {
     const { auth, database } = await setup();
     const { adminId, studentId, headers } = await adminAndStudent(auth);
-    await auth.api.setRole({ body: { userId: studentId, role: "teacher" }, headers });
-    expect(await events(database, "authz_role_change")).toEqual([
-      expect.objectContaining({
-        actor_id: adminId,
-        target_id: studentId,
-        outcome: "success",
-        metadata: { roles: "teacher" },
-      }),
-    ]);
-  });
-
-  it("records a refused role change with cannot_change_own_roles (ADR 0012)", async () => {
-    const { auth, database } = await setup();
-    const { adminId, headers } = await adminAndStudent(auth);
-    await expect(
-      auth.api.setRole({ body: { userId: adminId, role: ["teacher", "admin"] }, headers }),
-    ).rejects.toThrow();
-    expect(await events(database, "authz_role_change")).toEqual([
-      expect.objectContaining({
-        actor_id: adminId,
-        target_id: adminId,
-        outcome: "refused",
-        reason_code: "cannot_change_own_roles",
-      }),
-    ]);
-  });
-
-  it("records a refused role change for a conflicting role set", async () => {
-    const { auth, database } = await setup();
-    const { studentId, headers } = await adminAndStudent(auth);
-    await expect(
-      auth.api.setRole({ body: { userId: studentId, role: ["student", "admin"] }, headers }),
-    ).rejects.toThrow();
-    expect(await events(database, "authz_role_change")).toEqual([
-      expect.objectContaining({ outcome: "failure", reason_code: "role_set_not_allowed" }),
-    ]);
+    const userId = who === "admin" ? adminId : studentId;
+    const before = await database
+      .selectFrom("user")
+      .select(["name", "role"])
+      .where("id", "=", userId)
+      .executeTakeFirstOrThrow();
+    const attempt =
+      call.kind === "set-role"
+        ? auth.api.setRole({ body: { userId, role: [call.role].flat() }, headers })
+        : auth.api.adminUpdateUser({ body: { userId, data: { role: call.role } }, headers });
+    await expect(attempt).rejects.toMatchObject({ statusCode: 404 });
+    expect(
+      await database
+        .selectFrom("user")
+        .select(["name", "role"])
+        .where("id", "=", userId)
+        .executeTakeFirstOrThrow(),
+    ).toEqual(before);
+    expect(await events(database, "authz_role_change")).toEqual([]);
   });
 
   it("records a refused admin action by a student", async () => {

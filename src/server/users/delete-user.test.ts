@@ -3,7 +3,7 @@
 
 // Deleting a user in one transaction (#318, B1, D10, ASVS V2.3.4). The races on a committed
 // database are in src/server/simulations/teacher-concurrency.test.ts and delete-user-race.test.ts;
-// the closed better-auth endpoints in user-deletion-lock.test.ts.
+// the closed better-auth endpoints in admin-endpoint-lock.test.ts.
 import { type Kysely, sql } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";

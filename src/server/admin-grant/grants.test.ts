@@ -322,6 +322,40 @@ describe("revokeAdmin (#48)", () => {
     expect(await database.selectFrom("session").select("id").execute()).toEqual([]);
   });
 
+  it("logs every ended session as session_revoked, roles_changed (#345)", async () => {
+    const database = await setup();
+    await user(database, "a1", "admin");
+    await user(database, "c1", "teacher,admin");
+    for (const id of ["s2", "s1"]) {
+      await database
+        .insertInto("session")
+        .values({
+          id,
+          token: `t-${id}`,
+          userId: "c1",
+          expiresAt: new Date(Date.now() + 60_000),
+          updatedAt: new Date(),
+        })
+        .execute();
+    }
+    await revokeAdmin(database, { email: "c1@example.test", now: NOW });
+    const rows = await database
+      .selectFrom("audit_event")
+      .select(["actor_type", "target_type", "target_id", "outcome", "reason_code"])
+      .where("action", "=", "session_revoked")
+      .orderBy("id")
+      .execute();
+    expect(rows).toEqual(
+      ["s1", "s2"].map((id) => ({
+        actor_type: "system",
+        target_type: "session",
+        target_id: id,
+        outcome: "success",
+        reason_code: "roles_changed",
+      })),
+    );
+  });
+
   it("withdraws a pending grant, and reports an unknown email", async () => {
     const database = await setup();
     await grantAdmin(database, { email: "p@example.test", providerId: "entra", now: NOW });

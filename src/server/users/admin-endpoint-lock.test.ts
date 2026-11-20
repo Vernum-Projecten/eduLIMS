@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// better-auth's endpoints that delete a user answer 404, over HTTP and on `auth.api` (#318).
+// better-auth's endpoints that delete a user (#318) or write a user's roles (#345) answer 404,
+// over HTTP and on `auth.api`.
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Auth } from "../auth.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { CLOSED_AUTH_PATHS } from "./admin-endpoint-lock.ts";
 import { authOnTestDb, createUser, signIn } from "./test-helpers.ts";
-import { USER_DELETION_DISABLED_PATHS } from "./user-deletion-lock.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -46,9 +47,11 @@ function request(path: string, method: "GET" | "POST", headers: Headers, body?: 
 }
 
 describe("the user deletion endpoints of better-auth (#318)", () => {
-  it("lists remove-user, delete-user and its callback as disabled paths", () => {
-    expect([...USER_DELETION_DISABLED_PATHS].sort()).toEqual([
+  it("lists remove-user, set-role, update-user, delete-user and its callback as disabled", () => {
+    expect([...CLOSED_AUTH_PATHS].sort()).toEqual([
       "/admin/remove-user",
+      "/admin/set-role",
+      "/admin/update-user",
       "/delete-user",
       "/delete-user/callback",
     ]);
@@ -91,5 +94,51 @@ describe("the user deletion endpoints of better-auth (#318)", () => {
       auth.api.deleteUserCallback({ query: { token: "made-up" }, headers: victim }),
     ).rejects.toMatchObject({ statusCode: 404 });
     expect(await userCount(database, victimId)).toBe(1);
+  });
+});
+
+async function stored(database: Kysely<DB>, userId: string) {
+  return database
+    .selectFrom("user")
+    .select(["name", "role"])
+    .where("id", "=", userId)
+    .executeTakeFirstOrThrow();
+}
+
+describe("the role-writing endpoints of better-auth (#345)", () => {
+  it.each([
+    ["/admin/set-role", { role: "teacher" }],
+    ["/admin/set-role/", { role: "teacher" }],
+    ["/admin/update-user", { data: { role: "teacher" } }],
+    ["/admin/update-user", { data: { name: "Renamed" } }],
+  ] as const)("answers 404 to %s %j over HTTP for an administrator", async (path, body) => {
+    const { auth, database, victimId, headers } = await setup();
+    const before = await stored(database, victimId);
+    const response = await auth.handler(
+      request(path, "POST", headers, { userId: victimId, ...body }),
+    );
+    expect([path, response.status]).toEqual([path, 404]);
+    expect(await stored(database, victimId)).toEqual(before);
+  });
+
+  it("refuses auth.api.setRole with 404 and keeps the role", async () => {
+    const { auth, database, victimId, headers } = await setup();
+    const before = await stored(database, victimId);
+    await expect(
+      auth.api.setRole({ body: { userId: victimId, role: "teacher" }, headers }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(await stored(database, victimId)).toEqual(before);
+  });
+
+  it("refuses auth.api.adminUpdateUser with 404 and keeps the role and the name", async () => {
+    const { auth, database, victimId, headers } = await setup();
+    const before = await stored(database, victimId);
+    await expect(
+      auth.api.adminUpdateUser({
+        body: { userId: victimId, data: { role: "teacher", name: "Renamed" } },
+        headers,
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(await stored(database, victimId)).toEqual(before);
   });
 });

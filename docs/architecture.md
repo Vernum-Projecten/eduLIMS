@@ -346,7 +346,10 @@ student's place and a waiting address point at their lab through the pair
   the last administrator, runs the deferred last-teacher check before it
   writes the activity-log rows, and deletes the sessions, the accounts and
   the user with those rows, so a refusal changes nothing. Better-auth's
-  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404. A
+  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404,
+  and so do `admin/set-role` and `admin/update-user`
+  (`src/server/users/admin-endpoint-lock.ts`, #345): eduLIMS writes roles
+  only through its own paths, and names come from the identity provider. A
   `BEFORE DELETE` trigger on `user` and a deferred constraint trigger, which
   refuses any commit that leaves an existing simulation without a teacher
   row, stay as the last line. The other paths that take the admin role away,
@@ -354,11 +357,12 @@ student's place and a waiting address point at their lab through the pair
   administrators the same way and in the same order before they count them
   (`src/server/users/administrators.ts`, #345), so two of them, or one and a
   deletion, never leave eduLIMS without an administrator. The local role edit
-  also ends the sessions of a user who loses a role, so their next request
-  signs in with the new set. The rule binds eduLIMS's own paths only: an
-  identity provider stays authoritative over the roles it owns, by a claim
-  or over SCIM, and may take the admin role from the last administrator
-  (maintainer, #345); the host command `admin grant` is the way back.
+  and `admin revoke` end the sessions of a user who loses a role, each with
+  a `session_revoked` row, so their next request signs in with the new set.
+  The rule binds eduLIMS's own paths only: an identity provider stays
+  authoritative over the roles it owns, by a claim or over SCIM, and may
+  take the admin role from the last administrator (maintainer, #345); the
+  host command `admin grant` is the way back.
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it, and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.
