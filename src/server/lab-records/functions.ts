@@ -10,7 +10,9 @@ import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getDb } from "../db/index.ts";
 import { requireRole } from "../middleware.ts";
+import { getOpenEhrClient } from "../openehr/index.ts";
 import { readCorrectionLog } from "./correction-log.ts";
+import { ehrAfterRegistration } from "./patient-ehr.ts";
 import { correctPatient, registerPatient } from "./patients.ts";
 import { listRequestableTests, readLabRecords } from "./queries.ts";
 import { correctRequest, recordRequest } from "./requests.ts";
@@ -41,15 +43,20 @@ export const getRequestableTestsFn = createServerFn({ method: "GET" })
   .middleware([student])
   .handler(({ context }) => listRequestableTests(getDb(), context.user));
 
-/** Registers a patient from the form in the student's lab (S11). */
+/**
+ * Registers a patient from the form in the student's lab (S11), then finds or creates its EHR in
+ * FerroEHR within 5 s; `ehr` is `pending` when that failed, and the patient stays registered.
+ */
 export const registerPatientFn = createServerFn({ method: "POST" })
   .middleware([student])
   .validator(registerPatientInput)
   .handler(async ({ data, context }) => {
     const result = await registerPatient(getDb(), context.user, data);
     if (!result.ok) return result;
-    // TODO(#147): create the patient's EHR in FerroEHR from `result.value.ehr`.
-    return { ok: true as const, value: { patientId: result.value.patientId } };
+    const { patientId } = result.value;
+    // NOTE: #147; after the commit, so a FerroEHR outage leaves a registered patient pending.
+    const ehr = await ehrAfterRegistration(getDb(), getOpenEhrClient(), patientId);
+    return { ok: true as const, value: { patientId, ehr } };
   });
 
 /** Corrects a patient of the student's lab until its first result is released (S11). */

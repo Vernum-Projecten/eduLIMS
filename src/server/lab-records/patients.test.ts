@@ -59,11 +59,11 @@ describe("registering a patient (S11)", () => {
     ]);
   });
 
-  it("returns the EHR subject #147 needs: the form's details and nothing about the lab", async () => {
+  it("returns the patient's id alone, nothing of the form or the lab", async () => {
     const { db: database, w } = await open();
     const result = await registerPatient(database, w.student, { labId: w.labId, ...PATIENT });
     if (!result.ok) throw new Error(result.error);
-    expect(result.value.ehr).toEqual({ patientId: result.value.patientId, ...PATIENT });
+    expect(result.value).toEqual({ patientId: expect.any(String) });
   });
 
   it("logs lab_patient_registered with ids only (E4)", async () => {

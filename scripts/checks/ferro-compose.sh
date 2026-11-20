@@ -644,6 +644,23 @@ definitions_rule() {
   fi
 }
 
+# test_definitions_rule <label> <json> <want>: whether the Compose file loads
+# the test-only templates of docker/ferroehr/test-definitions (#364). The dev
+# stack must (want=yes), so the integration test can prove the `writes` limit;
+# production must never (want=no).
+test_definitions_rule() {
+  local label=$1 json=$2 want=$3 found
+  found=$(jq -r '[.services[] | (.volumes // [])[] | (.source // . | tostring)
+    | select(test("docker/ferroehr/test-definitions"))] | length' <<<"$json")
+  if [[ $want == yes && $found -gt 0 ]]; then
+    pass "$label: loads the test-only templates of docker/ferroehr/test-definitions"
+  elif [[ $want == no && $found -eq 0 ]]; then
+    pass "$label: loads no test-only template"
+  else
+    fail "$label: test-only templates: want $want, found $found mount(s)"
+  fi
+}
+
 # indent_tail <text>: the last lines of a refusal, indented.
 indent_tail() {
   local line
@@ -792,6 +809,7 @@ ferro_names_rule compose.yaml compose.dev.yaml
 if production=$(compose_json -f compose.yaml); then
   pass "compose.yaml is valid with the example values"
   definitions_rule compose.yaml "$production"
+  test_definitions_rule compose.yaml "$production" no
   database_tls_rule compose.yaml "$production"
   definitions_probe "$production"
   ferroehr_reference "$production"
@@ -805,6 +823,7 @@ fi
 if development=$(compose_json -f compose.dev.yaml); then
   pass "compose.dev.yaml is valid"
   definitions_rule compose.dev.yaml "$development"
+  test_definitions_rule compose.dev.yaml "$development" yes
   ferroehr_dev "$development"
   config_check compose.dev.yaml "$development" ferrobridge ferrobridge
   hl7v2_tls_rule compose.dev.yaml "$development"

@@ -1282,6 +1282,7 @@
   "records_patient_register_body": "Typ de gegevens van de patiënt zoals ze op het aanvraagformulier staan.",
   "records_patient_register_title": "Patiënt registreren",
   "records_patient_registered": "Patiënt geregistreerd.",
+  "records_patient_registered_ehr_pending": "Patiënt geregistreerd. Het dossier in FerroEHR is nog niet aangemaakt, omdat FerroEHR niet antwoordde; eduLIMS probeert het opnieuw voordat je een uitslag vrijgeeft.",
   "records_patient_required": "Kies de patiënt van de aanvraag.",
   "records_patient_sex": "Geslacht",
   "records_patient_sex_required": "Kies het geslacht zoals dat op het formulier staat.",

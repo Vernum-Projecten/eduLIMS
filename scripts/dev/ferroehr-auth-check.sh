@@ -8,7 +8,9 @@
 # FerroEHR trusts, its `aud` the audience FerroEHR expects and its `sub` the
 # service account FerroEHR reads as app-only, that FerroEHR
 # answers 401 without a token, 200 with it, and 403 to a token that lacks the
-# template scope. It prints status codes and claim names, never a token.
+# template scope, and that an EHR lookup by subject answers 404 with the
+# token and 403 without the composition scope (#147). It prints status codes
+# and claim names, never a token.
 #
 # Usage:
 #   scripts/dev/ferroehr-auth-check.sh          # against the running dev stack
@@ -29,7 +31,9 @@ client_secret=edulims-dev-ferroehr-secret
 # The fixed id of service-account-edulims-ferroehr in the realm file, which
 # compose.dev.yaml lists in FERROEHR__AUTH__ISSUER__0__APP_ONLY__0__SUBJECTS.
 service_account=f1c34e57-c0f7-4482-b9b3-e3d138c8e79d
-scope='system/template-*.r'
+template_scope='system/template-*.r'
+composition_scope='system/composition-*.cr'
+scope="${template_scope} ${composition_scope}"
 
 failures=0
 check() {
@@ -65,17 +69,27 @@ status() {
   curl -s -o /dev/null -w '%{http_code}' ${auth[@]+"${auth[@]}"} "${ferroehr}/definition/template/adl1.4"
 }
 
+# ehr_status <token>: FerroEHR's status for the EHR of a subject no EHR names
+# (ITS-REST 1.1.0, "Get EHR by subject id"): 404 when the token may look.
+ehr_status() {
+  curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $1" \
+    "${ferroehr}/ehr?subject_id=00000000-0000-4000-8000-000000000000&subject_namespace=edulims-auth-check"
+}
+
 access=$(token "$scope") || { echo "FAIL no token from ${issuer}" >&2; exit 1; }
 payload=$(claims "$access")
 check "iss is the issuer FerroEHR trusts" "$(jq -r .iss <<<"$payload")" "$issuer"
 check "aud names ferroehr" "$(jq -r '[.aud] | flatten | index("ferroehr") != null' <<<"$payload")" true
 check "azp names the client" "$(jq -r .azp <<<"$payload")" "$client_id"
 check "sub is the service account FerroEHR lists as app-only" "$(jq -r .sub <<<"$payload")" "$service_account"
-check "scope holds the template grant" "$(jq -r '.scope | split(" ") | index("system/template-*.r") != null' <<<"$payload")" true
+check "scope holds the template grant" "$(jq -r --arg s "$template_scope" '.scope | split(" ") | index($s) != null' <<<"$payload")" true
+check "scope holds the composition grant" "$(jq -r --arg s "$composition_scope" '.scope | split(" ") | index($s) != null' <<<"$payload")" true
 
 check "no token: 401" "$(status "")" 401
 check "the client's token: 200" "$(status "$access")" 200
 check "a token without the template scope: 403" "$(status "$(token)")" 403
+check "an EHR lookup with the client's token: 404" "$(ehr_status "$access")" 404
+check "an EHR lookup without the composition scope: 403" "$(ehr_status "$(token "$template_scope")")" 403
 
 if ((failures > 0)); then
   echo "ferroehr-auth-check: ${failures} check(s) failed"

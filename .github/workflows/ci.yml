@@ -821,7 +821,7 @@ jobs:
             exit 1
           fi
           changed="$(git diff --name-only "$base" HEAD)"
-          pattern='^(src/server/openehr/|src/server/integrations/|src/server/upload/|compose[^/]*\.yaml$|docker/|config/|tests/integration/ferro-stack\.test\.ts$|scripts/dev/ferroehr-auth-check\.sh$|\.github/workflows/(ci|integration)\.yml$)'
+          pattern='^(src/server/openehr/|src/server/integrations/|src/server/upload/|compose[^/]*\.yaml$|docker/|config/|tests/integration/(ferro-stack|patient-ehr)\.test\.ts$|src/server/lab-records/patient-ehr\.ts$|scripts/dev/ferroehr-auth-check\.sh$|\.github/workflows/(ci|integration)\.yml$)'
           if grep -Eq "$pattern" <<<"$changed"; then
             echo "run=true" >> "$GITHUB_OUTPUT"
             echo "the change touches the integration lane's inputs:"

@@ -11,6 +11,9 @@
 #   - tests/integration/ferro-stack.test.ts: eduLIMS's openEHR client gets a
 #     token and lists the templates, and the B3 check reports both services
 #     available.
+#   - tests/integration/patient-ehr.test.ts: a patient's EHR is found or
+#     created by its subject, and FerroEHR refuses this client a commit of a
+#     template outside its `writes` and an EHR_STATUS update (#147, #364).
 # ci.yml calls it for a change to its path filter, so it reports under
 # `conclusion`; the schedule runs it nightly on main. The credentials are the
 # public development values of compose.dev.yaml and the realm file.
@@ -61,11 +64,11 @@ jobs:
             echo "::error::FerroBRIDGE readiness answered ${status}, expected 200"
             exit 1
           fi
-      - name: The openEHR client and the B3 check against the stack
+      - name: The openEHR client, the B3 check and a patient's EHR against the stack
         run: |
           set -euo pipefail
           pnpm i18n
-          pnpm exec vitest run tests/integration/ferro-stack.test.ts
+          pnpm exec vitest run tests/integration/ferro-stack.test.ts tests/integration/patient-ehr.test.ts
       - name: Container logs
         if: failure()
         run: |
