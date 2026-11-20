@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { JOIN_VIA } from "@/lib/simulations";
+import { LIMIT_KINDS } from "@/lib/correct-values";
+import { JOIN_VIA, SIMULATION_STATES } from "@/lib/simulations";
 import { SIMULATION_ACTION_ERRORS } from "@/server/simulations/access";
 import { EMAIL_LINE_STATUSES } from "@/server/simulations/emails";
 import {
   emailLineLabel,
   isJoinVia,
   joinViaLabel,
+  limitKindLabel,
   linkedMessage,
+  missingLimitsMessage,
   simulationErrorMessage,
+  simulationStateLabel,
 } from "./simulation-labels";
 
 describe("simulationErrorMessage (D10)", () => {
@@ -39,6 +43,39 @@ describe("simulationErrorMessage (D10)", () => {
     expect(simulationErrorMessage("teacher_not_found")).toBe(
       "This person does not teach this simulation.",
     );
+  });
+});
+
+describe("missingLimitsMessage (maintainer 2026-11-20 on #267)", () => {
+  const names = new Map([
+    ["a", "Albumin"],
+    ["u", "Urea"],
+  ]);
+
+  it("names the tests without limits", () => {
+    expect(missingLimitsMessage(["a", "u"], names)).toBe(
+      "Set the accuracy limits of Albumin, Urea before you start the simulation.",
+    );
+  });
+
+  it("falls back to the general message when the screen cannot name a test", () => {
+    expect(missingLimitsMessage(["a", "x"], names)).toBe(simulationErrorMessage("missing_limits"));
+    expect(missingLimitsMessage([], names)).toBe(simulationErrorMessage("missing_limits"));
+  });
+});
+
+describe("simulationStateLabel and limitKindLabel (D10, D13)", () => {
+  it.each(SIMULATION_STATES)("names state %s in words", (state) => {
+    expect(simulationStateLabel(state)).not.toBe("");
+  });
+
+  it("names each state differently", () => {
+    expect(new Set(SIMULATION_STATES.map(simulationStateLabel)).size).toBe(3);
+    expect(simulationStateLabel("running")).toBe("Running");
+  });
+
+  it.each(LIMIT_KINDS)("names limit kind %s in words", (kind) => {
+    expect(limitKindLabel(kind)).not.toBe("");
   });
 });
 

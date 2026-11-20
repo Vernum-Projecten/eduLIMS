@@ -34,6 +34,9 @@ export const simulationsKeys = {
     [...simulationsKeys.detail(simulationId), "lab", labId] as const,
   joinCode: (simulationId: string, labId: string) =>
     [...simulationsKeys.lab(simulationId, labId), "join-code"] as const,
+  /** The correct values and limits of a simulation, teacher-scoped (D10, D13). */
+  correctValues: (simulationId: string) =>
+    [...simulationsKeys.detail(simulationId), "correct-values"] as const,
   student: () => [...simulationsKeys.all, "student"] as const,
   admin: () => [...simulationsKeys.all, "admin"] as const,
   adminList: () => [...simulationsKeys.admin(), "list"] as const,
@@ -140,17 +143,25 @@ export function adminSimulationQueryOptions(simulationId: string) {
 /** An action the server refused: the code maps to a translated message at the edge. */
 export class SimulationActionRefused extends Error {
   readonly code: SimulationActionError;
+  /** The tests a `missing_limits` refusal names; empty for every other refusal. */
+  readonly testIds: readonly string[];
 
-  constructor(code: SimulationActionError) {
+  constructor(code: SimulationActionError, testIds: readonly string[] = []) {
     super(code);
     this.name = "SimulationActionRefused";
     this.code = code;
+    this.testIds = testIds;
   }
 }
 
 /** Returns the refusal code of a failed action; anything but a refusal is `null`. */
 export function simulationErrorCode(error: unknown): SimulationActionError | null {
   return error instanceof SimulationActionRefused ? error.code : null;
+}
+
+/** Returns the tests a refusal names (`missing_limits`); empty for anything else. */
+export function refusedTestIds(error: unknown): readonly string[] {
+  return error instanceof SimulationActionRefused ? error.testIds : [];
 }
 
 /** A server function of one action, as `useServerFn` returns it. */
@@ -171,7 +182,7 @@ export function simulationMutationOptions<TInput, TValue>(
   return mutationOptions({
     mutationFn: async (data: TInput): Promise<TValue> => {
       const result = await call({ data });
-      if (!result.ok) throw new SimulationActionRefused(result.error);
+      if (!result.ok) throw new SimulationActionRefused(result.error, result.testIds);
       return result.value;
     },
     onSettled: () =>
@@ -193,7 +204,7 @@ export function deleteMutationOptions<TInput>(
   return mutationOptions({
     mutationFn: async (data: TInput): Promise<null> => {
       const result = await call({ data });
-      if (!result.ok) throw new SimulationActionRefused(result.error);
+      if (!result.ok) throw new SimulationActionRefused(result.error, result.testIds);
       return null;
     },
     onSuccess: async () => {

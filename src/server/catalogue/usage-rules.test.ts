@@ -10,7 +10,7 @@ import { readTestPage } from "./reads.ts";
 import type { TestDefinition } from "./schemas.ts";
 import { CRP, catalogueTestDb, created, events, GLUCOSE, stored } from "./test-helpers.ts";
 
-// NOTE: #266; no table refers to a test yet, so the use of a test is mocked until #267 makes it real.
+// NOTE: #266; the usage is mocked so each rule stands alone; in-use.test.ts reads real correct values.
 const usages = vi.hoisted(() => new Map<string, TestUsage>());
 vi.mock("./in-use.ts", () => ({
   usageOf: (_db: unknown, id: string) => Promise.resolve(usages.get(id) ?? "unused"),

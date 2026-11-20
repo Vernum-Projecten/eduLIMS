@@ -4,7 +4,7 @@
 // The reads of the Users screen (#34, B1). A direct Kysely query instead of better-auth's
 // `admin/list-users`: that endpoint filters on one column of `user` only, and the table filters
 // on the provider (`account`), on the status (ban and last sign-in together) and on a role in a
-// role set, and counts live sessions. No column with grades, results or submissions (R-01).
+// role set, and counts live sessions. No column of a lab's work or a correct value (R-01, B5).
 import "@tanstack/react-start/server-only";
 import {
   type Expression,

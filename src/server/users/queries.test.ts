@@ -202,7 +202,7 @@ describe("listUsers (#34)", () => {
     expect(page.rows[1]?.providers.sort()).toEqual([KEYCLOAK, MICROSOFT]);
   });
 
-  it("returns no grade, result or submission field (R-01)", async () => {
+  it("returns account fields only, nothing of a lab's work (R-01, B5)", async () => {
     const database = await seed(PEOPLE);
     const page = await listUsers(database, {}, NOW);
     expect(Object.keys(page.rows[0] ?? {}).sort()).toEqual(

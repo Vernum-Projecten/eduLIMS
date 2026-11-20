@@ -21,6 +21,8 @@ export type JsonPrimitive = boolean | number | string | null;
 
 export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
+export type Numeric = ColumnType<string, number | string, number | string>;
+
 export type Timestamp = ColumnType<Date, Date | string, Date | string>;
 
 export interface Account {
@@ -80,6 +82,18 @@ export interface CatalogueTests {
   source: string;
   unit: string | null;
   updated_at: Generated<Timestamp>;
+}
+
+export interface CorrectValues {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  id: Generated<string>;
+  sample_number: string;
+  simulation_id: string;
+  test_id: string;
+  updated_at: Generated<Timestamp>;
+  updated_by: string | null;
+  value: Numeric;
 }
 
 export interface IdentityProvider {
@@ -313,8 +327,11 @@ export interface SimulationRemovals {
 export interface Simulations {
   created_at: Generated<Timestamp>;
   created_by: string | null;
+  finished_at: Timestamp | null;
   id: Generated<string>;
   name: string;
+  started_at: Timestamp | null;
+  state: Generated<string>;
 }
 
 export interface SimulationTeachers {
@@ -322,6 +339,16 @@ export interface SimulationTeachers {
   added_by: string | null;
   simulation_id: string;
   user_id: string;
+}
+
+export interface SimulationTestLimits {
+  kind: string;
+  red_limit: Numeric;
+  simulation_id: string;
+  test_id: string;
+  updated_at: Generated<Timestamp>;
+  updated_by: string | null;
+  yellow_limit: Numeric;
 }
 
 export interface SsoProvider {
@@ -371,6 +398,7 @@ export interface DB {
   analysers: Analysers;
   audit_event: AuditEvent;
   catalogue_tests: CatalogueTests;
+  correct_values: CorrectValues;
   identity_provider: IdentityProvider;
   identity_provider_domain: IdentityProviderDomain;
   integration_checks: IntegrationChecks;
@@ -391,6 +419,7 @@ export interface DB {
   session: Session;
   simulation_removals: SimulationRemovals;
   simulation_teachers: SimulationTeachers;
+  simulation_test_limits: SimulationTestLimits;
   simulations: Simulations;
   ssoProvider: SsoProvider;
   user: User;

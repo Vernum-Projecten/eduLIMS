@@ -3,7 +3,11 @@
 
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
-import { TestSourceText, TestStatusBadge } from "@/components/teacher-catalogue/catalogue-badges";
+import {
+  TestSourceText,
+  TestStatusBadge,
+  TestUsageText,
+} from "@/components/teacher-catalogue/catalogue-badges";
 import { TestRowActions } from "@/components/teacher-catalogue/test-row-actions";
 import { m } from "@/i18n/messages";
 import { formatDateTime } from "@/lib/i18n/format";
@@ -47,7 +51,12 @@ export const catalogueColumns = helper.columns([
     meta: { label: () => m.catalogue_col_status() },
     enableSorting: false,
     header: ({ column }) => <DataTableColumnHeader column={column} />,
-    cell: ({ row }) => <TestStatusBadge status={row.original.status} />,
+    cell: ({ row }) => (
+      <div className="flex flex-col items-start gap-1">
+        <TestStatusBadge status={row.original.status} />
+        <TestUsageText usage={row.original.usage} />
+      </div>
+    ),
   }),
   helper.accessor("updatedAt", {
     id: "updatedAt",
