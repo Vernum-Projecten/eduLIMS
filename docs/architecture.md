@@ -412,6 +412,17 @@ The lab logo is an upload, held to the upload rules of the security baseline
   like every other response (#41). Everyone else, an administrator and a
   signed-out caller included, gets the same empty 404 as a lab without a
   logo.
+- **Where it shows (#293):** on the teacher's lab page, with the form that
+  uploads, replaces and removes it; beside the lab's name on the teacher's
+  simulation page; and on the student's overview of their labs. The reads
+  of those pages carry a `logoVersion` (the start of the logo's SHA-256, or
+  `null`), and the screens ask for `…/logo?v=<version>`, so a replaced logo
+  is a new address and a lab without a logo asks for no image. Beside the
+  lab's name the image is decorative (empty alt); on the lab page its alt is
+  "Logo of lab {name}". The browser checks the declared type and the size
+  before it sends a file; the server's content check stays the authority,
+  and each refusal code shows at the file field. The administrator's view
+  (B5) reads no logo and renders no logo address.
 
 ### Template `eduLIMS-lab`
 

@@ -4,7 +4,8 @@
 // The input of the logo upload (E1, #292): a form with a lab id and one file, refused before the
 // handler for anything else. The file's name and declared type pass through unread.
 import { describe, expect, it } from "vitest";
-import { LOGO_FORM_FIELDS, uploadLogoInput } from "./logo-schemas.ts";
+import { LOGO_MAX_BYTES } from "../../lib/lab-logo.ts";
+import { LOGO_FORM_FIELDS, logoFormSchema, uploadLogoInput } from "./logo-schemas.ts";
 
 const LAB = "0190f2a0-0000-7000-8000-000000000001";
 
@@ -47,5 +48,36 @@ describe("uploadLogoInput", () => {
     ["a form without a lab id", form([[LOGO_FORM_FIELDS.file, new File([], "a.png")]])],
   ])("refuses %s", (_name, input) => {
     expect(uploadLogoInput.safeParse(input).success).toBe(false);
+  });
+});
+
+describe("logoFormSchema (#293: the browser's check before the upload)", () => {
+  function issues(file: File | null): string[] {
+    const parsed = logoFormSchema.safeParse({ file });
+    return parsed.success ? [] : parsed.error.issues.map((issue) => issue.message);
+  }
+
+  it.each(["image/png", "image/jpeg"])("passes a %s file", (type) => {
+    expect(issues(new File([Uint8Array.of(1)], "logo", { type }))).toEqual([]);
+  });
+
+  it("asks for a file when none is chosen", () => {
+    expect(issues(null)).toEqual(["Choose a PNG or JPEG image."]);
+  });
+
+  it("refuses an SVG by its declared type, with the refusal message of the server", () => {
+    expect(issues(new File(["<svg/>"], "logo.svg", { type: "image/svg+xml" }))).toEqual([
+      "This file is not a PNG or JPEG image. SVG, GIF and WebP are not accepted.",
+    ]);
+  });
+
+  it("refuses a file one byte over 512 KiB", () => {
+    const file = new File([new Uint8Array(LOGO_MAX_BYTES + 1)], "logo.png", { type: "image/png" });
+    expect(issues(file)).toEqual(["This file is larger than 512 KiB. Choose a smaller file."]);
+  });
+
+  it("passes a file of exactly 512 KiB", () => {
+    const file = new File([new Uint8Array(LOGO_MAX_BYTES)], "logo.png", { type: "image/png" });
+    expect(issues(file)).toEqual([]);
   });
 });

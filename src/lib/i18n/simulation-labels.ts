@@ -6,6 +6,7 @@
 import { m } from "@/i18n/messages";
 import type { LimitKind } from "@/lib/correct-values";
 import { formatNumber } from "@/lib/i18n/format";
+import { LOGO_MAX_BYTES, LOGO_MAX_SIDE, LOGO_REFUSALS, type LogoRefusal } from "@/lib/lab-logo";
 import type { JoinVia, SimulationState } from "@/lib/simulations";
 import type { SimulationActionError } from "@/server/simulations/access";
 import type { EmailLine } from "@/server/simulations/emails";
@@ -171,6 +172,37 @@ export function linkedMessage(
     return m.student_labs_linked_one({ lab: only.labName, simulation: only.simulationName });
   }
   return m.student_labs_linked({ count: formatNumber(linked) });
+}
+
+/** Returns why a logo was refused, with the limit it broke (D10, #293). */
+export function logoRefusalMessage(code: LogoRefusal): string {
+  switch (code) {
+    case "logo_unsupported_type":
+      return m.labs_logo_error_unsupported_type();
+    case "logo_too_large":
+      return m.labs_logo_error_too_large({ size: formatNumber(LOGO_MAX_BYTES / 1024) });
+    case "logo_too_many_pixels":
+      return m.labs_logo_error_too_many_pixels({ side: formatNumber(LOGO_MAX_SIDE) });
+    case "logo_malformed":
+      return m.labs_logo_error_malformed();
+    default: {
+      const unknown: never = code;
+      return unknown;
+    }
+  }
+}
+
+/** Returns whether a refusal code is a {@link LogoRefusal}, about the file and not the access. */
+export function isLogoRefusal(code: string): code is LogoRefusal {
+  return (LOGO_REFUSALS as readonly string[]).includes(code);
+}
+
+/** Returns the help text of the logo field: the accepted types and the limits (D10, #293). */
+export function logoFieldHelp(): string {
+  return m.labs_logo_field_help({
+    size: formatNumber(LOGO_MAX_BYTES / 1024),
+    side: formatNumber(LOGO_MAX_SIDE),
+  });
 }
 
 /** Returns whether `value` is a {@link JoinVia}; the page gets it from the database as text. */

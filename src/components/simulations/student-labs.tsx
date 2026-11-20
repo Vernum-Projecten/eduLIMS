@@ -6,6 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { FlaskConicalIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { UpdatingIndicator } from "@/components/shell/updating-indicator";
+import { LabLogo } from "@/components/simulations/lab-logo";
 import {
   Empty,
   EmptyDescription,
@@ -16,6 +17,7 @@ import {
 import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { m } from "@/i18n/messages";
 import { linkedMessage } from "@/lib/i18n/simulation-labels";
+import { labLogoSrc } from "@/lib/lab-logo";
 import { toast } from "@/lib/toast";
 import { linkMyLabsFn } from "@/server/simulations/functions";
 import { linkMyLabsMutationOptions, myLabsQueryOptions } from "@/server/simulations/query-options";
@@ -52,8 +54,8 @@ function useLinkOnOpen(): void {
 
 /**
  * The labs the signed-in student is in, on the Student portal overview (S10): each lab's name
- * and its simulation, nothing of another lab. The media slot holds an icon until the lab logo
- * exists (#293).
+ * and its simulation, nothing of another lab, with the lab's logo or, without one, the lab icon
+ * (#293).
  */
 export function StudentLabs() {
   useLinkOnOpen();
@@ -80,8 +82,13 @@ export function StudentLabs() {
             {labs.map((lab) => (
               <li key={lab.labId}>
                 <Item variant="outline">
-                  <ItemMedia variant="icon">
-                    <FlaskConicalIcon aria-hidden="true" />
+                  <ItemMedia>
+                    {/* Decorative: the lab's name is the item's title right beside it. */}
+                    <LabLogo
+                      src={lab.logoVersion === null ? null : labLogoSrc(lab.labId, lab.logoVersion)}
+                      alt=""
+                      size="md"
+                    />
                   </ItemMedia>
                   <ItemContent className="min-w-0">
                     <ItemTitle className="break-words">{lab.labName}</ItemTitle>

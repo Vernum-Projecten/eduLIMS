@@ -52,7 +52,7 @@ describe("simulationActionKeys (every action names its invalidation keys)", () =
     },
   );
 
-  it.each(["addEmails", "removeEmail"] as const)(
+  it.each(["addEmails", "removeEmail", "uploadLabLogo", "removeLabLogo"] as const)(
     "%s invalidates only the simulation's page and its labs: no count on a list changes",
     (action) => {
       expect(simulationActionKeys[action](SIM)).toEqual([simulationsKeys.detail(SIM)]);

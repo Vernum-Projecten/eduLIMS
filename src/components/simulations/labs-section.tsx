@@ -15,6 +15,7 @@ import {
   useConfirmation,
 } from "@/components/simulations/confirm-dialog";
 import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
+import { LabLogo } from "@/components/simulations/lab-logo";
 import { ListTable } from "@/components/simulations/list-table";
 import { NameDialog } from "@/components/simulations/name-dialog";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/empty";
 import { m } from "@/i18n/messages";
 import { formatNumber } from "@/lib/i18n/format";
+import { labLogoSrc } from "@/lib/lab-logo";
 import { LAB_NAME_MAX } from "@/lib/simulations";
 import { createLabFn, deleteLabFn, renameLabFn } from "@/server/simulations/functions";
 import type { TeacherSimulationPage } from "@/server/simulations/queries";
@@ -45,6 +47,7 @@ interface LabRow {
   name: string;
   members: number;
   waiting: number;
+  logoVersion: string | null;
 }
 
 const LABS_HEADING = "labs-heading";
@@ -55,15 +58,26 @@ const columns = helper.columns([
   helper.accessor("name", {
     id: "name",
     header: () => m.labs_col_name(),
-    cell: ({ row }) => (
-      <Link
-        to="/teacher/simulations/$simulationId/labs/$labId"
-        params={{ simulationId: row.original.simulationId, labId: row.original.id }}
-        className="font-medium underline-offset-4 hover:underline"
-      >
-        {row.original.name}
-      </Link>
-    ),
+    cell: ({ row }) => {
+      const { id, logoVersion } = row.original;
+      return (
+        <span className="flex items-center gap-3">
+          {/* Decorative: the lab's name is the link right beside it. */}
+          <LabLogo
+            src={logoVersion === null ? null : labLogoSrc(id, logoVersion)}
+            alt=""
+            size="sm"
+          />
+          <Link
+            to="/teacher/simulations/$simulationId/labs/$labId"
+            params={{ simulationId: row.original.simulationId, labId: id }}
+            className="min-w-0 font-medium break-words underline-offset-4 hover:underline"
+          >
+            {row.original.name}
+          </Link>
+        </span>
+      );
+    },
   }),
   helper.accessor("members", {
     id: "members",

@@ -31,3 +31,24 @@ export type LogoRefusal = (typeof LOGO_REFUSALS)[number];
 export function labLogoPath(labId: string): string {
   return `/api/labs/${encodeURIComponent(labId)}/logo`;
 }
+
+/**
+ * The address a screen shows a lab's logo from: {@link labLogoPath} with the logo's version, so a
+ * replaced logo is a new address and the browser does not keep showing the old image (#293).
+ */
+export function labLogoSrc(labId: string, version: string): string {
+  return `${labLogoPath(labId)}?v=${encodeURIComponent(version)}`;
+}
+
+/**
+ * The browser's own check of a chosen file before it is sent (#293): the declared type and the
+ * size. It only spares the teacher a wasted upload; the server decides by the content.
+ */
+export function precheckLogoFile(file: {
+  readonly type: string;
+  readonly size: number;
+}): Extract<LogoRefusal, "logo_unsupported_type" | "logo_too_large"> | null {
+  if (!(LOGO_MEDIA_TYPES as readonly string[]).includes(file.type)) return "logo_unsupported_type";
+  if (file.size > LOGO_MAX_BYTES) return "logo_too_large";
+  return null;
+}
