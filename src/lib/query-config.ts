@@ -27,6 +27,8 @@ export const STALE_TIME = {
   integrationStatus: 0,
   /** Simulations, their labs and members: co-teachers change them, rarely within a minute. */
   simulations: 30_000,
+  /** A lab's patients and requests (S11, S12): six students write them, so a minute is too old. */
+  labRecords: 10_000,
   /**
    * A lab's tolerances (S13): every member of the lab may change one, so it ages faster than the
    * simulation; every change invalidates it anyway.

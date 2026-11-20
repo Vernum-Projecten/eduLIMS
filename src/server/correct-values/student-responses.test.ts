@@ -11,6 +11,10 @@ import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
+import { correctPatient, registerPatient } from "../lab-records/patients.ts";
+import { listRequestableTests, readLabRecords } from "../lab-records/queries.ts";
+import { correctRequest, recordRequest } from "../lab-records/requests.ts";
+import { PATIENT } from "../lab-records/test-helpers.ts";
 import { readAdminSimulation, readAdminSimulationPage } from "../simulations/admin-queries.ts";
 import { joinLabWithCode } from "../simulations/join.ts";
 import { linkWaitingAddresses } from "../simulations/linking.ts";
@@ -92,6 +96,12 @@ const STUDENT_REACHABLE: Record<string, string> = {
   "src/server/dev-forms/functions.ts#checkDemoRubricTitle": "fictional demo data",
   "src/server/dev-forms/functions.ts#submitDemoRubric": "fictional demo data",
   "src/server/dev-forms/functions.ts#submitDemoSession": "fictional demo data",
+  "src/server/lab-records/functions.ts#correctPatientFn": "serialised below",
+  "src/server/lab-records/functions.ts#correctRequestFn": "serialised below",
+  "src/server/lab-records/functions.ts#getLabRecordsFn": "serialised below",
+  "src/server/lab-records/functions.ts#getRequestableTestsFn": "serialised below",
+  "src/server/lab-records/functions.ts#recordRequestFn": "serialised below",
+  "src/server/lab-records/functions.ts#registerPatientFn": "serialised below",
   "src/server/preferences/functions.ts#saveLastPortal": "the user's own preference",
   "src/server/preferences/functions.ts#savePreferredLocale": "the user's own preference",
   "src/server/simulations/functions.ts#getMyLabs": "serialised below",
@@ -203,6 +213,47 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
     const { database, w, testId } = await open();
     expectClean(await findStudentLab(database, w.student.id, w.labId), testId);
     expectClean(await findWorkingStudentLab(database, w.student.id, w.labId), testId);
+  });
+
+  it("carries no secret in the team's records, written and read (#268)", async () => {
+    const { database, w, testId } = await open();
+    const patient = await registerPatient(database, w.student, { labId: w.labId, ...PATIENT });
+    if (!patient.ok) throw new Error(patient.error);
+    const patientId = patient.value.patientId;
+    const recorded = await recordRequest(database, w.student, {
+      kind: "patient",
+      labId: w.labId,
+      patientId,
+      requester: "Dr. Invented",
+      phoneThrough: false,
+      remarks: null,
+      testIds: [testId],
+      samples: [{ sampleNumber: "S-001", material: "whole blood" }],
+    });
+    if (!recorded.ok) throw new Error(recorded.error);
+    const patientCorrection = await correctPatient(database, w.student, {
+      labId: w.labId,
+      patientId,
+      ...PATIENT,
+      name: "Ada Corrected",
+    });
+    const requestCorrection = await correctRequest(database, w.student, {
+      labId: w.labId,
+      requestId: recorded.value.requestId,
+      requester: "Dr. Other",
+      phoneThrough: true,
+      remarks: null,
+      testIds: [testId],
+      samples: [{ sampleNumber: "S-002", material: "plasma" }],
+    });
+    const records = await readLabRecords(database, w.student, w.labId);
+    const tests = await listRequestableTests(database, w.student);
+    // The test's id is the request's own, so these responses are searched for the values only.
+    const responses = [patient, recorded, patientCorrection, requestCorrection, records, tests];
+    for (const response of responses) {
+      const text = JSON.stringify(response);
+      for (const needle of NEEDLES) expect(text).not.toContain(needle);
+    }
   });
 
   it("carries no secret in the lab's tolerance page or a set (getMyTolerancesFn, setToleranceFn)", async () => {

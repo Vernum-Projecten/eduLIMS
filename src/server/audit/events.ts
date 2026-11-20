@@ -55,6 +55,11 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "lab_join_code_regenerated",
   "lab_join_code_disabled",
   "lab_join_failed",
+  "lab_logo_changed",
+  "lab_patient_registered",
+  "lab_patient_corrected",
+  "lab_request_recorded",
+  "lab_request_corrected",
   "lab_tolerance_set",
   "test_created",
   "test_changed",
@@ -225,8 +230,14 @@ export const auditMetadataSchema = z.strictObject({
   user_id: z.string().min(1).max(128).optional(),
   /** The lab a `lab_member_moved` took the student from. */
   previous_lab_id: z.uuid().optional(),
+  /** The patient a `lab_patient_*` event is about: its id, never a detail (S11, E4). */
+  patient_id: z.uuid().optional(),
+  /** The request a `lab_request_*` event is about: its id, never a field (S12, E4). */
+  lab_request_id: z.uuid().optional(),
   /** How a student came into a lab, on a `lab_member_joined` (S10). */
   join_via: z.enum(["email", "code"]).optional(),
+  /** What a `lab_logo_changed` did to the lab's logo (#292); never the image or its name. */
+  logo_change: z.enum(["added", "replaced", "removed"]).optional(),
   /**
    * How many addresses a `lab_emails_added` stored, or a `lab_member_moved` or
    * `lab_member_removed` dropped from waiting (#330): a count, never an address.

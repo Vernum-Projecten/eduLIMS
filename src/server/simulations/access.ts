@@ -28,6 +28,7 @@ export const SIMULATION_ACTION_ERRORS = [
   "last_teacher",
   "teacher_not_found",
   "has_students",
+  "has_records",
   "member_not_found",
   "same_lab",
   "email_not_found",
@@ -44,7 +45,6 @@ export const SIMULATION_ACTION_ERRORS = [
   "value_not_found",
   "missing_limits",
   "running",
-  "has_records",
   "lab_has_students",
 ] as const;
 export type SimulationActionError = (typeof SIMULATION_ACTION_ERRORS)[number];

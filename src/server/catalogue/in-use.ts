@@ -12,33 +12,36 @@ import type { DB } from "../db/schema.gen.ts";
 /**
  * Returns how simulations use each test of `ids`: `running` when a running simulation uses it,
  * `used` when only other simulations do, `unused` otherwise. A simulation uses a test when one of
- * its correct values names it (D10, #267) or one of its labs has a tolerance for it (S13, #269).
- * A test missing from the map is unused. Runs inside the
- * caller's transaction when given one; starting a simulation locks its tests `FOR SHARE`, so a
- * caller that holds a test `FOR UPDATE` reads the state that start committed.
+ * its correct values (D10, #267), one of its labs' requests (S12, #268) or one of its labs'
+ * tolerances (S13, #269) names it. A test
+ * missing from the map is unused. Runs inside the caller's transaction when given one; starting a
+ * simulation locks its tests `FOR SHARE`, so a caller that holds a test `FOR UPDATE` reads the
+ * state that start committed.
  */
 export async function testUsage(
   db: Kysely<DB>,
   ids: readonly CatalogueTestId[],
 ): Promise<ReadonlyMap<CatalogueTestId, TestUsage>> {
   if (ids.length === 0) return new Map();
-  // TODO(#268): count a test a request names as used, and as running in a running simulation.
+  const values = db
+    .selectFrom("correct_values")
+    .innerJoin("simulations", "simulations.id", "correct_values.simulation_id")
+    .select(["correct_values.test_id as test_id", "simulations.state"])
+    .where("correct_values.test_id", "in", ids);
+  const requested = db
+    .selectFrom("request_tests")
+    .innerJoin("requests", "requests.id", "request_tests.request_id")
+    .innerJoin("simulations", "simulations.id", "requests.simulation_id")
+    .select(["request_tests.test_id as test_id", "simulations.state"])
+    .where("request_tests.test_id", "in", ids);
+  const tolerated = db
+    .selectFrom("lab_tolerances")
+    .innerJoin("simulations", "simulations.id", "lab_tolerances.simulation_id")
+    .select(["lab_tolerances.test_id as test_id", "simulations.state"])
+    .where("lab_tolerances.test_id", "in", ids);
   const rows = await db
-    .selectFrom((eb) =>
-      eb
-        .selectFrom("correct_values")
-        .select(["test_id", "simulation_id"])
-        .where("test_id", "in", ids)
-        .union(
-          eb
-            .selectFrom("lab_tolerances")
-            .select(["test_id", "simulation_id"])
-            .where("test_id", "in", ids),
-        )
-        .as("uses"),
-    )
-    .innerJoin("simulations", "simulations.id", "uses.simulation_id")
-    .select(["uses.test_id", sql<boolean>`bool_or(simulations.state = 'running')`.as("running")])
+    .selectFrom(values.unionAll(requested).unionAll(tolerated).as("uses"))
+    .select(["uses.test_id", sql<boolean>`bool_or(uses.state = 'running')`.as("running")])
     .groupBy("uses.test_id")
     .execute();
   const usage = new Map<CatalogueTestId, TestUsage>();

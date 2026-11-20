@@ -79,8 +79,8 @@ export async function findWorkingStudentLab(
     .select(["labs.id", "labs.simulation_id"])
     .where("labs.id", "=", id)
     .where("simulations.state", "=", "running")
-    // NOTE: security reviews of #341 (S2) and #352 (S1); FOR SHARE, which the finish's FOR NO KEY
-    // UPDATE waits for, on the member row too, so a removal or move is seen on the recheck.
+    // NOTE: security reviews of #341 (S2) and #352; FOR SHARE, never FOR KEY SHARE, and on the
+    // place too, so a removal or move that commits first leaves the waiting write no row.
     .forShare(["simulations", "lab_members"])
     .executeTakeFirst();
   const simulationId = row ? parseSimulationId(row.simulation_id) : null;
