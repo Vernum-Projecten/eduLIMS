@@ -10,6 +10,7 @@ import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { simulationActionKeys } from "@/components/simulations/action-keys";
 import { ListTable } from "@/components/simulations/list-table";
 import { NameDialog } from "@/components/simulations/name-dialog";
+import { SimulationStateBadge } from "@/components/simulations/simulation-state";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +43,11 @@ const columns = helper.columns([
         {row.original.name}
       </Link>
     ),
+  }),
+  helper.accessor("state", {
+    id: "state",
+    header: () => m.simulations_col_state(),
+    cell: ({ row }) => <SimulationStateBadge state={row.original.state} />,
   }),
   helper.accessor("labs", {
     id: "labs",

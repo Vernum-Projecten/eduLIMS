@@ -198,7 +198,9 @@ describe("linkWaitingAddresses (S10: in the lab without doing anything)", () => 
     ]);
   });
 
-  it("clears the removal record of the simulation it links (#288 rejoin rule)", async () => {
+  // NOTE: #330 (maintainer, 2026-11-20); a removal wins over a waiting address, so the link keeps
+  // the removal record; only a teacher adding the address again clears it.
+  it("refuses a removed student and keeps the removal record and the row (#330)", async () => {
     const { database, w } = await open();
     const back = await person(database, "back", ["student"]);
     await database
@@ -209,13 +211,23 @@ describe("linkWaitingAddresses (S10: in the lab without doing anything)", () => 
       .insertInto("lab_member_emails")
       .values({ simulation_id: w.simulationId, lab_id: w.labId, email: back.email })
       .execute();
-    await linkWaitingAddresses(database, back.id, NOW);
+    expect(await linkWaitingAddresses(database, back.id, NOW)).toEqual({
+      linked: 0,
+      refused: 1,
+      failed: 0,
+    });
     const removals = await database
       .selectFrom("simulation_removals")
       .select("user_id")
       .where("user_id", "=", back.id)
       .execute();
-    expect(removals).toEqual([]);
+    expect(removals).toEqual([{ user_id: back.id }]);
+    const waitingRows = await database
+      .selectFrom("lab_member_emails")
+      .select("lab_id")
+      .where("email", "=", back.email)
+      .execute();
+    expect(waitingRows).toEqual([{ lab_id: w.labId }]);
   });
 
   it("links row by row: one failed row rolls back alone and is logged with ids", async () => {

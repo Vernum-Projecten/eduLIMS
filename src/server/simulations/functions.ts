@@ -40,6 +40,7 @@ import {
   waitingEmailInput,
 } from "./schemas.ts";
 import { createSimulation, deleteSimulation, renameSimulation } from "./simulations.ts";
+import { finishSimulation, startSimulation } from "./state.ts";
 import { addTeacher, removeTeacher } from "./teachers.ts";
 
 const teacher = requireRole("teacher");
@@ -88,6 +89,18 @@ export const deleteSimulationFn = createServerFn({ method: "POST" })
   .middleware([teacher])
   .validator(simulationIdInput)
   .handler(({ data, context }) => deleteSimulation(getDb(), context.user, data));
+
+/** Starts a prepared simulation, so its labs can work (D10, #267). */
+export const startSimulationFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(simulationIdInput)
+  .handler(({ data, context }) => startSimulation(getDb(), context.user, data, new Date()));
+
+/** Finishes a running simulation; its labs stop working (D10, #267). */
+export const finishSimulationFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(simulationIdInput)
+  .handler(({ data, context }) => finishSimulation(getDb(), context.user, data, new Date()));
 
 /** Adds a teacher to a simulation by the address of their account (D10). */
 export const addTeacherFn = createServerFn({ method: "POST" })

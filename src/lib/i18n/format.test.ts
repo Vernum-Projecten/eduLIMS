@@ -6,6 +6,7 @@ import {
   APP_TIME_ZONE,
   formatDate,
   formatDateTime,
+  formatDecimal,
   formatNumber,
   formatRelativeTime,
 } from "./format";
@@ -47,6 +48,15 @@ describe("formatDate", () => {
 
   it("rejects an invalid date", () => {
     expect(() => formatDate(new Date(Number.NaN))).toThrow(RangeError);
+  });
+});
+
+describe("formatDecimal (D10, D13)", () => {
+  it("shows every stored digit with the locale's separator, never rounded or grouped", () => {
+    expect(formatDecimal("1234567.123456", { locale: "en" })).toBe("1234567.123456");
+    expect(formatDecimal("1234567.123456", { locale: "nl" })).toBe("1234567,123456");
+    expect(formatDecimal("-0.30", { locale: "nl" })).toBe("-0,30");
+    expect(formatDecimal("7", { locale: "nl" })).toBe("7");
   });
 });
 

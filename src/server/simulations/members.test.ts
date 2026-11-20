@@ -52,6 +52,7 @@ describe("moveMember (S10: one lab per simulation)", () => {
           simulation_id: w.simulationId,
           user_id: w.student.id,
           previous_lab_id: w.labId,
+          count: 0,
         },
       },
     ]);
@@ -165,7 +166,7 @@ describe("removeMember (#280)", () => {
       expect.objectContaining({
         outcome: "success",
         target_id: w.labId,
-        metadata: { simulation_id: w.simulationId, user_id: w.student.id },
+        metadata: { simulation_id: w.simulationId, user_id: w.student.id, count: 0 },
       }),
     ]);
   });

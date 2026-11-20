@@ -278,6 +278,11 @@ describe("activity log labels (#36)", () => {
     );
   });
 
+  it("names the refusals of a user deletion (#318)", () => {
+    expect(activityReasonLabel("cannot_delete_self")).toBe("nobody can delete their own account");
+    expect(activityReasonLabel("last_admin")).toBe("eduLIMS keeps at least one administrator");
+  });
+
   it("says when the metadata cannot be read, and returns nothing for an event without details", () => {
     expect(activityDetails({ reason: null, provider: null, metadata: "unreadable" })).toEqual([
       "The details of this event could not be read.",

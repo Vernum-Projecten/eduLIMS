@@ -238,12 +238,14 @@ and all students of a year take part in it. The service is
 
 | Table | What it holds |
 |---|---|
-| `simulations` | the name, who created it and when |
+| `simulations` | the name, who created it and when, and its state: prepared, running or finished, with the server's time of the start and the finish (#267) |
 | `simulation_teachers` | the teachers of a simulation, all with the same rights (D10) |
 | `labs` | the labs of a simulation; a name is unique within its simulation, case-insensitively |
 | `lab_members` | the students of a lab; the key (simulation, student) keeps a student in at most one lab of a simulation (S10) |
 | `lab_member_emails` | the addresses a teacher pasted that wait for a student to sign in; the key (simulation, address) keeps an address in at most one lab of a simulation |
 | `simulation_removals` | the students a teacher removed, so a lab's code does not let them back in |
+| `correct_values` | the correct value per simulation, sample number and catalogue test, never per lab; one per sample number (regardless of case) and test; the value as `numeric`, never a float (D10) |
+| `simulation_test_limits` | per simulation and test, the kind of limit (a percentage of the correct value or an absolute distance) and the yellow and red limits (D13) |
 | `lab_join_codes`, `lab_join_attempts` | the join code of a lab, stored only as an HMAC with its key's fingerprint, and the wrong-code counters per student and per client IP, stored only as keyed hashes (#288) |
 
 Every foreign key to a simulation or a lab cascades on delete, and a
@@ -258,6 +260,29 @@ student's place and a waiting address point at their lab through the pair
   goes to the security log. A student reaches a lab only through
   their own `lab_members` row; that predicate is one exported helper
   (`studentLabsQuery`, `findStudentLab`) that the lab's work builds on.
+  The lab's work goes through `findWorkingStudentLab`, which also requires
+  a running simulation: a prepared or finished simulation takes no work.
+- **State.** A teacher of the simulation starts a prepared simulation and
+  finishes a running one, behind a confirmation; no step goes back. A start
+  is refused while a test with a correct value has no limits, and the
+  refusal names those tests; a running simulation is never deleted
+  (maintainer, 2026-11-20 on #267). The correct values and the limits stay
+  changeable in every state (D10).
+  Starting locks the catalogue tests the simulation's correct values name
+  `FOR SHARE`, so a catalogue edit that a running simulation forbids (D9)
+  waits for the start and is then refused.
+- **Correct values and limits.** The service is `src/server/correct-values/`;
+  its one read and its writes go through the simulation's teacher row, and
+  no function a student can reach imports it (Q-SIM-1). The limits live per
+  simulation and test, not on the catalogue test: the catalogue is shared by
+  every teacher, while a teacher sets the limits while preparing their own
+  simulation, and a copy of a simulation takes its limits along (D15). Every
+  change of a value or a limit leaves an activity-log row with the ids of the
+  simulation, the test and the value, never the value itself (B4). While a
+  simulation runs, a value for a test without limits is refused
+  (`missing_limits`), and no function removes limits, so a running
+  simulation never holds a test with a value and no limits (maintainer,
+  2026-11-20).
 - **The email list.** A teacher pastes the addresses of a lab's members. The
   server classifies each line (invalid, repeated, already in this lab, in
   another lab of the simulation, new) and stores the new ones; no answer
@@ -270,7 +295,12 @@ student's place and a waiting address point at their lab through the pair
   becomes a place in its lab, one row per transaction. A failed row never
   fails the sign-in and never undoes another row; an address of a student
   who is already in another lab of that simulation is deleted, and the
-  refusal is logged once. Only an account whose role set is {student} and
+  refusal is logged once. A teacher's removal wins over a waiting address:
+  a student with a removal record in the simulation links nothing there,
+  the refusal is logged with the reason `removed` once per removal (the
+  link result counts it every time), and the address keeps
+  waiting, because it may belong to a classmate whose own sign-in still
+  links through it (#330). Only an account whose role set is {student} and
   whose address is plain ASCII links: lower-casing folds some other letters
   onto ASCII ones, so such an address is never verified either. The
   identity provider sync grants the student role to an address that waits
@@ -289,11 +319,17 @@ student's place and a waiting address point at their lab through the pair
   removed student all get the same answer, with the real reason in the
   activity log. A student already in another lab of the simulation is
   refused as such, at no cost, and that refusal is logged once per student,
-  lab and 15 minutes. A removed student cannot rejoin with a code until a
-  teacher adds their address again. A place and a waiting address of the
-  same student never stand side by side: a code join, a removal and a move
-  delete the student's waiting addresses in the simulation in the same
-  transaction, so the next link cannot put a removed student back. A join locks the simulation row
+  lab and 15 minutes. A removed student cannot rejoin with a code or through
+  a waiting address until a teacher adds their address again, which clears
+  the removal of an account whose email is verified; an unverified email
+  may be a classmate's, so adding it clears nothing (#330). A code join, a
+  removal and a move delete the student's waiting address in the
+  simulation in the same transaction, for a verified email only, wherever
+  it waits except in a move's target lab (an address waits in at most one
+  lab per simulation, so 0 or 1 rows). An unverified email drops nothing,
+  because the row may be a classmate's; the link refusal keeps the removed
+  student out. The removal and move log rows carry the number dropped
+  (`count`, #330). A join locks the simulation row
   (shared) before the code row, and lets go and retries when the code row is
   taken, so it never deadlocks with a writer. The code panel is on the
   teacher's lab page; the Student portal overview lists the student's labs
@@ -302,11 +338,18 @@ student's place and a waiting address point at their lab through the pair
 - **Teachers.** A teacher adds another teacher by the address of an existing
   account with the teacher role; an unknown address and a non-teacher get
   the same refusal. The last teacher of a simulation cannot be removed: a
-  teacher row counts only while its user holds the teacher role. Better-auth's
-  `admin/remove-user` refuses an account that is the only teacher of a
-  simulation, and a deferred constraint trigger refuses any commit that
-  leaves an existing simulation without a teacher row, so the two cannot
-  race past each other.
+  teacher row counts only while its user holds the teacher role. eduLIMS
+  deletes a user in one transaction (`src/server/users/delete-user.ts`,
+  #318), the last step of the GDPR erasure path (#47), which has no screen
+  yet: it locks the user's simulations in id order (and the administrators,
+  when the user is one), refuses the only active teacher of a simulation and
+  the last administrator, runs the deferred last-teacher check before it
+  writes the activity-log rows, and deletes the sessions, the accounts and
+  the user with those rows, so a refusal changes nothing. Better-auth's
+  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404. A
+  `BEFORE DELETE` trigger on `user` and a deferred constraint trigger, which
+  refuses any commit that leaves an existing simulation without a teacher
+  row, stay as the last line.
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it, and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.
