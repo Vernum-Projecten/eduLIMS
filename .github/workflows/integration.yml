@@ -19,6 +19,8 @@
 #   - tests/integration/keycloak-roles.test.ts, sso-sign-in.test.ts and
 #     scim-sign-in.test.ts: the dev realm's roles and an SSO sign-in through
 #     the stack's Keycloak (ADR 0012, ADR 0015, #45).
+# EDULIMS_IT_REQUIRE_STACK=1 turns an unreachable service into a failed test
+# in every one of them, where a local run skips it.
 # The other files under tests/integration/ need PostgreSQL only and run in
 # ci.yml's test job.
 # ci.yml calls it for a change to its path filter, so it reports under
