@@ -30,6 +30,7 @@ export const RECORDS_ACTION_ERRORS = [
   "test_not_found",
   "test_retired",
   "released",
+  "birth_in_future",
   "requester_required",
 ] as const;
 export type RecordsActionError = (typeof RECORDS_ACTION_ERRORS)[number];

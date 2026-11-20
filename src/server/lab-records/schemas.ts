@@ -47,11 +47,18 @@ function optionalLine(max: number) {
     .transform((value) => (value === "" ? null : value));
 }
 
+/**
+ * A control or format character other than a tab or a line break: remarks take several lines,
+ * never a NUL, an escape or a hidden direction mark (security review of #351, S1).
+ */
+const REMARKS_FORBIDDEN = /(?![\t\n\r])[\p{Cc}\p{Cf}]/u;
+
 /** The remarks: free text over several lines, empty becomes `null`. */
 const remarks = z
   .string()
   .trim()
   .max(REMARKS_MAX, { error: () => m.form_too_long({ max: String(REMARKS_MAX) }) })
+  .refine((value) => !REMARKS_FORBIDDEN.test(value), { error: () => m.records_text_invalid() })
   .transform((value) => (value === "" ? null : value));
 
 /** The details of a patient as the form gives them (S11). */

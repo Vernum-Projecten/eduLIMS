@@ -100,6 +100,50 @@ describe("a new request (S12, S16)", () => {
   });
 });
 
+/** NUL, VT, ESC, RIGHT-TO-LEFT OVERRIDE and ZERO WIDTH SPACE (security review of #351, S1). */
+const HIDDEN = ["\u0000", "\u000b", "\u001b", "‮", "​"];
+
+describe("control and format characters (review of #351, S1)", () => {
+  it.each(HIDDEN.map((char) => [JSON.stringify(char), char]))(
+    "refuses %s in the remarks, the requester, the sample and the patient",
+    (_name, char) => {
+      const text = `Fast${char}ing`;
+      expect(recordRequestInput.safeParse({ ...request, remarks: text }).success).toBe(false);
+      expect(recordRequestInput.safeParse({ ...request, requester: text }).success).toBe(false);
+      expect(
+        recordRequestInput.safeParse({
+          ...request,
+          samples: [{ sampleNumber: text, material: "plasma" }],
+        }).success,
+      ).toBe(false);
+      expect(
+        recordRequestInput.safeParse({
+          ...request,
+          samples: [{ sampleNumber: "S-1", material: text }],
+        }).success,
+      ).toBe(false);
+      for (const field of ["name", "identifier"] as const) {
+        expect(patientDetailsSchema.safeParse({ ...details, [field]: text }).success).toBe(false);
+      }
+    },
+  );
+
+  it("names the refused remarks with the translated message", () => {
+    const parsed = recordRequestInput.safeParse({ ...request, remarks: "A\u0000B" });
+    expect(parsed.error?.issues.map((issue) => issue.message)).toEqual([
+      "Remove the control characters from this field.",
+    ]);
+  });
+
+  it("keeps a line break and a tab in the remarks", () => {
+    const parsed = recordRequestInput.parse({
+      ...request,
+      remarks: "Fasting.\n\tHaemolysed.\r\nOk",
+    });
+    expect(parsed.remarks).toBe("Fasting.\n\tHaemolysed.\r\nOk");
+  });
+});
+
 describe("a correction of a request (S12)", () => {
   const correction = {
     labId: LAB,
