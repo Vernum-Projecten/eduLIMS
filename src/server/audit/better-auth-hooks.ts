@@ -61,7 +61,10 @@ export function auditRecorderOf(authContext: unknown): AuditRecorder | undefined
   return recorder instanceof AuditRecorder ? recorder : undefined;
 }
 
-/** Returns the request id the reverse proxy set (`X-Request-Id`), when it has a safe shape. */
+/**
+ * Returns the request's `X-Request-Id` when it has a safe shape. The reverse proxy must
+ * overwrite the header; without that, the client chooses it.
+ */
 export function requestIdOf(ctx: unknown): string | undefined {
   const headers = field(ctx, "headers") ?? field(field(ctx, "request"), "headers");
   return headers instanceof Headers ? toRequestId(headers.get("x-request-id")) : undefined;

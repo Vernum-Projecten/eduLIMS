@@ -138,7 +138,7 @@ without login. This file is how the code meets them.
   nothing.
 - **Authorisation is enforced on the server, in every server function and
   server route, before any data is read.** Use the shared middleware
-  (`requireSession`, `requireRole("teacher")`) from `src/server/auth/`. A
+  (`authMiddleware`, `requireRole("teacher")`) from `src/server/middleware.ts`. A
   route `beforeLoad` guard is navigation UX and never the security boundary.
 - **Ownership is checked, not just role.** The work belongs to the lab, the
   team of students that runs one laboratory in a simulation (ADR 0021):

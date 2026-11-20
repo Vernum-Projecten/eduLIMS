@@ -88,7 +88,12 @@ shell and no package manager, so every operator command is a
    (and the Keycloak hostname, with the `keycloak` profile) and forwards to
    `127.0.0.1:3000` (and `127.0.0.1:8180`) with `X-Forwarded-For`,
    `X-Forwarded-Proto` and `X-Forwarded-Host`. The institution's proxy or
-   Caddy on the host both work.
+   Caddy on the host both work. The proxy must also overwrite `X-Request-Id`
+   with an id of its own on every request: eduLIMS writes that header as the
+   `request_id` of its security log and activity log, and without the proxy a
+   client chooses its own request id. In nginx, set
+   `proxy_set_header X-Request-Id $request_id;`; in Caddy, set
+   `header_up X-Request-Id {http.request.uuid}` in the `reverse_proxy` block.
 3. A firewall that admits 443 from the users' networks, and the MLLP port
    only from the fixed addresses of the Afinion 2 analysers (below, "The MLLP
    port").
@@ -964,8 +969,9 @@ these fields: `outcome`, `actor_type`, `actor_id`, `target_type`,
 `attest_pkce`, `sessions_ended`, `test_outcome`, `removed_audit_events`,
 `removed_sessions`, `removed_admin_grants`, `resealed_providers`,
 `resealed_id_tokens`, `kind`, `status`, `command`, `migration`, `direction`,
-`variables` and `cause`. They hold ids, codes and counts; `fields`,
-`variables` and `cause` are lists of codes. eduLIMS replaces any value or
+`variables`, `cause`, `refused_count`, `server_fn` and `issues`. They hold
+ids, codes and counts; `fields`, `variables`, `cause` and `issues` are lists
+of codes. eduLIMS replaces any value or
 list item that contains a space or an `@` with `redacted`, so a name, an
 e-mail address or a token cannot leave the host. An error line names
 its cause by error class and code (a SQLSTATE such as `42P01`, or
@@ -982,7 +988,7 @@ its cause by error class and code (a SQLSTATE such as `42P01`, or
 | `idp_role_conflict` | the identity provider sent a role set eduLIMS does not allow |
 | `admin_action_failed` | an Admin portal action failed in the sign-in library |
 | `audit_write_failed` | an activity-log row could not be written |
-| `input_validation_fail` | a server function refused a request body before reading it: `json_length_missing` (411) or `json_too_large` (413) for JSON, `form_length_missing` (411) or `form_too_large` (413) for a form; see "Keeping the log on the host bounded" for a flood of them |
+| `input_validation_fail` | a server function refused a request body before reading it: `json_length_missing` (411) or `json_too_large` (413) for JSON, `form_length_missing` (411) or `form_too_large` (413) for a form; or its validator refused the input (`invalid_input`): the function in `server_fn`, at most 10 refused fields with their codes in `issues` (`labId:invalid_format`), all of them counted in `refused_count`, and the user when the function checks the session; see "Keeping the log on the host bounded" for a flood of them |
 
 The activity log in the database stays the record. A line written in a
 transaction that later rolls back can still reach the stream, so read a
