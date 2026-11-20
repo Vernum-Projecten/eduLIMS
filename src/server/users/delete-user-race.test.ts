@@ -17,7 +17,7 @@ import { NOW } from "../simulations/test-helpers.ts";
 import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
 import { type DeleteUserResult, deleteUser, ONLY_SIMULATION_TEACHER } from "./delete-user.ts";
-import { createUser, signIn } from "./test-helpers.ts";
+import { insertSignedInUser } from "./test-helpers.ts";
 
 let committed: CommittedTestDb | undefined;
 
@@ -60,11 +60,10 @@ async function world() {
     db,
     type: "postgres",
   });
-  const adminId = await createUser(auth, "admin@example.test", ["admin"]);
-  const headers = await signIn(auth, "admin@example.test");
-  const firstId = await createUser(auth, "first@example.test", ["teacher"]);
-  const secondId = await createUser(auth, "second@example.test", ["teacher"]);
-  await signIn(auth, "first@example.test");
+  // No password hashing: on a busy runner it, not the race, would use up the time budget.
+  const adminId = await insertSignedInUser(db, "admin@example.test", ["admin"]);
+  const firstId = await insertSignedInUser(db, "first@example.test", ["teacher"]);
+  const secondId = await insertSignedInUser(db, "second@example.test", ["teacher"]);
   const created = await createSimulation(
     db,
     { id: firstId, roles: ["teacher"] },
@@ -77,7 +76,13 @@ async function world() {
     .insertInto("simulation_teachers")
     .values({ simulation_id: simulationId, user_id: secondId, added_by: firstId })
     .execute();
-  const admin = { auth, db, headers, now: NOW, actor: { id: adminId, roles: ["admin"] as const } };
+  const admin = {
+    auth,
+    db,
+    headers: new Headers(),
+    now: NOW,
+    actor: { id: adminId, roles: ["admin"] as const },
+  };
   const deletion = () => deleteUser(admin, { userId: firstId });
   const removal = () =>
     removeTeacher(db, { id: secondId, roles: ["teacher"] }, { simulationId, userId: secondId });

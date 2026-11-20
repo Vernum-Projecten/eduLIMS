@@ -3,18 +3,19 @@
 
 // The last teacher of a simulation on a committed database (D10, #300 review S2): the deferred
 // constraint trigger of migration 0012 refuses a commit that leaves a simulation without a
-// teacher row. An account deletion locks the simulations first and runs in one transaction (#318), so a
-// deletion and `removeTeacher`, or two deletions, never both win and the loser changes nothing.
+// teacher row. An account deletion locks the simulations first and runs in one transaction
+// (#318), so a deletion and `removeTeacher`, or two deletions, never both win and the loser
+// changes nothing. The race rounds insert their users without hashing a password: on a busy
+// runner the hashing, not the race, took the 5 seconds.
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
-import type { Auth } from "../auth.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { type CommittedTestDb, createCommittedTestDb } from "../db/test-committed-db.ts";
 import { parseEnv } from "../env.ts";
 import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
 import { deleteUser, ONLY_SIMULATION_TEACHER } from "../users/delete-user.ts";
-import { createUser, signIn } from "../users/test-helpers.ts";
+import { insertSignedInUser } from "../users/test-helpers.ts";
 import { createSimulation } from "./simulations.ts";
 import { isLastTeacherViolation, LAST_TEACHER_CONSTRAINT, removeTeacher } from "./teachers.ts";
 import { NOW, person } from "./test-helpers.ts";
@@ -145,11 +146,9 @@ describe("the last-teacher trigger (D10, S2)", () => {
 });
 
 /** Two teachers of one fresh simulation, each with an account and a live session. */
-async function twoTeachers(db: Kysely<DB>, auth: Auth, round: number) {
-  const firstId = await createUser(auth, `first-${round}@example.test`, ["teacher"]);
-  const secondId = await createUser(auth, `second-${round}@example.test`, ["teacher"]);
-  await signIn(auth, `first-${round}@example.test`);
-  await signIn(auth, `second-${round}@example.test`);
+async function twoTeachers(db: Kysely<DB>, round: number) {
+  const firstId = await insertSignedInUser(db, `first-${round}@example.test`, ["teacher"]);
+  const secondId = await insertSignedInUser(db, `second-${round}@example.test`, ["teacher"]);
   const first = { id: firstId, roles: ["teacher"] as const };
   const created = await createSimulation(db, first, { name: `Race ${round}` }, NOW);
   if (!created.ok) throw new Error(created.error);
@@ -187,22 +186,21 @@ describe("deleting a user against the last-teacher rule, on a committed database
       db,
       type: "postgres",
     });
-    const adminId = await createUser(auth, "admin@example.test", ["admin"]);
-    const headers = await signIn(auth, "admin@example.test");
+    const adminId = await insertSignedInUser(db, "admin@example.test", ["admin"]);
     const admin = {
       auth,
       db,
-      headers,
+      headers: new Headers(),
       now: NOW,
       actor: { id: adminId, roles: ["admin"] as const },
     };
-    return { db, auth, admin };
+    return { db, admin };
   }
 
   it("a deletion racing removeTeacher ends with one active teacher and the loser unchanged", async () => {
-    const { db, auth, admin } = await openWithAdmin();
+    const { db, admin } = await openWithAdmin();
     for (const round of [1, 2, 3, 4, 5]) {
-      const { firstId, secondId, simulationId } = await twoTeachers(db, auth, round);
+      const { firstId, secondId, simulationId } = await twoTeachers(db, round);
       const second = { id: secondId, roles: ["teacher"] as const };
       const firstBefore = await rowsOf(db, firstId);
       const [deletion, removal] = await Promise.all([
@@ -226,9 +224,9 @@ describe("deleting a user against the last-teacher rule, on a committed database
   });
 
   it("two deletions of the two active teachers of one simulation end with one teacher left", async () => {
-    const { db, auth, admin } = await openWithAdmin();
+    const { db, admin } = await openWithAdmin();
     for (const round of [1, 2, 3, 4, 5]) {
-      const { firstId, secondId, simulationId } = await twoTeachers(db, auth, round);
+      const { firstId, secondId, simulationId } = await twoTeachers(db, round);
       const before = {
         [firstId]: await rowsOf(db, firstId),
         [secondId]: await rowsOf(db, secondId),
