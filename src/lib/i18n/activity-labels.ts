@@ -123,6 +123,7 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   test_not_found: m.admin_activity_reason_test_not_found,
   test_retired: m.admin_activity_reason_test_retired,
   test_removed: m.admin_activity_reason_test_removed,
+  requester_required: m.admin_activity_reason_requester_required,
   released: m.admin_activity_reason_released,
   no_tolerance: m.admin_activity_reason_no_tolerance,
   tolerance_changed: m.admin_activity_reason_tolerance_changed,

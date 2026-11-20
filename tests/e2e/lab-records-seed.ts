@@ -130,11 +130,19 @@ export async function seedSecondLab(
  * else in a simulation of its own that is finished, since only one runs at a time (#386).
  */
 export async function seedForeignLab(suffix: string, simulationId?: string): Promise<string> {
+  return (await foreignLab(suffix, simulationId)).labId;
+}
+
+/** Stores the lab of {@link seedForeignLab} and returns it with its simulation. */
+async function foreignLab(
+  suffix: string,
+  simulationId?: string,
+): Promise<{ simulationId: string; labId: string }> {
   const other = await copyAccount("student@example.test", "records-other");
   const db = database();
   try {
     if (simulationId === undefined) {
-      const { labId } = await labWith(
+      return await labWith(
         db,
         other.id,
         `Foreign ${suffix}`,
@@ -142,7 +150,6 @@ export async function seedForeignLab(suffix: string, simulationId?: string): Pro
         "finished",
         new Date(),
       );
-      return labId;
     }
     const { id: labId } = await db
       .insertInto("labs")
@@ -158,10 +165,16 @@ export async function seedForeignLab(suffix: string, simulationId?: string): Pro
         joined_via: "email",
       })
       .execute();
-    return labId;
+    return { simulationId, labId };
   } finally {
     await db.destroy();
   }
+}
+
+/** Stores a patient called `name` in a lab of another student and returns the patient's id. */
+export async function seedForeignPatient(suffix: string, name: string): Promise<string> {
+  const { simulationId, labId } = await foreignLab(suffix);
+  return seedPatientIn(simulationId, labId, name);
 }
 
 /** Stores a control request with one sample in `lab` and returns the sample's lab number. */
@@ -201,6 +214,32 @@ export async function seedControlRequest(lab: SeededLab): Promise<string> {
         .execute();
     });
     return labNumber;
+  } finally {
+    await db.destroy();
+  }
+}
+
+/** Stores an invented patient called `name` in `lab` and returns its id. */
+export function seedPatient(lab: SeededLab, name: string): Promise<string> {
+  return seedPatientIn(lab.simulationId, lab.labId, name);
+}
+
+async function seedPatientIn(simulationId: string, labId: string, name: string): Promise<string> {
+  const db = database();
+  try {
+    const { id } = await db
+      .insertInto("patients")
+      .values({
+        simulation_id: simulationId,
+        lab_id: labId,
+        name,
+        date_of_birth: "1984-02-03",
+        sex: "male",
+        identifier: "PID-E2E-SEED",
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    return id;
   } finally {
     await db.destroy();
   }

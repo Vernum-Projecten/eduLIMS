@@ -28,6 +28,7 @@ import { Route as AuthedAdminIntegrationsRouteImport } from './routes/_authed/ad
 import { Route as AuthedAdminUsersRouteImport } from './routes/_authed/admin/users'
 import { Route as AuthedStudentIndexRouteImport } from './routes/_authed/student/index'
 import { Route as AuthedStudentPatientsRouteImport } from './routes/_authed/student/patients'
+import { Route as AuthedStudentRequestsRouteImport } from './routes/_authed/student/requests'
 import { Route as AuthedStudentResultsRouteImport } from './routes/_authed/student/results'
 import { Route as AuthedStudentTolerancesRouteImport } from './routes/_authed/student/tolerances'
 import { Route as AuthedStudentUploadRouteImport } from './routes/_authed/student/upload'
@@ -145,6 +146,11 @@ const AuthedStudentIndexRoute = AuthedStudentIndexRouteImport.update({
 const AuthedStudentPatientsRoute = AuthedStudentPatientsRouteImport.update({
   id: '/patients',
   path: '/patients',
+  getParentRoute: () => AuthedStudentRoute,
+} as any)
+const AuthedStudentRequestsRoute = AuthedStudentRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
   getParentRoute: () => AuthedStudentRoute,
 } as any)
 const AuthedStudentResultsRoute = AuthedStudentResultsRouteImport.update({
@@ -300,6 +306,7 @@ export interface FileRoutesByFullPath {
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/student/patients': typeof AuthedStudentPatientsRoute
+  '/student/requests': typeof AuthedStudentRequestsRoute
   '/student/results': typeof AuthedStudentResultsRoute
   '/student/tolerances': typeof AuthedStudentTolerancesRoute
   '/student/upload': typeof AuthedStudentUploadRoute
@@ -341,6 +348,7 @@ export interface FileRoutesByTo {
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/student/patients': typeof AuthedStudentPatientsRoute
+  '/student/requests': typeof AuthedStudentRequestsRoute
   '/student/results': typeof AuthedStudentResultsRoute
   '/student/tolerances': typeof AuthedStudentTolerancesRoute
   '/student/upload': typeof AuthedStudentUploadRoute
@@ -385,6 +393,7 @@ export interface FileRoutesById {
   '/_authed/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/_authed/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/_authed/student/patients': typeof AuthedStudentPatientsRoute
+  '/_authed/student/requests': typeof AuthedStudentRequestsRoute
   '/_authed/student/results': typeof AuthedStudentResultsRoute
   '/_authed/student/tolerances': typeof AuthedStudentTolerancesRoute
   '/_authed/student/upload': typeof AuthedStudentUploadRoute
@@ -431,6 +440,7 @@ export interface FileRouteTypes {
     | '/admin/integrations'
     | '/admin/users'
     | '/student/patients'
+    | '/student/requests'
     | '/student/results'
     | '/student/tolerances'
     | '/student/upload'
@@ -472,6 +482,7 @@ export interface FileRouteTypes {
     | '/admin/integrations'
     | '/admin/users'
     | '/student/patients'
+    | '/student/requests'
     | '/student/results'
     | '/student/tolerances'
     | '/student/upload'
@@ -515,6 +526,7 @@ export interface FileRouteTypes {
     | '/_authed/admin/integrations'
     | '/_authed/admin/users'
     | '/_authed/student/patients'
+    | '/_authed/student/requests'
     | '/_authed/student/results'
     | '/_authed/student/tolerances'
     | '/_authed/student/upload'
@@ -690,6 +702,13 @@ declare module '@tanstack/react-router' {
       path: '/patients'
       fullPath: '/student/patients'
       preLoaderRoute: typeof AuthedStudentPatientsRouteImport
+      parentRoute: typeof AuthedStudentRoute
+    }
+    '/_authed/student/requests': {
+      id: '/_authed/student/requests'
+      path: '/requests'
+      fullPath: '/student/requests'
+      preLoaderRoute: typeof AuthedStudentRequestsRouteImport
       parentRoute: typeof AuthedStudentRoute
     }
     '/_authed/student/results': {
@@ -915,6 +934,7 @@ const AuthedAdminRouteWithChildren = AuthedAdminRoute._addFileChildren(
 
 interface AuthedStudentRouteChildren {
   AuthedStudentPatientsRoute: typeof AuthedStudentPatientsRoute
+  AuthedStudentRequestsRoute: typeof AuthedStudentRequestsRoute
   AuthedStudentResultsRoute: typeof AuthedStudentResultsRoute
   AuthedStudentTolerancesRoute: typeof AuthedStudentTolerancesRoute
   AuthedStudentUploadRoute: typeof AuthedStudentUploadRoute
@@ -923,6 +943,7 @@ interface AuthedStudentRouteChildren {
 
 const AuthedStudentRouteChildren: AuthedStudentRouteChildren = {
   AuthedStudentPatientsRoute: AuthedStudentPatientsRoute,
+  AuthedStudentRequestsRoute: AuthedStudentRequestsRoute,
   AuthedStudentResultsRoute: AuthedStudentResultsRoute,
   AuthedStudentTolerancesRoute: AuthedStudentTolerancesRoute,
   AuthedStudentUploadRoute: AuthedStudentUploadRoute,

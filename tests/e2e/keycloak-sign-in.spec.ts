@@ -4,14 +4,17 @@
 // A real OIDC round trip through the development Keycloak, registered at runtime by
 // `pnpm db:seed` (#46, ADR 0015): sign in with the Keycloak button, land in the portal of the
 // mapped role, sign out, and return through Keycloak's end-session endpoint to the login page
-// (RP-initiated logout, #25). Skipped when that Keycloak does not run (CI).
+// (RP-initiated logout, #25). Skipped when that Keycloak does not run (CI), and when the realm is
+// not on the origin the app trusts, since the app then registers no Keycloak button.
 import { expect, test } from "@playwright/test";
 import { expectHydrated, expectNoA11yViolations } from "./fixtures";
-import { appUrl, keycloakRealm } from "./run-env";
+import { appUrl, keycloakOrigin, keycloakRealm } from "./run-env";
 
 const REALM = keycloakRealm();
 
+/** Whether the realm answers on the origin the app trusts (`EDULIMS_IDP_PRIVATE_ORIGINS`). */
 async function keycloakRunning(): Promise<boolean> {
+  if (new URL(REALM).origin !== new URL(keycloakOrigin()).origin) return false;
   try {
     const response = await fetch(`${REALM}/.well-known/openid-configuration`, {
       signal: AbortSignal.timeout(2000),

@@ -643,6 +643,7 @@ A team's records from the paper request form live in the eduLIMS database
 | `requests` | a request for a patient of the same lab, or for a control sample with no patient (S16); the requester, the phone-through flag and the remarks; the time of entry |
 | `request_tests` | the catalogue tests a request names, by foreign key to `catalogue_tests`; the release: the released measurement, the tolerance in force at the release, who released it and the time of release (#270) |
 | `samples` | the samples of a request: the sample number and the material of the form, and the lab number |
+| `request_tests_not_offered` | the tests a request form asks for that the lab does not offer, as the team typed them: a name and an optional remark, in the order typed, with the lab for a count per lab on the dashboard (#398, #271) |
 | `record_corrections` | every correction of a patient or a request: the fields with their value before and after, who corrected and when |
 
 - **Ownership in the schema.** Each row points at its lab through the pair
@@ -682,13 +683,23 @@ A team's records from the paper request form live in the eduLIMS database
   changes the patient or the kind of a request; a new
   sample gets a fresh lab number. Each correction writes a
   `record_corrections` row and an activity-log row with ids only.
+- **Tests not offered** (#398) are free text, bounded and without control
+  characters, and nothing compares them with the catalogue or any other
+  list (Q-SIM-1). A correction replaces the list until the first release and
+  logs it before and after; a correction that leaves the list out keeps it.
+  The team reads them on the request; the teachers on the lab's page and in
+  the correction log.
 - **The catalogue.** A request reads its tests `FOR SHARE` in id order, so a
   catalogue edit, which holds the test `FOR UPDATE`, serialises with it, and
   a test a request names counts as used (running while its simulation runs).
-- **Screens.** The Student portal's Patients and requests page shows the
-  student's current lab, which the server picks (#379), its
-  patients and its requests with every sample's lab number in groups of
-  three, three and four digits. The copy action copies the digits and says
+- **Screens.** The Student portal has a Patients page and a Requests page
+  (#380), each for the student's current lab, which the server picks (#379).
+  A patient links to its requests and a request to its patient
+  (`?patient=`; a patient of no lab of the student's shows nothing but that
+  line). The requests list shows every sample's lab number in groups of
+  three, three and four digits; a request's name opens its details in a
+  sheet, whose footer corrects it. A badge with a lock marks a record a
+  released result locks. The copy action copies the digits and says
   so in a status region (WCAG 4.1.3). Writing is open only while the
   simulation runs. The date of birth is the browser's native date input,
   shown in the reader's locale and sent as `YYYY-MM-DD`. The correction log

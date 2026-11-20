@@ -49,6 +49,7 @@ describe("0028_catalogue_unit_ucum", () => {
     const down = await createMigrator(database).migrateTo("0027_gen5_uploads");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
     ]);
     await insert(database, "Free text again", "ratio");

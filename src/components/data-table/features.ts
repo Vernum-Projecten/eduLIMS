@@ -24,6 +24,11 @@ export interface DataTableColumnMeta {
   label?: () => string;
   /** Extra classes of the column's header and body cells. */
   className?: string;
+  /**
+   * Whether the column's body cells head their rows (`th scope="row"`), so a screen reader names
+   * each cell of the row by it (WCAG 1.3.1). One column per table at most.
+   */
+  rowHeader?: boolean;
 }
 
 /** The features of every data table: sorting, filtering, pagination, visibility, selection. */

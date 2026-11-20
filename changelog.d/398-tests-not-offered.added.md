@@ -1,0 +1,1 @@
+- A team records the tests a request form asks for that its lab does not offer, as free text on the request; the teachers see them on the lab's page and every change in the correction log (S12, D11).

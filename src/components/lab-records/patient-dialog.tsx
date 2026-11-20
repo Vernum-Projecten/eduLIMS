@@ -78,7 +78,6 @@ export function PatientDialog({
         );
         return;
       }
-      formApi.reset(EMPTY);
       control.onOpenChange(false);
     },
   });

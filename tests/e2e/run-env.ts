@@ -148,12 +148,21 @@ export function appUrl(): string {
 }
 
 /**
- * Returns the development Keycloak realm the Keycloak journeys sign in through: an outside
- * service on its own fixed port (`compose.dev.yaml`), unlike the app's per-run port.
+ * Returns the origin of the development Keycloak that the e2e app trusts as a private identity
+ * provider origin (`EDULIMS_IDP_PRIVATE_ORIGINS`): `EDULIMS_E2E_KEYCLOAK_ORIGIN`, else the port of
+ * `compose.dev.yaml`. An outside service on its own fixed port, unlike the app's per-run port.
+ */
+export function keycloakOrigin(): string {
+  const port = process.env["EDULIMS_DEV_KEYCLOAK_PORT"] ?? "8180";
+  return process.env["EDULIMS_E2E_KEYCLOAK_ORIGIN"] ?? `http://localhost:${port}`;
+}
+
+/**
+ * Returns the development Keycloak realm the Keycloak journeys sign in through: on
+ * {@link keycloakOrigin} unless `EDULIMS_E2E_KEYCLOAK_REALM` names another.
  */
 export function keycloakRealm(): string {
-  const port = process.env["EDULIMS_DEV_KEYCLOAK_PORT"] ?? "8180";
-  return process.env["EDULIMS_E2E_KEYCLOAK_REALM"] ?? `http://localhost:${port}/realms/edulims`;
+  return process.env["EDULIMS_E2E_KEYCLOAK_REALM"] ?? `${keycloakOrigin()}/realms/edulims`;
 }
 
 /**

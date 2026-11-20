@@ -61,6 +61,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -101,6 +102,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -141,6 +143,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -205,6 +208,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -252,6 +256,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -302,6 +307,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0010_integration_check");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -338,6 +344,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0012_simulations_and_labs");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -459,6 +466,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0014_lab_join_code");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -502,6 +510,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0015_integration_check_steps");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -565,6 +574,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0016_test_catalogue");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -633,6 +643,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0017_catalogue_follow_ups");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -686,6 +697,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0019_lab_logos");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -759,6 +771,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0018_simulation_state_and_correct_values");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -818,6 +831,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0020_patients_requests_samples");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -948,6 +962,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0022_patient_ehr");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -998,6 +1013,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0025_result_ehr_write_lease");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
       ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
@@ -1037,7 +1053,7 @@ describe("migrations", () => {
       database,
     );
     await run(second);
-    const down = await migrator.migrateTo("0028_catalogue_unit_ucum");
+    const down = await migrator.migrateTo("0029_request_tests_not_offered");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0030_one_running_simulation", "Success"],
     ]);
@@ -1046,5 +1062,24 @@ describe("migrations", () => {
       sql`update simulations set state = 'finished', finished_at = now() where id = ${third}`,
     );
     expect((await migrator.migrateToLatest()).error).toBeUndefined();
+  });
+
+  it("0029_request_tests_not_offered keeps a list per request of its own lab, and reverts (#398)", async () => {
+    const database = await createTestDb();
+    db = database;
+    const migrator = createMigrator(database);
+    const table = () =>
+      sql<{ name: string | null }>`select to_regclass('request_tests_not_offered')::text as name`
+        .execute(database)
+        .then((result) => result.rows[0]?.name ?? null);
+    expect(await table()).toBe("request_tests_not_offered");
+    const down = await migrator.migrateTo("0028_catalogue_unit_ucum");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0030_one_running_simulation", "Success"],
+      ["0029_request_tests_not_offered", "Success"],
+    ]);
+    expect(await table()).toBeNull();
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
+    expect(await table()).toBe("request_tests_not_offered");
   });
 });

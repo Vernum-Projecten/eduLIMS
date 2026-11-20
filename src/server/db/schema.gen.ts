@@ -278,6 +278,15 @@ export interface RequestTests {
   test_id: string;
 }
 
+export interface RequestTestsNotOffered {
+  id: Generated<string>;
+  lab_id: string;
+  name: string;
+  position: number;
+  remark: string | null;
+  request_id: string;
+}
+
 export interface ResultEhrWrites {
   attempts: Generated<number>;
   contribution_uid: string;
@@ -548,6 +557,7 @@ export interface DB {
   pending_admin_grant: PendingAdminGrant;
   record_corrections: RecordCorrections;
   request_tests: RequestTests;
+  request_tests_not_offered: RequestTestsNotOffered;
   requests: Requests;
   result_ehr_writes: ResultEhrWrites;
   samples: Samples;

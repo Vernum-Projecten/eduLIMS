@@ -9,6 +9,7 @@
 import "@tanstack/react-start/server-only";
 import { type Kysely, sql, type Transaction } from "kysely";
 import {
+  type NotOfferedTest,
   parsePatientId,
   parseRequestId,
   type RequestId,
@@ -27,6 +28,7 @@ import {
 } from "./access.ts";
 import { type CorrectionChange, plainChanges, recordCorrection } from "./corrections.ts";
 import { insertSample } from "./lab-number.ts";
+import { notOfferedOf, replaceNotOffered, sameNotOffered } from "./not-offered.ts";
 import type { CorrectionOutcome } from "./patients.ts";
 
 /** One sample of a request as the form gives it. */
@@ -41,6 +43,8 @@ export interface RequestFields {
   phoneThrough: boolean;
   remarks: string | null;
   testIds: readonly string[];
+  /** The tests the form asks for that the lab does not offer (#398); left out: none, or unchanged. */
+  notOffered?: readonly NotOfferedTest[] | undefined;
 }
 
 /** A new request: for a patient of the lab, or for a control sample with no patient (S16). */
@@ -132,6 +136,7 @@ export function recordRequest(
       .insertInto("request_tests")
       .values(testIds.map((testId) => ({ request_id: requestId, test_id: testId })))
       .execute();
+    await replaceNotOffered(trx, lab.labId, requestId, input.notOffered ?? []);
     const samples: RecordedRequest["samples"] = [];
     for (const sample of input.samples) {
       const stored = await insertSample(trx, {
@@ -245,12 +250,16 @@ export function correctRequest(
       return refused("released");
     }
     if (kindOf(request.kind) === "patient" && input.requester === null) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: "requester_required" });
       return refused("requester_required");
     }
     const before = new Set(tests.map((test) => test.test_id));
     const after = new Set(input.testIds);
     const refusal = await testRefusal(trx, [...after], before);
-    if (refusal !== null) return refused(refusal);
+    if (refusal !== null) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: refusal });
+      return refused(refusal);
+    }
     // NOTE: S12, S14 (maintainer on #268, 2026-11-20); a correction never removes a requested
     // test, so a measurement always keeps the test it belongs to.
     if ([...before].some((testId) => !after.has(testId))) {
@@ -279,6 +288,16 @@ export function correctRequest(
     const testsAfter = sorted(after);
     if (testsBefore.join() !== testsAfter.join()) {
       changes.push({ field: "tests", before: testsBefore, after: testsAfter });
+    }
+    const notOfferedBefore = (await notOfferedOf(trx, [id])).get(id) ?? [];
+    const notOfferedAfter = input.notOffered;
+    if (notOfferedAfter !== undefined && !sameNotOffered(notOfferedBefore, notOfferedAfter)) {
+      changes.push({
+        field: "not_offered",
+        before: notOfferedBefore,
+        after: notOfferedAfter.map(({ name, remark }) => ({ name, remark })),
+      });
+      await replaceNotOffered(trx, lab.labId, id, notOfferedAfter);
     }
     changes.push(...changedSamples);
     for (const sample of input.samples) {

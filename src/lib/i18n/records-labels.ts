@@ -93,6 +93,8 @@ export function correctionFieldLabel(field: CorrectionChange["field"]): string {
       return m.records_remarks();
     case "tests":
       return m.records_tests();
+    case "not_offered":
+      return m.records_not_offered();
     case "sample_number":
       return m.records_sample_number();
     case "material":
