@@ -54,7 +54,8 @@ describe("one correct value (D10)", () => {
       }).success,
     ).toBe(false);
     expect(
-      correctValueRowSchema.safeParse({ sampleNumber: "S‮1", testId: TEST, value: "1" }).success,
+      correctValueRowSchema.safeParse({ sampleNumber: "S\u202e1", testId: TEST, value: "1" })
+        .success,
     ).toBe(false);
   });
 });

@@ -4,10 +4,11 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page, type Response } from "@playwright/test";
 
+import { DEV_PASSWORD } from "../../src/server/demo-accounts.ts";
 import { appUrl } from "./run-env";
 
 /** Seeded by `pnpm db:seed` (src/server/db/seed.ts). */
-export const DEV_PASSWORD = "eduLIMS-dev-only";
+export { DEV_PASSWORD };
 
 /**
  * Returns `headers` plus the app's `Origin`, as a browser sends it on a same-origin write.
