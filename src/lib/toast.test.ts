@@ -3,10 +3,9 @@
 
 // The application's toast (#328): an error stays until it is closed and has a close button
 // (WCAG 2.2.1, 3.3.1); every other kind keeps Sonner's timing; nothing takes Sonner's own.
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { handWrittenFiles } from "../server/test-source-files.ts";
+import { handWrittenFiles, handWrittenSources } from "../server/test-source-files.ts";
 
 const sonner = vi.hoisted(() => ({
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), dismiss: vi.fn() }),
@@ -45,7 +44,6 @@ describe("toast", () => {
 });
 
 describe("the toast import", () => {
-  const ROOT = join(import.meta.dirname, "..", "..");
   // Generated output (the message modules, the route tree) is skipped: it never imports a
   // library, and reading it outlasts the test's time under load (#320).
   const files = handWrittenFiles("src").filter(
@@ -62,11 +60,13 @@ describe("the toast import", () => {
   });
 
   it("takes `toast` from src/lib/toast.ts, never from Sonner directly", async () => {
-    const candidates = files.filter((path) => !allowed.has(path));
-    const codes = await Promise.all(candidates.map((path) => readFile(join(ROOT, path), "utf8")));
-    const direct = candidates.filter((_, index) =>
-      /\btoast\b[^;]*from\s+["']sonner["']/.test(codes[index] ?? ""),
-    );
+    const checked = new Set(files.filter((path) => !allowed.has(path)));
+    const codes = await handWrittenSources("src");
+    const direct = [...codes]
+      .filter(
+        ([path, code]) => checked.has(path) && /\btoast\b[^;]*from\s+["']sonner["']/.test(code),
+      )
+      .map(([path]) => path);
     expect(direct).toEqual([]);
   });
 });

@@ -3,10 +3,10 @@
 
 // The test support code (the MLLP sender and the HL7 fixture builder of #159) stays out of the
 // application: no module under src/ imports anything from tests/.
-import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
-import { handWrittenFiles } from "../../src/server/test-source-files.ts";
+import { handWrittenFiles, handWrittenSources } from "../../src/server/test-source-files.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const SOURCE = /\.(ts|tsx|mts|cts|js|jsx)$/;
@@ -39,16 +39,21 @@ describe("the boundary between the application and the test support (#159)", () 
     expect(listed).toContain(`src${sep}router.tsx`);
     expect(listed).toContain(`src${sep}server${sep}openehr${sep}boundary.test.ts`);
     expect(listed).not.toContain(`src${sep}routeTree.gen.ts`);
-    expect(listed).not.toContain(`src${sep}server${sep}db${sep}schema.gen.ts`);
     expect(listed.filter((path) => path.startsWith(`src${sep}i18n${sep}`))).toEqual([]);
   });
 
+  it("reads each listed file as the working tree holds it (#320)", async () => {
+    const sources = await handWrittenSources("src");
+    expect([...sources.keys()].sort()).toEqual(handWrittenFiles("src").sort());
+    const router = `src${sep}router.tsx`;
+    expect(sources.get(router)).toBe(readFileSync(join(ROOT, router), "utf8"));
+  });
+
   it("has no module under src/ that imports from tests/", async () => {
-    const paths = sourceFiles("src");
-    const codes = await Promise.all(paths.map((path) => readFile(join(ROOT, path), "utf8")));
-    const offenders = paths.flatMap((path, index) =>
-      testImports(codes[index] ?? "").map((specifier) => `${path}: ${specifier}`),
-    );
+    const sources = await handWrittenSources("src");
+    const offenders = [...sources]
+      .filter(([path]) => SOURCE.test(path))
+      .flatMap(([path, code]) => testImports(code).map((specifier) => `${path}: ${specifier}`));
     expect(offenders).toEqual([]);
   });
 

@@ -3,17 +3,13 @@
 
 // The client is the only FerroEHR code (#145, integration.md): no other module reads a FerroEHR
 // setting or names an openEHR REST path, so none can build a FerroEHR request.
-import { readFile } from "node:fs/promises";
-import { join, sep } from "node:path";
+import { sep } from "node:path";
 import { describe, expect, it } from "vitest";
-import { handWrittenFiles } from "../test-source-files.ts";
-
-const ROOT = join(import.meta.dirname, "..", "..", "..");
+import { handWrittenFiles, handWrittenSources } from "../test-source-files.ts";
 
 /**
  * Every hand-written TypeScript source under `src/`, tests and generated files excluded. A
- * listing from git and biome.json replaces a walk of the tree, so only these files are opened
- * (#249, #320).
+ * listing from git and biome.json replaces a walk of the tree (#249, #320).
  */
 function sources(): string[] {
   return handWrittenFiles("src").filter(
@@ -32,11 +28,13 @@ const FERROEHR_REQUEST =
 
 describe("the openEHR client boundary (#145, Q-COMP-1)", () => {
   it("leaves FerroEHR settings and openEHR paths to src/server/openehr/ and env.ts", async () => {
-    const candidates = sources().filter(
-      (path) => !ALLOWED.some((allowed) => path.startsWith(allowed)),
+    const checked = new Set(
+      sources().filter((path) => !ALLOWED.some((allowed) => path.startsWith(allowed))),
     );
-    const texts = await Promise.all(candidates.map((path) => readFile(join(ROOT, path), "utf8")));
-    const offenders = candidates.filter((_, index) => FERROEHR_REQUEST.test(texts[index] ?? ""));
+    const texts = await handWrittenSources("src");
+    const offenders = [...texts]
+      .filter(([path, text]) => checked.has(path) && FERROEHR_REQUEST.test(text))
+      .map(([path]) => path);
     expect(offenders).toEqual([]);
   });
 
