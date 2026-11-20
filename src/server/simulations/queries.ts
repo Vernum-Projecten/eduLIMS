@@ -106,13 +106,19 @@ export interface TeacherSimulationPage {
 export type LabJoinCodeState = "off" | "on" | "ended";
 
 function joinCodeState(
-  expiresAt: Date | null,
-  uses: number | null,
-  maxUses: number | null,
+  row: {
+    expires_at: Date | null;
+    uses: number | null;
+    max_uses: number | null;
+    key_fingerprint: string | null;
+  },
   now: Date,
+  fingerprint: string,
 ): LabJoinCodeState {
-  if (expiresAt === null || uses === null || maxUses === null) return "off";
-  return expiresAt <= now || uses >= maxUses ? "ended" : "on";
+  if (row.expires_at === null || row.uses === null || row.max_uses === null) return "off";
+  // A code made under a rotated secret no longer works (security reviews of #394 and #403).
+  const stale = row.key_fingerprint !== fingerprint;
+  return stale || row.expires_at <= now || row.uses >= row.max_uses ? "ended" : "on";
 }
 
 /**
@@ -124,7 +130,8 @@ export async function getTeacherSimulation(
   db: Kysely<DB>,
   userId: string,
   simulationId: string,
-  now: Date = new Date(),
+  now: Date,
+  fingerprint: string,
 ): Promise<TeacherSimulationPage | null> {
   const id = parseSimulationId(simulationId);
   if (id === null) {
@@ -162,6 +169,7 @@ export async function getTeacherSimulation(
         "lab_join_codes.expires_at",
         "lab_join_codes.uses",
         "lab_join_codes.max_uses",
+        "lab_join_codes.key_fingerprint",
         eb
           .selectFrom("lab_members")
           .select((mb) => mb.fn.countAll<string>().as("n"))
@@ -192,7 +200,7 @@ export async function getTeacherSimulation(
       members: Number(row.members ?? 0),
       waiting: Number(row.waiting ?? 0),
       logoVersion: logoVersion(row.sha256),
-      joinCode: joinCodeState(row.expires_at, row.uses, row.max_uses, now),
+      joinCode: joinCodeState(row, now, fingerprint),
     })),
   };
 }

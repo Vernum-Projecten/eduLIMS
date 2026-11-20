@@ -17,13 +17,14 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
 import { getSimulationReadiness } from "./readiness.ts";
-import { finishSimulation, startRefusal, startSimulation } from "./state.ts";
+import { finishSimulation, type StartFacts, startRefusal, startSimulation } from "./state.ts";
 import {
   NOW,
   notFoundLine,
   type Person,
   person,
   securityLines,
+  startable,
   type World,
   world,
 } from "./test-helpers.ts";
@@ -50,31 +51,52 @@ async function valueFor(database: Kysely<DB>, w: World, testId: string, sampleNu
   if (!set.ok) throw new Error(set.error);
 }
 
-describe("startRefusal (#267, #381, #386)", () => {
-  const prepared = { state: "prepared", missingLimits: [], anotherRunning: false } as const;
+describe("startRefusal (#267, #381, #386, #394)", () => {
+  const ready = {
+    state: "prepared",
+    students: 1,
+    correctValues: 1,
+    missingLimits: [],
+    anotherRunning: false,
+  } satisfies StartFacts;
 
-  it("allows a prepared simulation with every limit set and no other running", () => {
-    expect(startRefusal(prepared)).toBeNull();
+  it("allows a prepared simulation with a student, a correct value and every limit set", () => {
+    expect(startRefusal(ready)).toBeNull();
+  });
+
+  it("refuses a simulation without a student in any lab (no_students)", () => {
+    expect(startRefusal({ ...ready, students: 0 })).toEqual({ error: "no_students" });
+  });
+
+  it("refuses a simulation without a correct value (no_correct_values)", () => {
+    expect(startRefusal({ ...ready, correctValues: 0 })).toEqual({ error: "no_correct_values" });
   });
 
   it("refuses a prepared simulation with a test without limits, naming the test", () => {
-    expect(startRefusal({ ...prepared, missingLimits: ["t-1"] })).toEqual({
+    expect(startRefusal({ ...ready, missingLimits: ["t-1"] })).toEqual({
       error: "missing_limits",
       testIds: ["t-1"],
     });
   });
 
-  it("refuses a prepared simulation while another runs, before the limits (#386)", () => {
-    expect(startRefusal({ ...prepared, anotherRunning: true })).toEqual({
+  it("refuses a prepared simulation while another runs, before every other reason (#386)", () => {
+    expect(startRefusal({ ...ready, anotherRunning: true })).toEqual({
       error: "another_running",
     });
-    expect(startRefusal({ ...prepared, missingLimits: ["t-1"], anotherRunning: true })).toEqual({
+    const empty = { ...ready, students: 0, correctValues: 0, missingLimits: ["t-1"] };
+    expect(startRefusal({ ...empty, anotherRunning: true })).toEqual({
       error: "another_running",
     });
   });
 
+  it("names the students before the values, and the values before the limits", () => {
+    const empty = { ...ready, students: 0, correctValues: 0, missingLimits: ["t-1"] };
+    expect(startRefusal(empty)?.error).toBe("no_students");
+    expect(startRefusal({ ...empty, students: 2 })?.error).toBe("no_correct_values");
+  });
+
   it.each(["running", "finished"] as const)("refuses a %s simulation as not prepared", (state) => {
-    expect(startRefusal({ state, missingLimits: ["t-1"], anotherRunning: true })).toEqual({
+    expect(startRefusal({ ...ready, state, students: 0, anotherRunning: true })).toEqual({
       error: "not_prepared",
     });
   });
@@ -95,7 +117,7 @@ describe("getSimulationReadiness (D10, #381)", () => {
     expect(readiness?.labs).toEqual({ count: 3, empty: 1, students: 7, waiting: 1 });
   });
 
-  it("allows the start of a new simulation without values, as the start does", async () => {
+  it("refuses the start of a new simulation without values, as the start does", async () => {
     const { database, w } = await open();
     const readiness = await getSimulationReadiness(database, w.teacher, w.simulationId);
     expect(readiness).toMatchObject({
@@ -105,8 +127,22 @@ describe("getSimulationReadiness (D10, #381)", () => {
       finishedAt: null,
       values: { count: 0, tests: 0 },
       missingLimits: [],
-      startRefusal: null,
+      startRefusal: { error: "no_correct_values" },
     });
+    const start = await startSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    expect(start).toEqual({ ok: false, error: "no_correct_values" });
+  });
+
+  it("refuses the start of a simulation whose labs have no student, as the start does", async () => {
+    const { database, w } = await open();
+    const simulationId = w.outsideSimulationId;
+    await database.deleteFrom("lab_members").where("simulation_id", "=", simulationId).execute();
+    await startable(database, simulationId);
+    const readiness = await getSimulationReadiness(database, w.outsiderTeacher, simulationId);
+    expect(readiness?.labs).toMatchObject({ count: 1, empty: 1, students: 0 });
+    expect(readiness?.startRefusal).toEqual({ error: "no_students" });
+    const start = await startSimulation(database, w.outsiderTeacher, { simulationId }, NOW);
+    expect(start).toEqual({ ok: false, error: "no_students" });
   });
 
   it("names the tests without limits and refuses as the start refuses (missing_limits)", async () => {
@@ -154,7 +190,8 @@ describe("getSimulationReadiness (D10, #381)", () => {
   it("refuses the start of a running and of a finished simulation as not prepared", async () => {
     const { database, w } = await open();
     const input = { simulationId: w.simulationId };
-    await startSimulation(database, w.teacher, input, NOW);
+    await startable(database, w.simulationId);
+    expect((await startSimulation(database, w.teacher, input, NOW)).ok).toBe(true);
     const running = await getSimulationReadiness(database, w.teacher, w.simulationId);
     expect(running).toMatchObject({
       state: "running",
@@ -172,6 +209,7 @@ describe("getSimulationReadiness (D10, #381)", () => {
 
   it("shows another_running while another teacher's simulation runs, naming none (#386)", async () => {
     const { database, w } = await open();
+    await startable(database, w.outsideSimulationId);
     const other = await startSimulation(
       database,
       w.outsiderTeacher,
@@ -210,6 +248,21 @@ describe("getSimulationReadiness (D10, #381)", () => {
     });
     expect(readiness).toBeNull();
     expect(lines).toEqual([notFoundLine(w.outsiderTeacher.id, "simulation", w.simulationId)]);
+  });
+
+  it("reads nothing for a co-teacher removed from the simulation, and logs the probe", async () => {
+    const { database, w } = await open();
+    await database
+      .deleteFrom("simulation_teachers")
+      .where("simulation_id", "=", w.simulationId)
+      .where("user_id", "=", w.coTeacher.id)
+      .execute();
+    let readiness: unknown;
+    const lines = await securityLines(async () => {
+      readiness = await getSimulationReadiness(database, w.coTeacher, w.simulationId);
+    });
+    expect(readiness).toBeNull();
+    expect(lines).toEqual([notFoundLine(w.coTeacher.id, "simulation", w.simulationId)]);
   });
 
   it("refuses a former teacher whose row stayed but whose app role is now student", async () => {

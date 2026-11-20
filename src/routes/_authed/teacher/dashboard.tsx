@@ -8,6 +8,7 @@ import { portalPageTitle, SectionPlaceholder } from "@/components/portal/portal-
 import { PageFrame } from "@/components/shell/page-frame";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { Skeleton } from "@/components/ui/skeleton";
+import { m } from "@/i18n/messages";
 import { portalNavigation, sectionOf } from "@/lib/navigation";
 import { runningSimulationQueryOptions } from "@/server/dashboard/query-options";
 
@@ -36,7 +37,9 @@ function DashboardPending() {
 function Page() {
   const section = sectionOf("teacher", "dashboard");
   const { data } = useSuspenseQuery(runningSimulationQueryOptions());
-  if (data.kind === "running") return <SectionPlaceholder section={section} />;
+  if (data.kind === "running") {
+    return <SectionPlaceholder section={section} body={m.teacher_dashboard_coming()} />;
+  }
   return (
     <PageFrame title={section.label()} description={section.description()}>
       <DashboardEmpty kind={data.kind} />

@@ -3,7 +3,12 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { EyeOffIcon } from "lucide-react";
-import { CorrectValueActions, ValuesByTest } from "@/components/correct-values/values-by-test";
+import {
+  PasteCorrectValues,
+  useAddCorrectValue,
+  useHasCorrectValues,
+  ValuesByTest,
+} from "@/components/correct-values/values-by-test";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { PageFrame } from "@/components/shell/page-frame";
 import { RouteErrorState } from "@/components/shell/route-error";
@@ -50,21 +55,21 @@ function ValuesPending() {
  */
 function ValuesPage() {
   const { simulationId } = Route.useParams();
+  const filled = useHasCorrectValues(simulationId);
+  const add = useAddCorrectValue(simulationId);
   return (
     <PageFrame
       title={m.simulation_nav_values()}
       description={m.simulation_values_description()}
-      secondary={<CorrectValueActions simulationId={simulationId} primary={false} />}
-      action={<CorrectValueActions simulationId={simulationId} primary />}
+      secondary={<PasteCorrectValues simulationId={simulationId} />}
+      action={filled ? add.button : undefined}
     >
-      <div className="flex flex-col gap-2 text-muted-foreground text-sm">
-        <p className="inline-flex items-center gap-1.5">
-          <EyeOffIcon aria-hidden="true" className="size-4 shrink-0" />
-          {m.correct_values_secret()}
-        </p>
-        <p>{m.correct_values_limits_description()}</p>
-      </div>
-      <ValuesByTest simulationId={simulationId} />
+      <p className="inline-flex items-center gap-1.5 text-muted-foreground text-sm">
+        <EyeOffIcon aria-hidden="true" className="size-4 shrink-0" />
+        {m.correct_values_secret()}
+      </p>
+      <ValuesByTest simulationId={simulationId} emptyAction={add.button} />
+      {add.dialog}
     </PageFrame>
   );
 }

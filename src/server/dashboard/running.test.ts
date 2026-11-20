@@ -10,7 +10,7 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
 import { finishSimulation, startSimulation } from "../simulations/state.ts";
-import { NOW, type Person, type World, world } from "../simulations/test-helpers.ts";
+import { NOW, type Person, startable, type World, world } from "../simulations/test-helpers.ts";
 import { readRunningSimulation } from "./running.ts";
 
 let db: Kysely<DB> | undefined;
@@ -26,6 +26,7 @@ async function open() {
 }
 
 async function start(database: Kysely<DB>, w: World) {
+  await startable(database, w.simulationId);
   const started = await startSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
   if (!started.ok) throw new Error(started.error);
 }

@@ -9,7 +9,15 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { isOneRunningViolation, startSimulation } from "./state.ts";
-import { auditRows, NOW, notFoundLine, securityLines, setState, world } from "./test-helpers.ts";
+import {
+  auditRows,
+  NOW,
+  notFoundLine,
+  securityLines,
+  setState,
+  startable,
+  world,
+} from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -85,6 +93,7 @@ describe("the start while another simulation runs (#386)", () => {
       for each row when (new.state = 'running') execute function test_refuse_start()`.execute(
       database,
     );
+    await startable(database, w.simulationId);
     await expect(
       startSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW),
     ).rejects.toThrow(/test refusal/);

@@ -6,13 +6,23 @@
 // not committed yet. These need real, committing transactions; the forced-order cases hold the
 // first start open so the second waits on the index of migration 0030 and is then refused,
 // logged, with its simulation left prepared.
+import type { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
+import type { DB } from "../db/schema.gen.ts";
 import { committedTestDbPerCase } from "../db/test-committed-hooks.ts";
 import { settlesWithin } from "../db/test-lock-waiters.ts";
 import { startSimulation } from "./state.ts";
-import { auditRows, NOW, setState, type World, world } from "./test-helpers.ts";
+import { auditRows, NOW, setState, startable, type World, world } from "./test-helpers.ts";
 
 const database = committedTestDbPerCase();
+
+/** The world with both of its simulations ready to start (#394). */
+async function startableWorld(db: Kysely<DB>): Promise<World> {
+  const w = await world(db);
+  await startable(db, w.simulationId);
+  await startable(db, w.outsideSimulationId);
+  return w;
+}
 
 async function runningIds(): Promise<string[]> {
   const rows = await database()
@@ -50,7 +60,7 @@ describe("two starts at once (#386)", () => {
   // forced-order cases below pin each order.
   it("leaves one simulation running when both run in parallel", async () => {
     const { db } = database();
-    const w = await world(db);
+    const w = await startableWorld(db);
     const results = await Promise.all([
       startSimulation(db, w.teacher, { simulationId: w.simulationId }, NOW),
       startSimulation(db, w.outsiderTeacher, { simulationId: w.outsideSimulationId }, NOW),
@@ -62,7 +72,7 @@ describe("two starts at once (#386)", () => {
 
   it("makes the second start wait for the first and then refuses it (forced order)", async () => {
     const { db } = database();
-    const w = await world(db);
+    const w = await startableWorld(db);
     expect(await behindHeldStart(w, "commit")).toEqual({ ok: false, error: "another_running" });
     expect(await runningIds()).toEqual([w.outsideSimulationId]);
     expect(await auditRows(db, "simulation_started")).toEqual([
@@ -75,14 +85,14 @@ describe("two starts at once (#386)", () => {
   });
 
   it("lets the second start run when the first rolls back (forced order)", async () => {
-    const w = await world(database().db);
+    const w = await startableWorld(database().db);
     expect(await behindHeldStart(w, "rollback")).toEqual({ ok: true, value: null });
     expect(await runningIds()).toEqual([w.simulationId]);
   });
 
   it("refuses a start beside a finish that is not committed yet, then starts after it", async () => {
     const { db, pool } = database();
-    const w = await world(db);
+    const w = await startableWorld(db);
     const own = { simulationId: w.simulationId };
     await setState(db, w.outsideSimulationId, "running");
     const client = await pool.connect();

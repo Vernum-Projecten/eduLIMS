@@ -47,6 +47,8 @@ export const SIMULATION_ACTION_ERRORS = [
   "test_retired",
   "value_not_found",
   "missing_limits",
+  "no_students",
+  "no_correct_values",
   "running",
   "lab_has_students",
 ] as const;
@@ -118,9 +120,9 @@ export function logNotFound(actorId: string, type: ProbeTarget, id: string): voi
 }
 
 /**
- * Locks the simulation row (`FOR UPDATE`) when `userId` teaches it and returns its id, or `null`
- * when the id is malformed, unknown or another teacher's. One query: the teacher row is the
- * filter.
+ * Locks the simulation row (`FOR UPDATE`) and the actor's teacher row (`FOR SHARE`) when
+ * `userId` teaches it and returns its id, or `null` when the id is malformed, unknown or another
+ * teacher's, or the teacher row went while this waited. One query: the teacher row is the filter.
  */
 export async function lockSimulation(
   trx: Kysely<DB>,
@@ -136,6 +138,9 @@ export async function lockSimulation(
     .where("simulations.id", "=", id)
     .where("simulation_teachers.user_id", "=", userId)
     .forUpdate("simulations")
+    // NOTE: security review of #403 (S1); the teacher row is locked too, so a removal that
+    // committed while this waited is seen and the actor reads `not_found`.
+    .forShare("simulation_teachers")
     .executeTakeFirst();
   return row ? id : null;
 }

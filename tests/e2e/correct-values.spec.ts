@@ -11,6 +11,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { copyAccount } from "./accounts";
 import { axe, dutch } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
+import { seatStudent } from "./lab-records-seed";
 import { appUrl } from "./run-env";
 import { finishRunningSimulations } from "./running-simulation";
 
@@ -91,8 +92,38 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await addCatalogueTest(page, testName);
   const simulationId = await createSimulation(page, simulation);
 
-  // A new simulation is prepared, with no correct values yet.
+  // A new simulation is prepared. Start stays focusable while a step blocks it, says why, and
+  // sends focus to the first blocking step (#394, WCAG 2.4.3).
   await expect(page.getByText("Prepared", { exact: true }).first()).toBeVisible();
+  const startButton = page.getByRole("button", { name: "Start simulation" });
+  await expectHydrated(startButton);
+  await expect(startButton).toHaveAttribute("aria-disabled", "true");
+  await expect(startButton).toHaveAccessibleDescription("Add a student to a lab first. Open labs");
+  // The button stays focusable while blocked, so Enter reaches it (pointer: the unit test).
+  await startButton.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  const labsStep = page.getByRole("heading", { level: 3, name: "Labs and students" });
+  await expect(labsStep).toBeFocused();
+  // The focused step says why it blocks the start (the UI review of #403).
+  await expect(labsStep).toHaveAccessibleDescription(
+    "Blocks the start No labs yet. Create a lab for each team and add its students.",
+  );
+  await axe(page);
+
+  // A lab with one student; the student comes from the run's own accounts.
+  const lab = `Lab ${id}`;
+  await openPage(page, simulation, "Labs");
+  const createLab = page.getByRole("button", { name: "Create lab" });
+  await expectHydrated(createLab);
+  await createLab.click();
+  const labDialog = page.getByRole("dialog", { name: "Create a lab" });
+  await labDialog.getByLabel("Name").fill(lab);
+  await labDialog.getByRole("button", { name: "Create lab" }).click();
+  await expect(page.getByRole("link", { name: lab, exact: true })).toBeVisible();
+  await seatStudent(simulationId, lab);
+
+  // No correct values yet: the empty state holds the one action that adds the first.
   await openPage(page, simulation, "Correct values");
   await expect(page.getByText("No correct values yet", { exact: true })).toBeVisible();
   await expect(
@@ -101,6 +132,7 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
 
   // Every missing field is named at its field (WCAG 3.3.1).
   const addValue = page.getByRole("button", { name: "Add correct value" });
+  await expect(addValue).toHaveCount(1);
   await expectHydrated(addValue);
   await addValue.click();
   const addDialog = page.getByRole("dialog", { name: "Enter one value" });
@@ -121,8 +153,14 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await expect(
     page.getByText("Correct values saved: 1 added, 0 changed, 0 unchanged."),
   ).toBeVisible();
-  // The dialog stays open, empty, for the next value; closing it returns focus to its opener.
+  // The dialog stays open over the toasts' layer and says itself what it saved (WCAG 4.1.3).
+  await expect(
+    addDialog.getByRole("status").filter({ hasText: "Saved the correct value" }),
+  ).toHaveText(`Saved the correct value of ${testName} for sample S-101.`);
+  // The dialog stays open, empty, with focus on its first field for the next value; closing it
+  // returns focus to the opener, now in the page's header.
   await expect(one.getByLabel("Sample number")).toHaveValue("");
+  await expect(one.getByLabel("Sample number")).toBeFocused();
   await addDialog.getByRole("button", { name: "Close", exact: true }).first().click();
   await expect(addDialog).toBeHidden();
   await expect(addValue).toBeFocused();
@@ -177,33 +215,43 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   const missing = page.getByText(`Before you can start, set the accuracy limits of: ${testName}.`);
   await expect(missing).toBeVisible();
   await expect(page.getByText("Blocks the start").first()).toBeVisible();
-  const startButton = page.getByRole("button", { name: "Start simulation" });
-  await expect(startButton).toBeDisabled();
+  await expect(startButton).toHaveAttribute("aria-disabled", "true");
   await expect(startButton).toHaveAccessibleDescription(
     "Set the accuracy limits first. Open correct values",
   );
   await axe(page);
+  // The prepared overview in Dutch, with its blocking step (Q-ACC-1).
+  await page.context().addCookies([{ name: "EDULIMS_LOCALE", value: "nl", url: appUrl() }]);
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "nl");
+  await expect(
+    page.getByRole("heading", { level: 1, name: dutch("simulation_nav_overview") }),
+  ).toBeVisible();
+  await axe(page);
+  await page.context().addCookies([{ name: "EDULIMS_LOCALE", value: "en", url: appUrl() }]);
+  await page.reload();
+  await expect(missing).toBeVisible();
 
   // Limits: red closer than yellow is refused at its field, compared as decimals (D13).
   await page.getByRole("link", { name: "Open correct values" }).first().click();
   await expect(page.getByRole("heading", { level: 1, name: "Correct values" })).toBeVisible();
   const section = testSection(page, testName);
-  await expect(section).toContainText("No limits yet");
-  await section.getByRole("button", { name: `Set the limits of ${testName}` }).click();
-  const limits = page.getByRole("dialog", { name: `Limits of ${testName}` });
+  await expect(section).toContainText("No accuracy limits yet: this blocks the start.");
+  await section.getByRole("button", { name: `Set accuracy limits for ${testName}` }).click();
+  const limits = page.getByRole("dialog", { name: `Accuracy limits of ${testName}` });
   await limits.getByLabel("Yellow limit").fill("0,30");
   await limits.getByLabel("Red limit").fill("0.29");
-  await limits.getByRole("button", { name: "Save limits" }).click();
+  await limits.getByRole("button", { name: "Save accuracy limits" }).click();
   await expect(
     limits.getByText("The red limit cannot be smaller than the yellow limit."),
   ).toBeVisible();
   await axe(page);
   await limits.getByLabel("Red limit").fill("10");
-  await limits.getByRole("button", { name: "Save limits" }).click();
+  await limits.getByRole("button", { name: "Save accuracy limits" }).click();
   await expect(limits).toHaveCount(0);
   await expect(section).toContainText("Yellow beyond 0.30%, red beyond 10%");
   await expect(
-    section.getByRole("button", { name: `Set the limits of ${testName}` }),
+    section.getByRole("button", { name: `Set accuracy limits for ${testName}` }),
   ).toBeFocused();
 
   // Start behind a confirmation whose safe choice takes the first focus (WCAG 3.3.4).
@@ -268,6 +316,9 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
     .getByRole("button", { name: "Finish", exact: true })
     .click();
   await expect(page.getByText(`Finished ${simulation}.`)).toBeVisible();
+  // A finished simulation has nothing live on the dashboard: the overview points to corrections.
+  await expect(page.getByRole("link", { name: "Open corrections" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open the dashboard" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Start simulation" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Finish simulation" })).toHaveCount(0);
   await openPage(page, simulation, "Correct values");

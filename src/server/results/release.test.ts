@@ -20,6 +20,7 @@ import {
   place,
   securityLines,
   setState,
+  startable,
 } from "../simulations/test-helpers.ts";
 import { insertMeasurement } from "./measurements.ts";
 import { type ReleaseInput, releaseResult } from "./release.ts";
@@ -369,6 +370,7 @@ describe("more cases of the release (security review of #370)", () => {
     // NOTE: #379, #386; one unfinished simulation per student and one running at a time, so the
     // first one is finished before the second starts.
     await setState(database, w.simulationId, "finished");
+    await startable(database, w.outsideSimulationId);
     const started = await startSimulation(
       database,
       w.outsiderTeacher,

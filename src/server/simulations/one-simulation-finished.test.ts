@@ -14,7 +14,7 @@ import { enableJoinCode, getJoinCode, regenerateJoinCode } from "./join-code.ts"
 import { linkWaitingAddresses } from "./linking.ts";
 import { moveMember } from "./members.ts";
 import { finishSimulation, startSimulation } from "./state.ts";
-import { auditRows, NOW, person, setState, type World, world } from "./test-helpers.ts";
+import { auditRows, NOW, person, setState, startable, type World, world } from "./test-helpers.ts";
 import { codeOf, context, key, labOf } from "./test-join.ts";
 
 let db: Kysely<DB> | undefined;
@@ -117,6 +117,7 @@ describe("finishing a simulation (review of #392, N2)", () => {
     const { database, w } = await open();
     const code = await codeOf(database, w.teacher, w.labId);
     await codeOf(database, w.teacher, w.otherLabId);
+    await startable(database, w.simulationId);
     await codeOf(database, w.outsiderTeacher, w.outsideLabId);
     expect(
       (await startSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW)).ok,

@@ -16,7 +16,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme}
-      className="toaster group"
+      // A menu or a popover opens above the toasts (Radix uses z-50): an open menu item stays
+      // reachable by pointer while a toast shows (UI review of #394). Sonner's own z-index is
+      // unlayered CSS, so the utility needs `!` to win.
+      className="toaster group z-40!"
       containerAriaLabel={m.ui_notifications()}
       icons={{
         success: <CircleCheckIcon className="size-4" />,

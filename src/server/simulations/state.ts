@@ -93,14 +93,21 @@ export async function anotherRunning(db: Kysely<DB>, simulationId: SimulationId)
  * `missing_limits` the tests it is about.
  */
 export interface StartRefusal {
-  error: Extract<SimulationActionError, "not_prepared" | "another_running" | "missing_limits">;
+  error: Extract<
+    SimulationActionError,
+    "not_prepared" | "another_running" | "no_students" | "no_correct_values" | "missing_limits"
+  >;
   testIds?: readonly string[];
 }
 
-/** What the start rule reads: the state, the tests without limits, and another running one. */
+/** What the start of a simulation depends on, read in one place for the start and the overview. */
 export interface StartFacts {
   state: SimulationState;
-  /** The tests with a correct value but no accuracy limits. */
+  /** The students in all labs of the simulation together. */
+  students: number;
+  /** The correct values of the simulation. */
+  correctValues: number;
+  /** The tests with a correct value but no accuracy limits, by id. */
   missingLimits: readonly string[];
   /** Whether another simulation runs (#386). */
   anotherRunning: boolean;
@@ -109,16 +116,57 @@ export interface StartFacts {
 /**
  * Returns why a simulation cannot start, or `null` when it can. The start and the overview's
  * checklist both ask this one rule, so the checklist shows the reason the start would give
- * (#381). Only one simulation runs at a time (owner 2026-11-20, #386).
+ * (#381). The first reason that holds wins: the state, then another running simulation (only one
+ * runs at a time, owner 2026-11-20, #386), then a student in a lab, then a correct value, then
+ * the limits of every test with one.
  */
 export function startRefusal(facts: StartFacts): StartRefusal | null {
   if (facts.state !== "prepared") return { error: "not_prepared" };
   if (facts.anotherRunning) return { error: "another_running" };
+  // NOTE: owner via coordinator 2026-11-20 on #394; a lab with a student and a correct value first.
+  if (facts.students === 0) return { error: "no_students" };
+  if (facts.correctValues === 0) return { error: "no_correct_values" };
   // NOTE: maintainer 2026-11-20 on #267; every test with a correct value has its limits first.
   if (facts.missingLimits.length > 0) {
     return { error: "missing_limits", testIds: facts.missingLimits };
   }
   return null;
+}
+
+/**
+ * Reads the {@link StartFacts} of a simulation in `state`. Inside the start's transaction it runs
+ * under the simulation lock, which every write of a member, a value or a limit takes too, so the
+ * answer holds until the start commits.
+ */
+export async function startFacts(
+  db: Kysely<DB>,
+  simulationId: SimulationId,
+  state: SimulationState,
+): Promise<StartFacts> {
+  // One query after the other: inside a transaction they share one connection.
+  // NOTE: security review of #403 (N2); the places are locked FOR SHARE, after the simulation
+  // row: an account deletion locks the student's places first and no simulation row, so a start
+  // that waits on it counts without the deleted student.
+  const places = await db
+    .selectFrom("lab_members")
+    .select("user_id")
+    .where("simulation_id", "=", simulationId)
+    .orderBy("user_id")
+    .forShare()
+    .execute();
+  const values = await db
+    .selectFrom("correct_values")
+    .select((eb) => eb.fn.countAll<string>().as("n"))
+    .where("simulation_id", "=", simulationId)
+    .executeTakeFirstOrThrow();
+  const missingLimits = await testsWithoutLimits(db, simulationId);
+  return {
+    state,
+    students: places.length,
+    correctValues: Number(values.n),
+    missingLimits,
+    anotherRunning: await anotherRunning(db, simulationId),
+  };
 }
 
 /** The partial unique index of migration 0030: at most one running simulation (#386). */
@@ -182,12 +230,7 @@ export function startSimulation(
       target: { type: "simulation", id: simulationId },
     } as const;
     const state = await stateOf(trx, simulationId);
-    const prepared = state === "prepared";
-    const blocked = startRefusal({
-      state,
-      missingLimits: prepared ? await testsWithoutLimits(trx, simulationId) : [],
-      anotherRunning: prepared && (await anotherRunning(trx, simulationId)),
-    });
+    const blocked = startRefusal(await startFacts(trx, simulationId, state));
     if (blocked !== null) {
       await recordAudit(trx, { ...event, outcome: "refused", reason: blocked.error });
       return refused(blocked.error, blocked.testIds);
