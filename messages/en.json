@@ -530,6 +530,7 @@
   "audit_action_test_retired": "Test retired",
   "audit_action_upload_complete": "Upload processed",
   "audit_action_upload_delete": "Upload deleted",
+  "audit_action_upload_linked": "Upload linked to samples",
   "audit_action_upload_validation_fail": "Upload rejected",
   "audit_action_user_banned": "Blocked",
   "audit_action_user_created": "Account created",
