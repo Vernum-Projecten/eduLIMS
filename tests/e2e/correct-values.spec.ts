@@ -39,8 +39,18 @@ async function addCatalogueTest(browser: Browser, name: string): Promise<void> {
     await dialog.getByLabel("Material").fill("plasma");
     await dialog.getByRole("combobox", { name: "Source of the measurements" }).click();
     await page.getByRole("option", { name: "Entry by hand" }).click();
-    await dialog.getByRole("combobox", { name: "Unit" }).fill("mmol/L");
-    await page.getByRole("option", { name: "mmol/L (millimole per litre)" }).click();
+    // The select hands focus back to its trigger after its close animation; a field used before
+    // then loses focus to it (#321).
+    await expect(
+      dialog.getByRole("combobox", { name: "Source of the measurements" }),
+    ).toBeFocused();
+    // The unit list filters as you type; the first match is the one (#393).
+    const unit = dialog.getByRole("combobox", { name: "Unit" });
+    await unit.fill("mmol/L");
+    await expect(page.getByRole("option", { name: "mmol/L (millimole per litre)" })).toBeVisible();
+    await unit.press("ArrowDown");
+    await unit.press("Enter");
+    await expect(unit).toHaveValue("mmol/L (millimole per litre)");
     await dialog.getByRole("button", { name: "Add test" }).click();
     await expect(dialog).toHaveCount(0);
   });

@@ -32,11 +32,16 @@ function rowOf(page: Page, name: string) {
   return page.getByRole("table").getByRole("row").filter({ hasText: name });
 }
 
-/** Chooses a unit in the open dialog's unit list by typing `search` and picking `option`. */
+/**
+ * Chooses a unit in the open dialog's unit list with the keyboard: typing `search` filters the
+ * list, and the first match, `option`, is taken.
+ */
 async function chooseUnit(page: Page, search: string, option: string): Promise<void> {
   const unit = page.getByRole("dialog").getByRole("combobox", { name: "Unit" });
   await unit.fill(search);
-  await page.getByRole("option", { name: option }).click();
+  await expect(page.getByRole("option", { name: option })).toBeVisible();
+  await unit.press("ArrowDown");
+  await unit.press("Enter");
   await expect(unit).toHaveValue(option);
 }
 
@@ -186,6 +191,9 @@ test("an Afinion 2 analyte fills its unit, which the analyser may fix (D9, #393)
   await dialog.getByLabel("Material").fill("blood");
   await dialog.getByRole("combobox", { name: "Source of the measurements" }).click();
   await page.getByRole("option", { name: "Afinion 2" }).click();
+  // The select hands focus back to its trigger after its close animation; a field used before
+  // then loses focus to it (#321).
+  await expect(dialog.getByRole("combobox", { name: "Source of the measurements" })).toBeFocused();
   await dialog.getByRole("button", { name: "Add test" }).click();
   await expect(dialog.getByText("Choose the analyte the Afinion 2 sends.")).toBeVisible();
 
@@ -202,6 +210,7 @@ test("an Afinion 2 analyte fills its unit, which the analyser may fix (D9, #393)
 
   await analyte.click();
   await page.getByRole("option", { name: "HbA1c", exact: true }).click();
+  await expect(analyte).toBeFocused();
   // The analyser sets the HbA1c unit, so it stays open to change.
   await expect(unit).toHaveValue("% (percent)");
   await expect(unit).not.toHaveAttribute("aria-readonly", "true");
@@ -226,6 +235,9 @@ test("a taken name is refused at its field (D9)", async ({ page }) => {
   await dialog.getByLabel("Material").fill("blood");
   await dialog.getByRole("combobox", { name: "Source of the measurements" }).click();
   await page.getByRole("option", { name: "Entry by hand" }).click();
+  // The select hands focus back to its trigger after its close animation; a field used before
+  // then loses focus to it (#321).
+  await expect(dialog.getByRole("combobox", { name: "Source of the measurements" })).toBeFocused();
   await chooseUnit(page, "mg/L", "mg/L (milligram per litre)");
   await dialog.getByRole("button", { name: "Add test" }).click();
   await expect(dialog.getByLabel("Name")).toHaveAttribute("aria-invalid", "true");
@@ -270,6 +282,9 @@ test("a ratio without a unit shows no unit in words (D9; maintainer 2026-11-19)"
   await dialog.getByLabel("Material").fill("blood");
   await dialog.getByRole("combobox", { name: "Source of the measurements" }).click();
   await page.getByRole("option", { name: "Entry by hand" }).click();
+  // The select hands focus back to its trigger after its close animation; a field used before
+  // then loses focus to it (#321).
+  await expect(dialog.getByRole("combobox", { name: "Source of the measurements" })).toBeFocused();
   await dialog.getByRole("combobox", { name: "Unit" }).click();
   await page.getByRole("option", { name: "No unit" }).click();
   await dialog.getByRole("button", { name: "Add test" }).click();
