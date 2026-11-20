@@ -8,6 +8,7 @@ import { parseLastPortal, type SessionUser, sessionRoles } from "./authz.ts";
 import { getDb } from "./db/index.ts";
 import { providerEnabled } from "./idp/registry.ts";
 import { isPastAbsoluteLifetime } from "./session-policy.ts";
+import { isBlocked } from "./users/administrators.ts";
 
 /** Whether the provider a session signed in with is still enabled; the database decides. */
 export type ProviderEnabled = (providerId: string) => Promise<boolean>;
@@ -17,8 +18,8 @@ export type ProviderEnabled = (providerId: string) => Promise<boolean>;
  * projection so session tokens and other internals are never serialised to the client. A
  * stored role set that is not allowed (ADR 0012) yields no roles. A session past its absolute
  * lifetime (24 hours after sign-in, #42), or signed in through a provider that is disabled or
- * gone (ASVS V7.4.2, #92), or of a user the directory deprovisioned over SCIM (#45, M3), is
- * revoked and yields no user.
+ * gone (ASVS V7.4.2, #92), of a user the directory deprovisioned over SCIM (#45, M3), or of a
+ * blocked user (a sign-in that raced the block, #356), is revoked and yields no user.
  */
 export async function resolveSessionUser(
   auth: Auth,
@@ -34,9 +35,17 @@ export async function resolveSessionUser(
     method !== CREDENTIAL_SIGN_IN &&
     !(await isProviderEnabled(method));
   const deprovisioned = Reflect.get(session.user, "deprovisionedAt") != null;
+  const blocked = isBlocked(
+    {
+      banned: Reflect.get(session.user, "banned"),
+      banExpires: Reflect.get(session.user, "banExpires"),
+    },
+    now,
+  );
   if (
     viaDisabledProvider ||
     deprovisioned ||
+    blocked ||
     isPastAbsoluteLifetime(new Date(session.session.createdAt), now)
   ) {
     const context = await auth.$context;

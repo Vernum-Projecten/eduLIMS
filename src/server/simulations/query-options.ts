@@ -23,6 +23,7 @@ import {
   listAdminSimulationsFn,
   listMySimulations,
 } from "./functions.ts";
+import type { LabLogoInfo, LogoResult } from "./logo.ts";
 
 /** The query keys of simulations, from the widest to the narrowest. */
 export const simulationsKeys = {
@@ -60,6 +61,8 @@ export const simulationInvalidation = {
   ],
   /** A change to a lab's waiting addresses: its page and the simulation page's counts. */
   waiting: (simulationId: string): QueryKey[] => [simulationsKeys.detail(simulationId)],
+  /** A lab's logo: its page and the simulation page's labs; no count or admin column changes. */
+  logo: (simulationId: string): QueryKey[] => [simulationsKeys.detail(simulationId)],
   /** Turning a lab's join code on, replacing it or turning it off: its state only (#288). */
   joinCode: (simulationId: string, labId: string): QueryKey[] => [
     simulationsKeys.joinCode(simulationId, labId),
@@ -187,6 +190,25 @@ export function simulationMutationOptions<TInput, TValue>(
     },
     onSettled: () =>
       Promise.all(invalidates.map((queryKey) => queryClient.invalidateQueries({ queryKey }))),
+  });
+}
+
+/**
+ * The mutation options of a lab logo upload (#293). The outcome comes back as a value, not a
+ * throw, because a refusal about the file shows at the form's file field: the caller reads it.
+ * The keys `invalidates` names are invalidated once a logo is stored.
+ */
+export function labLogoUploadMutationOptions(
+  queryClient: QueryClient,
+  call: (options: { data: FormData }) => Promise<LogoResult<LabLogoInfo>>,
+  invalidates: readonly QueryKey[],
+) {
+  return mutationOptions({
+    mutationFn: (data: FormData) => call({ data }),
+    onSuccess: async (result) => {
+      if (!result.ok) return;
+      await Promise.all(invalidates.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+    },
   });
 }
 

@@ -1,0 +1,1 @@
+- Hardening, with no advisory: eduLIMS keeps better-auth's origin check on in every environment, the test environments included, so the test suite now proves that a write to the sign-in endpoints that carries a session cookie and comes from another site is refused with 403. Production behaviour is unchanged (#371, Q-SEC-2).

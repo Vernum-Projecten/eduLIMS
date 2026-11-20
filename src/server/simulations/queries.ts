@@ -12,6 +12,15 @@ import { logNotFound } from "./access.ts";
 import { toSimulationState } from "./state.ts";
 import { studentLabsQuery } from "./student-access.ts";
 
+/**
+ * The version of a lab's logo as the screens put it in the logo's address: the start of its
+ * SHA-256, so a replaced logo gets a new address and the browser shows the new image (#293).
+ * `null` for a lab without a logo, so a screen asks for no image and gets no 404.
+ */
+function logoVersion(sha256: Buffer | null): string | null {
+  return sha256 === null ? null : sha256.toString("hex").slice(0, 16);
+}
+
 /** One simulation of the teacher's list. */
 export interface TeacherSimulationRow {
   id: string;
@@ -78,7 +87,14 @@ export interface TeacherSimulationPage {
   /** When a teacher finished it; `null` until then. */
   finishedAt: string | null;
   teachers: { userId: string; name: string; email: string }[];
-  labs: { id: string; name: string; members: number; waiting: number }[];
+  labs: {
+    id: string;
+    name: string;
+    members: number;
+    waiting: number;
+    /** The version of the lab's logo, `null` without one ({@link logoVersion}). */
+    logoVersion: string | null;
+  }[];
 }
 
 /**
@@ -118,9 +134,11 @@ export async function getTeacherSimulation(
       .execute(),
     db
       .selectFrom("labs")
+      .leftJoin("lab_logos", "lab_logos.lab_id", "labs.id")
       .select((eb) => [
         "labs.id",
         "labs.name",
+        "lab_logos.sha256",
         eb
           .selectFrom("lab_members")
           .select((mb) => mb.fn.countAll<string>().as("n"))
@@ -150,6 +168,7 @@ export async function getTeacherSimulation(
       name: row.name,
       members: Number(row.members ?? 0),
       waiting: Number(row.waiting ?? 0),
+      logoVersion: logoVersion(row.sha256),
     })),
   };
 }
@@ -159,6 +178,8 @@ export interface TeacherLabPage {
   id: string;
   name: string;
   simulation: { id: string; name: string };
+  /** The version of the lab's logo, `null` without one ({@link logoVersion}). */
+  logoVersion: string | null;
   members: { userId: string; name: string; email: string; joinedVia: string; joinedAt: string }[];
   waiting: { email: string; addedAt: string }[];
   /** The other labs of the simulation, the targets of a move. */
@@ -184,7 +205,14 @@ export async function getTeacherLab(
     .selectFrom("labs")
     .innerJoin("simulations as s", "s.id", "labs.simulation_id")
     .innerJoin("simulation_teachers as mine", "mine.simulation_id", "s.id")
-    .select(["labs.id", "labs.name", "s.id as simulation_id", "s.name as simulation_name"])
+    .leftJoin("lab_logos", "lab_logos.lab_id", "labs.id")
+    .select([
+      "labs.id",
+      "labs.name",
+      "s.id as simulation_id",
+      "s.name as simulation_name",
+      "lab_logos.sha256",
+    ])
     .where("labs.id", "=", id)
     .where("mine.user_id", "=", userId)
     .executeTakeFirst();
@@ -226,6 +254,7 @@ export async function getTeacherLab(
     id: lab.id,
     name: lab.name,
     simulation: { id: lab.simulation_id, name: lab.simulation_name },
+    logoVersion: logoVersion(lab.sha256),
     members: members.map((row) => ({
       userId: row.id,
       name: row.name,
@@ -244,13 +273,17 @@ export interface StudentLabRow {
   labName: string;
   simulationId: string;
   simulationName: string;
+  /** The version of the lab's logo, `null` without one ({@link logoVersion}). */
+  logoVersion: string | null;
 }
 
 /** Returns the labs the student is a member of, one per simulation (S10). */
 export async function listStudentLabs(db: Kysely<DB>, userId: string): Promise<StudentLabRow[]> {
   const rows = await studentLabsQuery(db, userId)
     .innerJoin("simulations", "simulations.id", "labs.simulation_id")
+    .leftJoin("lab_logos", "lab_logos.lab_id", "labs.id")
     .select([
+      "lab_logos.sha256",
       "labs.id as lab_id",
       "labs.name as lab_name",
       "simulations.id as simulation_id",
@@ -264,5 +297,6 @@ export async function listStudentLabs(db: Kysely<DB>, userId: string): Promise<S
     labName: row.lab_name,
     simulationId: row.simulation_id,
     simulationName: row.simulation_name,
+    logoVersion: logoVersion(row.sha256),
   }));
 }

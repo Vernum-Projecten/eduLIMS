@@ -5,7 +5,9 @@
 // declared length, at and one over the limit, before the body is read.
 import { describe, expect, it } from "vitest";
 import { LOGO_MAX_BYTES } from "../lib/lab-logo.ts";
+import { setBodyRefusalLogDeps } from "./body-refusal-log.ts";
 import { FORM_BODY_MAX, formBodyRefusal, refuseFormBody } from "./form-body-limit.ts";
+import { RefusalDeduper } from "./refusal-deduper.ts";
 import { setSecurityLogWriter } from "./security-log.ts";
 
 function post(headers: Record<string, string>): Request {
@@ -88,10 +90,28 @@ describe("formBodyRefusal (V5.2.1)", () => {
   it("logs the request id the reverse proxy set, and leaves out a malformed one (#357)", () => {
     const lines: string[] = [];
     const restore = setSecurityLogWriter((line) => lines.push(line));
+    // Two clients, so the per-client window of the refusal log (#350) keeps both lines.
+    const restoreLog = setBodyRefusalLogDeps({
+      trustedProxies: () => ["10.0.0.1"],
+      deduper: new RefusalDeduper(),
+    });
     try {
-      refuseFormBody(post({ "content-type": MULTIPART, "x-request-id": "req-357" }));
-      refuseFormBody(post({ "content-type": MULTIPART, "x-request-id": "not an id" }));
+      refuseFormBody(
+        post({
+          "content-type": MULTIPART,
+          "x-request-id": "req-357",
+          "x-forwarded-for": "203.0.113.1",
+        }),
+      );
+      refuseFormBody(
+        post({
+          "content-type": MULTIPART,
+          "x-request-id": "not an id",
+          "x-forwarded-for": "203.0.113.2",
+        }),
+      );
     } finally {
+      restoreLog();
       restore();
     }
     const parsed: unknown[] = lines.map((line): unknown => JSON.parse(line));

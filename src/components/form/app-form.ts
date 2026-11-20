@@ -12,6 +12,7 @@ import {
 import { DateField } from "@/components/form/date-field";
 import { EmailListField } from "@/components/form/email-list-field";
 import { FieldErrors } from "@/components/form/field-errors";
+import { FileField } from "@/components/form/file-field";
 import { FormErrors, SubmitButton } from "@/components/form/form-components";
 import { fieldContext, formContext } from "@/components/form/form-context";
 import { NumberField, TextareaField, TextField } from "@/components/form/text-fields";
@@ -31,6 +32,7 @@ const formHook = createFormHook({
     SwitchField,
     DateField,
     EmailListField,
+    FileField,
     FieldErrors,
   },
   formComponents: { SubmitButton, FormErrors },

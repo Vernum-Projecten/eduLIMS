@@ -8,6 +8,7 @@ import { Page } from "@/components/shell/page-header";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { JoinCodePanel } from "@/components/simulations/join-code-panel";
 import { BackToSimulation, LabActions } from "@/components/simulations/lab-actions";
+import { LabLogoSection } from "@/components/simulations/lab-logo-section";
 import { MembersSection } from "@/components/simulations/members-section";
 import { SimulationNotFound, simulationPageTitle } from "@/components/simulations/not-found";
 import { PastePanel } from "@/components/simulations/paste-panel";
@@ -74,6 +75,15 @@ function LabPage() {
       description={<p>{m.labs_page_description({ simulation: page.simulation.name })}</p>}
       actions={<LabActions simulation={page.simulation} lab={page} />}
     >
+      <LabLogoSection
+        key={page.id}
+        lab={{
+          simulationId: page.simulation.id,
+          labId: page.id,
+          labName: page.name,
+          logoVersion: page.logoVersion,
+        }}
+      />
       <MembersSection page={page} busy={isFetching} />
       <PastePanel simulationId={page.simulation.id} labId={page.id} labName={page.name} />
       <WaitingSection page={page} busy={isFetching} />

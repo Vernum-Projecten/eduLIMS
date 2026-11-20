@@ -766,6 +766,7 @@ describe("the activity log of the IdP role sync (B4)", () => {
         .selectFrom("audit_event")
         .select(["action", "actor_type", "target_id", "outcome", "reason_code", "provider"])
         .select(["request_id", "metadata"])
+        .orderBy("id")
         .execute();
     return { sync, ctx, rows };
   }

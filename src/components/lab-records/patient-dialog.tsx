@@ -40,7 +40,11 @@ export function PatientDialog({
   labId,
   patient,
 }: Readonly<{ control: DialogControl; labId: string; patient?: PatientRow | undefined }>) {
-  const register = useRecordsAction(registerPatientFn, labId, () => m.records_patient_registered());
+  const register = useRecordsAction(registerPatientFn, labId, (outcome) =>
+    outcome.ehr === "pending"
+      ? m.records_patient_registered_ehr_pending()
+      : m.records_patient_registered(),
+  );
   const correct = useRecordsAction(correctPatientFn, labId, (outcome) =>
     outcome.changed === 0 ? m.records_nothing_changed() : m.records_patient_corrected(),
   );

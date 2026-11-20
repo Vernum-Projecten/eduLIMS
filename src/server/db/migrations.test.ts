@@ -61,6 +61,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -94,6 +95,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -127,6 +129,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -184,6 +187,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -224,6 +228,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -267,6 +272,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0010_integration_check");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -296,6 +302,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0012_simulations_and_labs");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -410,6 +417,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0014_lab_join_code");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -446,6 +454,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0015_integration_check_steps");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -502,6 +511,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0016_test_catalogue");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -563,6 +573,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0017_catalogue_follow_ups");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -609,6 +620,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0019_lab_logos");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
     ]);
@@ -675,6 +687,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0018_simulation_state_and_correct_values");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
       ["0020_patients_requests_samples", "Success"],
       ["0019_lab_logos", "Success"],
@@ -727,6 +740,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0020_patients_requests_samples");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
+      ["0022_patient_ehr", "Success"],
       ["0021_lab_tolerances", "Success"],
     ]);
     await expect(inSavepoint(sql`select id from lab_tolerances`)).rejects.toThrow(
@@ -847,7 +861,7 @@ describe("migrations", () => {
       database,
     );
     expect(left.rows).toEqual([{ n: "0" }]);
-    const down = await migrator.migrateTo("0021_lab_tolerances");
+    const down = await migrator.migrateTo("0022_patient_ehr");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0023_measurements_and_release", "Success"],
     ]);

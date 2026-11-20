@@ -137,6 +137,7 @@ describe("linkedMessage (S10, #290)", () => {
     labName,
     simulationId: "s1",
     simulationName: "Demo simulation",
+    logoVersion: null,
   });
   const aurora = lab("l1", "Lab Aurora");
   const borealis = lab("l2", "Lab Borealis");

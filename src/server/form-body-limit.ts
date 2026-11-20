@@ -7,8 +7,8 @@
 // `Content-Length` or over the limit is refused before a byte of it is read. Node's HTTP parser
 // reads no more than the declared length as the body.
 import { LOGO_MAX_BYTES } from "../lib/lab-logo.ts";
-import { toRequestId } from "./audit/events.ts";
-import { logSecurityEvent } from "./security-log.ts";
+import { logBodyRefusal } from "./body-refusal-log.ts";
+import { BODY_REFUSAL_HEADERS } from "./json-body-limit.ts";
 
 // NOTE: #292; the logo is the one file a form carries, plus room for its field names and part
 // headers. A larger upload (the Gen5 export, #156) raises this with its own decision.
@@ -31,23 +31,17 @@ export function formBodyRefusal(request: Request): 411 | 413 | null {
 }
 
 /**
- * Returns the refusal response of {@link formBodyRefusal} and logs it with the request id the
- * reverse proxy set, or `null`.
+ * Returns the refusal response of {@link formBodyRefusal} and logs it through the deduplicated
+ * body refusal log, or `null`.
  */
 export function refuseFormBody(request: Request): Response | null {
   const status = formBodyRefusal(request);
   if (status === null) return null;
-  // NOTE: #357; a request middleware runs before any session middleware, so no user is known.
-  logSecurityEvent("warn", "input_validation_fail", {
-    outcome: "refused",
+  logBodyRefusal(request, {
     reason: status === 411 ? "form_length_missing" : "form_too_large",
     status,
-    request_id: toRequestId(request.headers.get("x-request-id")),
   });
   // NOTE: security review of #349; without `Connection: close` Node drains the unread body to
   // keep the connection alive, so a refused 200 MiB form is still read whole.
-  return new Response(null, {
-    status,
-    headers: { "Cache-Control": "no-store", Connection: "close" },
-  });
+  return new Response(null, { status, headers: BODY_REFUSAL_HEADERS });
 }

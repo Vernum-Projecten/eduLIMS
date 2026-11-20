@@ -4,7 +4,7 @@
 // Feeds the activity log (B4) from better-auth's extension points: database hooks for sessions
 // and users, and an after hook for sign-in failures and the admin endpoints. better-auth commits
 // these writes itself, so the log rows follow through recordCommittedAudit. The refusals raised
-// in idp-sync.ts and role-guard.ts reach the recorder through auditRecorderOf.
+// in idp-sync.ts reach the recorder through auditRecorderOf.
 // Relative imports: `pnpm db:seed` loads auth.ts in plain Node.
 import "@tanstack/react-start/server-only";
 import type { BetterAuthOptions, BetterAuthPlugin } from "better-auth";
@@ -110,8 +110,6 @@ function rolesMetadata(role: unknown): AuditMetadata {
 const ADMIN_ACTIONS = {
   "/admin/ban-user": "user_banned",
   "/admin/unban-user": "user_unbanned",
-  "/admin/set-role": "authz_role_change",
-  "/admin/update-user": "authz_role_change",
   "/admin/create-user": "user_created",
 } as const satisfies Record<string, AuditEvent["action"]>;
 
@@ -191,12 +189,6 @@ async function afterAdminEndpoint(
   returned: unknown,
 ): Promise<void> {
   const body = field(ctx, "body");
-  const data = field(body, "data");
-  if (
-    path === "/admin/update-user" &&
-    !(typeof data === "object" && data !== null && "role" in data)
-  )
-    return;
   const action = ADMIN_ACTIONS[path];
   const targetId = text(field(body, "userId"));
   const target = targetId ? { target: { type: "user" as const, id: targetId } } : {};
@@ -216,11 +208,7 @@ async function afterAdminEndpoint(
   if (action === "user_created") return;
   const user = field(returned, "user");
   const metadata: AuditMetadata =
-    action === "authz_role_change"
-      ? rolesMetadata(field(user, "role"))
-      : action === "user_banned"
-        ? banMetadata(field(user, "banExpires"))
-        : {};
+    action === "user_banned" ? banMetadata(field(user, "banExpires")) : {};
   await recorder.record({
     action,
     outcome: "success",

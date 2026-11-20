@@ -122,11 +122,13 @@ without login. This file is how the code meets them.
   (`src/server/role-guard.ts`), and a stored conflicting set gives the
   session no roles. A `CHECK` on `user.role` (migration
   `0004_user_role_check`) holds the same sets in their stored form, because
-  better-auth's admin permission check splits the raw string. Nobody changes
-  their own roles: the `hooks.before` guard `refuseOwnRoleWrites` answers a
-  `set-role` or `update-user` `data.role` on the session user's own id with
-  403 `cannot_change_own_roles` (owner decision on #32), and `setLocalRoles`
-  refuses the same. A sign-in refused for no role or a role conflict also revokes
+  better-auth's admin permission check splits the raw string. Roles change
+  only through eduLIMS's own code: better-auth's `admin/set-role`,
+  `admin/update-user` and `admin/remove-user` answer 404
+  (`src/server/users/admin-endpoint-lock.ts`, #318, #345). Nobody changes
+  their own roles: `setLocalRoles` refuses it with `cannot_change_own_roles`
+  (owner decision on #32). The last administrator keeps the role on every
+  eduLIMS path, and a user who loses a role is signed out. A sign-in refused for no role or a role conflict also revokes
   that user's live sessions (A07). No role implies another: check the specific role a
   function needs (`requireRole("teacher")`), never "admin or higher". An
   administrator who is also a teacher reaches the teams' work only as a
@@ -295,7 +297,7 @@ Server functions are an API: hold them to the API Security Top 10 2023 too
   number, so the upload validates the layout only; the team links each well
   to a sample, and the server checks that the sample belongs to that team
   (S4, S10, `integration.md`).
-- The lab logo a teacher uploads when creating a lab (D10, ADR 0021) is an
+- The lab logo a teacher uploads on the lab's page (D10, ADR 0021) is an
   upload too: PNG or JPEG decided by the content, at most 512 KiB and 1024
   by 1024 pixels, metadata removed by `src/server/logo/` without a
   re-encode, served with `no-store` to the lab's members and the

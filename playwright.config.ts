@@ -55,7 +55,7 @@ const appEnv = {
   FERROEHR_TOKEN_URL: `${INTEGRATIONS}/token`,
   FERROEHR_CLIENT_ID: "edulims-ferroehr",
   FERROEHR_CLIENT_SECRET: "e2e-only-ferroehr-client-secret",
-  FERROEHR_SCOPE: "system/template-*.r",
+  FERROEHR_SCOPE: "system/template-*.r system/composition-*.cr",
   FERROBRIDGE_BASE_URL: `${INTEGRATIONS}/ferrobridge`,
   EDULIMS_DEV_LOGIN: "true",
 };

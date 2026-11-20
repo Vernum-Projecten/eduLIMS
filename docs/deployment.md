@@ -168,11 +168,28 @@ The values are yours:
 | `<system-id>` | this CDR's openEHR system identifier, a DNS-style name such as `cdr.lab.example.edu`; choose it once, before the first EHR |
 
 In your identity provider, register the confidential client
-`edulims-ferroehr` with the client credentials grant, make its tokens carry
+`edulims-ferroehr` with the client credentials grant, give it the scopes
+`system/template-*.r` and `system/composition-*.cr`, make its tokens carry
 FerroEHR's audience (`ferroehr` in the file), and set the token profile the
 file's comments name for Entra ID or Keycloak. On Entra ID the token names
 the client by its application (client) ID, so that ID goes into
 `client_id`.
+
+The composition scope is the bare wildcard by necessity: finding and
+creating a patient's EHR names no template, and FerroEHR covers such an
+operation only with `*` (FerroEHR book v5.7.0, `smart-app-launch.md`, "What
+each route requires"). It therefore reaches the EHR, `EHR_STATUS`,
+`DIRECTORY`, `CONTRIBUTION`, the item tags and the EHR extract of every EHR
+for reading and creating. What limits eduLIMS's commits is the system
+client's `writes` (`eduLIMS-lab.v1` only), and the CI integration lane
+proves that FerroEHR refuses this client a composition of another template
+and an `EHR_STATUS` update (#364).
+
+**Before you upgrade FerroEHR past 5.7.1:** the releases after 5.7.1 remove
+`[[authz.system_client]]`, and with it the `writes` limit. Re-establish an
+equal limit in the new FerroEHR's configuration, and run the integration
+lane against it, before you move; until then, keep FerroEHR at 5.7.1 or
+earlier.
 
 Check the file before you start the stack. The check runs the same
 validation FerroEHR runs at start, touches no database, and exits 78 on a
@@ -240,8 +257,10 @@ follows:
    FerroEHR still holds it, and the old compositions name it.
 3. Add the new id to `writes` of the eduLIMS system client
    (`config/ferroehr.toml`, the `FERROEHR__AUTHZ__SYSTEM_CLIENT__0__WRITES`
-   value of `compose.dev.yaml`, and `config/ferroehr.toml.example`), and
-   the matching `system/composition-<id>.cr` scope at the identity provider.
+   value of `compose.dev.yaml`, and `config/ferroehr.toml.example`). The
+   client's `system/composition-*.cr` scope covers every template already, so
+   the identity provider needs no change; `writes` alone limits which
+   templates eduLIMS commits.
 4. On the host, `docker compose up -d --wait` loads the new template before
    FerroEHR starts.
 
@@ -604,6 +623,18 @@ What a SCIM request does in eduLIMS:
   deactivated your account". eduLIMS keeps the user and their records;
   erasing a person is a separate step. `active: true`, or a new
   create with the same `externalId`, lets the user sign in again.
+  eduLIMS 0.1.0 and 0.1.1 did not apply a SCIM `PUT`, `PATCH` or `DELETE`
+  (#365): deactivations, deletions and role changes from the directory were
+  lost, a member removed from a group mapped to `admin` or `teacher` kept
+  that role, and a sign-in does not correct the roles of a user SCIM
+  provisioned. After upgrading from one of them:
+  1. Restart provisioning in the identity provider (a full sync), so it
+     sends what it could not deliver.
+  2. Review the roles of every user shown as "Provisioned by <provider>" on
+     the Users screen against the directory's groups, administrators and
+     teachers first, and correct them by hand. An identity provider may not
+     resend a group removal or a deactivation it already counts as sent, so
+     the full sync alone is not enough.
 - **Sign-in** finds the provisioned user through the directory id: by
   default the account key (the OIDC `sub`, the SAML persistent NameID). When
   the directory sends another value as `externalId`, set "Claim with the
@@ -1139,16 +1170,21 @@ profile reads a token as app-only by its `sub`, so the realm file fixes the id
 of the client's service account and FerroEHR lists it in `app_only`. eduLIMS takes
 a token with the client credentials grant at
 `http://localhost:8180/realms/edulims/protocol/openid-connect/token`, client
-`edulims-ferroehr`, secret `edulims-dev-ferroehr-secret`, and scope
-`system/template-*.r`, the one optional client scope the client has: it lists
-and reads operational templates and nothing else (FerroEHR book,
-`smart-app-launch.md`, "What each route requires"). The template reaches
+`edulims-ferroehr`, secret `edulims-dev-ferroehr-secret`, and the two
+optional client scopes the client has: `system/template-*.r` lists and reads
+operational templates, and `system/composition-*.cr` finds and creates the
+EHR of a registered patient (#147). An EHR operation names no template, so
+FerroEHR covers it only with the bare wildcard (FerroEHR book,
+`smart-app-launch.md`, "What each route requires"); the system client's
+`writes` still limits its compositions to `eduLIMS-lab.v1`. The template reaches
 FerroEHR through `ferroehr definitions load` before FerroEHR starts, never
 over REST: the `ferroehr-definitions` one-shot loads `eduLIMS-lab.v1` on
 every `pnpm dev:db`, and the system client lists it in `writes` (above,
-"FerroEHR's templates"). The client's token still carries no
-`system/composition-` scope, so it commits nothing until the composition
-write path adds one (#148).
+"FerroEHR's templates"). The client's token carries
+`system/composition-*.cr`, but eduLIMS commits no composition until the
+composition write path (#148). A realm imported before #147 lacks the new
+scope: add it to the client in the Keycloak admin console, or remove the
+Keycloak container so the next `pnpm dev:db` imports the realm again.
 
 Every token carries the issuer `http://localhost:8180/realms/edulims`
 (`KC_HOSTNAME`), whichever host asks. FerroEHR accepts a plain-HTTP issuer on

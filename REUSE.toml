@@ -124,6 +124,14 @@ precedence = "override"
 SPDX-FileCopyrightText = "Abbott"
 SPDX-License-Identifier = "LicenseRef-Abbott-All-Rights-Reserved"
 
+# The test-only template of the development and CI stack (#364): invented, empty,
+# built from no archetype of any source.
+[[annotations]]
+path = "docker/ferroehr/test-definitions/*.opt"
+precedence = "override"
+SPDX-FileCopyrightText = "Ruben Talstra"
+SPDX-License-Identifier = "Apache-2.0"
+
 # The eduLIMS-lab operational templates, built by scripts/openehr/build-opt.py
 # from openEHR CKM archetypes (CC-BY-SA 4.0); a template is a derived work and
 # carries the archetypes' licence (#146).
