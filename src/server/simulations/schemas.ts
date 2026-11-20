@@ -90,14 +90,6 @@ export const moveMemberInput = memberInput.extend({
 export const moveMemberFormSchema = moveMemberInput.pick({ labId: true });
 export type MoveMemberForm = z.input<typeof moveMemberFormSchema>;
 
-/** How many characters of an overlong line a refusal quotes, so the teacher finds the line. */
-const LINE_START = 24;
-
-/** Returns the first characters of `line`, with an ellipsis when it goes on. */
-function lineStart(line: string): string {
-  return line.length > LINE_START ? `${line.slice(0, LINE_START)}…` : line;
-}
-
 /**
  * The pasted list of a lab (D10): any lines up to the limit. The server classifies each line, so
  * a malformed address is reported in the preview, never refused as a whole.
@@ -111,19 +103,19 @@ export const emailListInput = z.object({
       error: () => m.form_email_list_too_many({ max: String(EMAIL_LIST_MAX) }),
     })
     .superRefine((lines, ctx) => {
-      // NOTE: WCAG 3.3.1; an issue on an item path has no field to show it, so each one belongs
-      // to the list and names its line, as `emailListSchema` does.
-      for (const line of lines) {
+      // NOTE: WCAG 3.3.1, #357; each issue belongs to the list, which shows it, and names its line
+      // by number, never by its text, which can hold an address and goes back in the refusal.
+      lines.forEach((line, index) => {
         if (line.length > EMAIL_LINE_MAX) {
           ctx.addIssue({
             code: "custom",
             message: m.labs_paste_line_too_long({
-              line: lineStart(line),
+              line: formatNumber(index + 1),
               max: String(EMAIL_LINE_MAX),
             }),
           });
         }
-      }
+      });
     }),
 });
 
