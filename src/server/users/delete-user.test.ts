@@ -1,19 +1,23 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// Deleting a user from the Admin portal in one transaction (#318, B1, D10, ASVS V2.3.4). The
-// races on a committed database are in src/server/simulations/teacher-concurrency.test.ts.
-import type { Kysely } from "kysely";
+// Deleting a user in one transaction (#318, B1, D10, ASVS V2.3.4). The races on a committed
+// database are in src/server/simulations/teacher-concurrency.test.ts and delete-user-race.test.ts;
+// the closed better-auth endpoints in user-deletion-lock.test.ts.
+import { type Kysely, sql } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
-import type { Auth } from "../auth.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { AuthError } from "../middleware.ts";
 import { setSecurityLogWriter } from "../security-log.ts";
 import { createLab } from "../simulations/labs.ts";
 import { createSimulation } from "../simulations/simulations.ts";
 import { NOW } from "../simulations/test-helpers.ts";
-import { ADMIN_DISABLED_PATHS } from "./admin-path-lock.ts";
-import { deleteUser, isOnlyTeacherOfASimulation, ONLY_SIMULATION_TEACHER } from "./delete-user.ts";
+import {
+  deleteUser,
+  isOnlyTeacherOfASimulation,
+  LAST_ADMIN,
+  ONLY_SIMULATION_TEACHER,
+} from "./delete-user.ts";
 import { authOnTestDb, createUser, signedInActor, signIn } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
@@ -253,40 +257,65 @@ describe("deleteUser (#318, B1)", () => {
   });
 });
 
-describe("better-auth's admin/remove-user (#318)", () => {
-  async function adminAndVictim(auth: Auth) {
-    await createUser(auth, "admin@example.test", ["admin"]);
-    const victimId = await createUser(auth, "victim@example.test", ["student"]);
-    const headers = await signIn(auth, "admin@example.test");
-    return { victimId, headers };
-  }
-
-  it("is a disabled path", () => {
-    expect(ADMIN_DISABLED_PATHS).toContain("/admin/remove-user");
+describe("deleteUser keeps an administrator (maintainer, 2026-11-20, #318)", () => {
+  it("refuses the last administrator, who keeps everything, and logs it", async () => {
+    const { auth, db: database, admin } = await setup();
+    const lastId = await createUser(auth, "last-admin@example.test", ["admin"]);
+    await signIn(auth, "last-admin@example.test");
+    // The caller lost the admin role after signing in, so the target is the only administrator.
+    await database
+      .updateTable("user")
+      .set({ role: "teacher" })
+      .where("id", "=", admin.actor.id)
+      .execute();
+    const before = await rowsOf(database, lastId);
+    expect(before).toEqual({ user: 1, accounts: 1, sessions: 1 });
+    expect(await deleteUser(admin, { userId: lastId })).toEqual({ ok: false, error: LAST_ADMIN });
+    expect(await rowsOf(database, lastId)).toEqual(before);
+    expect(await events(database, "session_revoked")).toEqual([]);
+    expect(await events(database, "user_deleted")).toEqual([
+      expect.objectContaining({ target_id: lastId, outcome: "refused", reason_code: LAST_ADMIN }),
+    ]);
   });
 
-  it("answers 404 over HTTP, even to an administrator, and deletes nothing", async () => {
-    const opened = await authOnTestDb();
-    db = opened.db;
-    const { victimId, headers } = await adminAndVictim(opened.auth);
-    const response = await opened.auth.handler(
-      new Request("http://localhost:3000/api/auth/admin/remove-user", {
-        method: "POST",
-        headers: { ...Object.fromEntries(headers), "content-type": "application/json" },
-        body: JSON.stringify({ userId: victimId }),
+  it.each([
+    ["an administrator", ["admin"]],
+    ["a teacher-administrator", ["teacher", "admin"]],
+  ] as const)("deletes %s while another administrator stays", async (_who, roles) => {
+    const { auth, db: database, admin } = await setup();
+    const otherId = await createUser(auth, "other-admin@example.test", roles);
+    expect(await deleteUser(admin, { userId: otherId })).toEqual({ ok: true });
+    expect(await rowsOf(database, otherId)).toEqual({ user: 0, accounts: 0, sessions: 0 });
+  });
+});
+
+describe("deleteUser and the deferred last-teacher check (#318 review, N1)", () => {
+  it("runs the check before the activity-log rows, so a refusal writes no success line", async () => {
+    const { auth, db: database, admin } = await setup();
+    const firstId = await createUser(auth, "first@example.test", ["teacher"]);
+    const secondId = await createUser(auth, "second@example.test", ["teacher"]);
+    await signIn(auth, "first@example.test");
+    const simulationId = await simulationOf(database, firstId);
+    await addTeacherRow(database, simulationId, secondId);
+    // The deferred check refuses every removal for this case; the test's rollback restores it.
+    await sql`create or replace function simulation_teachers_keep_one() returns trigger
+      language plpgsql as $$ begin
+        raise exception 'refused at the check'
+          using errcode = '23514', constraint = 'simulation_teachers_last_teacher';
+      end $$`.execute(database);
+    const before = await rowsOf(database, firstId);
+    const lines: string[] = [];
+    restoreLog = setSecurityLogWriter((line) => lines.push(line));
+    const result = await deleteUser(admin, { userId: firstId });
+    expect(result).toEqual({ ok: false, error: ONLY_SIMULATION_TEACHER });
+    expect(await rowsOf(database, firstId)).toEqual(before);
+    const written = lines.map((line): unknown => JSON.parse(line));
+    expect(written).toEqual([
+      expect.objectContaining({
+        event: "user_deleted",
+        outcome: "refused",
+        reason: ONLY_SIMULATION_TEACHER,
       }),
-    );
-    expect(response.status).toBe(404);
-    expect((await rowsOf(opened.db, victimId)).user).toBe(1);
-  });
-
-  it("refuses the server-side auth.api call with 404 too", async () => {
-    const opened = await authOnTestDb();
-    db = opened.db;
-    const { victimId, headers } = await adminAndVictim(opened.auth);
-    await expect(
-      opened.auth.api.removeUser({ body: { userId: victimId }, headers }),
-    ).rejects.toMatchObject({ statusCode: 404 });
-    expect((await rowsOf(opened.db, victimId)).user).toBe(1);
+    ]);
   });
 });

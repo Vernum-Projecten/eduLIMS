@@ -305,10 +305,12 @@ student's place and a waiting address point at their lab through the pair
   teacher row counts only while its user holds the teacher role. eduLIMS
   deletes a user in one transaction (`src/server/users/delete-user.ts`,
   #318), the last step of the GDPR erasure path (#47), which has no screen
-  yet: it locks the user's simulations
-  in id order, refuses the only active teacher of a simulation, and deletes
-  the sessions, the accounts and the user with their activity-log rows, so a
-  refusal changes nothing. Better-auth's `admin/remove-user` answers 404. A
+  yet: it locks the user's simulations in id order (and the administrators,
+  when the user is one), refuses the only active teacher of a simulation and
+  the last administrator, runs the deferred last-teacher check before it
+  writes the activity-log rows, and deletes the sessions, the accounts and
+  the user with those rows, so a refusal changes nothing. Better-auth's
+  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404. A
   `BEFORE DELETE` trigger on `user` and a deferred constraint trigger, which
   refuses any commit that leaves an existing simulation without a teacher
   row, stay as the last line.

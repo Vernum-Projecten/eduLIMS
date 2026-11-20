@@ -34,8 +34,8 @@ import { type ScimSessionOptions, staticScimSupport } from "./scim/support.ts";
 import { SESSION_EXPIRES_IN_SECONDS, SESSION_UPDATE_AGE_SECONDS } from "./session-policy.ts";
 import { labSignInLink } from "./simulations/auth-plugins.ts";
 import { hasWaitingLabAddress } from "./simulations/linking.ts";
-import { ADMIN_DISABLED_PATHS, adminPathLock } from "./users/admin-path-lock.ts";
 import { lastSignInMethod, lastSignInTime } from "./users/sign-in-tracking.ts";
+import { USER_DELETION_DISABLED_PATHS, userDeletionLock } from "./users/user-deletion-lock.ts";
 
 /** Where an identity provider returns the user after signing out of it: the eduLIMS sign-in page. */
 export const POST_LOGOUT_PATH = "/login";
@@ -108,7 +108,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
     database: adapter,
     // NOTE: ADR 0015; the plugin's management endpoints let any signed-in user register an IdP.
     // NOTE: #318; eduLIMS deletes a user in one transaction (src/server/users/delete-user.ts).
-    disabledPaths: [...SSO_DISABLED_PATHS, ...ADMIN_DISABLED_PATHS],
+    disabledPaths: [...SSO_DISABLED_PATHS, ...USER_DELETION_DISABLED_PATHS],
     // NOTE: ASVS V1.3.6; the app origin is always trusted, and besides it only the operator's
     // private IdP origins: every other IdP endpoint gets the sso plugin's DNS check at fetch time.
     trustedOrigins: [...env.EDULIMS_IDP_PRIVATE_ORIGINS],
@@ -201,7 +201,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         },
       }),
       ssoGuards(db),
-      adminPathLock(),
+      userDeletionLock(),
       // Simulations and labs (ADR 0021): the link of waiting addresses at sign-in (S10).
       labSignInLink(db),
       // Answers 501 when SCIM cannot run here; rate limit, size cap and activity log (#45).
