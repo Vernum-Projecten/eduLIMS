@@ -58,9 +58,11 @@ export async function findStudentLab(
 /**
  * Returns the lab `labId` when `userId` is a member of it and its simulation is running, or
  * `null` otherwise (D10, #267: labs work only in a running simulation). The state is read in the
- * same query as the membership, and the simulation row is locked `FOR SHARE`: finishing takes
- * the row `FOR UPDATE`, so it waits until the caller's transaction ends, and no work commits in
- * a simulation that finished after this check.
+ * same query as the membership, and the simulation row and the student's `lab_members` row are
+ * locked `FOR SHARE`. Finishing updates the simulation row (`FOR NO KEY UPDATE`), so it waits
+ * until the caller's transaction ends, and no work commits in a simulation that finished after
+ * this check. Removing or moving the student changes their `lab_members` row, so a write that
+ * waited behind either reads the row again and finds no place in this lab.
  *
  * Call it with the transaction that writes the lab's work, as the first statement of every
  * write; outside a transaction the lock ends with the statement and protects nothing.

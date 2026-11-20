@@ -62,6 +62,8 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.simulations_error_missing_limits();
     case "running":
       return m.simulations_error_running();
+    case "lab_has_students":
+      return m.labs_error_has_students();
     case null:
       return m.simulations_error_failed();
     default: {

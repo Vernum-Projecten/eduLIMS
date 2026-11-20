@@ -29,6 +29,15 @@ describe("simulationErrorMessage (D10)", () => {
     expect(new Set(messages).size).toBe(messages.length);
   });
 
+  it("names the lab, not the simulation, when a lab with students cannot be deleted (#352)", () => {
+    expect(simulationErrorMessage("lab_has_students")).toBe(
+      "This lab still has students, so it cannot be deleted. Move or remove them first.",
+    );
+    expect(simulationErrorMessage("has_students")).toBe(
+      "This simulation has students in its labs, so it cannot be deleted. Remove the students first.",
+    );
+  });
+
   it("names a failure that is no refusal as one to try again", () => {
     expect(simulationErrorMessage(null)).toBe("The change could not be saved. Try again.");
   });

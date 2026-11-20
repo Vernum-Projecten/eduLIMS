@@ -113,6 +113,7 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   lab_patient_corrected: m.audit_action_lab_patient_corrected,
   lab_request_recorded: m.audit_action_lab_request_recorded,
   lab_request_corrected: m.audit_action_lab_request_corrected,
+  lab_tolerance_set: m.audit_action_lab_tolerance_set,
   test_created: m.audit_action_test_created,
   test_changed: m.audit_action_test_changed,
   test_retired: m.audit_action_test_retired,
