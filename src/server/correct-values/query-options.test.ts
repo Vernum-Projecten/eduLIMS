@@ -31,9 +31,11 @@ function seeded(): QueryClient {
     [simulationsKeys.lists(), []],
     [simulationsKeys.detail(ONE), { id: ONE }],
     [simulationsKeys.correctValues(ONE), { values: [] }],
+    [simulationsKeys.readiness(ONE), { labs: {} }],
     [simulationsKeys.lab(ONE, LAB), { id: LAB }],
     [simulationsKeys.detail(TWO), { id: TWO }],
     [simulationsKeys.correctValues(TWO), { values: [] }],
+    [simulationsKeys.readiness(TWO), { labs: {} }],
     [simulationsKeys.student(), []],
     [catalogueKeys.list({}), { rows: [] }],
   ]);
@@ -61,7 +63,7 @@ describe("the correct-value keys (D10)", () => {
 });
 
 describe("correctValuesInvalidation (explicit keys)", () => {
-  it("invalidates the section and the catalogue's usage after a change of values", async () => {
+  it("invalidates the section, the overview and the catalogue's usage after a change of values", async () => {
     await runMutation(
       queryClient,
       simulationMutationOptions(
@@ -72,17 +74,23 @@ describe("correctValuesInvalidation (explicit keys)", () => {
       { simulationId: ONE, rows: [] },
     );
     expect(invalidatedKeys(queryClient)).toEqual(
-      keys(simulationsKeys.correctValues(ONE), catalogueKeys.list({})),
+      keys(
+        simulationsKeys.correctValues(ONE),
+        simulationsKeys.readiness(ONE),
+        catalogueKeys.list({}),
+      ),
     );
   });
 
-  it("invalidates only the section after a change of limits", async () => {
+  it("invalidates only the section and the overview after a change of limits", async () => {
     await runMutation(
       queryClient,
       simulationMutationOptions(queryClient, ok(null), correctValuesInvalidation.limits(ONE)),
       { simulationId: ONE },
     );
-    expect(invalidatedKeys(queryClient)).toEqual(keys(simulationsKeys.correctValues(ONE)));
+    expect(invalidatedKeys(queryClient)).toEqual(
+      keys(simulationsKeys.correctValues(ONE), simulationsKeys.readiness(ONE)),
+    );
   });
 
   it("invalidates the page with its labs and values, the lists and the usage after a start", async () => {
@@ -95,6 +103,7 @@ describe("correctValuesInvalidation (explicit keys)", () => {
       keys(
         simulationsKeys.detail(ONE),
         simulationsKeys.correctValues(ONE),
+        simulationsKeys.readiness(ONE),
         simulationsKeys.lab(ONE, LAB),
         simulationsKeys.lists(),
         catalogueKeys.list({}),

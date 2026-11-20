@@ -4,17 +4,26 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { FlaskConicalIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { type RefObject, useMemo, useState } from "react";
+import {
+  FlaskConicalIcon,
+  KeyRoundIcon,
+  type LucideIcon,
+  MinusIcon,
+  PencilIcon,
+  PlusIcon,
+  TimerOffIcon,
+  Trash2Icon,
+} from "lucide-react";
+import { type RefObject, useMemo, useRef, useState } from "react";
 import { DataTableRowActions } from "@/components/data-table/data-table-row-actions";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
+import { PAGE_TITLE_ID } from "@/components/shell/page-header";
 import { simulationActionKeys } from "@/components/simulations/action-keys";
 import {
   type Confirmation,
   ConfirmDialog,
   useConfirmation,
 } from "@/components/simulations/confirm-dialog";
-import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
 import { LabLogo } from "@/components/simulations/lab-logo";
 import { ListTable } from "@/components/simulations/list-table";
 import { NameDialog } from "@/components/simulations/name-dialog";
@@ -32,8 +41,9 @@ import { m } from "@/i18n/messages";
 import { formatNumber } from "@/lib/i18n/format";
 import { labLogoSrc } from "@/lib/lab-logo";
 import { LAB_NAME_MAX } from "@/lib/simulations";
+import { cn } from "@/lib/utils";
 import { createLabFn, deleteLabFn, renameLabFn } from "@/server/simulations/functions";
-import type { TeacherSimulationPage } from "@/server/simulations/queries";
+import type { LabJoinCodeState, TeacherSimulationPage } from "@/server/simulations/queries";
 import {
   deleteMutationOptions,
   simulationMutationOptions,
@@ -48,9 +58,30 @@ interface LabRow {
   members: number;
   waiting: number;
   logoVersion: string | null;
+  joinCode: LabJoinCodeState;
 }
 
-const LABS_HEADING = "labs-heading";
+/** The icon and text of each join-code state: never colour alone (WCAG 1.4.1). */
+const JOIN_CODE: Record<LabJoinCodeState, { icon: LucideIcon; label: () => string }> = {
+  on: { icon: KeyRoundIcon, label: () => m.labs_join_code_on() },
+  ended: { icon: TimerOffIcon, label: () => m.labs_join_code_ended() },
+  off: { icon: MinusIcon, label: () => m.labs_join_code_off() },
+};
+
+function JoinCodeCell({ state }: Readonly<{ state: LabJoinCodeState }>) {
+  const { icon: Icon, label } = JOIN_CODE[state];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5",
+        state === "on" ? undefined : "text-muted-foreground",
+      )}
+    >
+      <Icon aria-hidden="true" className="size-4 shrink-0" />
+      {label()}
+    </span>
+  );
+}
 
 const helper = createDataTableColumnHelper<LabRow>();
 
@@ -89,6 +120,11 @@ const columns = helper.columns([
     header: () => m.labs_col_waiting(),
     cell: ({ row }) => formatNumber(row.original.waiting),
   }),
+  helper.accessor("joinCode", {
+    id: "joinCode",
+    header: () => m.labs_col_join_code(),
+    cell: ({ row }) => <JoinCodeCell state={row.original.joinCode} />,
+  }),
   helper.display({
     id: "actions",
     meta: { className: "w-12" },
@@ -97,8 +133,12 @@ const columns = helper.columns([
   }),
 ]);
 
-/** The labs of a simulation (D10): each links to its page; rename and delete from its menu. */
-export function LabsSection({
+/**
+ * The labs of a simulation (D10, #381): each with its logo, its students, its waiting addresses
+ * and whether its join code works; the name opens the lab's page, and the row's menu renames or
+ * deletes it.
+ */
+export function LabsTable({
   page,
   busy,
 }: Readonly<{ page: TeacherSimulationPage; busy: boolean }>) {
@@ -107,25 +147,14 @@ export function LabsSection({
     [page.labs, page.id],
   );
   return (
-    <section aria-labelledby={LABS_HEADING} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h2 id={LABS_HEADING} tabIndex={-1} className={FOCUSABLE_HEADING}>
-            {m.labs_heading()}
-          </h2>
-          <p className="text-muted-foreground">{m.labs_description()}</p>
-        </div>
-        <CreateLab simulationId={page.id} />
-      </div>
-      <ListTable
-        columns={columns}
-        data={rows}
-        rowId={(row) => row.id}
-        caption={m.labs_caption({ simulation: page.name })}
-        busy={busy}
-        empty={<LabsEmpty />}
-      />
-    </section>
+    <ListTable
+      columns={columns}
+      data={rows}
+      rowId={(row) => row.id}
+      caption={m.labs_caption({ simulation: page.name })}
+      busy={busy}
+      empty={<LabsEmpty />}
+    />
   );
 }
 
@@ -137,14 +166,16 @@ function LabsEmpty() {
           <FlaskConicalIcon aria-hidden="true" />
         </EmptyMedia>
         <EmptyTitle>{m.labs_empty_title()}</EmptyTitle>
-        <EmptyDescription>{m.labs_empty_body()}</EmptyDescription>
+        <EmptyDescription>{m.labs_empty_next()}</EmptyDescription>
       </EmptyHeader>
     </Empty>
   );
 }
 
-function CreateLab({ simulationId }: Readonly<{ simulationId: string }>) {
+/** The primary action of the labs page: a lab by name, in a dialog. */
+export function CreateLab({ simulationId }: Readonly<{ simulationId: string }>) {
   const [open, setOpen] = useState(false);
+  const openerRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
   const call = useServerFn(createLabFn);
   const create = useSimulationAction(
@@ -153,12 +184,19 @@ function CreateLab({ simulationId }: Readonly<{ simulationId: string }>) {
   );
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)}>
+      <Button ref={openerRef} type="button" onClick={() => setOpen(true)}>
         <PlusIcon aria-hidden="true" data-icon="inline-start" />
         {m.labs_create()}
       </Button>
       <NameDialog
-        control={{ open, onOpenChange: setOpen }}
+        control={{
+          open,
+          onOpenChange: setOpen,
+          onCloseAutoFocus: (event) => {
+            event.preventDefault();
+            openerRef.current?.focus();
+          },
+        }}
         schema={labFormSchema}
         initial=""
         title={m.labs_create_title()}
@@ -174,7 +212,8 @@ function CreateLab({ simulationId }: Readonly<{ simulationId: string }>) {
 
 function LabRowActions({ lab }: Readonly<{ lab: LabRow }>) {
   const [renaming, setRenaming] = useState(false);
-  const confirmation = useConfirmation(LABS_HEADING);
+  // A deleted row goes: focus moves to the page's h1 (WCAG 2.4.3).
+  const confirmation = useConfirmation(PAGE_TITLE_ID);
   const actions = useLabActions(
     lab.simulationId,
     lab.id,

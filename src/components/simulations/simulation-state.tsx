@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   CircleCheckBigIcon,
@@ -12,33 +13,26 @@ import {
   PlayIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { useMemo } from "react";
+import { PAGE_TITLE_ID } from "@/components/shell/page-header";
 import { ConfirmDialog, useConfirmation } from "@/components/simulations/confirm-dialog";
-import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
-import { formatDateTime } from "@/lib/i18n/format";
 import {
   missingLimitsMessage,
   simulationErrorMessage,
   simulationStateLabel,
 } from "@/lib/i18n/simulation-labels";
 import type { SimulationState } from "@/lib/simulations";
-import {
-  correctValuesInvalidation,
-  correctValuesQueryOptions,
-} from "@/server/correct-values/query-options";
+import { correctValuesInvalidation } from "@/server/correct-values/query-options";
 import { finishSimulationFn, startSimulationFn } from "@/server/simulations/functions";
-import type { TeacherSimulationPage } from "@/server/simulations/queries";
 import {
   refusedTestIds,
   simulationErrorCode,
   simulationMutationOptions,
 } from "@/server/simulations/query-options";
-
-const STATE_HEADING = "state-heading";
+import type { SimulationReadiness } from "@/server/simulations/readiness";
 
 /** The icon of each state, beside its text (WCAG 1.4.1). */
 const STATE_ICONS: Record<SimulationState, LucideIcon> = {
@@ -58,7 +52,8 @@ export function SimulationStateBadge({ state }: Readonly<{ state: SimulationStat
   );
 }
 
-function stateDescription(state: SimulationState): string {
+/** Returns what a state means for the labs, in one sentence. */
+export function stateDescription(state: SimulationState): string {
   switch (state) {
     case "prepared":
       return m.simulations_state_prepared_description();
@@ -73,74 +68,27 @@ function stateDescription(state: SimulationState): string {
   }
 }
 
-/**
- * The state of a simulation (D10, #267): what it means for the labs, when it started and ended,
- * and the one step that comes next, behind a confirmation because no step goes back.
- */
-export function SimulationStateSection({ page }: Readonly<{ page: TeacherSimulationPage }>) {
-  const { data: values } = useSuspenseQuery(correctValuesQueryOptions(page.id));
-  const names = useMemo(
-    () => new Map(values.tests.map((test) => [test.id, test.name])),
-    [values.tests],
-  );
-  const missing = values.tests.filter((test) => test.values > 0 && test.limits === null);
-  return (
-    <section aria-labelledby={STATE_HEADING} className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 id={STATE_HEADING} tabIndex={-1} className={FOCUSABLE_HEADING}>
-          {m.simulations_state_heading()}
-        </h2>
-        <SimulationStateBadge state={page.state} />
-      </div>
-      <p className="text-muted-foreground">{stateDescription(page.state)}</p>
-      {(page.startedAt || page.finishedAt) && (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-          {page.startedAt && (
-            <>
-              <dt className="text-muted-foreground">{m.simulations_started_at()}</dt>
-              <dd>
-                <time dateTime={page.startedAt}>{formatDateTime(page.startedAt)}</time>
-              </dd>
-            </>
-          )}
-          {page.finishedAt && (
-            <>
-              <dt className="text-muted-foreground">{m.simulations_finished_at()}</dt>
-              <dd>
-                <time dateTime={page.finishedAt}>{formatDateTime(page.finishedAt)}</time>
-              </dd>
-            </>
-          )}
-        </dl>
-      )}
-      {page.state === "prepared" && missing.length > 0 && (
-        <p className="inline-flex items-start gap-1.5">
-          <TriangleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-          {m.simulations_missing_limits({ tests: missing.map((test) => test.name).join(", ") })}
-        </p>
-      )}
-      <StateStep simulationId={page.id} name={page.name} state={page.state} names={names} />
-    </section>
-  );
-}
+const START_BLOCKED = "start-blocked";
 
-function StateStep({
-  simulationId,
+/**
+ * The one step that comes next for a simulation (D10, #267, #381): Start while it is prepared,
+ * Finish while it runs, nothing once it is finished. Start is enabled only when the server's
+ * read says the start would succeed, and the reason it would not shows beside it in text. Both
+ * steps ask first, because no step goes back; the server refuses a start again on its own.
+ */
+export function SimulationPrimaryAction({
   name,
-  state,
-  names,
-}: Readonly<{
-  simulationId: string;
-  name: string;
-  state: SimulationState;
-  names: ReadonlyMap<string, string>;
-}>) {
-  const confirmation = useConfirmation(STATE_HEADING);
+  readiness,
+}: Readonly<{ name: string; readiness: SimulationReadiness }>) {
+  const { simulationId, state, startRefusal } = readiness;
+  // Start turns into Finish: after a success focus goes to the page's h1 (WCAG 2.4.3).
+  const confirmation = useConfirmation(PAGE_TITLE_ID);
   const queryClient = useQueryClient();
   const callStart = useServerFn(startSimulationFn);
   const callFinish = useServerFn(finishSimulationFn);
   const keys = correctValuesInvalidation.state(simulationId);
   const feedback = { onDone: confirmation.done, onFailed: confirmation.failed };
+  const names = new Map(readiness.missingLimits.map((test) => [test.id, test.name]));
   const start = useSimulationAction(simulationMutationOptions(queryClient, callStart, keys), {
     ...feedback,
     success: () => m.simulations_started({ name }),
@@ -155,20 +103,44 @@ function StateStep({
   });
   if (state === "finished") return null;
   const starting = state === "prepared";
+  const blocked = starting && startRefusal !== null;
   const pending = start.isPending || finish.isPending;
   const Icon = starting ? PlayIcon : FlagIcon;
   return (
-    <div>
+    <div className="flex flex-col items-start gap-2 sm:items-end">
       <Button
         ref={confirmation.triggerRef}
         type="button"
         variant={starting ? "default" : "outline"}
-        disabled={pending}
+        disabled={pending || blocked}
+        aria-describedby={blocked ? START_BLOCKED : undefined}
         onClick={confirmation.show}
       >
         <Icon aria-hidden="true" data-icon="inline-start" />
         {starting ? m.simulations_start() : m.simulations_finish()}
       </Button>
+      {starting && startRefusal !== null && (
+        <p
+          id={START_BLOCKED}
+          className="inline-flex max-w-xs items-start gap-1.5 text-muted-foreground text-sm"
+        >
+          <TriangleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          {startRefusal.error === "missing_limits" ? (
+            <span>
+              {m.simulation_start_blocked()}{" "}
+              <Link
+                to="/teacher/simulations/$simulationId/values"
+                params={{ simulationId }}
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                {m.simulation_start_blocked_link()}
+              </Link>
+            </span>
+          ) : (
+            <span>{simulationErrorMessage(startRefusal.error)}</span>
+          )}
+        </p>
+      )}
       <ConfirmDialog
         confirmation={confirmation}
         title={

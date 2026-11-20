@@ -32,23 +32,16 @@ export function BackToSimulations() {
   );
 }
 
-/**
- * The actions of a simulation's page: rename it, and delete it behind a confirmation. The server
- * refuses to delete a simulation that has a student, and the toast says so.
- */
-export function SimulationActions({
+/** Opens the dialog that renames a simulation (D10, #381); focus returns to the button. */
+export function RenameSimulation({
   simulationId,
   name,
 }: Readonly<{ simulationId: string; name: string }>) {
   const [renaming, setRenaming] = useState(false);
   const renameRef = useRef<HTMLButtonElement>(null);
-  // A deleted simulation's page goes, so a success leaves focus to the list it lands on.
-  const confirmation = useConfirmation();
   const queryClient = useQueryClient();
   const router = useRouter();
-  const navigate = useNavigate();
   const callRename = useServerFn(renameSimulationFn);
-  const callDelete = useServerFn(deleteSimulationFn);
   const rename = useSimulationAction(
     simulationMutationOptions(
       queryClient,
@@ -57,21 +50,8 @@ export function SimulationActions({
     ),
     { success: (_value, data) => m.simulations_renamed({ name: data.name }), toastErrors: false },
   );
-  const keys = simulationActionKeys.deleteSimulation(simulationId);
-  const remove = useSimulationAction(
-    deleteMutationOptions(queryClient, callDelete, keys.removed, keys.invalidates, () =>
-      navigate({ to: "/teacher/simulations" }),
-    ),
-    {
-      success: () => m.simulations_deleted({ name }),
-      onDone: confirmation.done,
-      onFailed: confirmation.failed,
-    },
-  );
-
   return (
     <>
-      <BackToSimulations />
       <Button
         ref={renameRef}
         type="button"
@@ -81,17 +61,6 @@ export function SimulationActions({
       >
         <PencilIcon aria-hidden="true" data-icon="inline-start" />
         {m.simulations_rename()}
-      </Button>
-      <Button
-        ref={confirmation.triggerRef}
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={remove.isPending}
-        onClick={confirmation.show}
-      >
-        <Trash2Icon aria-hidden="true" data-icon="inline-start" />
-        {m.simulations_delete()}
       </Button>
       <NameDialog
         control={{
@@ -111,10 +80,51 @@ export function SimulationActions({
         maxLength={SIMULATION_NAME_MAX}
         save={async (value) => {
           await rename.mutateAsync({ ...value, simulationId });
-          // The breadcrumb and the title come from the loader: run it again for the new name.
+          // The breadcrumb and the titles come from the loaders: run them again for the new name.
           await router.invalidate();
         }}
       />
+    </>
+  );
+}
+
+/**
+ * Deletes a simulation behind a confirmation (D10). The server refuses a simulation that runs or
+ * has a student, and the toast says why; a success lands on the list.
+ */
+export function DeleteSimulation({
+  simulationId,
+  name,
+}: Readonly<{ simulationId: string; name: string }>) {
+  // A deleted simulation's page goes, so a success leaves focus to the list it lands on.
+  const confirmation = useConfirmation();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const callDelete = useServerFn(deleteSimulationFn);
+  const keys = simulationActionKeys.deleteSimulation(simulationId);
+  const remove = useSimulationAction(
+    deleteMutationOptions(queryClient, callDelete, keys.removed, keys.invalidates, () =>
+      navigate({ to: "/teacher/simulations" }),
+    ),
+    {
+      success: () => m.simulations_deleted({ name }),
+      onDone: confirmation.done,
+      onFailed: confirmation.failed,
+    },
+  );
+  return (
+    <>
+      <Button
+        ref={confirmation.triggerRef}
+        type="button"
+        variant="destructive"
+        size="sm"
+        disabled={remove.isPending}
+        onClick={confirmation.show}
+      >
+        <Trash2Icon aria-hidden="true" data-icon="inline-start" />
+        {m.simulations_delete()}
+      </Button>
       <ConfirmDialog
         confirmation={confirmation}
         title={m.simulations_delete_title({ name })}

@@ -94,7 +94,25 @@ export interface TeacherSimulationPage {
     waiting: number;
     /** The version of the lab's logo, `null` without one ({@link logoVersion}). */
     logoVersion: string | null;
+    /** Whether the lab has a join code, and whether its time or its joins ran out (#288). */
+    joinCode: LabJoinCodeState;
   }[];
+}
+
+/**
+ * The join code of a lab in the simulation's list: none, on, or ended because its time or its
+ * joins ran out. The lab's own page says more, such as a code made under a rotated secret.
+ */
+export type LabJoinCodeState = "off" | "on" | "ended";
+
+function joinCodeState(
+  expiresAt: Date | null,
+  uses: number | null,
+  maxUses: number | null,
+  now: Date,
+): LabJoinCodeState {
+  if (expiresAt === null || uses === null || maxUses === null) return "off";
+  return expiresAt <= now || uses >= maxUses ? "ended" : "on";
 }
 
 /**
@@ -106,6 +124,7 @@ export async function getTeacherSimulation(
   db: Kysely<DB>,
   userId: string,
   simulationId: string,
+  now: Date = new Date(),
 ): Promise<TeacherSimulationPage | null> {
   const id = parseSimulationId(simulationId);
   if (id === null) {
@@ -135,10 +154,14 @@ export async function getTeacherSimulation(
     db
       .selectFrom("labs")
       .leftJoin("lab_logos", "lab_logos.lab_id", "labs.id")
+      .leftJoin("lab_join_codes", "lab_join_codes.lab_id", "labs.id")
       .select((eb) => [
         "labs.id",
         "labs.name",
         "lab_logos.sha256",
+        "lab_join_codes.expires_at",
+        "lab_join_codes.uses",
+        "lab_join_codes.max_uses",
         eb
           .selectFrom("lab_members")
           .select((mb) => mb.fn.countAll<string>().as("n"))
@@ -169,6 +192,7 @@ export async function getTeacherSimulation(
       members: Number(row.members ?? 0),
       waiting: Number(row.waiting ?? 0),
       logoVersion: logoVersion(row.sha256),
+      joinCode: joinCodeState(row.expires_at, row.uses, row.max_uses, now),
     })),
   };
 }

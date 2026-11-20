@@ -13,13 +13,17 @@ import { getCorrectValuesFn } from "./functions.ts";
 
 /** What each write of this area invalidates. */
 export const correctValuesInvalidation = {
-  /** Adding, changing or removing correct values: the section and the catalogue's usage. */
+  /** Adding, changing or removing correct values: the page, the overview and the usage. */
   values: (simulationId: string): QueryKey[] => [
     simulationsKeys.correctValues(simulationId),
+    simulationsKeys.readiness(simulationId),
     catalogueKeys.lists(),
   ],
-  /** Setting a test's limits: the section only. */
-  limits: (simulationId: string): QueryKey[] => [simulationsKeys.correctValues(simulationId)],
+  /** Setting a test's limits: the page and the overview, whose checklist names missing limits. */
+  limits: (simulationId: string): QueryKey[] => [
+    simulationsKeys.correctValues(simulationId),
+    simulationsKeys.readiness(simulationId),
+  ],
   /** Starting or finishing: the page (with the section under it), the lists and the usage. */
   state: (simulationId: string): QueryKey[] => [
     ...simulationInvalidation.simulation(simulationId),
