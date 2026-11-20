@@ -1120,7 +1120,7 @@
   "labs_paste_heading": "Studenten toevoegen via e-mailadres",
   "labs_paste_help": "Eén adres per regel, of gescheiden door komma's of puntkomma's.",
   "labs_paste_label": "E-mailadressen",
-  "labs_paste_line_too_long": "De regel “{line}” is langer dan {max} tekens.",
+  "labs_paste_line_too_long": "Adres {n} is langer dan {max} tekens.",
   "labs_paste_nothing": "Geen enkele regel kan worden toegevoegd. Pas de lijst aan en controleer hem opnieuw.",
   "labs_paste_required": "Vul minstens één e-mailadres in.",
   "labs_paste_summary": "Gecontroleerd: {added} kunnen worden toegevoegd, {skipped} niet.",

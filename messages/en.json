@@ -1120,7 +1120,7 @@
   "labs_paste_heading": "Add students by email address",
   "labs_paste_help": "One address per line, or separated by commas or semicolons.",
   "labs_paste_label": "Email addresses",
-  "labs_paste_line_too_long": "The line “{line}” is longer than {max} characters.",
+  "labs_paste_line_too_long": "Address {n} is longer than {max} characters.",
   "labs_paste_nothing": "No line can be added. Change the list and check it again.",
   "labs_paste_required": "Enter at least one email address.",
   "labs_paste_summary": "Checked: {added} can be added, {skipped} cannot.",
