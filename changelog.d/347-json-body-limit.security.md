@@ -1,0 +1,1 @@
+- A server function refuses a JSON body without a `Content-Length` (411) or over 1 MiB (413) before it reads it, and stops reading a body that streams past the limit (#347).
