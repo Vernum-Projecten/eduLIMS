@@ -40,6 +40,18 @@ function scaled(value: string): bigint {
 }
 
 /**
+ * Returns a decimal given as text as an integer count of millionths, exact for every value
+ * {@link parseDecimal} accepts ("5.2" is 5_200_000n).
+ *
+ * @throws RangeError when `value` is not a decimal {@link parseDecimal} accepts.
+ */
+export function decimalMillionths(value: string): bigint {
+  const parsed = parseDecimal(value);
+  if (parsed === null) throw new RangeError("not a decimal");
+  return scaled(parsed);
+}
+
+/**
  * Compares two decimals given as text: negative when `a < b`, zero when equal ("5.20" equals
  * "5.2"), positive when `a > b`.
  *

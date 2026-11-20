@@ -36,6 +36,8 @@ export const STALE_TIME = {
    * simulation; every change invalidates it anyway.
    */
   tolerances: 15_000,
+  /** The teacher dashboard (D11): it refetches on {@link DASHBOARD_REFETCH_MS}, so it is stale at once. */
+  dashboard: 0,
   /** A page of the test catalogue (D9): teachers change it rarely, and every change invalidates it. */
   catalogue: 30_000,
   /** A provider's SCIM section: its token's last use moves with every directory sync. */
@@ -56,6 +58,10 @@ export const STALE_TIME = {
 // NOTE: B3 ("unreachable … within 5 minutes"); our own interval: a check result reaches an open
 // screen within 30 s of being written, well inside the 5 minutes with the 60 s schedule.
 export const INTEGRATION_REFETCH_MS = 30_000;
+
+// NOTE: D11 ("without a manual reload"); no requirement sets the interval, so our own: a release
+// reaches an open dashboard within 15 s, and one read per teacher per 15 s stays cheap.
+export const DASHBOARD_REFETCH_MS = 15_000;
 
 /** The `staleTime` of a query that sets none (every factory should; see {@link STALE_TIME}). */
 export const DEFAULT_STALE_TIME = 30_000;

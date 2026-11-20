@@ -29,6 +29,12 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-accuracy-green: var(--accuracy-green);
+  --color-accuracy-green-surface: var(--accuracy-green-surface);
+  --color-accuracy-yellow: var(--accuracy-yellow);
+  --color-accuracy-yellow-surface: var(--accuracy-yellow-surface);
+  --color-accuracy-red: var(--accuracy-red);
+  --color-accuracy-red-surface: var(--accuracy-red-surface);
   --color-chart-6: var(--chart-6);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
@@ -96,6 +102,14 @@
   --chart-4: #be185d;
   --chart-5: #4d7c0f;
   --chart-6: #0369a1;
+  /* The accuracy status of the teacher dashboard (G-03): Tailwind 800 text on its 100 tint,
+     6:1 or more, and on the background 6.9:1 or more. Never alone: each has an icon and text. */
+  --accuracy-green: #166534;
+  --accuracy-green-surface: #dcfce7;
+  --accuracy-yellow: #854d0e;
+  --accuracy-yellow-surface: #fef9c3;
+  --accuracy-red: #9f1239;
+  --accuracy-red-surface: #ffe4e6;
   --radius: 0.625rem;
   --brand-tile: #3730a3;
   --brand-rim: #a5b4fc;
@@ -161,6 +175,13 @@
     --chart-4: #f472b6;
     --chart-5: #a3e635;
     --chart-6: #38bdf8;
+    /* Tailwind 300 text on its 950 tint: 8:1 or more. */
+    --accuracy-green: #86efac;
+    --accuracy-green-surface: #052e16;
+    --accuracy-yellow: #fde047;
+    --accuracy-yellow-surface: #422006;
+    --accuracy-red: #fda4af;
+    --accuracy-red-surface: #4c0519;
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.488 0.243 264.376);
