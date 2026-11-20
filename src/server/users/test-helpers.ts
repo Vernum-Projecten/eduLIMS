@@ -4,9 +4,10 @@
 // Shared setup of the Users screen's database tests: a better-auth instance on the rolled-back
 // test database and signed-in sessions of fictional @example.test people.
 import type { Kysely } from "kysely";
-import type { Role } from "../../lib/roles.ts";
+import { formatRoles, type Role } from "../../lib/roles.ts";
 import type { Auth } from "../auth.ts";
 import type { SessionUser } from "../authz.ts";
+import { newId } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { parseEnv } from "../env.ts";
@@ -43,6 +44,45 @@ export async function signIn(auth: Auth, email: string): Promise<Headers> {
   if (!response.ok) throw new Error(`sign-in failed with ${response.status}`);
   const cookie = response.headers.getSetCookie().map((c) => c.split(";")[0]);
   return new Headers({ cookie: cookie.join("; ") });
+}
+
+/**
+ * Inserts a user with `roles`, a credential account and one live session, straight into the
+ * tables, and returns the user id. No password is hashed, so a test that needs many users with
+ * accounts and sessions (the committed-database races of #318) stays fast on a busy runner.
+ */
+export async function insertSignedInUser(
+  db: Kysely<DB>,
+  email: string,
+  roles: readonly Role[],
+): Promise<string> {
+  const id = newId();
+  const now = new Date();
+  await db
+    .insertInto("user")
+    .values({
+      id,
+      name: `Test ${email.split("@")[0]}`,
+      email,
+      emailVerified: true,
+      role: formatRoles(roles),
+    })
+    .execute();
+  await db
+    .insertInto("account")
+    .values({ id: newId(), accountId: id, providerId: "credential", userId: id, updatedAt: now })
+    .execute();
+  await db
+    .insertInto("session")
+    .values({
+      id: newId(),
+      token: newId(),
+      userId: id,
+      expiresAt: new Date(now.getTime() + 3_600_000),
+      updatedAt: now,
+    })
+    .execute();
+  return id;
 }
 
 /** Creates a user with `roles`, signs them in, and returns the action context of that actor. */

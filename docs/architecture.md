@@ -338,11 +338,18 @@ student's place and a waiting address point at their lab through the pair
 - **Teachers.** A teacher adds another teacher by the address of an existing
   account with the teacher role; an unknown address and a non-teacher get
   the same refusal. The last teacher of a simulation cannot be removed: a
-  teacher row counts only while its user holds the teacher role. Better-auth's
-  `admin/remove-user` refuses an account that is the only teacher of a
-  simulation, and a deferred constraint trigger refuses any commit that
-  leaves an existing simulation without a teacher row, so the two cannot
-  race past each other.
+  teacher row counts only while its user holds the teacher role. eduLIMS
+  deletes a user in one transaction (`src/server/users/delete-user.ts`,
+  #318), the last step of the GDPR erasure path (#47), which has no screen
+  yet: it locks the user's simulations in id order (and the administrators,
+  when the user is one), refuses the only active teacher of a simulation and
+  the last administrator, runs the deferred last-teacher check before it
+  writes the activity-log rows, and deletes the sessions, the accounts and
+  the user with those rows, so a refusal changes nothing. Better-auth's
+  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404. A
+  `BEFORE DELETE` trigger on `user` and a deferred constraint trigger, which
+  refuses any commit that leaves an existing simulation without a teacher
+  row, stay as the last line.
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it, and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.

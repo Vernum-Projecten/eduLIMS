@@ -109,7 +109,6 @@ const ADMIN_ACTIONS = {
   "/admin/unban-user": "user_unbanned",
   "/admin/set-role": "authz_role_change",
   "/admin/update-user": "authz_role_change",
-  "/admin/remove-user": "user_deleted",
   "/admin/create-user": "user_created",
 } as const satisfies Record<string, AuditEvent["action"]>;
 
@@ -210,8 +209,8 @@ async function afterAdminEndpoint(
     });
     return;
   }
-  // Successful creations and deletions are recorded by the user database hooks.
-  if (action === "user_created" || action === "user_deleted") return;
+  // Successful creations are recorded by the user database hooks.
+  if (action === "user_created") return;
   const user = field(returned, "user");
   const metadata: AuditMetadata =
     action === "authz_role_change"
@@ -237,7 +236,6 @@ function banMetadata(banExpires: unknown): AuditMetadata {
 /** Why the admin endpoint at `path` ends sessions, as the reason of each `session_revoked`. */
 function revokeReason(path: unknown): string | undefined {
   if (path === "/admin/ban-user") return "user_banned";
-  if (path === "/admin/remove-user") return "user_deleted";
   if (typeof path === "string" && OAUTH_CALLBACKS.has(path)) return "sign_in_refused";
   // The directory deactivated or deleted the user, or took their roles away (#45).
   if (typeof path === "string" && path.startsWith("/scim/v2/")) return "user_deprovisioned";
