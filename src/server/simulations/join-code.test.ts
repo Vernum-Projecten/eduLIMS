@@ -288,6 +288,7 @@ describe("getJoinCode (#288, D11)", () => {
     const { database, w } = await open();
     expect(await getJoinCode(database, w.teacher, w.labId, NOW, key.fingerprint)).toEqual({
       enabled: false,
+      finished: false,
     });
   });
 

@@ -65,6 +65,7 @@ TEMPLATE = {
     "id": "eduLIMS-lab.v1",
     "uid": "c9d683e6-cc7b-4a78-b6aa-21e25deed3aa",
     "concept": "eduLIMS laboratory result",
+    # TODO(#396): correct the purpose and use text in the next template version; v1 is stored.
     "purpose": (
         "Records a measurement of a practical laboratory session in education: the result of one "
         "analyser run on one or more sample IDs, with the analyser, the order (practical) and the "
@@ -93,11 +94,11 @@ TEMPLATE = {
                 # Testing details: the analyser
                 "at0110": ("openEHR-EHR-CLUSTER.device.v1", (1, 1)),
             },
-            # Requester order identifier: the practical
+            # Requester order identifier: the request
             "types": {"at0062": ["DV_IDENTIFIER"]},
         },
         "openEHR-EHR-CLUSTER.specimen.v1": {
-            # Laboratory specimen identifier: the sample ID
+            # Laboratory specimen identifier: the lab number of the sample
             "occurrences": {"at0001": (1, 1)},
             "types": {"at0001": ["DV_IDENTIFIER"]},
         },

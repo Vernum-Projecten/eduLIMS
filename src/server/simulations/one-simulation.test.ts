@@ -4,7 +4,7 @@
 // One simulation at a time per student (S10, D10, owner 2026-11-20 on #379): every path that puts
 // a student in a lab refuses a student in a lab of another prepared or running simulation with
 // `in_other_simulation`, logged, and the trigger of migration 0026 holds the rule in the database.
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
@@ -240,9 +240,12 @@ describe("the link of a waiting address (#379)", () => {
 });
 
 describe("a teacher's move (#379)", () => {
-  it("refuses to move a student of a finished simulation who is in an unfinished one, logged", async () => {
+  it("refuses to move a student who is in another unfinished simulation, logged, even past the trigger", async () => {
     const { database, w } = await open();
-    await setState(database, w.simulationId, "finished");
+    // Data the trigger would refuse, so the service's own check is what answers here.
+    await sql`alter table lab_members disable trigger lab_members_one_active_simulation`.execute(
+      database,
+    );
     await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
     const result = await moveMember(database, w.teacher, {
       simulationId: w.simulationId,

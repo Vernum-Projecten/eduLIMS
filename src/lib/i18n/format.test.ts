@@ -72,7 +72,7 @@ describe("formatNumber", () => {
     expect(formatNumber(2)).toBe("2");
   });
 
-  it("pads to the minimum number of decimals, as a grade on one decimal needs", () => {
+  it("pads to the minimum number of decimals, as a time in minutes on one decimal needs", () => {
     expect(
       formatNumber(7, { locale: "en", minimumFractionDigits: 1, maximumFractionDigits: 1 }),
     ).toBe("7.0");

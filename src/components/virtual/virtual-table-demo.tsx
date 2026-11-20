@@ -74,7 +74,7 @@ const columns = helper.columns([
 
 /**
  * The `/dev/virtual-table` page body (#76): 10,000 deterministic fictional rows in a
- * {@link DataTable} with `virtual`, sortable by sample ID, value and status in the browser.
+ * {@link DataTable} with `virtual`, sortable by sample number, value and status in the browser.
  */
 export function VirtualTableDemo() {
   const allRows = useMemo(() => demoRows(DEMO_ROW_COUNT), []);

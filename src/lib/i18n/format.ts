@@ -88,8 +88,8 @@ export function formatDecimal(value: string, options: FormatOptions = {}): strin
 
 /**
  * Formats a number with the decimal and grouping separators of the locale, with at most two
- * decimals unless `maximumFractionDigits` says otherwise; `minimumFractionDigits` pads (a grade
- * of 7 reads "7.0").
+ * decimals unless `maximumFractionDigits` says otherwise; `minimumFractionDigits` pads (a
+ * turnaround time of 7 minutes on one decimal reads "7.0").
  */
 export function formatNumber(
   value: number,

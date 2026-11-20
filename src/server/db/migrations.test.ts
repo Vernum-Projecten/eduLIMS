@@ -971,6 +971,9 @@ describe("migrations", () => {
       ["0026_one_active_simulation_per_student", "Success"],
     ]);
     await join(third, thirdLab);
+    // Rows that already break the rule stop the migration (security review of #392, S3).
+    const refusedUp = await migrator.migrateToLatest();
+    expect(String(refusedUp.error)).toMatch(/more than one simulation that is not finished/);
     await inSavepoint(sql`delete from lab_members where simulation_id = ${third}`);
     expect((await migrator.migrateToLatest()).error).toBeUndefined();
   });

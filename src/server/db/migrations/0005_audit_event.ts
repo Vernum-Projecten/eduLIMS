@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The activity log (B4): who did what to which object, with which outcome and when. Ids only:
-// no name, e-mail, IP address, token, request body or grade. `actor_id` and `target_id` carry no
-// foreign key, so a row outlives the user it names (the GDPR erasure path is its own issue).
+// no name, e-mail, IP address, token, request body or correct value. `actor_id` and `target_id`
+// carry no foreign key, so a row outlives the user it names (the GDPR erasure path is its own
+// issue).
 // The singular table name follows the better-auth tables it sits beside.
 // NOTE: ASVS V16.2.5 and the OWASP Logging cheat sheet ("Data to exclude"); no IP is stored, not
 // even hashed: no requirement needs one, and the reverse proxy's access log keeps it.

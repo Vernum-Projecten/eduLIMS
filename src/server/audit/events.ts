@@ -4,7 +4,8 @@
 // The vocabulary of the activity log (B4). Action names follow the OWASP Logging Vocabulary
 // cheat sheet (docs/security/vendor/cheatsheets/Logging_Vocabulary_Cheat_Sheet.md). Every field
 // is an id or a code: the schema has no place for a name, an e-mail address, an IP address, a
-// token, a request body or a grade. Relative imports: `pnpm db:seed` loads this in plain Node.
+// token, a request body or a correct value. Relative imports: `pnpm db:seed` loads this in plain
+// Node.
 import { z } from "zod";
 import { PROVIDER_ID_PATTERN, PROVIDER_PROTOCOLS } from "../../lib/identity-providers.ts";
 import { AUTH_REASON_PATTERN, CHECK_STATES, FERROEHR_STEPS } from "../../lib/integrations.ts";
@@ -248,7 +249,8 @@ export const auditMetadataSchema = z.strictObject({
   logo_change: z.enum(["added", "replaced", "removed"]).optional(),
   /**
    * How many addresses a `lab_emails_added` stored, or a `lab_member_moved` or
-   * `lab_member_removed` dropped from waiting (#330): a count, never an address.
+   * `lab_member_removed` dropped from waiting (#330): a count, never an address; or how many
+   * join codes a `simulation_finished` deleted (review of #392), never a code.
    */
   count: z.number().int().min(0).optional(),
   /** The term and the most joins a teacher chose for a lab's join code (#288); never the code. */

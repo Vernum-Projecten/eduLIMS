@@ -61,7 +61,7 @@ test("the server renders the first window and hydrates it without a mismatch", a
   await expect(table).toHaveAttribute("aria-rowcount", String(ROW_COUNT));
   await expect(table.getByRole("row").first()).toHaveAttribute("aria-rowindex", "1");
   await expect(bodyRows(table).first()).toHaveAttribute("aria-rowindex", "2");
-  await expect(table.getByRole("columnheader", { name: "Sample ID" })).toBeVisible();
+  await expect(table.getByRole("columnheader", { name: "Sample number" })).toBeVisible();
   expect(hydration).toEqual([]);
 });
 
@@ -140,12 +140,12 @@ test("the keyboard reaches the last row and back, keeping focus on a rendered ro
 
 test("sorts by a column from its header menu", async ({ page }) => {
   const table = await openDemo(page);
-  const sample = table.getByRole("columnheader", { name: "Sample ID" });
+  const sample = table.getByRole("columnheader", { name: "Sample number" });
   await expect(sample).not.toHaveAttribute("aria-sort");
 
-  await sample.getByRole("button", { name: "Sample ID" }).click();
+  await sample.getByRole("button", { name: "Sample number" }).click();
   await page
-    .getByRole("menu", { name: "Sample ID" })
+    .getByRole("menu", { name: "Sample number" })
     .getByRole("menuitem", { name: "Descending" })
     .click();
   await expect(sample).toHaveAttribute("aria-sort", "descending");

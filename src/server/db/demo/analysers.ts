@@ -16,7 +16,7 @@ export interface DemoAnalyser {
   route: AnalyserRoute;
 }
 
-/** The demo register: the analysers the practicals of the test set measure on. */
+/** The demo register: the analysers the labs of the test set measure on. */
 export const DEMO_ANALYSERS: readonly DemoAnalyser[] = [
   {
     model: "Abbott Afinion 2",
