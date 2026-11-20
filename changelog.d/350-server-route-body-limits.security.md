@@ -1,0 +1,1 @@
+- The sign-in, SAML and SCIM endpoints refuse a body over their limit (64 KiB, 128 KiB and 1 MiB) with 413 before they read it, a chunked body included, and every other server route and page refuses any body; each refusal closes the connection (#350).

@@ -29,13 +29,23 @@ export function carriesJson(request: Request): boolean {
 }
 
 /**
+ * The headers of every body refusal: the response closes the connection, so Node does not read
+ * and discard the refused body to keep the connection alive (RFC 9112 §9.6).
+ */
+export const BODY_REFUSAL_HEADERS: Readonly<Record<string, string>> = {
+  "Cache-Control": "no-store",
+  Connection: "close",
+};
+
+/**
  * Reads the clone `copy` of `request` to its end, or until it passes `limit` bytes, keeping none
- * of it. Over the limit it cancels both branches together: the source stops only when both are
- * cancelled, so awaiting one alone would wait for ever.
+ * of it. Over the limit it cancels both branches without waiting for the source, which stops only
+ * when every clone of the request is cancelled. The one byte counter of every body limit (server
+ * functions, server routes, the SCIM gate).
  *
  * @returns `true` when the whole body fits in `limit`.
  */
-async function fitsIn(request: Request, copy: Request, limit: number): Promise<boolean> {
+export async function fitsIn(request: Request, copy: Request, limit: number): Promise<boolean> {
   if (copy.body === null) return true;
   const reader = copy.body.getReader();
   let size = 0;
@@ -44,7 +54,9 @@ async function fitsIn(request: Request, copy: Request, limit: number): Promise<b
     if (done) return true;
     size += value.byteLength;
     if (size > limit) {
-      await Promise.all([reader.cancel(), request.body?.cancel()]);
+      // NOTE: #350; the source stops only once every clone is cancelled and the locale middleware
+      // holds one nobody reads, so awaiting would hang the refusal; the closed socket ends it.
+      void Promise.all([reader.cancel(), request.body?.cancel()]).catch(() => undefined);
       return false;
     }
   }

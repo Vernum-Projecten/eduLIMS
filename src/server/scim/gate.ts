@@ -17,6 +17,7 @@ import { auditProvider } from "../audit/events.ts";
 import { recordCommittedAudit } from "../audit/record.ts";
 import { clientIpOf } from "../client-ip.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { BODY_REFUSAL_HEADERS } from "../json-body-limit.ts";
 import {
   auditScimRequest,
   RefusalDeduper,
@@ -36,33 +37,18 @@ import {
   SCIM_LIMITS,
   type ScimLimits,
   ScimRateLimiter,
+  scimErrorResponse,
 } from "./limits.ts";
 import { withDirectoryId } from "./sign-in.ts";
 import { hasAsyncContext, type ScimSupport } from "./support.ts";
 import { inspectScimToken } from "./verify.ts";
 
-export { SCIM_LIMITS, type ScimLimits, ScimRateLimiter } from "./limits.ts";
-
-const SCIM_MEDIA_TYPE = "application/scim+json";
-const SCIM_ERROR_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:Error";
-
-/** Returns a SCIM error response (RFC 7644 §3.12) with only a status, a fixed detail and type. */
-export function scimErrorResponse(
-  status: number,
-  detail: string,
-  headers: Record<string, string> = {},
-  scimType?: string,
-): Response {
-  return new Response(
-    JSON.stringify({
-      schemas: [SCIM_ERROR_SCHEMA],
-      status: String(status),
-      ...(scimType ? { scimType } : {}),
-      detail,
-    }),
-    { status, headers: { "content-type": SCIM_MEDIA_TYPE, ...headers } },
-  );
-}
+export {
+  SCIM_LIMITS,
+  type ScimLimits,
+  ScimRateLimiter,
+  scimErrorResponse,
+} from "./limits.ts";
 
 function isScimPath(path: string): boolean {
   return path.includes("/scim/v2/") || path.endsWith("/scim/v2");
@@ -212,7 +198,7 @@ export function scimGate(db: Kysely<DB>, support: ScimSupport, options: ScimGate
         };
       }
       if (await bodyTooLarge(request, limits.maxBodyBytes)) {
-        return { response: scimErrorResponse(413, "Request body too large") };
+        return { response: scimErrorResponse(413, "Request body too large", BODY_REFUSAL_HEADERS) };
       }
       return;
     },

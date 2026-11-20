@@ -602,6 +602,10 @@ than the limit for a caller who is not signed in (ASVS 5.0 V5.2.1, V15.2.2).
 | JSON body to a server function | 1 MiB, declared and as it streams | 411 without a `Content-Length`, 413 over the limit |
 | Form body to a server function (multipart or URL-encoded) | the largest lab logo (512 KiB) plus 16 KiB for its fields, declared (#292) | 411 without a `Content-Length`, 413 over the limit |
 | GET payload of a server function (the `payload` query parameter) | Node's 16 KiB limit on the request line and headers | 431 from Node's HTTP parser, before eduLIMS runs |
+| Body to a better-auth endpoint under `/api/auth/*` (sign-in, sign-out) | 64 KiB, declared and as it streams (#350) | 411 for a malformed `Content-Length`, 413 over the limit |
+| SAML form post (`/api/auth/sso/saml2/*`: the ACS and single logout) | 128 KiB, declared and as it streams (#350) | as above |
+| SCIM request (`/api/auth/scim/v2/*`) | 1 MiB, declared and as it streams (#45, #350) | as above, as a SCIM error (RFC 7644 §3.12) |
+| Body to any other server route or page (`/api/health`, `/api/ready`, the lab logo, every page) | none: 0 bytes (#350) | as above |
 
 **The JSON limit** comes from the largest input any server function takes:
 the pasted list of a lab's member addresses, 500 lines of 320 characters
@@ -633,6 +637,52 @@ says how to keep a flood of them from filling the host.
 A GET payload never reaches Start above 16 KiB: Node answers 431 first. An
 e2e test (`tests/e2e/json-body-limit.spec.ts`) sends a 20 KiB payload, so a
 raised header limit (`--max-http-header-size`) fails CI.
+
+**The server route limits** (`src/server/route-body-limit.ts`, #350) run in
+the same request middleware for every request that is not a server function
+call, before the route reads a byte. Each family's limit comes from the
+largest body it legitimately takes:
+
+- **better-auth, 64 KiB:** the browser sends `/sign-in/sso`, `/sign-in/email`
+  (development only) and `/sign-out`. Their largest fields are callback URLs,
+  and a URL longer than Node's 16 KiB header limit could never be opened
+  anyway, so three of them and the other fields stay under 64 KiB. The admin
+  endpoints are called in-process by server functions, never over HTTP.
+- **SAML, 128 KiB:** a signed response from the development Keycloak, with
+  the role, e-mail and name attributes, posts as at most 10,161 bytes
+  (measured for every development user). The limit leaves room for an
+  encrypted assertion, which base64-encodes the XML a second time, and for an
+  IdP that sends more attributes. No fixture holds such a response, so this
+  margin is our own design and the owner may tighten it.
+- **SCIM, 1 MiB:** the cap of #45. The scim plugin offers no bulk endpoint
+  (its ServiceProviderConfig says `bulk.supported: false`), and its largest
+  body is a Group of its 1,000-member maximum: 418 KB with a `$ref` and a
+  256-character `display` per member. A PATCH that adds 1,000 members is
+  49 KB.
+- **Every other route, 0 bytes:** the health and ready checks and the logo
+  are GET routes, and no page takes a body.
+
+A body without a `Content-Length` is counted to the limit, not refused with
+411 as a server function's is: identity providers and directories send these
+bodies, and their framing is not eduLIMS's to choose. The count is the same
+one the JSON check uses (`fitsIn`), and the SCIM gate's own cap uses it too.
+Over the limit the count cancels its clone and the body without waiting for
+the source: the locale middleware (`src/server-entry.ts`) holds a clone that
+nobody reads, and the source stops only when every clone is cancelled, so a
+wait would hang the refusal. The socket closes after the 413 with the rest of
+the body unread, so a client that keeps sending may see a TCP reset before it
+reads the 413.
+Every refusal sends `Connection: close` and writes an `input_validation_fail`
+line with the family as `kind` and the proxy's `request_id`.
+
+**No server-wide `maxRequestBodySize`.** srvx 1.0.8 and Nitro
+3.0.261103-rc offer one, and srvx counts the streamed bytes, so it holds for a
+chunked body. Nitro reads it only from the default export of a Nitro server
+entry, though, not from the `nitro({...})` options, and a server entry adds a
+catch-all route in front of Start's renderer. Its refusal is an error thrown
+into whatever reads the body, which better-auth or Start turns into its own
+answer, without `Connection: close`. The middleware covers every route that
+reads a body, so it is the one limit.
 
 ## Deployment
 
