@@ -18,6 +18,7 @@ const baseDatabaseUrl =
   "postgres://edulims:edulims@127.0.0.1:5432/edulims_e2e";
 const databaseUrl = runDatabaseUrl(baseDatabaseUrl);
 const INTEGRATION_STATUS_SPEC = /admin-integrations\.spec\.ts$/;
+const SCIM_SPEC = /admin-scim\.spec\.ts$/;
 
 // The web server's setup, each step with its own bound (#248). Measured on CI and on a loaded
 // developer machine (load average 10 on 18 cores): the run database 1 to 1.5 s, `pnpm db:reset`
@@ -73,16 +74,23 @@ export default defineConfig({
   use: { baseURL, locale: "en-US", trace: "on-first-retry" },
   // The integration status journeys own this run's integration port and the global check rows,
   // so one worker runs them: a retry or a repeat of the file never overlaps another (#227).
+  // The SCIM journey owns the one token of the keycloak provider in the same way (#321).
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: INTEGRATION_STATUS_SPEC,
+      testIgnore: [INTEGRATION_STATUS_SPEC, SCIM_SPEC],
     },
     {
       name: "chromium-integration-status",
       use: { ...devices["Desktop Chrome"] },
       testMatch: INTEGRATION_STATUS_SPEC,
+      workers: 1,
+    },
+    {
+      name: "chromium-scim",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: SCIM_SPEC,
       workers: 1,
     },
   ],
