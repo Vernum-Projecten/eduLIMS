@@ -30,7 +30,7 @@ describe("safeRedirectPath", () => {
     ["//evil.example", undefined],
     ["/\\evil.example", undefined],
     ["https://evil.example", undefined],
-    ["/teacher/grading?practical=3#rubric", "/teacher/grading?practical=3#rubric"],
+    ["/teacher/dashboard?simulation=3#labs", "/teacher/dashboard?simulation=3#labs"],
     ["/\t/evil.example", undefined],
     ["/\n/evil.example", undefined],
     ["/\r/evil.example", undefined],
