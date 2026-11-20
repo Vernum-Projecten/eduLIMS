@@ -42,13 +42,16 @@ export function labLogoSrc(labId: string, version: string): string {
 
 /**
  * The browser's own check of a chosen file before it is sent (#293): the declared type and the
- * size. It only spares the teacher a wasted upload; the server decides by the content.
+ * size. It only spares the teacher a wasted upload; the server ignores both and decides by the
+ * content (ASVS 5.0 V2.2.2). A file the browser gives no type passes the type check, since a real
+ * PNG or JPEG can arrive that way; the server then judges it.
  */
 export function precheckLogoFile(file: {
   readonly type: string;
   readonly size: number;
 }): Extract<LogoRefusal, "logo_unsupported_type" | "logo_too_large"> | null {
-  if (!(LOGO_MEDIA_TYPES as readonly string[]).includes(file.type)) return "logo_unsupported_type";
+  const known = file.type === "" || (LOGO_MEDIA_TYPES as readonly string[]).includes(file.type);
+  if (!known) return "logo_unsupported_type";
   if (file.size > LOGO_MAX_BYTES) return "logo_too_large";
   return null;
 }

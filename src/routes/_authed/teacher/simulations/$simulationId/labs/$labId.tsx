@@ -66,6 +66,7 @@ function LabPage() {
       actions={<LabActions simulation={page.simulation} lab={page} />}
     >
       <LabLogoSection
+        key={page.id}
         lab={{
           simulationId: page.simulation.id,
           labId: page.id,

@@ -419,9 +419,13 @@ The lab logo is an upload, held to the upload rules of the security baseline
   `null`), and the screens ask for `…/logo?v=<version>`, so a replaced logo
   is a new address and a lab without a logo asks for no image. Beside the
   lab's name the image is decorative (empty alt); on the lab page its alt is
-  "Logo of lab {name}". The browser checks the declared type and the size
-  before it sends a file; the server's content check stays the authority,
-  and each refusal code shows at the file field. The administrator's view
+  "Logo of {name}" (a lab's name often starts with "Lab"). The browser
+  checks the declared type and the size before it sends a file
+  (`src/components/simulations/logo-form-schema.ts`; a file the browser
+  gives no type passes to the server); the server ignores both, its content
+  check stays the authority, and each refusal code shows at the file field.
+  The preview of a chosen file is a `data:` address, which is why the CSP
+  allows `img-src data:`. The administrator's view
   (B5) reads no logo and renders no logo address.
 
 ### Template `eduLIMS-lab`

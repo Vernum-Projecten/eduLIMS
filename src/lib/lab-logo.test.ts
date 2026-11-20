@@ -37,7 +37,15 @@ describe("precheckLogoFile (#293: the browser's check before the upload)", () =>
     expect(precheckLogoFile({ type, size: LOGO_MAX_BYTES })).toBeNull();
   });
 
-  it.each(["image/svg+xml", "image/gif", "image/webp", "text/plain", ""])(
+  it("passes a file the browser gives no type, and leaves it to the server (UI review of #359)", () => {
+    expect(precheckLogoFile({ type: "", size: 10 })).toBeNull();
+  });
+
+  it("still refuses a file without a type over the size limit", () => {
+    expect(precheckLogoFile({ type: "", size: LOGO_MAX_BYTES + 1 })).toBe("logo_too_large");
+  });
+
+  it.each(["image/svg+xml", "image/gif", "image/webp", "text/plain"])(
     "refuses the declared type %s",
     (type) => {
       expect(precheckLogoFile({ type, size: 10 })).toBe("logo_unsupported_type");

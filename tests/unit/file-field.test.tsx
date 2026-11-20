@@ -9,8 +9,8 @@ import { revalidateLogic } from "@tanstack/react-form";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAppForm } from "@/components/form/app-form";
+import { type LogoForm, logoFormSchema } from "@/components/simulations/logo-form-schema";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
-import { type LogoForm, logoFormSchema } from "@/server/simulations/logo-schemas";
 
 afterEach(cleanup);
 

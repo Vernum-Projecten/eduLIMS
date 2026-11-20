@@ -20,12 +20,16 @@ export function LabLogo({
   alt,
   size,
   className,
+  onError,
 }: Readonly<{
   src: string | null;
   alt: string;
   size: keyof typeof SIZES;
   className?: string;
+  /** Runs when the browser cannot draw the image, so the caller can drop it. */
+  onError?: () => void;
 }>) {
+  // NOTE: our own design; ItemMedia's image variant crops with object-cover and has no fallback.
   const frame = cn(
     "flex shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground",
     SIZES[size],
@@ -40,7 +44,13 @@ export function LabLogo({
   }
   return (
     <span className={cn(frame, "bg-background")}>
-      <img src={src} alt={alt} className="size-full object-contain" decoding="async" />
+      <img
+        src={src}
+        alt={alt}
+        className="size-full object-contain"
+        decoding="async"
+        onError={onError}
+      />
     </span>
   );
 }

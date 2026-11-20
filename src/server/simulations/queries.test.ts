@@ -14,7 +14,14 @@ import {
   listTeacherSimulations,
 } from "./queries.ts";
 import { findStudentLab } from "./student-access.ts";
-import { notFoundLine, type Person, securityLines, type World, world } from "./test-helpers.ts";
+import {
+  notFoundLine,
+  type Person,
+  place,
+  securityLines,
+  type World,
+  world,
+} from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -245,24 +252,54 @@ describe("findStudentLab (the student lab predicate, S10, for #268)", () => {
 });
 
 describe("the logo version of each read (#293)", () => {
-  async function storeLogo(database: Kysely<DB>, w: World): Promise<string> {
-    const content = Buffer.from(png(4, 4));
+  async function storeLogo(
+    database: Kysely<DB>,
+    w: World,
+    labId = w.labId,
+    side = 4,
+  ): Promise<string> {
+    const content = Buffer.from(png(side, side));
     const sha256 = createHash("sha256").update(content).digest();
     await database
       .insertInto("lab_logos")
       .values({
-        lab_id: w.labId,
+        lab_id: labId,
         content,
         media_type: "image/png",
         byte_size: content.length,
-        width: 4,
-        height: 4,
+        width: side,
+        height: side,
         sha256,
         updated_by: w.teacher.id,
       })
       .execute();
     return sha256.toString("hex").slice(0, 16);
   }
+
+  it("gives a student in two simulations each lab's own version (V8.2.2)", async () => {
+    const { database, w } = await open();
+    await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
+    const mine = await storeLogo(database, w, w.labId, 4);
+    const outside = await storeLogo(database, w, w.outsideLabId, 6);
+    const rows = await listStudentLabs(database, w.student.id);
+    const versions = new Map(rows.map((row) => [row.labId, row.logoVersion]));
+    expect(versions).toEqual(
+      new Map([
+        [w.labId, mine],
+        [w.outsideLabId, outside],
+      ]),
+    );
+    expect(mine).not.toBe(outside);
+  });
+
+  it("gives a teacher of another simulation nothing of a lab with a stored logo (V8.2.2)", async () => {
+    const { database, w } = await open();
+    await storeLogo(database, w);
+    expect(await getTeacherLab(database, w.outsiderTeacher.id, w.labId)).toBeNull();
+    expect(await getTeacherSimulation(database, w.outsiderTeacher.id, w.simulationId)).toBeNull();
+    const own = await getTeacherSimulation(database, w.outsiderTeacher.id, w.outsideSimulationId);
+    expect(own?.labs.map((lab) => lab.logoVersion)).toEqual([null]);
+  });
 
   it("gives the lab with a logo its version and the lab without one null", async () => {
     const { database, w } = await open();
