@@ -28,6 +28,8 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.simulations_error_teacher_not_found();
     case "has_students":
       return m.simulations_error_has_students();
+    case "has_records":
+      return m.labs_error_has_records();
     case "member_not_found":
       return m.labs_error_member_not_found();
     case "same_lab":

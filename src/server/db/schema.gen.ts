@@ -195,12 +195,72 @@ export interface Labs {
   updated_at: Generated<Timestamp>;
 }
 
+export interface Patients {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  date_of_birth: Timestamp;
+  id: Generated<string>;
+  identifier: string;
+  lab_id: string;
+  name: string;
+  sex: string;
+  simulation_id: string;
+  updated_at: Generated<Timestamp>;
+  updated_by: string | null;
+}
+
 export interface PendingAdminGrant {
   created_at: Generated<Timestamp>;
   email: string;
   expires_at: Timestamp;
   id: Generated<string>;
   provider_id: string;
+}
+
+export interface RecordCorrections {
+  changes: Json;
+  corrected_at: Generated<Timestamp>;
+  corrected_by: string | null;
+  id: Generated<string>;
+  lab_id: string;
+  patient_id: string | null;
+  request_id: string | null;
+  simulation_id: string;
+}
+
+export interface Requests {
+  created_by: string | null;
+  entered_at: Generated<Timestamp>;
+  id: Generated<string>;
+  kind: string;
+  lab_id: string;
+  patient_id: string | null;
+  phone_through: Generated<boolean>;
+  remarks: string | null;
+  requester: string | null;
+  simulation_id: string;
+  updated_at: Generated<Timestamp>;
+  updated_by: string | null;
+}
+
+export interface RequestTests {
+  released_at: Timestamp | null;
+  request_id: string;
+  test_id: string;
+}
+
+export interface Samples {
+  created_at: Generated<Timestamp>;
+  created_by: string | null;
+  id: Generated<string>;
+  lab_id: string;
+  lab_number: string;
+  material: string;
+  request_id: string;
+  sample_number: string;
+  simulation_id: string;
+  updated_at: Generated<Timestamp>;
+  updated_by: string | null;
 }
 
 export interface ScimConnectionBinding {
@@ -420,7 +480,12 @@ export interface DB {
   lab_member_emails: LabMemberEmails;
   lab_members: LabMembers;
   labs: Labs;
+  patients: Patients;
   pending_admin_grant: PendingAdminGrant;
+  record_corrections: RecordCorrections;
+  request_tests: RequestTests;
+  requests: Requests;
+  samples: Samples;
   scim_token: ScimToken;
   scimConnectionBinding: ScimConnectionBinding;
   scimGroup: ScimGroup;
