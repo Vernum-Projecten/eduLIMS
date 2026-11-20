@@ -38,6 +38,8 @@ export interface NewMeasurement {
   source: MeasurementSource;
   /** The student who entered it by hand, or `null` for an analyser. */
   recordedBy: string | null;
+  /** The Gen5 upload of an `epoch_upload` measurement, of the same lab; `null` for any other. */
+  uploadId?: string | null;
 }
 
 /** A stored measurement: its id and the database clock at the insert. */
@@ -169,6 +171,7 @@ export async function insertMeasurement(
       value,
       source: measurement.source,
       recorded_by: measurement.recordedBy,
+      upload_id: measurement.uploadId ?? null,
     })
     .returning(["id", "recorded_at"])
     .executeTakeFirstOrThrow();

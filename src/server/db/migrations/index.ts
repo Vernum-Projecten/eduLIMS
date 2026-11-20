@@ -29,6 +29,7 @@ import * as m0022 from "./0022_patient_ehr.ts";
 import * as m0023 from "./0023_measurements_and_release.ts";
 import * as m0024 from "./0024_result_ehr_writes.ts";
 import * as m0025 from "./0025_result_ehr_write_lease.ts";
+import * as m0027 from "./0027_gen5_uploads.ts";
 
 export const migrations: Record<string, Migration> = {
   "0001_auth": m0001,
@@ -56,6 +57,7 @@ export const migrations: Record<string, Migration> = {
   "0023_measurements_and_release": m0023,
   "0024_result_ehr_writes": m0024,
   "0025_result_ehr_write_lease": m0025,
+  "0027_gen5_uploads": m0027,
 };
 
 export const migrationProvider: MigrationProvider = {

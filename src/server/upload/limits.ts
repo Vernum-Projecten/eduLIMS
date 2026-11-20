@@ -4,11 +4,14 @@
 // NOTE: ASVS 5.0 V5.1.1, V5.2.1, V5.2.3, V15.2.2; the maintainer's decisions of 2026-11-19 (#153,
 // the security review of #297). The supplied export is 9,593 bytes and 38,586 bytes unpacked.
 
-/** The largest Gen5 export eduLIMS reads, in bytes (1 MiB), checked before any parsing. */
-export const MAX_UPLOAD_BYTES = 1_048_576;
+// NOTE: owner, 2026-11-20 on #156; a file upload is at most 5 MB, read as 5 MiB.
+/** The largest Gen5 export eduLIMS reads, in bytes (5 MiB), checked before any parsing. */
+export const MAX_UPLOAD_BYTES = 5_242_880;
 
-/** The largest total unpacked size of the archive's entries, in bytes (8 MiB). */
-export const MAX_UNPACKED_BYTES = 8_388_608;
+// NOTE: #156; 8 times the file cap, the ratio of the 1 MiB and 8 MiB of #297. A declared total
+// only: no entry is inflated unless it is a part the reader opens, under its own 1 MiB cap.
+/** The largest total unpacked size of the archive's entries, in bytes (40 MiB). */
+export const MAX_UNPACKED_BYTES = 41_943_040;
 
 /** The largest unpacked size of one part the reader opens, in bytes (1 MiB). */
 export const MAX_PART_BYTES = 1_048_576;

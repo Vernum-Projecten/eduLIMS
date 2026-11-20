@@ -1,0 +1,1 @@
+- A team can upload a Gen5 export of up to 5 MB and every member of its lab sees the 96 values of the plate with the reader's serial number; the team then links wells to its own samples and enters its results for the tests it calculates, which become measurements it can release, and every upload and link is logged with its verdict (S4, B4). The database needs migration 0027.

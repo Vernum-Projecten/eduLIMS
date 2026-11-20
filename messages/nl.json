@@ -528,6 +528,7 @@
   "audit_action_test_retired": "Bepaling buiten gebruik gesteld",
   "audit_action_upload_complete": "Upload verwerkt",
   "audit_action_upload_delete": "Upload verwijderd",
+  "audit_action_upload_linked": "Upload aan monsters gekoppeld",
   "audit_action_upload_validation_fail": "Upload afgekeurd",
   "audit_action_user_banned": "Geblokkeerd",
   "audit_action_user_created": "Account aangemaakt",

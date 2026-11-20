@@ -6,9 +6,16 @@
 import { describe, expect, it } from "vitest";
 import { LOGO_MAX_BYTES } from "../lib/lab-logo.ts";
 import { setBodyRefusalLogDeps } from "./body-refusal-log.ts";
-import { FORM_BODY_MAX, formBodyRefusal, refuseFormBody } from "./form-body-limit.ts";
+import {
+  FORM_BODY_MAX,
+  formBodyLimit,
+  formBodyRefusal,
+  GEN5_FORM_BODY_MAX,
+  refuseFormBody,
+} from "./form-body-limit.ts";
 import { RefusalDeduper } from "./refusal-deduper.ts";
 import { setSecurityLogWriter } from "./security-log.ts";
+import { MAX_UPLOAD_BYTES } from "./upload/limits.ts";
 
 function post(headers: Record<string, string>): Request {
   return new Request("http://edulims.test/_serverFn/abc", { method: "POST", headers });
@@ -119,5 +126,41 @@ describe("formBodyRefusal (V5.2.1)", () => {
       expect.objectContaining({ reason: "form_length_missing", request_id: "req-357" }),
       expect.not.objectContaining({ request_id: expect.anything() as unknown }),
     ]);
+  });
+});
+
+describe("the Gen5 upload's own form limit (owner, 2026-11-20 on #156; V5.2.1)", () => {
+  const GEN5 = "/_serverFn/gen5-upload";
+
+  it("is the 5 MiB file plus the same 16 KiB of fields and framing", () => {
+    expect(MAX_UPLOAD_BYTES).toBe(5 * 1024 * 1024);
+    expect(GEN5_FORM_BODY_MAX).toBe(MAX_UPLOAD_BYTES + 16 * 1024);
+  });
+
+  it("applies to the upload's function only", () => {
+    expect(formBodyLimit(GEN5, GEN5)).toBe(GEN5_FORM_BODY_MAX);
+    expect(formBodyLimit("/_serverFn/abc", GEN5)).toBe(FORM_BODY_MAX);
+    expect(formBodyLimit(`${GEN5}x`, GEN5)).toBe(FORM_BODY_MAX);
+  });
+
+  it("falls back to the smaller limit when the function's path is unknown", () => {
+    expect(formBodyLimit(GEN5, undefined)).toBe(FORM_BODY_MAX);
+  });
+
+  it("lets an upload form of exactly its limit through and refuses one byte more", () => {
+    const at = post({ "content-type": MULTIPART, "content-length": String(GEN5_FORM_BODY_MAX) });
+    expect(formBodyRefusal(at, GEN5_FORM_BODY_MAX)).toBeNull();
+    const over = post({
+      "content-type": MULTIPART,
+      "content-length": String(GEN5_FORM_BODY_MAX + 1),
+    });
+    expect(refuseFormBody(over, GEN5_FORM_BODY_MAX)?.status).toBe(413);
+  });
+
+  it("still refuses the upload's size on any other function", () => {
+    const length = String(GEN5_FORM_BODY_MAX);
+    expect(formBodyRefusal(post({ "content-type": MULTIPART, "content-length": length }))).toBe(
+      413,
+    );
   });
 });

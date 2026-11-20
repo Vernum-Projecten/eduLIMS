@@ -122,6 +122,7 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   test_restored: m.audit_action_test_restored,
   sys_data_key_rotated: m.audit_action_data_key_rotated,
   upload_complete: m.audit_action_upload_complete,
+  upload_linked: m.audit_action_upload_linked,
   upload_validation_fail: m.audit_action_upload_validation_fail,
   upload_delete: m.audit_action_upload_delete,
 };

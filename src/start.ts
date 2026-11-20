@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createCsrfMiddleware, createMiddleware, createStart } from "@tanstack/react-start";
-import { refuseFormBody } from "@/server/form-body-limit";
+import { formBodyLimit, refuseFormBody } from "@/server/form-body-limit";
 import { refuseJsonBody } from "@/server/json-body-limit";
 import { inputRefusalLogMiddleware } from "@/server/middleware";
 import { refuseRouteBody } from "@/server/route-body-limit";
 import { createNonce, securityHeaders, withSecurityHeaders } from "@/server/security-headers";
+import { uploadGen5Fn } from "@/server/upload/functions";
 
 /** Rejects cross-site server function calls (same-origin RPC only). */
 const csrfMiddleware = createCsrfMiddleware({
@@ -29,10 +30,14 @@ const jsonBodyLimitMiddleware = createMiddleware().server(
   },
 );
 
-/** Refuses a form sent to a server function before its body is read, when it is too large. */
+/**
+ * Refuses a form sent to a server function before its body is read, when it is too large; the
+ * Gen5 upload's function has its own limit (#156).
+ */
 const formBodyLimitMiddleware = createMiddleware().server(({ next, request, handlerType }) => {
   if (handlerType !== "serverFn") return next();
-  return refuseFormBody(request) ?? next();
+  const limit = formBodyLimit(new URL(request.url).pathname, uploadGen5Fn.url);
+  return refuseFormBody(request, limit) ?? next();
 });
 
 /** Refuses a body to a server route or page before the route reads it, when it is too large. */

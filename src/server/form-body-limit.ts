@@ -9,33 +9,50 @@
 import { LOGO_MAX_BYTES } from "../lib/lab-logo.ts";
 import { logBodyRefusal } from "./body-refusal-log.ts";
 import { BODY_REFUSAL_HEADERS } from "./json-body-limit.ts";
+import { MAX_UPLOAD_BYTES } from "./upload/limits.ts";
+
+/** The room a form needs beside its one file: the id field, part headers, boundaries, context. */
+const FORM_FRAMING = 16 * 1024;
 
 // NOTE: #292; the logo is the one file a form carries, plus room for its field names and part
-// headers. A larger upload (the Gen5 export, #156) raises this with its own decision.
+// headers. Every form but the Gen5 upload's is held to this.
 /** The most bytes a form body to a server function may declare. */
-export const FORM_BODY_MAX = LOGO_MAX_BYTES + 16 * 1024;
+export const FORM_BODY_MAX = LOGO_MAX_BYTES + FORM_FRAMING;
+
+// NOTE: owner, 2026-11-20 on #156; the 5 MiB file plus the same 16 KiB as the logo's form for
+// the lab's id, the file's part headers with its name, the boundaries and Start's context field.
+/** The most bytes the form of the Gen5 upload's server function (#156) may declare. */
+export const GEN5_FORM_BODY_MAX = MAX_UPLOAD_BYTES + FORM_FRAMING;
+
+/**
+ * Returns the form limit of a server function call by its path: {@link GEN5_FORM_BODY_MAX} for
+ * the Gen5 upload's function (`gen5Path`, its `url`), {@link FORM_BODY_MAX} for every other one.
+ */
+export function formBodyLimit(pathname: string, gen5Path: string | undefined): number {
+  return gen5Path !== undefined && pathname === gen5Path ? GEN5_FORM_BODY_MAX : FORM_BODY_MAX;
+}
 
 const FORM_TYPES = ["multipart/form-data", "application/x-www-form-urlencoded"];
 
 /**
  * Returns the status that refuses a form body to a server function, or `null` to let it through:
- * 411 without a valid `Content-Length`, 413 over {@link FORM_BODY_MAX}. Any other request, a JSON
- * call included, is not this check's business.
+ * 411 without a valid `Content-Length`, 413 over `limit`. Any other request, a JSON call
+ * included, is not this check's business.
  */
-export function formBodyRefusal(request: Request): 411 | 413 | null {
+export function formBodyRefusal(request: Request, limit: number = FORM_BODY_MAX): 411 | 413 | null {
   const type = request.headers.get("content-type")?.toLowerCase() ?? "";
   if (!FORM_TYPES.some((form) => type.includes(form))) return null;
   const declared = request.headers.get("content-length");
   if (declared === null || !/^\d{1,15}$/.test(declared.trim())) return 411;
-  return Number(declared) > FORM_BODY_MAX ? 413 : null;
+  return Number(declared) > limit ? 413 : null;
 }
 
 /**
  * Returns the refusal response of {@link formBodyRefusal} and logs it through the deduplicated
  * body refusal log, or `null`.
  */
-export function refuseFormBody(request: Request): Response | null {
-  const status = formBodyRefusal(request);
+export function refuseFormBody(request: Request, limit: number = FORM_BODY_MAX): Response | null {
+  const status = formBodyRefusal(request, limit);
   if (status === null) return null;
   logBodyRefusal(request, {
     reason: status === 411 ? "form_length_missing" : "form_too_large",

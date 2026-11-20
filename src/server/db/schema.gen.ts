@@ -216,6 +216,7 @@ export interface Measurements {
   simulation_id: string;
   source: string;
   test_id: string;
+  upload_id: string | null;
   value: Numeric;
 }
 
@@ -475,6 +476,26 @@ export interface SsoProvider {
   userId: string | null;
 }
 
+export interface Uploads {
+  id: Generated<string>;
+  lab_id: string;
+  linked_at: Timestamp | null;
+  linked_by: string | null;
+  reader_serial_number: string;
+  simulation_id: string;
+  uploaded_at: Generated<Timestamp>;
+  uploaded_by: string | null;
+  wavelength_nm: number;
+}
+
+export interface UploadWells {
+  absorbance: Numeric;
+  lab_id: string;
+  sample_id: string | null;
+  upload_id: string;
+  well: string;
+}
+
 export interface User {
   banExpires: Timestamp | null;
   banned: boolean | null;
@@ -544,6 +565,8 @@ export interface DB {
   simulation_test_limits: SimulationTestLimits;
   simulations: Simulations;
   ssoProvider: SsoProvider;
+  upload_wells: UploadWells;
+  uploads: Uploads;
   user: User;
   verification: Verification;
 }
