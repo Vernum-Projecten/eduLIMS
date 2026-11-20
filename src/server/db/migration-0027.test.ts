@@ -84,6 +84,23 @@ describe("0027_gen5_uploads", () => {
     );
   });
 
+  it("names the student of an Epoch 2 result, and no student of an Afinion one (maintainer on #400)", async () => {
+    const { database, w, uploadId, refused } = await open();
+    const insert = (source: string, testId: string, upload: string | null) =>
+      refused(sql`insert into measurements (simulation_id, lab_id, request_id, test_id,
+          sample_id, value, source, upload_id, recorded_by)
+        values (${w.simulationId}, ${w.labId}, ${w.epochRequestId}, ${testId}, ${w.a.id}, 5.5,
+          ${source}, ${upload}, ${w.student.id})`);
+    await expect(insert("epoch_upload", w.teamTest, uploadId)).resolves.toBeDefined();
+    await expect(insert("afinion", w.teamTest, null)).rejects.toThrow(/measurements_recorded_by/);
+    const down = await createMigrator(database).migrateTo("0026_one_active_simulation_per_student");
+    expect(down.error).toBeUndefined();
+    const rows = await sql<{ recorded_by: string | null }>`
+      select recorded_by from measurements where source = 'epoch_upload'`.execute(database);
+    // The down step drops the student it cannot keep; the test's rollback undoes the rest.
+    expect(rows.rows).toEqual([{ recorded_by: null }]);
+  });
+
   it("ties an Epoch 2 measurement, and only it, to an upload of its own lab (S14)", async () => {
     const { database, w, uploadId, refused } = await open();
     const insert = (source: string, upload: string | null) =>
@@ -122,7 +139,7 @@ describe("0027_gen5_uploads", () => {
 
   it("reverts", async () => {
     const { database } = await open();
-    const down = await createMigrator(database).migrateTo("0025_result_ehr_write_lease");
+    const down = await createMigrator(database).migrateTo("0026_one_active_simulation_per_student");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
     ]);

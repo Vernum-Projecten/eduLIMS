@@ -67,7 +67,7 @@ describe("a linked plate (S4, S14)", () => {
         test_id: w.teamTest,
         source: "epoch_upload",
         upload_id: uploadId,
-        recorded_by: null,
+        recorded_by: w.student.id,
         value: "5.25",
       },
     ]);
@@ -99,6 +99,20 @@ describe("a linked plate (S4, S14)", () => {
         metadata: { simulation_id: w.simulationId, lab_id: w.labId, count: 1 },
       },
     ]);
+  });
+
+  it("names the student who entered the result, from the session (maintainer on #400)", async () => {
+    const { database, w, uploadId } = await open();
+    const classmate = w.labStudents[2] ?? w.student;
+    await link(database, w, linkOf(w, uploadId), classmate);
+    const [stored] = await measurements(database);
+    expect(stored?.recorded_by).toBe(classmate.id);
+    const logged = await database
+      .selectFrom("audit_event")
+      .select(["actor_type", "actor_id"])
+      .where("action", "=", "lab_measurement_recorded")
+      .execute();
+    expect(logged).toEqual([{ actor_type: "user", actor_id: classmate.id }]);
   });
 
   it("keeps the links without a result, and adds a second file's results beside the first (S14)", async () => {

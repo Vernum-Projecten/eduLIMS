@@ -17,6 +17,18 @@ export function simulationPageTitle(status: string, found: string): string {
 }
 
 /**
+ * Returns the `head()` title of one page of a simulation (#381): the page, then the simulation
+ * its loader named, then the section, as {@link simulationPageTitle} does.
+ */
+export function simulationSubpageTitle(
+  status: string,
+  page: string,
+  simulation: string | undefined,
+): string {
+  return simulationPageTitle(status, simulation ? `${page} | ${simulation}` : page);
+}
+
+/**
  * The page of a simulation or a lab that does not exist or that the teacher does not teach: the
  * server answers both the same (D11), so the screen does too.
  */

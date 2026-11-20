@@ -349,7 +349,7 @@ export async function linkGen5Upload(
         sampleId: result.sample.id,
         value: result.value,
         source: "epoch_upload",
-        recordedBy: null,
+        recordedBy: actor.id,
         uploadId,
       });
       // NOTE: every precondition of `insertMeasurement` was checked above under the same locks,

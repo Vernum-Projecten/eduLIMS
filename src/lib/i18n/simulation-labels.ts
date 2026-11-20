@@ -49,6 +49,8 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.labs_error_rate_limited();
     case "in_other_lab":
       return m.labs_error_in_other_lab();
+    case "in_other_simulation":
+      return m.labs_error_in_other_simulation();
     case "not_prepared":
       return m.simulations_error_not_prepared();
     case "not_running":
@@ -74,6 +76,16 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
   }
 }
 
+/**
+ * Returns the message of a refused join for the student who typed the code: their own words for
+ * `in_other_simulation` (#379), the shared message for every other code.
+ */
+export function joinErrorMessage(code: SimulationActionError): string {
+  return code === "in_other_simulation"
+    ? m.labs_join_error_in_other_simulation()
+    : simulationErrorMessage(code);
+}
+
 /** Returns the outcome of one pasted line in words; an address in another lab names that lab. */
 export function emailLineLabel(line: EmailLine): string {
   switch (line.status) {
@@ -89,6 +101,8 @@ export function emailLineLabel(line: EmailLine): string {
       return line.otherLab
         ? m.labs_line_in_other_lab({ lab: line.otherLab.name })
         : m.labs_line_in_other_lab_unnamed();
+    case "in_other_simulation":
+      return m.labs_line_in_other_simulation();
     default: {
       const unknown: never = line.status;
       return unknown;
@@ -160,20 +174,17 @@ export function joinViaLabel(via: JoinVia): string {
 
 /**
  * Returns the announcement of the link the Student portal overview runs (S10): the lab by name
- * when one place was made and the labs read again show exactly one new lab, the count otherwise,
- * and `null` when nothing was linked.
+ * when one place was made and the student's current lab, read again, is a new one; the count
+ * otherwise; and `null` when nothing was linked.
  */
 export function linkedMessage(
   linked: number,
-  before: readonly StudentLabRow[],
-  after: readonly StudentLabRow[],
+  before: StudentLabRow | null,
+  after: StudentLabRow | null,
 ): string | null {
   if (linked <= 0) return null;
-  const known = new Set(before.map((lab) => lab.labId));
-  const added = after.filter((lab) => !known.has(lab.labId));
-  const [only] = added;
-  if (linked === 1 && added.length === 1 && only) {
-    return m.student_labs_linked_one({ lab: only.labName, simulation: only.simulationName });
+  if (linked === 1 && after !== null && after.labId !== before?.labId) {
+    return m.student_labs_linked_one({ lab: after.labName, simulation: after.simulationName });
   }
   return m.student_labs_linked({ count: formatNumber(linked) });
 }

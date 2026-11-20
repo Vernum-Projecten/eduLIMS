@@ -138,7 +138,7 @@ test("a teacher sees the types and limits, and a lab without a logo asks for no 
   await expect(page.getByRole("form", { name: `Upload the logo of ${LAB}` })).toBeVisible();
   await expect(page.getByText("This lab has no logo. Its name shows on its own.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Remove logo" })).toHaveCount(0);
-  await page.goto(`/teacher/simulations/${simulationId}`);
+  await page.goto(`/teacher/simulations/${simulationId}/labs`);
   await expect(page.getByRole("link", { name: BARE })).toBeVisible();
   expect(requested).toEqual([]);
   await axe(page);
@@ -255,9 +255,12 @@ test("a file chosen for one lab does not follow to the next lab's page", async (
   await devLogin(page, teacher.email);
   await page.goto(labPath(bareId));
   await expectHydrated(logoForm(page, BARE).getByLabel("Logo file"));
-  // Client-side to the simulation and on to the other lab, then back two steps in history, so
+  // Client-side to the simulation's labs and on to the other lab, then back two steps, so
   // the router changes only the lab of the page it keeps mounted.
-  await page.getByRole("link", { name: `Back to ${SIMULATION}` }).click();
+  await page
+    .getByRole("navigation", { name: `Pages of ${SIMULATION}` })
+    .getByRole("link", { name: "Labs", exact: true })
+    .click();
   await page.getByRole("link", { name: LAB, exact: true }).click();
   const input = logoForm(page).getByLabel("Logo file");
   await expectHydrated(input);
@@ -270,11 +273,11 @@ test("a file chosen for one lab does not follow to the next lab's page", async (
   await expect(page.getByRole("img", { name: /^Preview of the new logo of / })).toHaveCount(0);
 });
 
-test("the simulation page shows the logo beside the lab's name, and reflows at 320 px", async ({
+test("the labs page shows the logo beside the lab's name, and reflows at 320 px", async ({
   page,
 }) => {
   await devLogin(page, teacher.email);
-  await page.goto(`/teacher/simulations/${simulationId}`);
+  await page.goto(`/teacher/simulations/${simulationId}/labs`);
   const row = page.getByRole("row").filter({ has: page.getByRole("link", { name: LAB }) });
   // Decorative beside the name: an empty alternative, so the name is read once.
   const img = row.locator("img");
@@ -319,7 +322,9 @@ for (const [theme, locale] of [
     await preferences(context, theme, locale);
     await page.goto("/student");
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
-    await expect(page.getByRole("listitem").filter({ hasText: LAB }).locator("img")).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: text("student_labs_heading", "Your lab") }).locator("img"),
+    ).toBeVisible();
     await axe(page);
   });
 }
@@ -327,7 +332,7 @@ for (const [theme, locale] of [
 test("the student sees the logo of their lab on the overview, also at 320 px", async ({ page }) => {
   await devLogin(page, student.email);
   await expect(page).toHaveURL(/\/student$/);
-  const img = page.getByRole("listitem").filter({ hasText: LAB }).locator("img");
+  const img = page.getByRole("region", { name: "Your lab" }).locator("img");
   await expect(img).toHaveAttribute("alt", "");
   await expect(img).toHaveAttribute("src", new RegExp(`^/api/labs/${labId}/logo\\?v=`));
   await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(16);

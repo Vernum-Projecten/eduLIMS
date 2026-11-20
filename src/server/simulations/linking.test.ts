@@ -7,7 +7,7 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { addEmails } from "./emails.ts";
 import { hasWaitingLabAddress, linkWaitingAddresses } from "./linking.ts";
-import { auditRows, NOW, person, type World, world } from "./test-helpers.ts";
+import { auditRows, NOW, person, setState, type World, world } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -35,6 +35,8 @@ async function placesOf(database: Kysely<DB>, userId: string) {
 describe("linkWaitingAddresses (S10: in the lab without doing anything)", () => {
   it("links a verified student to every lab that waits for their address, logged with ids", async () => {
     const { database, w } = await open();
+    // NOTE: #379; one unfinished simulation at a time, so the first simulation is finished here.
+    await setState(database, w.simulationId, "finished");
     const newcomer = await person(database, "newcomer", ["student"]);
     await addEmails(
       database,

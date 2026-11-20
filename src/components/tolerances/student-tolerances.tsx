@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import { CircleDashedIcon, InfoIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
@@ -12,8 +11,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { formatDateTime, formatDecimal } from "@/lib/i18n/format";
-import { cn } from "@/lib/utils";
-import type { StudentLabRow } from "@/server/simulations/queries";
 import type { ToleranceEntry } from "@/server/tolerances/queries";
 import { myTolerancesQueryOptions } from "@/server/tolerances/query-options";
 
@@ -111,37 +108,6 @@ function EditTolerance({ row }: Readonly<{ row: Row }>) {
         test={row}
       />
     </>
-  );
-}
-
-/**
- * The links between the student's labs, when they are in more than one simulation; the lab on
- * screen carries `aria-current`, so the choice is not shown by colour alone (WCAG 1.4.1).
- */
-export function LabPicker({
-  labs,
-  current,
-}: Readonly<{ labs: readonly StudentLabRow[]; current: string }>) {
-  if (labs.length < 2) return null;
-  return (
-    <nav aria-label={m.tolerances_lab_picker_label()}>
-      <ul className="flex flex-wrap gap-2">
-        {labs.map((lab) => (
-          <li key={lab.labId}>
-            <Button asChild variant={lab.labId === current ? "secondary" : "outline"} size="sm">
-              <Link
-                to="/student/tolerances"
-                search={{ lab: lab.labId }}
-                aria-current={lab.labId === current ? "page" : undefined}
-                className={cn(lab.labId === current && "font-semibold")}
-              >
-                {m.tolerances_lab_option({ lab: lab.labName, simulation: lab.simulationName })}
-              </Link>
-            </Button>
-          </li>
-        ))}
-      </ul>
-    </nav>
   );
 }
 

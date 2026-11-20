@@ -209,9 +209,9 @@ test("a team registers a patient, records and corrects a request, and copies a l
   await expectNoPageOverflow(page);
   await axe(page);
 
-  // The teacher reads the correction on the simulation page.
+  // The teacher reads the correction on the simulation's Corrections page (#381).
   const teacher = await signedInElsewhere(browser, "teacher@example.test");
-  await teacher.goto(`/teacher/simulations/${seeded.simulationId}`);
+  await teacher.goto(`/teacher/simulations/${seeded.simulationId}/corrections`);
   const log = teacher.getByRole("table", { name: "Corrections" });
   await expect(log.getByRole("cell", { name: seeded.lab })).toBeVisible();
   await expect(log.getByText(/Sample added:/)).toBeVisible();
@@ -275,29 +275,27 @@ test("a refused clipboard says so in the status region (WCAG 4.1.3)", async ({ p
   await axe(page);
 });
 
-test("a student in two labs switches with ?lab=, and a foreign lab falls back to the newest (S10)", async ({
+test("a student shows the lab of their running simulation, with no picker and no lab in the URL (S10, #379)", async ({
   page,
 }) => {
   const id = suffix();
-  const seeded = await seedLabRecords(id);
+  // One simulation at a time: the first one is finished before the student joins the second.
+  const seeded = await seedLabRecords(id, "finished");
   const second = await seedSecondLab(seeded.student.id, id);
   const foreign = await seedForeignLab(id);
   await devLogin(page, seeded.student.email);
   await openRecords(page);
-  const picker = page.getByRole("navigation", { name: "Your labs" });
-  const newest = picker.getByRole("link", { name: `${second.lab}, in ${second.simulation}` });
-  const older = picker.getByRole("link", { name: `${seeded.lab}, in ${seeded.simulation}` });
-  // With no ?lab=, the newest lab shows.
-  await expect(newest).toHaveAttribute("aria-current", "page");
-  await expect(older).not.toHaveAttribute("aria-current", "page");
-  await older.click();
-  await expect(page).toHaveURL(new RegExp(`lab=${seeded.labId}`));
-  await expect(older).toHaveAttribute("aria-current", "page");
+  const current = page.getByText(`${second.lab}, in ${second.simulation}`, { exact: true });
+  await expect(current).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Your labs" })).toHaveCount(0);
+  await expect(page.getByText(`${seeded.lab}, in ${seeded.simulation}`)).toHaveCount(0);
   await axe(page);
-  // A lab the student is not in shows the newest of their own labs, and nothing of that lab.
-  await page.goto(`/student/patients?lab=${foreign}`);
-  await expect(newest).toHaveAttribute("aria-current", "page");
-  await expect(page.getByText(`Foreign lab ${id}`)).toHaveCount(0);
+  // A lab id in the URL changes nothing: the server picks the lab.
+  for (const lab of [seeded.labId, foreign]) {
+    await page.goto(`/student/patients?lab=${lab}`);
+    await expect(current).toBeVisible();
+    await expect(page.getByText(`Foreign lab ${id}`)).toHaveCount(0);
+  }
 });
 
 test("a finished simulation reads but takes no new records (#267)", async ({ page }) => {

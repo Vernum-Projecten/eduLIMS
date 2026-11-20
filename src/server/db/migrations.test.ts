@@ -61,6 +61,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -98,6 +99,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -135,6 +137,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -196,6 +199,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -240,6 +244,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -287,6 +292,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0010_integration_check");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -320,6 +326,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0012_simulations_and_labs");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -438,6 +445,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0014_lab_join_code");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -478,6 +486,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0015_integration_check_steps");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -538,6 +547,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0016_test_catalogue");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -603,6 +613,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0017_catalogue_follow_ups");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -653,6 +664,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0019_lab_logos");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -723,6 +735,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0018_simulation_state_and_correct_values");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -779,6 +792,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0020_patients_requests_samples");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -906,6 +920,7 @@ describe("migrations", () => {
     const down = await migrator.migrateTo("0022_patient_ehr");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],
       ["0024_result_ehr_writes", "Success"],
       ["0023_measurements_and_release", "Success"],
@@ -913,6 +928,50 @@ describe("migrations", () => {
     await expect(inSavepoint(sql`select id from measurements`)).rejects.toThrow(
       /relation "measurements" does not exist/,
     );
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
+  });
+
+  it("0026_one_active_simulation_per_student holds one unfinished simulation per student, and reverts (#379)", async () => {
+    const database = await createTestDb();
+    db = database;
+    const migrator = createMigrator(database);
+    const inSavepoint = (query: ReturnType<typeof sql>) =>
+      database.transaction().execute((trx) => query.execute(trx));
+    const one = async (query: ReturnType<typeof sql<{ id: string }>>) =>
+      (await query.execute(database)).rows[0]?.id ?? "";
+    await sql`insert into "user" (id, name, email, "emailVerified", role)
+        values ('u-379', 'Migration student', 'm379@example.test', true, 'student')`.execute(
+      database,
+    );
+    const simulation = (name: string) =>
+      one(sql<{ id: string }>`insert into simulations (name) values (${name}) returning id`);
+    const lab = (simulationId: string) =>
+      one(sql<{ id: string }>`insert into labs (simulation_id, name)
+          values (${simulationId}, 'Migration lab') returning id`);
+    const join = (simulationId: string, labId: string) =>
+      inSavepoint(sql`insert into lab_members (simulation_id, lab_id, user_id, joined_via)
+          values (${simulationId}, ${labId}, 'u-379', 'code')`);
+    const first = await simulation("First run");
+    const second = await simulation("Second run");
+    const third = await simulation("Third run");
+    const [firstLab, secondLab, thirdLab] = [await lab(first), await lab(second), await lab(third)];
+    await join(first, firstLab);
+    await expect(join(second, secondLab)).rejects.toThrow(
+      /one simulation at a time that is not finished/,
+    );
+    await sql`update simulations set state = 'finished', started_at = now(), finished_at = now()
+        where id = ${first}`.execute(database);
+    await join(second, secondLab);
+    await expect(join(third, thirdLab)).rejects.toThrow(
+      /one simulation at a time that is not finished/,
+    );
+    const down = await migrator.migrateTo("0025_result_ehr_write_lease");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0027_gen5_uploads", "Success"],
+      ["0026_one_active_simulation_per_student", "Success"],
+    ]);
+    await join(third, thirdLab);
+    await inSavepoint(sql`delete from lab_members where simulation_id = ${third}`);
     expect((await migrator.migrateToLatest()).error).toBeUndefined();
   });
 });

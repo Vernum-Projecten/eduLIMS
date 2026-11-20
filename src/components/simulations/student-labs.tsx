@@ -3,10 +3,11 @@
 
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FlaskConicalIcon } from "lucide-react";
+import { FlaskConicalIcon, InfoIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { UpdatingIndicator } from "@/components/shell/updating-indicator";
 import { LabLogo } from "@/components/simulations/lab-logo";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Empty,
   EmptyDescription,
@@ -20,9 +21,9 @@ import { linkedMessage } from "@/lib/i18n/simulation-labels";
 import { labLogoSrc } from "@/lib/lab-logo";
 import { toast } from "@/lib/toast";
 import { linkMyLabsFn } from "@/server/simulations/functions";
-import { linkMyLabsMutationOptions, myLabsQueryOptions } from "@/server/simulations/query-options";
+import { linkMyLabsMutationOptions, myLabQueryOptions } from "@/server/simulations/query-options";
 
-const HEADING = "my-labs-heading";
+const HEADING = "my-lab-heading";
 
 /**
  * Links the student's waiting addresses once, when the overview opens (S10): a student who was
@@ -38,12 +39,12 @@ function useLinkOnOpen(): void {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    const { queryKey } = myLabsQueryOptions();
-    const before = queryClient.getQueryData(queryKey) ?? [];
+    const { queryKey } = myLabQueryOptions();
+    const before = queryClient.getQueryData(queryKey) ?? null;
     mutate(undefined, {
-      // Runs after the mutation's own `onSettled` has read the labs again, so `after` is fresh.
+      // Runs after the mutation's own `onSettled` has read the lab again, so `after` is fresh.
       onSuccess: (outcome) => {
-        const after = queryClient.getQueryData(queryKey) ?? [];
+        const after = queryClient.getQueryData(queryKey) ?? null;
         const message = linkedMessage(outcome.linked, before, after);
         if (message) toast.success(message);
       },
@@ -53,21 +54,21 @@ function useLinkOnOpen(): void {
 }
 
 /**
- * The labs the signed-in student is in, on the Student portal overview (S10): each lab's name
+ * The signed-in student's one current lab on the Student portal overview (S10, #379): its name
  * and its simulation, nothing of another lab, with the lab's logo or, without one, the lab icon
- * (#293).
+ * (#293). A finished simulation's lab stays here, read-only, until the student joins a new one.
  */
 export function StudentLabs() {
   useLinkOnOpen();
-  const { data: labs, isFetching } = useSuspenseQuery(myLabsQueryOptions());
+  const { data: lab, isFetching } = useSuspenseQuery(myLabQueryOptions());
   return (
     <section aria-labelledby={HEADING} className="flex flex-col gap-4">
       <h2 id={HEADING} className="text-lg font-semibold">
         {m.student_labs_heading()}
       </h2>
-      <div className="relative" aria-busy={isFetching}>
+      <div className="relative flex flex-col gap-3" aria-busy={isFetching}>
         <UpdatingIndicator active={isFetching} />
-        {labs.length === 0 ? (
+        {lab === null ? (
           <Empty className="border">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -78,28 +79,30 @@ export function StudentLabs() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <ul aria-labelledby={HEADING} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {labs.map((lab) => (
-              <li key={lab.labId}>
-                <Item variant="outline">
-                  <ItemMedia>
-                    {/* Decorative: the lab's name is the item's title right beside it. */}
-                    <LabLogo
-                      src={lab.logoVersion === null ? null : labLogoSrc(lab.labId, lab.logoVersion)}
-                      alt=""
-                      size="md"
-                    />
-                  </ItemMedia>
-                  <ItemContent className="min-w-0">
-                    <ItemTitle className="break-words">{lab.labName}</ItemTitle>
-                    <ItemDescription className="break-words">
-                      {m.student_labs_simulation({ simulation: lab.simulationName })}
-                    </ItemDescription>
-                  </ItemContent>
-                </Item>
-              </li>
-            ))}
-          </ul>
+          <>
+            <Item variant="outline" className="max-w-md">
+              <ItemMedia>
+                {/* Decorative: the lab's name is the item's title right beside it. */}
+                <LabLogo
+                  src={lab.logoVersion === null ? null : labLogoSrc(lab.labId, lab.logoVersion)}
+                  alt=""
+                  size="md"
+                />
+              </ItemMedia>
+              <ItemContent className="min-w-0">
+                <ItemTitle className="break-words">{lab.labName}</ItemTitle>
+                <ItemDescription className="break-words">
+                  {m.student_labs_simulation({ simulation: lab.simulationName })}
+                </ItemDescription>
+              </ItemContent>
+            </Item>
+            {lab.state === "finished" ? (
+              <Alert className="max-w-md">
+                <InfoIcon aria-hidden="true" />
+                <AlertDescription>{m.student_labs_finished()}</AlertDescription>
+              </Alert>
+            ) : null}
+          </>
         )}
       </div>
     </section>

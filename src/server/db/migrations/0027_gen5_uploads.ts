@@ -102,6 +102,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .column("upload_id")
     .execute();
   await replaceMeasurementsFixed(db, true);
+  // NOTE: S4, D9 (maintainer on #400); the team enters an Epoch 2 result, so it names the
+  // student who entered it; only an Afinion measurement has no student.
+  await sql`alter table measurements
+    drop constraint measurements_recorded_by,
+    add constraint measurements_recorded_by
+      check (source in ('manual', 'epoch_upload') or recorded_by is null)`.execute(db);
 
   // NOTE: S4, S14; an upload is kept as it arrived: its clock is the server's, its links are
   // set once, and only a user key may go to null when the account is deleted.
@@ -197,8 +203,13 @@ async function replaceMeasurementsFixed(db: Kysely<unknown>, withUpload: boolean
 }
 
 // NOTE: no requirement governs this: our own design. Reverting drops every upload, its wells
-// and links, and the upload of every measurement that came from one.
+// and links, the upload of every measurement that came from one, and the student who entered it.
 export async function down(db: Kysely<unknown>): Promise<void> {
+  await sql`update measurements set recorded_by = null where source = 'epoch_upload'`.execute(db);
+  await sql`alter table measurements
+    drop constraint measurements_recorded_by,
+    add constraint measurements_recorded_by
+      check (source = 'manual' or recorded_by is null)`.execute(db);
   await replaceMeasurementsFixed(db, false);
   await sql`alter table measurements
     drop constraint measurements_upload,

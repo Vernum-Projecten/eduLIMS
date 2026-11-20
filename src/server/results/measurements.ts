@@ -36,7 +36,7 @@ export interface NewMeasurement {
   /** The value as the route read it: parsed and bounded here, never trusted. */
   value: string;
   source: MeasurementSource;
-  /** The student who entered it by hand, or `null` for an analyser. */
+  /** The student who entered it (by hand or as an Epoch 2 result), or `null` for the Afinion 2. */
   recordedBy: string | null;
   /** The Gen5 upload of an `epoch_upload` measurement, of the same lab; `null` for any other. */
   uploadId?: string | null;

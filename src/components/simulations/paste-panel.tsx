@@ -40,6 +40,7 @@ const LINE_ICONS: Record<EmailLineStatus, LucideIcon> = {
   repeated: CopyIcon,
   in_this_lab: InfoIcon,
   in_other_lab: CircleAlertIcon,
+  in_other_simulation: CircleAlertIcon,
 };
 
 /** A line of the outcome with its place in the list, which keeps repeated lines apart. */

@@ -4,12 +4,11 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeftIcon, FlaskConicalIcon, SearchXIcon } from "lucide-react";
-import { z } from "zod";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { portalPageTitle } from "@/components/portal/portal-pages";
 import { Page } from "@/components/shell/page-header";
 import { RouteErrorState, StatusPage } from "@/components/shell/route-error";
-import { LabPicker, StudentTolerances } from "@/components/tolerances/student-tolerances";
+import { StudentTolerances } from "@/components/tolerances/student-tolerances";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -20,29 +19,18 @@ import {
 } from "@/components/ui/empty";
 import { m } from "@/i18n/messages";
 import { portalNavigation, sectionOf } from "@/lib/navigation";
-import type { StudentLabRow } from "@/server/simulations/queries";
-import { myLabsQueryOptions } from "@/server/simulations/query-options";
+import { myLabQueryOptions } from "@/server/simulations/query-options";
 import { myTolerancesQueryOptions } from "@/server/tolerances/query-options";
-
-const searchSchema = z.object({ lab: z.uuid().optional().catch(undefined) });
-
-/** Returns the lab the page shows: the one in the URL, or else the student's first lab. */
-function chosenLab(labs: readonly StudentLabRow[], lab: string | undefined): string | undefined {
-  return lab ?? labs[0]?.labId;
-}
 
 function title(): string {
   return portalPageTitle(portalNavigation("student"), sectionOf("student", "tolerances"));
 }
 
 export const Route = createFileRoute("/_authed/student/tolerances")({
-  validateSearch: searchSchema,
-  loaderDeps: ({ search }) => ({ lab: search.lab }),
-  loader: async ({ context, deps }) => {
-    const labs = await context.queryClient.ensureQueryData(myLabsQueryOptions());
-    const lab = chosenLab(labs, deps.lab);
-    if (lab !== undefined) {
-      await context.queryClient.ensureQueryData(myTolerancesQueryOptions(lab));
+  loader: async ({ context }) => {
+    const lab = await context.queryClient.ensureQueryData(myLabQueryOptions());
+    if (lab !== null) {
+      await context.queryClient.ensureQueryData(myTolerancesQueryOptions(lab.labId));
     }
   },
   head: () => ({ meta: [{ title: title() }] }),
@@ -52,7 +40,7 @@ export const Route = createFileRoute("/_authed/student/tolerances")({
   component: TolerancesPage,
 });
 
-/** A lab in the URL that is not the student's: the server answers an unknown lab the same (S10). */
+/** A lab the student left between two reads: the server answers an unknown lab the same (S10). */
 function LabNotFound() {
   return (
     <StatusPage
@@ -79,15 +67,14 @@ function TolerancesPending() {
 }
 
 function TolerancesPage() {
-  const search = Route.useSearch();
-  const { data: labs } = useSuspenseQuery(myLabsQueryOptions());
-  const lab = chosenLab(labs, search.lab);
+  // NOTE: #379 (owner, 2026-11-20); one simulation at a time, so the server picks the one lab.
+  const { data: lab } = useSuspenseQuery(myLabQueryOptions());
   return (
     <Page
       title={sectionOf("student", "tolerances").label()}
       description={<p>{m.tolerances_page_description()}</p>}
     >
-      {lab === undefined ? (
+      {lab === null ? (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -98,10 +85,7 @@ function TolerancesPage() {
           </EmptyHeader>
         </Empty>
       ) : (
-        <>
-          <LabPicker labs={labs} current={lab} />
-          <StudentTolerances labId={lab} />
-        </>
+        <StudentTolerances labId={lab.labId} />
       )}
     </Page>
   );

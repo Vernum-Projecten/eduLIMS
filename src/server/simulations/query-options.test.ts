@@ -30,7 +30,7 @@ vi.mock("./functions.ts", () => ({
   getAdminSimulationFn: vi.fn(),
   getJoinCodeFn: vi.fn(),
   getLabPage: vi.fn(),
-  getMyLabs: vi.fn(),
+  getMyLab: vi.fn(),
   getSimulationPage: vi.fn(),
   listAdminSimulationsFn: vi.fn(),
   listMySimulations: vi.fn(),

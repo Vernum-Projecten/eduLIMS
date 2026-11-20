@@ -13,7 +13,14 @@ import { correctRequest, recordRequest } from "../lab-records/requests.ts";
 import { AuthError } from "../middleware.ts";
 import { deleteSimulation } from "../simulations/simulations.ts";
 import { finishSimulation, startSimulation } from "../simulations/state.ts";
-import { auditRows, NOW, person, place, securityLines } from "../simulations/test-helpers.ts";
+import {
+  auditRows,
+  NOW,
+  person,
+  place,
+  securityLines,
+  setState,
+} from "../simulations/test-helpers.ts";
 import { insertMeasurement } from "./measurements.ts";
 import { type ReleaseInput, releaseResult } from "./release.ts";
 import { measure, type ResultsWorld, resultsWorld, toleranceFor } from "./test-helpers.ts";
@@ -364,6 +371,8 @@ describe("more cases of the release (security review of #370)", () => {
       { simulationId: w.outsideSimulationId },
       NOW,
     );
+    // NOTE: #379; one unfinished simulation at a time, so the first one is finished here.
+    await setState(database, w.simulationId, "finished");
     await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
     expect(
       await releaseResult(database, w.student, { ...input(w, chosen), labId: w.outsideLabId }),

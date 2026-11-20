@@ -131,6 +131,7 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   source_mismatch: m.admin_activity_reason_source_mismatch,
   lab_has_students: m.admin_activity_reason_lab_has_students,
   in_other_lab: m.admin_activity_reason_in_other_lab,
+  in_other_simulation: m.admin_activity_reason_in_other_simulation,
   last_teacher: m.admin_activity_reason_last_teacher,
   only_simulation_teacher: m.admin_activity_reason_only_simulation_teacher,
   invalid_email_or_password: m.admin_activity_reason_invalid_password,

@@ -20,11 +20,12 @@ import { removeLabLogo, setLabLogo } from "./logo.ts";
 import { uploadLogoInput } from "./logo-schemas.ts";
 import { moveMember, removeMember } from "./members.ts";
 import {
+  getCurrentStudentLab,
   getTeacherLab,
   getTeacherSimulation,
-  listStudentLabs,
   listTeacherSimulations,
 } from "./queries.ts";
+import { getSimulationReadiness } from "./readiness.ts";
 import {
   addTeacherInput,
   createLabInput,
@@ -62,6 +63,19 @@ export const getSimulationPage = createServerFn({ method: "GET" })
     const page = await getTeacherSimulation(getDb(), context.user.id, data.simulationId);
     if (!page) throw notFound();
     return page;
+  });
+
+/**
+ * Returns which preparation steps of a simulation are done and why a start would be refused;
+ * throws `notFound` unless the teacher teaches it (D10, D11, #381).
+ */
+export const getSimulationReadinessFn = createServerFn({ method: "GET" })
+  .middleware([teacher])
+  .validator(simulationIdInput)
+  .handler(async ({ data, context }) => {
+    const readiness = await getSimulationReadiness(getDb(), context.user, data.simulationId);
+    if (!readiness) throw notFound();
+    return readiness;
   });
 
 /** Returns a lab's page; throws `notFound` unless the teacher teaches its simulation (D11). */
@@ -205,10 +219,10 @@ export const joinLabFn = createServerFn({ method: "POST" })
     joinLabWithCode(getDb(), context.user, data, requestJoinContext(new Date())),
   );
 
-/** Returns the labs the signed-in student is in (S10). */
-export const getMyLabs = createServerFn({ method: "GET" })
+/** Returns the signed-in student's current lab, or `null` (S10, #379): the server picks it. */
+export const getMyLab = createServerFn({ method: "GET" })
   .middleware([student])
-  .handler(({ context }) => listStudentLabs(getDb(), context.user.id));
+  .handler(({ context }) => getCurrentStudentLab(getDb(), context.user.id));
 
 /**
  * Links the signed-in student's waiting addresses to their labs (S10), so a student who was
