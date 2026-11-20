@@ -604,6 +604,10 @@ What a SCIM request does in eduLIMS:
   deactivated your account". eduLIMS keeps the user and their records;
   erasing a person is a separate step. `active: true`, or a new
   create with the same `externalId`, lets the user sign in again.
+  eduLIMS 0.1.0 and 0.1.1 did not apply a SCIM `PUT`, `PATCH` or `DELETE`
+  (#365): after upgrading from one of them, restart provisioning in the
+  identity provider (a full sync), so it sends the deactivations, deletions
+  and changes it could not deliver.
 - **Sign-in** finds the provisioned user through the directory id: by
   default the account key (the OIDC `sub`, the SAML persistent NameID). When
   the directory sends another value as `externalId`, set "Claim with the
