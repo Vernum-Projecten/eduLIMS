@@ -96,21 +96,17 @@ export const KEYCLOAK_DEMO_REALM = "edulims";
  */
 export const KEYCLOAK_DEMO_PROVIDERS = ["keycloak", "keycloak-saml"] as const;
 
+// The realm gives every one of these users its username as its password.
 const KEYCLOAK_DEMO_USERS = [
-  { roles: ["student"], username: "student", password: "student", grant: "groups" },
-  { roles: ["teacher"], username: "teacher", password: "teacher", grant: "groups" },
-  { roles: ["admin"], username: "admin", password: "admin", grant: "direct" },
-  {
-    roles: ["teacher", "admin"],
-    username: "coordinator",
-    password: "coordinator",
-    grant: "groups",
-  },
-  { roles: ["teacher"], username: "teacher-direct", password: "teacher-direct", grant: "direct" },
-  { roles: ["teacher", "admin"], username: "mixed", password: "mixed", grant: "groups-and-direct" },
-  { roles: [], username: "conflict", password: "conflict", grant: "groups", refusal: "conflict" },
-  { roles: [], username: "norole", password: "norole", refusal: "no-role" },
-] as const satisfies readonly DemoAccount[];
+  { roles: ["student"], username: "student", grant: "groups" },
+  { roles: ["teacher"], username: "teacher", grant: "groups" },
+  { roles: ["admin"], username: "admin", grant: "direct" },
+  { roles: ["teacher", "admin"], username: "coordinator", grant: "groups" },
+  { roles: ["teacher"], username: "teacher-direct", grant: "direct" },
+  { roles: ["teacher", "admin"], username: "mixed", grant: "groups-and-direct" },
+  { roles: [], username: "conflict", grant: "groups", refusal: "conflict" },
+  { roles: [], username: "norole", refusal: "no-role" },
+] as const satisfies readonly Omit<DemoAccount, "password">[];
 
 /**
  * How an identity provider grants an account its roles: through group membership, as roles
@@ -160,7 +156,11 @@ export function demoAccountsFor(
     keycloak: keycloak
       ? {
           realm: KEYCLOAK_DEMO_REALM,
-          accounts: KEYCLOAK_DEMO_USERS.map((user) => ({ ...user, roles: [...user.roles] })),
+          accounts: KEYCLOAK_DEMO_USERS.map((user) => ({
+            ...user,
+            roles: [...user.roles],
+            password: user.username,
+          })),
         }
       : null,
   };
