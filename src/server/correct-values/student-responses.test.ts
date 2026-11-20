@@ -30,8 +30,9 @@ import { handWrittenSources } from "../test-source-files.ts";
 import { setTolerance } from "../tolerances/actions.ts";
 import { readStudentTolerances } from "../tolerances/queries.ts";
 import { linkGen5Upload } from "../upload/linking.ts";
-import { AIR_FILE, gen5Fixture } from "../upload/test-helpers.ts";
-import { readGen5Upload, storeGen5Upload } from "../upload/uploads.ts";
+import { readGen5Upload } from "../upload/reads.ts";
+import { AIR_FILE, gen5Fixture, registerReader } from "../upload/test-helpers.ts";
+import { storeGen5Upload } from "../upload/uploads.ts";
 import {
   catalogueTest,
   SECRET_RED,
@@ -403,6 +404,7 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
     });
     if (!recorded.ok) throw new Error(recorded.error);
     const labNumber = recorded.value.samples[0]?.labNumber ?? "";
+    await registerReader(database);
     const stored = await storeGen5Upload(database, w.student, {
       labId: w.labId,
       fileName: AIR_FILE,

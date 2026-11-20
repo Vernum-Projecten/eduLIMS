@@ -16,6 +16,32 @@ import { storeGen5Upload } from "./uploads.ts";
 /** The supplied export of an empty plate read at 750 nm (`tests/fixtures/gen5/README.md`). */
 export const AIR_FILE = "epoch2-endpoint-750nm-air.xlsx";
 
+/** The serial number in the header of the supplied export. */
+export const AIR_READER_SERIAL = "2204112B";
+
+/**
+ * Registers an Epoch 2 reader in use with `serialNumber` (the register is the admin's, B3) and
+ * returns its id; the supplied export's reader by default (maintainer on #400, S2).
+ */
+export async function registerReader(
+  db: Kysely<DB>,
+  serialNumber: string = AIR_READER_SERIAL,
+  status: "in_use" | "maintenance" = "in_use",
+): Promise<string> {
+  const row = await db
+    .insertInto("analysers")
+    .values({
+      model: "Epoch 2",
+      serial_number: serialNumber,
+      location: "Practice lab (invented)",
+      route: "excel_upload",
+      status,
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  return row.id;
+}
+
 /** Returns the bytes of a Gen5 fixture. */
 export function gen5Fixture(name: string = AIR_FILE): Uint8Array {
   return new Uint8Array(
@@ -48,6 +74,7 @@ async function epochTest(
  */
 export async function uploadWorld(db: Kysely<DB>) {
   const w = await resultsWorld(db);
+  const readerId = await registerReader(db);
   const teamTest = await epochTest(db, "Glucose by plate (invented)", "team");
   const edulimsTest = await epochTest(db, "Protein by plate (invented)", "edulims");
   const request = await requestFor(
@@ -71,7 +98,16 @@ export async function uploadWorld(db: Kysely<DB>) {
   });
   const [foreign] = other.samples;
   if (!foreign) throw new Error("no sample");
-  return { ...w, teamTest, edulimsTest, epochRequestId: request.requestId, a, b, foreign };
+  return {
+    ...w,
+    readerId,
+    teamTest,
+    edulimsTest,
+    epochRequestId: request.requestId,
+    a,
+    b,
+    foreign,
+  };
 }
 
 /** The world {@link uploadWorld} builds. */

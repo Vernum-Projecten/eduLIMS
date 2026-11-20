@@ -29,8 +29,8 @@ import {
   ForeignSampleError,
   type WellLinkInput,
 } from "./plate-links.ts";
+import { loadUploadView } from "./reads.ts";
 import {
-  loadUploadView,
   logUploadProbe,
   type OwnSample,
   recordUploadRefusal,
@@ -315,7 +315,10 @@ export async function linkGen5Upload(
       logUploadProbe(actor.id, uploadId);
       return refusedUpload("upload_not_found");
     }
-    if (upload.linked_at !== null) return refusedUpload("already_linked");
+    if (upload.linked_at !== null) {
+      await recordUploadRefusal(trx, actor, lab, "already_linked", uploadId);
+      return refusedUpload("already_linked");
+    }
     const samples = await ownSamples(trx, actor.id, lab);
     let checked: ReturnType<typeof checkPlateLinks>;
     try {
@@ -350,6 +353,7 @@ export async function linkGen5Upload(
         value: result.value,
         source: "epoch_upload",
         recordedBy: actor.id,
+        auditActor: { type: "user", id: actor.id },
         uploadId,
       });
       // NOTE: every precondition of `insertMeasurement` was checked above under the same locks,

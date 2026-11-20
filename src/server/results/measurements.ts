@@ -38,6 +38,11 @@ export interface NewMeasurement {
   source: MeasurementSource;
   /** The student who entered it (by hand or as an Epoch 2 result), or `null` for the Afinion 2. */
   recordedBy: string | null;
+  /**
+   * Who acts, for the activity log: the session user of a student's route, eduLIMS itself for an
+   * analyser's (security review of #400, N1). Separate from `recordedBy`, the stored column.
+   */
+  auditActor: AuditActor;
   /** The Gen5 upload of an `epoch_upload` measurement, of the same lab; `null` for any other. */
   uploadId?: string | null;
 }
@@ -50,13 +55,9 @@ export interface StoredMeasurement {
 
 /** The activity-log row of a measurement, done or refused, with ids only (E4). */
 function measurementEvent(measurement: NewMeasurement) {
-  const actor: AuditActor =
-    measurement.recordedBy === null
-      ? { type: "system" }
-      : { type: "user", id: measurement.recordedBy };
   return {
     action: "lab_measurement_recorded",
-    actor,
+    actor: measurement.auditActor,
     target: { type: "lab", id: measurement.labId },
   } as const;
 }
@@ -118,8 +119,8 @@ export async function insertMeasurement(
           .forShare()
           .executeTakeFirst();
   if (!request) {
-    if (measurement.recordedBy !== null) {
-      logRecordsProbe(measurement.recordedBy, "request", measurement.requestId);
+    if (measurement.auditActor.type === "user") {
+      logRecordsProbe(measurement.auditActor.id, "request", measurement.requestId);
     }
     return refused("request_not_found");
   }
@@ -153,8 +154,8 @@ export async function insertMeasurement(
           .where("lab_id", "=", lab.id)
           .executeTakeFirst();
   if (!sample) {
-    if (measurement.recordedBy !== null) {
-      logRecordsProbe(measurement.recordedBy, "sample", measurement.sampleId);
+    if (measurement.auditActor.type === "user") {
+      logRecordsProbe(measurement.auditActor.id, "sample", measurement.sampleId);
     }
     return refused("sample_not_found");
   }
@@ -209,7 +210,12 @@ export function recordManualMeasurement(
   actor: ResultsActor,
   input: ManualMeasurementInput,
 ): Promise<ResultsResult<StoredMeasurement>> {
-  const measurement: NewMeasurement = { ...input, source: "manual", recordedBy: actor.id };
+  const measurement: NewMeasurement = {
+    ...input,
+    source: "manual",
+    recordedBy: actor.id,
+    auditActor: { type: "user", id: actor.id },
+  };
   return withResultsLab(
     db,
     actor,

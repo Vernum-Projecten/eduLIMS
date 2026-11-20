@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The Gen5 uploads of a lab (S4, S10, S14, #156). An upload keeps the 96 values of the plate and
-// the reader's serial number, and each well's link to a sample of the same lab, set once. A
-// measurement from an upload names it, so its wells and its device stay beside it (#148).
+// The Gen5 uploads of a lab (S4, S10, S14, #156). An upload keeps the 96 values of the plate,
+// the registered reader whose serial number the file names, and each well's link to a sample of
+// the same lab, set once. A measurement from an upload names it, so its wells and its device stay
+// beside it (#148).
 import { type Kysely, sql } from "kysely";
 
 /** The bounds of `src/lib/decimal.ts`, as migrations 0018, 0021 and 0023 hold them. */
@@ -24,7 +25,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn("uploaded_by", "text", (c) => c.references("user.id").onDelete("set null"))
     // NOTE: Q-SIM-2; the database clock, whatever the insert carries (the trigger below).
     .addColumn("uploaded_at", "timestamptz", (c) => c.notNull().defaultTo(sql`clock_timestamp()`))
-    .addColumn("reader_serial_number", "text", (c) => c.notNull())
+    // NOTE: maintainer on #400 (S2); the reader is in the register, and the result write takes
+    // its serial number from there, never the text of the file.
+    .addColumn("analyser_id", "uuid", (c) =>
+      c.notNull().references("analysers.id").onDelete("no action"),
+    )
     .addColumn("wavelength_nm", "integer", (c) => c.notNull())
     .addColumn("linked_by", "text", (c) => c.references("user.id").onDelete("set null"))
     .addColumn("linked_at", "timestamptz")
@@ -36,12 +41,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       (c) => c.onDelete("cascade"),
     )
     .addUniqueConstraint("uploads_id_lab_id_key", ["id", "lab_id"])
-    .addCheckConstraint(
-      "uploads_reader_serial_number",
-      sql`reader_serial_number ~ '^[A-Za-z0-9]{1,32}$'`,
-    )
     .addCheckConstraint("uploads_wavelength_nm", sql`wavelength_nm between 1 and 9999`)
     .addCheckConstraint("uploads_linked", sql`linked_at is not null or linked_by is null`)
+    .execute();
+  await db.schema
+    .createIndex("uploads_analyser_id_idx")
+    .on("uploads")
+    .column("analyser_id")
     .execute();
   await db.schema
     .createIndex("uploads_lab_id_idx")
@@ -127,9 +133,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         end if;
         return old;
       end if;
-      if (new.id, new.simulation_id, new.lab_id, new.uploaded_at, new.reader_serial_number,
+      if (new.id, new.simulation_id, new.lab_id, new.uploaded_at, new.analyser_id,
           new.wavelength_nm) is distinct from
-         (old.id, old.simulation_id, old.lab_id, old.uploaded_at, old.reader_serial_number,
+         (old.id, old.simulation_id, old.lab_id, old.uploaded_at, old.analyser_id,
           old.wavelength_nm)
          or (new.uploaded_by is distinct from old.uploaded_by and new.uploaded_by is not null) then
         raise exception 'an upload never changes'

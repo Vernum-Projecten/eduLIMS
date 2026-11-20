@@ -9,8 +9,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { getDb } from "../db/index.ts";
 import { requireRole } from "../middleware.ts";
 import { linkGen5Upload } from "./linking.ts";
+import { readGen5Upload } from "./reads.ts";
 import { gen5UploadInput, linkGen5Input, uploadGen5Input } from "./schemas.ts";
-import { readGen5Upload, storeGen5Upload } from "./uploads.ts";
+import { storeGen5Upload } from "./uploads.ts";
 
 const student = requireRole("student");
 

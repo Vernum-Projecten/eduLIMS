@@ -11,6 +11,7 @@ import { createTestDb } from "../db/test-db.ts";
 import { deleteLab } from "../simulations/labs.ts";
 import { removeMember } from "../simulations/members.ts";
 import { auditRows, NOW } from "../simulations/test-helpers.ts";
+import { registerReader, uploaded } from "../upload/test-helpers.ts";
 import { correctPatient } from "./patients.ts";
 import { PATIENT, patientIn, recordsWorld, requestFor } from "./test-helpers.ts";
 
@@ -83,5 +84,24 @@ describe("deleting a lab with records (has_records)", () => {
       ok: false,
       error: "has_records",
     });
+  });
+
+  it("is refused for a lab with only a Gen5 upload (security review of #400, S4)", async () => {
+    const database = await createTestDb();
+    db = database;
+    const w = await recordsWorld(database);
+    await registerReader(database);
+    await uploaded(database, w.otherLabStudent, w.otherLabId);
+    await database.deleteFrom("lab_members").where("lab_id", "=", w.otherLabId).execute();
+    expect(await deleteLab(database, w.teacher, { labId: w.otherLabId })).toEqual({
+      ok: false,
+      error: "has_records",
+    });
+    const uploads = await database
+      .selectFrom("uploads")
+      .select("id")
+      .where("lab_id", "=", w.otherLabId)
+      .execute();
+    expect(uploads).toHaveLength(1);
   });
 });

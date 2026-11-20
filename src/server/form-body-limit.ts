@@ -21,16 +21,11 @@ export const FORM_BODY_MAX = LOGO_MAX_BYTES + FORM_FRAMING;
 
 // NOTE: owner, 2026-11-20 on #156; the 5 MiB file plus the same 16 KiB as the logo's form for
 // the lab's id, the file's part headers with its name, the boundaries and Start's context field.
-/** The most bytes the form of the Gen5 upload's server function (#156) may declare. */
-export const GEN5_FORM_BODY_MAX = MAX_UPLOAD_BYTES + FORM_FRAMING;
-
 /**
- * Returns the form limit of a server function call by its path: {@link GEN5_FORM_BODY_MAX} for
- * the Gen5 upload's function (`gen5Path`, its `url`), {@link FORM_BODY_MAX} for every other one.
+ * The most bytes the form of the Gen5 upload's server function (#156) may declare, for a caller
+ * with a valid session only (`gateGen5Upload`, src/server/upload/upload-gate.ts).
  */
-export function formBodyLimit(pathname: string, gen5Path: string | undefined): number {
-  return gen5Path !== undefined && pathname === gen5Path ? GEN5_FORM_BODY_MAX : FORM_BODY_MAX;
-}
+export const GEN5_FORM_BODY_MAX = MAX_UPLOAD_BYTES + FORM_FRAMING;
 
 const FORM_TYPES = ["multipart/form-data", "application/x-www-form-urlencoded"];
 

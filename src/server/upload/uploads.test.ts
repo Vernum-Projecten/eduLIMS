@@ -11,8 +11,9 @@ import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
 import { finishSimulation } from "../simulations/state.ts";
 import { auditRows, NOW, notFoundLine, securityLines } from "../simulations/test-helpers.ts";
+import { readGen5Upload } from "./reads.ts";
 import { AIR_FILE, gen5Fixture, type UploadWorld, uploaded, uploadWorld } from "./test-helpers.ts";
-import { readGen5Upload, storeGen5Upload } from "./uploads.ts";
+import { storeGen5Upload } from "./uploads.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -198,6 +199,17 @@ describe("who may upload (S10, E1)", () => {
     expect((await auditRows(database, "upload_validation_fail")).map((r) => r.reason_code)).toEqual(
       ["not_running"],
     );
+  });
+
+  it("refuses a finished simulation before it parses the file (security review of #400, N4)", async () => {
+    const { database, w } = await open();
+    await finishSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    const refused = await storeGen5Upload(database, w.student, {
+      labId: w.labId,
+      fileName: "plate.csv",
+      bytes: new Uint8Array(8),
+    });
+    expect(refused).toEqual({ ok: false, error: "not_running" });
   });
 });
 

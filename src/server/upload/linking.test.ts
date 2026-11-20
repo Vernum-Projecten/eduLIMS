@@ -133,10 +133,11 @@ describe("a linked plate (S4, S14)", () => {
     const row = await database
       .selectFrom("measurements as m")
       .innerJoin("uploads as u", "u.id", "m.upload_id")
-      .select(["m.source", "u.reader_serial_number"])
+      .innerJoin("analysers as a", "a.id", "u.analyser_id")
+      .select(["m.source", "a.serial_number"])
       .executeTakeFirstOrThrow();
     expect(
-      deviceOfSource({ source: "epoch_upload", readerSerialNumber: row.reader_serial_number }),
+      deviceOfSource({ source: "epoch_upload", readerSerialNumber: row.serial_number }),
     ).toEqual({ kind: "epoch_2", serialNumber: "2204112B" });
   });
 
@@ -148,6 +149,17 @@ describe("a linked plate (S4, S14)", () => {
       error: "already_linked",
     });
     expect(await measurements(database)).toHaveLength(1);
+    // The refusal is logged with its code (security review of #400, N3).
+    expect(await auditRows(database, "upload_validation_fail")).toEqual([
+      {
+        actor_id: w.student.id,
+        outcome: "refused",
+        target_type: "upload",
+        target_id: uploadId,
+        reason_code: "already_linked",
+        metadata: { simulation_id: w.simulationId, lab_id: w.labId },
+      },
+    ]);
   });
 });
 
@@ -264,14 +276,28 @@ describe("who may link (S10, E1; security review of #372, V8.2.2)", () => {
 
   it("refuses a student of lab B posting lab A's upload under lab B's id", async () => {
     const { database, w, uploadId } = await open();
-    expect(
-      await link(
-        database,
-        w,
-        { ...linkOf(w, uploadId), labId: w.otherLabId, links: [], results: [] },
-        w.otherLabStudent,
-      ),
-    ).toEqual({ ok: false, error: "upload_not_found" });
+    const lines = await securityLines(async () => {
+      expect(
+        await link(
+          database,
+          w,
+          { ...linkOf(w, uploadId), labId: w.otherLabId, links: [], results: [] },
+          w.otherLabStudent,
+        ),
+      ).toEqual({ ok: false, error: "upload_not_found" });
+    });
+    // The probe goes to the security stream with ids only (security review of #400, N5).
+    expect(lines).toEqual([
+      expect.objectContaining({
+        event: "authz_fail",
+        level: "warn",
+        actor_id: w.otherLabStudent.id,
+        target_type: "upload",
+        target_id: uploadId,
+        reason: "not_own_upload",
+        status: 404,
+      }),
+    ]);
     await nothingStored(database);
   });
 

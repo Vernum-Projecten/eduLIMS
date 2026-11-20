@@ -44,7 +44,7 @@ import {
 export interface ReleasedMeasurementDevice {
   id: MeasurementId;
   source: MeasurementSource;
-  /** The reader's serial number from the header of the measurement's Gen5 upload (#156). */
+  /** The register's serial number of the reader of the measurement's Gen5 upload (#156, #400). */
   readerSerialNumber: string | null;
 }
 
@@ -191,9 +191,10 @@ async function loadRelease(db: Kysely<DB>, measurementId: MeasurementId) {
     .leftJoin("uploads as u", (join) =>
       join.onRef("u.id", "=", "m.upload_id").onRef("u.lab_id", "=", "m.lab_id"),
     )
+    .leftJoin("analysers as a", "a.id", "u.analyser_id")
     .select([
       "m.source",
-      "u.reader_serial_number",
+      "a.serial_number as reader_serial_number",
       "m.recorded_at",
       sql<string>`m.value::text`.as("value"),
       "r.id as request_id",

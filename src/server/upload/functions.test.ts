@@ -42,8 +42,10 @@ describe("the upload server functions (E1, S10)", () => {
     expect(chain.startsWith(`{ method: "${METHOD[name]}" })`)).toBe(true);
   });
 
-  it("gives the upload's function, and only it, the Gen5 form limit (#156)", () => {
-    expect(START).toContain("formBodyLimit(new URL(request.url).pathname, uploadGen5Fn.url)");
-    expect(START).toContain("refuseFormBody(request, limit)");
+  it("puts the upload's function, and only it, behind the upload gate (#156; review of #400, S1)", () => {
+    expect(START).toContain("isGen5UploadCall(new URL(request.url).pathname, uploadGen5Fn.url)");
+    expect(START).toContain("return refuseFormBody(request) ?? next();");
+    expect(START).toContain("const gate = await gateGen5Upload(");
+    expect(START).toMatch(/finally \{\s+gate\.release\(\);/);
   });
 });

@@ -63,7 +63,7 @@ describe("0027_gen5_uploads", () => {
       .values({
         simulation_id: w.simulationId,
         lab_id: w.labId,
-        reader_serial_number: "INV001",
+        analyser_id: w.readerId,
         wavelength_nm: 450,
         uploaded_at: new Date("2000-01-01T00:00:00Z"),
         linked_at: new Date("2000-01-01T00:00:00Z"),
@@ -73,7 +73,7 @@ describe("0027_gen5_uploads", () => {
     expect(row.uploaded_at.getFullYear()).toBeGreaterThan(2000);
     expect(row.linked_at).toBeNull();
     await expect(
-      refused(sql`update uploads set reader_serial_number = 'OTHER' where id = ${uploadId}`),
+      refused(sql`update uploads set wavelength_nm = 450 where id = ${uploadId}`),
     ).rejects.toThrow(/an upload never changes/);
     await link(database, w, linkOf(w, uploadId));
     await expect(

@@ -477,11 +477,11 @@ export interface SsoProvider {
 }
 
 export interface Uploads {
+  analyser_id: string;
   id: Generated<string>;
   lab_id: string;
   linked_at: Timestamp | null;
   linked_by: string | null;
-  reader_serial_number: string;
   simulation_id: string;
   uploaded_at: Generated<Timestamp>;
   uploaded_by: string | null;

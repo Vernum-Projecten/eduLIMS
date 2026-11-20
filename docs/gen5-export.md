@@ -98,7 +98,7 @@ cell that holds only formatting counts as empty.
 | A7 | `Date` | B7, a whole-number date serial | reads it as `date`, `YYYY-MM-DD` |
 | A8 | `Time` | B8, a fraction of a day | reads it as `time`, `HH:MM:SS`, rounded to the second |
 | A9 | `Reader Type:` | B9, printable ASCII text, 1 to 64 characters | reads it as `readerType` |
-| A10 | `Reader Serial Number:` | B10, ASCII letters and digits, 1 to 32 characters, or a whole number | reads it as `readerSerialNumber` |
+| A10 | `Reader Serial Number:` | B10, ASCII letters and digits, 1 to 32 characters, or a whole number | reads it as `readerSerialNumber`; the upload then needs an Epoch 2 reader in use with that serial number in the analyser register, or refuses the file `reader_not_registered` (maintainer on #400) |
 | A11 | `Reading Type` | B11 | never reads the value |
 | A13 | `Procedure Details` | | |
 | A14 | `Plate Type` | B14 | requires `96 WELL PLATE` |

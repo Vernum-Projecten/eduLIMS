@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // A lab's Gen5 uploads (S4, S10, B4, #156): a member stores a checked plate with its 96 values
-// and the reader's serial number, and every member reads it back. A refused file stores nothing
-// but its activity-log row. The lab comes from the session user's own place in `lab_members`,
+// and its registered reader (reads.ts reads it back). A refused file stores nothing but its
+// activity-log row. The lab comes from the session user's own place in `lab_members`,
 // never from the client alone; another lab and an unknown id both answer `not_found`, logged.
 import "@tanstack/react-start/server-only";
-import { type Kysely, sql, type Transaction } from "kysely";
+import type { Kysely, Transaction } from "kysely";
 import type { RequestId, SampleId } from "../../lib/lab-records.ts";
-import { type PlateColumn, type PlateRow, plateWells, type WellId } from "../../lib/plate.ts";
-import { type MeasurementId, parseMeasurementId } from "../../lib/results.ts";
+import type { PlateColumn, PlateRow, WellId } from "../../lib/plate.ts";
+import type { MeasurementId } from "../../lib/results.ts";
 import { type LabId, parseLabId } from "../../lib/simulations.ts";
 import { parseUploadId, type UploadId, type UploadResultRefusalCode } from "../../lib/uploads.ts";
 import { recordAudit } from "../audit/record.ts";
@@ -20,7 +20,6 @@ import {
   findStudentLab,
   findWorkingStudentLab,
   type StudentLab,
-  studentLabsQuery,
 } from "../simulations/student-access.ts";
 import type { Gen5Error } from "./errors.ts";
 import { parseGen5Export } from "./gen5.ts";
@@ -38,11 +37,21 @@ export interface UploadResultRefusal {
   readonly index: number;
 }
 
+/**
+ * Why a file is refused: an error of the parser, or a reader the analyser register does not hold
+ * as an Epoch 2 reader in use (maintainer on #400, S2).
+ */
+export type UploadFileError = Gen5Error | { readonly kind: "reader_not_registered" };
+
 /** The outcome of an upload action: done, or refused with a code and the items in error. */
 export type UploadOutcome<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: UploadPlainError }
-  | { readonly ok: false; readonly error: "file_refused"; readonly errors: readonly Gen5Error[] }
+  | {
+      readonly ok: false;
+      readonly error: "file_refused";
+      readonly errors: readonly UploadFileError[];
+    }
   | {
       readonly ok: false;
       readonly error: "plate_refused";
@@ -140,13 +149,56 @@ export interface Gen5File {
   readonly bytes: Uint8Array;
 }
 
+/** The identifier the composition gives a result entered by hand; never a reader's serial. */
+const MANUAL_DEVICE_ID = "manual";
+
 /**
- * Stores a Gen5 export for the student's own lab (S4, S10, B4): the 96 values and the reader's
- * serial number, with an `upload_complete` row; a refused file stores nothing but an
- * `upload_validation_fail` row with its first reason, and returns every error found.
+ * Returns the register's Epoch 2 reader in use whose serial number the file names, locked
+ * `FOR SHARE` so a retirement waits, or `null` (maintainer on #400, S2). The identifier of the
+ * manual-entry device is never a reader.
+ */
+async function registeredReader(
+  trx: Transaction<DB>,
+  serialNumber: string,
+): Promise<{ id: string; serialNumber: string } | null> {
+  if (serialNumber.toLowerCase() === MANUAL_DEVICE_ID) return null;
+  const row = await trx
+    .selectFrom("analysers")
+    .select(["id", "serial_number"])
+    .where("route", "=", "excel_upload")
+    .where("status", "=", "in_use")
+    .where("serial_number", "=", serialNumber)
+    .forShare()
+    .executeTakeFirst();
+  return row ? { id: row.id, serialNumber: row.serial_number } : null;
+}
+
+/** Refuses a member whose simulation does not run, or anyone else, before a byte is parsed. */
+async function refuseBeforeParse(
+  db: Kysely<DB>,
+  actor: UploadActor,
+  labId: string,
+): Promise<UploadOutcome<UploadView>> {
+  return db.transaction().execute(async (trx) => {
+    const member = await findStudentLab(trx, actor.id, labId);
+    if (member === null) {
+      logRecordsProbe(actor.id, "lab", labId);
+      return refusedUpload<UploadView>("not_found");
+    }
+    await recordUploadRefusal(trx, actor, member, "not_running");
+    return refusedUpload<UploadView>("not_running");
+  });
+}
+
+/**
+ * Stores a Gen5 export for the student's own lab (S4, S10, B4): the 96 values and the registered
+ * Epoch 2 reader whose serial number the file names, with an `upload_complete` row. A refused file
+ * (a parser error, a reader not in the register) stores nothing but an `upload_validation_fail`
+ * row with its first reason, and returns every error found.
  *
- * The membership is checked before the file is parsed, and again, locked, as the first
- * statement of the writing transaction, so a finish or a move that commits first wins.
+ * The membership and the running simulation are checked before the file is parsed, and again,
+ * locked, as the first statement of the writing transaction, so a finish or a move that commits
+ * first wins.
  *
  * @throws AuthError 403 without the app role student.
  */
@@ -156,12 +208,12 @@ export async function storeGen5Upload(
   file: Gen5File,
 ): Promise<UploadOutcome<UploadView>> {
   assertStudent(actor);
-  if (
-    parseLabId(file.labId) === null ||
-    (await findStudentLab(db, actor.id, file.labId)) === null
-  ) {
+  if (parseLabId(file.labId) === null) {
     logRecordsProbe(actor.id, "lab", file.labId);
     return refusedUpload("not_found");
+  }
+  if ((await findWorkingStudentLab(db, actor.id, file.labId)) === null) {
+    return refuseBeforeParse(db, actor, file.labId);
   }
   // NOTE: ASVS V15.2.2, #156; the parse is synchronous, so one process parses one file at a
   // time, and it runs outside the transaction, so no lock waits on it.
@@ -181,6 +233,12 @@ export async function storeGen5Upload(
       await recordUploadRefusal(trx, actor, lab, parsed.errors[0].kind);
       return { ok: false, error: "file_refused", errors: parsed.errors };
     }
+    const { header } = parsed.plate;
+    const reader = await registeredReader(trx, header.readerSerialNumber);
+    if (reader === null) {
+      await recordUploadRefusal(trx, actor, lab, "reader_not_registered");
+      return { ok: false, error: "file_refused", errors: [{ kind: "reader_not_registered" }] };
+    }
     const checked = checkPlateLinks({
       labId: lab.labId,
       plate: parsed.plate,
@@ -191,14 +249,13 @@ export async function storeGen5Upload(
       await recordUploadRefusal(trx, actor, lab, checked.refusals[0].code);
       return { ok: false, error: "plate_refused", refusals: checked.refusals };
     }
-    const { header } = parsed.plate;
     const row = await trx
       .insertInto("uploads")
       .values({
         simulation_id: lab.simulationId,
         lab_id: lab.labId,
         uploaded_by: actor.id,
-        reader_serial_number: header.readerSerialNumber,
+        analyser_id: reader.id,
         wavelength_nm: header.wavelengthNm,
       })
       .returning(["id", "uploaded_at"])
@@ -228,7 +285,7 @@ export async function storeGen5Upload(
       value: {
         uploadId,
         uploadedAt: row.uploaded_at.toISOString(),
-        readerSerialNumber: header.readerSerialNumber,
+        readerSerialNumber: reader.serialNumber,
         wavelengthNm: header.wavelengthNm,
         linkedAt: null,
         wells: checked.wells.map(({ well, row: plateRow, column, absorbance }) => ({
@@ -240,145 +297,6 @@ export async function storeGen5Upload(
         })),
         measurements: [],
       },
-    };
-  });
-}
-
-/**
- * Returns one upload of the student's own lab with its wells, their links and the measurements
- * that came from it (S4, S10), or `upload_not_found` for an upload of another lab or none, logged.
- * Every member of the lab reads it, in a running simulation or not.
- *
- * @throws AuthError 403 without the app role student.
- */
-export async function readGen5Upload(
-  db: Kysely<DB>,
-  actor: UploadActor,
-  input: { labId: string; uploadId: string },
-): Promise<UploadOutcome<UploadView>> {
-  assertStudent(actor);
-  const labId = parseLabId(input.labId);
-  const uploadId = parseUploadId(input.uploadId);
-  if (labId === null || uploadId === null) {
-    logUploadProbe(actor.id, input.uploadId);
-    return refusedUpload("upload_not_found");
-  }
-  return db.transaction().execute(async (trx): Promise<UploadOutcome<UploadView>> => {
-    const member = await studentLabsQuery(trx, actor.id)
-      .innerJoin("uploads", (join) =>
-        join
-          .onRef("uploads.lab_id", "=", "labs.id")
-          .onRef("uploads.simulation_id", "=", "labs.simulation_id"),
-      )
-      .select("uploads.id")
-      .where("labs.id", "=", labId)
-      .where("uploads.id", "=", uploadId)
-      // NOTE: S4; a link holds the upload FOR UPDATE until it commits, so this read sees the
-      // links, the measurements and the time of the link together, or none of them.
-      .forShare(["uploads"])
-      .executeTakeFirst();
-    if (!member) {
-      logUploadProbe(actor.id, uploadId);
-      return refusedUpload("upload_not_found");
-    }
-    return { ok: true, value: await loadUploadView(trx, labId, uploadId) };
-  });
-}
-
-/**
- * Returns an upload with its wells and measurements, for a caller that already reached it
- * through the lab's membership in `trx`.
- */
-export async function loadUploadView(
-  trx: Transaction<DB>,
-  labId: LabId,
-  uploadId: UploadId,
-): Promise<UploadView> {
-  const upload = await trx
-    .selectFrom("uploads")
-    .select(["uploaded_at", "reader_serial_number", "wavelength_nm", "linked_at"])
-    .where("id", "=", uploadId)
-    .where("lab_id", "=", labId)
-    .executeTakeFirstOrThrow();
-  return {
-    uploadId,
-    uploadedAt: upload.uploaded_at.toISOString(),
-    readerSerialNumber: upload.reader_serial_number,
-    wavelengthNm: upload.wavelength_nm,
-    linkedAt: upload.linked_at?.toISOString() ?? null,
-    wells: await uploadWells(trx, labId, uploadId),
-    measurements: await uploadMeasurements(trx, labId, uploadId),
-  };
-}
-
-/** Returns the wells of an upload the caller already reached through the lab's membership. */
-async function uploadWells(
-  trx: Transaction<DB>,
-  labId: LabId,
-  uploadId: UploadId,
-): Promise<UploadWellView[]> {
-  const rows = await trx
-    .selectFrom("upload_wells as w")
-    .leftJoin("samples as s", (join) =>
-      join.onRef("s.id", "=", "w.sample_id").onRef("s.lab_id", "=", "w.lab_id"),
-    )
-    .select([
-      "w.well",
-      sql<string>`w.absorbance::text`.as("absorbance"),
-      "s.lab_number",
-      "s.sample_number",
-    ])
-    .where("w.upload_id", "=", uploadId)
-    .where("w.lab_id", "=", labId)
-    .orderBy("w.well")
-    .execute();
-  const byWell = new Map(rows.map((row) => [row.well, row]));
-  return plateWells().map(({ well, row, column }) => {
-    const stored = byWell.get(well);
-    if (stored === undefined) throw new Error("a stored upload lacks a well");
-    return {
-      well,
-      row,
-      column,
-      absorbance: stored.absorbance,
-      sample:
-        stored.lab_number === null || stored.sample_number === null
-          ? null
-          : { labNumber: stored.lab_number, sampleNumber: stored.sample_number },
-    };
-  });
-}
-
-/** Returns the measurements that came from an upload, oldest first. */
-async function uploadMeasurements(
-  trx: Transaction<DB>,
-  labId: LabId,
-  uploadId: UploadId,
-): Promise<UploadMeasurementView[]> {
-  const rows = await trx
-    .selectFrom("measurements as m")
-    .innerJoin("samples as s", "s.id", "m.sample_id")
-    .select([
-      "m.id",
-      "s.lab_number",
-      "m.test_id",
-      sql<string>`m.value::text`.as("value"),
-      "m.recorded_at",
-    ])
-    .where("m.upload_id", "=", uploadId)
-    .where("m.lab_id", "=", labId)
-    .orderBy("m.recorded_at")
-    .orderBy("m.id")
-    .execute();
-  return rows.map((row) => {
-    const measurementId = parseMeasurementId(row.id);
-    if (measurementId === null) throw new Error("the database returned a malformed measurement id");
-    return {
-      measurementId,
-      labNumber: row.lab_number,
-      testId: row.test_id,
-      value: row.value,
-      recordedAt: row.recorded_at.toISOString(),
     };
   });
 }
