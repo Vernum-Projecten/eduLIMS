@@ -45,3 +45,9 @@ export async function inUserOrder<A, B>(
     holder.release();
   }
 }
+
+/** Resolves to whether `promise` settles within `ms`. */
+export async function settlesWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
+  const timeout = new Promise<false>((resolve) => setTimeout(() => resolve(false), ms));
+  return Promise.race([promise.then(() => true), timeout]);
+}

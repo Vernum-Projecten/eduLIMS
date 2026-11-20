@@ -5,32 +5,13 @@
 // once, and a start that meets another start held open by hand. These need real, committing
 // transactions; the forced-order cases hold the first start open so the second waits on the
 // index of migration 0030 and is then refused, logged, with its simulation left prepared.
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { type CommittedTestDb, createCommittedTestDb } from "../db/test-committed-db.ts";
+import { describe, expect, it } from "vitest";
+import { committedTestDbPerCase } from "../db/test-committed-hooks.ts";
+import { settlesWithin } from "../db/test-lock-waiters.ts";
 import { startSimulation } from "./state.ts";
-import { auditRows, NOW, world } from "./test-helpers.ts";
+import { auditRows, NOW, type World, world } from "./test-helpers.ts";
 
-let committed: CommittedTestDb | undefined;
-
-beforeEach(async () => {
-  committed = await createCommittedTestDb(8);
-}, 60_000);
-
-afterEach(async () => {
-  await committed?.destroy();
-  committed = undefined;
-}, 60_000);
-
-function database(): CommittedTestDb {
-  if (!committed) throw new Error("no committed test database");
-  return committed;
-}
-
-/** Resolves to whether `promise` settles within `ms`. */
-async function settlesWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
-  const timeout = new Promise<false>((resolve) => setTimeout(() => resolve(false), ms));
-  return Promise.race([promise.then(() => true), timeout]);
-}
+const database = committedTestDbPerCase();
 
 async function runningIds(): Promise<string[]> {
   const rows = await database()
@@ -39,6 +20,28 @@ async function runningIds(): Promise<string[]> {
     .where("state", "=", "running")
     .execute();
   return rows.map((row) => row.id);
+}
+
+/**
+ * Holds a first start of the other simulation open by hand, starts the world's own simulation
+ * behind it, checks that it waits, ends the first with `end`, and returns the second's outcome.
+ */
+async function behindHeldStart(w: World, end: "commit" | "rollback") {
+  const { db, pool } = database();
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await client.query(
+      "update simulations set state = 'running', started_at = now() where id = $1",
+      [w.outsideSimulationId],
+    );
+    const second = startSimulation(db, w.teacher, { simulationId: w.simulationId }, NOW);
+    expect(await settlesWithin(second, 300)).toBe(false);
+    await client.query(end);
+    return await second;
+  } finally {
+    client.release();
+  }
 }
 
 describe("two starts at once (#386)", () => {
@@ -55,23 +58,9 @@ describe("two starts at once (#386)", () => {
   });
 
   it("makes the second start wait for the first and then refuses it (forced order)", async () => {
-    const { db, pool } = database();
+    const { db } = database();
     const w = await world(db);
-    const client = await pool.connect();
-    try {
-      // The first start, held open after it set its simulation running.
-      await client.query("begin");
-      await client.query(
-        "update simulations set state = 'running', started_at = now() where id = $1",
-        [w.outsideSimulationId],
-      );
-      const second = startSimulation(db, w.teacher, { simulationId: w.simulationId }, NOW);
-      expect(await settlesWithin(second, 300)).toBe(false);
-      await client.query("commit");
-      expect(await second).toEqual({ ok: false, error: "another_running" });
-    } finally {
-      client.release();
-    }
+    expect(await behindHeldStart(w, "commit")).toEqual({ ok: false, error: "another_running" });
     expect(await runningIds()).toEqual([w.outsideSimulationId]);
     expect(await auditRows(db, "simulation_started")).toEqual([
       expect.objectContaining({
@@ -83,22 +72,8 @@ describe("two starts at once (#386)", () => {
   });
 
   it("lets the second start run when the first rolls back (forced order)", async () => {
-    const { db, pool } = database();
-    const w = await world(db);
-    const client = await pool.connect();
-    try {
-      await client.query("begin");
-      await client.query(
-        "update simulations set state = 'running', started_at = now() where id = $1",
-        [w.outsideSimulationId],
-      );
-      const second = startSimulation(db, w.teacher, { simulationId: w.simulationId }, NOW);
-      expect(await settlesWithin(second, 300)).toBe(false);
-      await client.query("rollback");
-      expect(await second).toEqual({ ok: true, value: null });
-    } finally {
-      client.release();
-    }
+    const w = await world(database().db);
+    expect(await behindHeldStart(w, "rollback")).toEqual({ ok: true, value: null });
     expect(await runningIds()).toEqual([w.simulationId]);
   });
 });
