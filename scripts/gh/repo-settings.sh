@@ -105,7 +105,7 @@ ruleset() {
 apply() {
   echo "== about =="
   api required PATCH "repos/$REPO" '{
-    "description": "Open-source laboratory information management system (LIMS) for practical laboratory education. Samples, analyser results via openEHR and HL7 v2, rubric grading and KPI dashboards. TypeScript, TanStack Start, PostgreSQL.",
+    "description": "Open-source laboratory information management system (LIMS) for a workplace simulation in laboratory education. Patients, requests, analyser results via openEHR and HL7 v2, and a live teacher dashboard. TypeScript, TanStack Start, PostgreSQL.",
     "homepage": "https://edulims.eu",
     "has_wiki": false,
     "has_projects": true,

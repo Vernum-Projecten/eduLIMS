@@ -1,20 +1,20 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The forms of the development page `/dev/forms` (#61): a rubric editor (criteria with levels
-// and points, as D1 and D4 describe a rubric) and a session form with one field of every kind.
-// Fictional data, nothing saved. Shared by the page and the stub server functions, so both
-// refuse the same input.
+// The forms of the development page `/dev/forms` (#61): a request editor (the tests of a
+// request, each with its measurements, as S12 and S14 describe them) and a session form with one
+// field of every kind. Fictional data, nothing saved. Shared by the page and the stub server
+// functions, so both refuse the same input.
 import { z } from "zod";
 import { m } from "@/i18n/messages";
 import { emailListSchema } from "@/lib/forms/email-list";
 
 // NOTE: no requirement governs these bounds: our own design for a demonstration page.
-export const DEMO_TITLE_MAX = 120;
+export const DEMO_SAMPLE_NUMBER_MAX = 40;
 export const DEMO_NAME_MAX = 80;
-export const DEMO_CRITERIA_MAX = 10;
-export const DEMO_LEVELS_MAX = 6;
-export const DEMO_POINTS_MAX = 100;
+export const DEMO_TESTS_MAX = 10;
+export const DEMO_MEASUREMENTS_MAX = 6;
+export const DEMO_VALUE_MAX = 1000;
 export const DEMO_NOTES_MAX = 500;
 export const DEMO_GROUP_MAX = 30;
 export const DEMO_OBSERVERS_MAX = 10;
@@ -22,63 +22,64 @@ export const DEMO_OBSERVERS_MAX = 10;
 /** A row's own id, so a moved row keeps its React key and its focus. */
 const rowId = z.string().min(1).max(64);
 
-const points = z
-  .number({ error: () => m.dev_forms_points_invalid({ max: String(DEMO_POINTS_MAX) }) })
-  .int({ error: () => m.dev_forms_points_invalid({ max: String(DEMO_POINTS_MAX) }) })
-  .min(0, { error: () => m.dev_forms_points_invalid({ max: String(DEMO_POINTS_MAX) }) })
-  .max(DEMO_POINTS_MAX, {
-    error: () => m.dev_forms_points_invalid({ max: String(DEMO_POINTS_MAX) }),
-  });
+const valueInvalid = () => m.dev_forms_value_invalid({ max: String(DEMO_VALUE_MAX) });
+
+const value = z
+  .number({ error: valueInvalid })
+  .min(0, { error: valueInvalid })
+  .max(DEMO_VALUE_MAX, { error: valueInvalid });
 
 const tooLong = (max: number) => () => m.form_too_long({ max: String(max) });
 
-export const demoLevelSchema = z.object({
+/** One measurement of a test: its name (a run) and its value. */
+export const demoMeasurementSchema = z.object({
   id: rowId,
   label: z
     .string()
     .trim()
-    .min(1, { error: () => m.dev_forms_level_label_required() })
+    .min(1, { error: () => m.dev_forms_run_label_required() })
     .max(DEMO_NAME_MAX, { error: tooLong(DEMO_NAME_MAX) }),
-  points,
+  value,
 });
 
-export const demoCriterionSchema = z.object({
+/** One requested test with its measurements. */
+export const demoTestSchema = z.object({
   id: rowId,
   name: z
     .string()
     .trim()
-    .min(1, { error: () => m.dev_forms_criterion_name_required() })
+    .min(1, { error: () => m.dev_forms_test_name_required() })
     .max(DEMO_NAME_MAX, { error: tooLong(DEMO_NAME_MAX) }),
-  levels: z
-    .array(demoLevelSchema)
-    .min(1, { error: () => m.dev_forms_levels_required() })
-    .max(DEMO_LEVELS_MAX, {
-      error: () => m.dev_forms_levels_too_many({ max: String(DEMO_LEVELS_MAX) }),
+  measurements: z
+    .array(demoMeasurementSchema)
+    .min(1, { error: () => m.dev_forms_runs_required() })
+    .max(DEMO_MEASUREMENTS_MAX, {
+      error: () => m.dev_forms_runs_too_many({ max: String(DEMO_MEASUREMENTS_MAX) }),
     }),
 });
 
-const rubricTitle = z
+const sampleNumber = z
   .string()
   .trim()
-  .min(1, { error: () => m.dev_forms_title_required() })
-  .max(DEMO_TITLE_MAX, { error: tooLong(DEMO_TITLE_MAX) });
+  .min(1, { error: () => m.dev_forms_sample_number_required() })
+  .max(DEMO_SAMPLE_NUMBER_MAX, { error: tooLong(DEMO_SAMPLE_NUMBER_MAX) });
 
-/** The rubric editor: a title and its criteria, each with its levels and their points. */
-export const demoRubricSchema = z.object({
-  title: rubricTitle,
-  criteria: z
-    .array(demoCriterionSchema)
-    .min(1, { error: () => m.dev_forms_criteria_required() })
-    .max(DEMO_CRITERIA_MAX, {
-      error: () => m.dev_forms_criteria_too_many({ max: String(DEMO_CRITERIA_MAX) }),
+/** The request editor: a sample number and its tests, each with its measurements. */
+export const demoRequestSchema = z.object({
+  sampleNumber,
+  tests: z
+    .array(demoTestSchema)
+    .min(1, { error: () => m.dev_forms_tests_required() })
+    .max(DEMO_TESTS_MAX, {
+      error: () => m.dev_forms_tests_too_many({ max: String(DEMO_TESTS_MAX) }),
     }),
 });
-export type DemoRubricForm = z.input<typeof demoRubricSchema>;
-export type DemoCriterion = DemoRubricForm["criteria"][number];
-export type DemoLevel = DemoCriterion["levels"][number];
+export type DemoRequestForm = z.input<typeof demoRequestSchema>;
+export type DemoTest = DemoRequestForm["tests"][number];
+export type DemoMeasurement = DemoTest["measurements"][number];
 
-/** The input of the debounced title check. */
-export const demoTitleInput = z.strictObject({ title: rubricTitle });
+/** The input of the debounced sample number check. */
+export const demoSampleNumberInput = z.strictObject({ sampleNumber });
 
 export const DEMO_ANALYSERS = ["afinion", "epoch"] as const;
 export const DEMO_SESSION_PARTS = ["morning", "afternoon", "day"] as const;

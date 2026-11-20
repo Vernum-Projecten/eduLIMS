@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { DEMO_RUBRIC, DEMO_SESSION } from "@/components/dev-forms/demo-data";
-import { isTakenDemoTitle, reviewDemoRubric, reviewDemoSession } from "./demo.ts";
-import { demoRubricSchema, demoSessionSchema, demoTitleInput } from "./schemas.ts";
+import { DEMO_REQUEST, DEMO_SESSION } from "@/components/dev-forms/demo-data";
+import { isTakenDemoSampleNumber, reviewDemoRequest, reviewDemoSession } from "./demo.ts";
+import { demoRequestSchema, demoSampleNumberInput, demoSessionSchema } from "./schemas.ts";
 
-describe("the fictional rubric titles", () => {
-  it("counts a fictional title as taken, ignoring case and spaces", () => {
-    expect(isTakenDemoTitle("  titration BASICS ")).toBe(true);
-    expect(isTakenDemoTitle("Pipetting technique")).toBe(false);
+describe("the fictional sample numbers", () => {
+  it("counts a fictional sample number as taken, ignoring case and spaces", () => {
+    expect(isTakenDemoSampleNumber("  demo-101 ")).toBe(true);
+    expect(isTakenDemoSampleNumber("DEMO-103")).toBe(false);
   });
 
-  it("refuses a taken title at submit and accepts a free one", () => {
-    expect(reviewDemoRubric({ title: "Microplate absorbance" })).toEqual({
+  it("refuses a taken sample number at submit and accepts a free one", () => {
+    expect(reviewDemoRequest({ sampleNumber: "DEMO-102" })).toEqual({
       ok: false,
-      refusal: { kind: "title_taken" },
+      refusal: { kind: "sample_number_taken" },
     });
-    expect(reviewDemoRubric({ title: "Pipetting technique" })).toEqual({ ok: true });
+    expect(reviewDemoRequest({ sampleNumber: "DEMO-103" })).toEqual({ ok: true });
   });
 
   it("refuses a session only when the refusal is simulated", () => {
@@ -34,58 +34,62 @@ function issuesByPath(result: { error?: { issues: { path: PropertyKey[]; message
   return (result.error?.issues ?? []).map((issue) => [issue.path.join("."), issue.message]);
 }
 
-describe("demoRubricSchema (the shared schema of the rubric editor)", () => {
-  it("accepts the fictional rubric", () => {
-    expect(demoRubricSchema.safeParse(DEMO_RUBRIC).success).toBe(true);
+describe("demoRequestSchema (the shared schema of the request editor)", () => {
+  it("accepts the fictional request", () => {
+    expect(demoRequestSchema.safeParse(DEMO_REQUEST).success).toBe(true);
   });
 
-  it("refuses an empty title, an empty criterion name and bad points at their nested paths", () => {
-    const criterion = DEMO_RUBRIC.criteria[0];
-    if (!criterion) throw new Error("the fictional rubric has criteria");
-    const result = demoRubricSchema.safeParse({
-      title: " ",
-      criteria: [
+  it("refuses an empty sample number, an empty test name and a bad value at their nested paths", () => {
+    const test = DEMO_REQUEST.tests[0];
+    if (!test) throw new Error("the fictional request has tests");
+    const result = demoRequestSchema.safeParse({
+      sampleNumber: " ",
+      tests: [
         {
-          ...criterion,
+          ...test,
           name: "",
-          levels: [{ id: "l", label: "Good", points: Number.NaN }],
+          measurements: [{ id: "r", label: "Run 1", value: Number.NaN }],
         },
       ],
     });
     expect(issuesByPath(result)).toEqual([
-      ["title", "Enter a title for the rubric."],
-      ["criteria.0.name", "Enter a name for the criterion."],
-      ["criteria.0.levels.0.points", "Enter the points as a whole number from 0 to 100."],
+      ["sampleNumber", "Enter the sample number."],
+      ["tests.0.name", "Enter a name for the test."],
+      ["tests.0.measurements.0.value", "Enter the value as a number from 0 to 1000."],
     ]);
   });
 
-  it("refuses a rubric without criteria and a criterion without levels", () => {
-    expect(issuesByPath(demoRubricSchema.safeParse({ title: "A", criteria: [] }))).toEqual([
-      ["criteria", "Add at least one criterion."],
+  it("refuses a request without tests and a test without measurements", () => {
+    expect(issuesByPath(demoRequestSchema.safeParse({ sampleNumber: "A", tests: [] }))).toEqual([
+      ["tests", "Add at least one test."],
     ]);
     expect(
       issuesByPath(
-        demoRubricSchema.safeParse({
-          title: "A",
-          criteria: [{ id: "c", name: "B", levels: [] }],
+        demoRequestSchema.safeParse({
+          sampleNumber: "A",
+          tests: [{ id: "t", name: "B", measurements: [] }],
         }),
       ),
-    ).toEqual([["criteria.0.levels", "Add at least one level."]]);
+    ).toEqual([["tests.0.measurements", "Add at least one measurement."]]);
   });
 
-  it("refuses points outside 0 to 100 and fractions", () => {
-    for (const points of [-1, 101, 1.5]) {
-      const result = demoRubricSchema.safeParse({
-        title: "A",
-        criteria: [{ id: "c", name: "B", levels: [{ id: "l", label: "C", points }] }],
-      });
-      expect(result.success).toBe(false);
+  it("refuses a value outside 0 to 1000 and accepts a decimal inside", () => {
+    const request = (value: number) => ({
+      sampleNumber: "A",
+      tests: [{ id: "t", name: "B", measurements: [{ id: "r", label: "C", value }] }],
+    });
+    for (const value of [-0.1, 1000.1, Number.POSITIVE_INFINITY]) {
+      expect(demoRequestSchema.safeParse(request(value)).success).toBe(false);
+    }
+    for (const value of [0, 5.4, 1000]) {
+      expect(demoRequestSchema.safeParse(request(value)).success).toBe(true);
     }
   });
 
-  it("bounds the title check input like the form (a server function is an API)", () => {
-    expect(demoTitleInput.safeParse({ title: "x".repeat(121) }).success).toBe(false);
-    expect(demoTitleInput.safeParse({ title: "A", extra: 1 }).success).toBe(false);
+  it("bounds the sample number check input like the form (a server function is an API)", () => {
+    expect(demoSampleNumberInput.safeParse({ sampleNumber: "x".repeat(41) }).success).toBe(false);
+    expect(demoSampleNumberInput.safeParse({ sampleNumber: "x".repeat(40) }).success).toBe(true);
+    expect(demoSampleNumberInput.safeParse({ sampleNumber: "A", extra: 1 }).success).toBe(false);
   });
 });
 

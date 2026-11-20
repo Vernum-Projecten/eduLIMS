@@ -1,30 +1,31 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The stub answers of the `/dev/forms` server functions: fictional rubric titles that count as
-// taken, so the debounced check and the refusal at submit can be seen. Nothing is stored.
+// The stub answers of the `/dev/forms` server functions: fictional sample numbers that count as
+// linked to a request already, so the debounced check and the refusal at submit can be seen.
+// Nothing is stored.
 
-/** Fictional rubrics that "already exist". */
-export const TAKEN_DEMO_TITLES = ["Titration basics", "Microplate absorbance"] as const;
+/** Fictional sample numbers that "already" belong to a request. */
+export const TAKEN_DEMO_SAMPLE_NUMBERS = ["DEMO-101", "DEMO-102"] as const;
 
-/** Returns whether `title` names one of the fictional rubrics, ignoring case and spaces. */
-export function isTakenDemoTitle(title: string): boolean {
-  const wanted = title.trim().toLowerCase();
-  return TAKEN_DEMO_TITLES.some((taken) => taken.toLowerCase() === wanted);
+/** Returns whether `sampleNumber` is one of the fictional linked ones, ignoring case and spaces. */
+export function isTakenDemoSampleNumber(sampleNumber: string): boolean {
+  const wanted = sampleNumber.trim().toLowerCase();
+  return TAKEN_DEMO_SAMPLE_NUMBERS.some((taken) => taken.toLowerCase() === wanted);
 }
 
 /** Why the stub refuses a form: a field it concerns, or the form as a whole. */
-export type DemoRefusal = { readonly kind: "title_taken" } | { readonly kind: "simulated" };
+export type DemoRefusal = { readonly kind: "sample_number_taken" } | { readonly kind: "simulated" };
 
 /** The answer of a stub submit. */
 export type DemoResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly refusal: DemoRefusal };
 
-/** Reviews a rubric as a real server would at submit: the title may be taken since the check. */
-export function reviewDemoRubric(rubric: { readonly title: string }): DemoResult {
-  return isTakenDemoTitle(rubric.title)
-    ? { ok: false, refusal: { kind: "title_taken" } }
+/** Reviews a request as a real server would at submit: the number may be taken since the check. */
+export function reviewDemoRequest(request: { readonly sampleNumber: string }): DemoResult {
+  return isTakenDemoSampleNumber(request.sampleNumber)
+    ? { ok: false, refusal: { kind: "sample_number_taken" } }
     : { ok: true };
 }
 

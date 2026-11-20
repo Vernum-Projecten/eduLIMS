@@ -99,7 +99,7 @@ describe("demoRows", () => {
     expect(demoRows(50)).toEqual(demoRows(50));
   });
 
-  it("gives every row a unique sample ID", () => {
+  it("gives every row a unique sample number", () => {
     const rows = demoRows(10_000);
     expect(new Set(rows.map((row) => row.id)).size).toBe(10_000);
     expect(rows.at(0)?.id).toBe("VD-00001");

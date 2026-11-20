@@ -16,7 +16,7 @@ describe("sortDemoRows (#76)", () => {
     expect(ids(sortDemoRows(rows, [{ id: "analyte", desc: false }]))).toEqual(ids(rows));
   });
 
-  it("sorts by sample ID descending", () => {
+  it("sorts by sample number descending", () => {
     const sorted = sortDemoRows(rows, [{ id: "id", desc: true }]);
     expect(sorted[0]?.id).toBe("VD-00030");
     expect(sorted.at(-1)?.id).toBe("VD-00001");
@@ -29,7 +29,7 @@ describe("sortDemoRows (#76)", () => {
     expect(desc).toEqual([...desc].sort((a, b) => b - a));
   });
 
-  it("puts rows in range first when sorting by status ascending, ties by sample ID", () => {
+  it("puts rows in range first when sorting by status ascending, ties by sample number", () => {
     const sorted = sortDemoRows(rows, [{ id: "status", desc: false }]);
     const firstOut = sorted.findIndex((row) => !row.inRange);
     expect(firstOut).toBeGreaterThan(0);

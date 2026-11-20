@@ -4,7 +4,8 @@
 // The vocabulary of the activity log (B4). Action names follow the OWASP Logging Vocabulary
 // cheat sheet (docs/security/vendor/cheatsheets/Logging_Vocabulary_Cheat_Sheet.md). Every field
 // is an id or a code: the schema has no place for a name, an e-mail address, an IP address, a
-// token, a request body or a grade. Relative imports: `pnpm db:seed` loads this in plain Node.
+// token, a request body or a correct value. Relative imports: `pnpm db:seed` loads this in plain
+// Node.
 import { z } from "zod";
 import { PROVIDER_ID_PATTERN, PROVIDER_PROTOCOLS } from "../../lib/identity-providers.ts";
 import { AUTH_REASON_PATTERN, CHECK_STATES, FERROEHR_STEPS } from "../../lib/integrations.ts";
