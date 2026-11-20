@@ -6,7 +6,11 @@
 // well holds which sample, by the sample's lab number. A pure function: the caller loads the
 // lab's samples in its own transaction and passes them in.
 import "@tanstack/react-start/server-only";
-import { parseDecimal } from "../../lib/decimal.ts";
+import {
+  DECIMAL_FRACTION_DIGITS,
+  DECIMAL_INTEGER_DIGITS,
+  parseDecimal,
+} from "../../lib/decimal.ts";
 import { isLabNumber } from "../../lib/lab-number.ts";
 import type { SampleId } from "../../lib/lab-records.ts";
 import { type PlateColumn, type PlateRow, plateWells, type WellId } from "../../lib/plate.ts";
@@ -33,13 +37,14 @@ export interface WellLinkInput {
 /**
  * Why a plate or a link is refused. Each names the well it is about, so a message can name it
  * (WCAG 2.1 SC 3.3.1). A position that is no well of the plate is kept as sent, cut to 128
- * characters, with the index of its link.
+ * characters, with the index of its link. `links_too_many` names no well: it is the only refusal
+ * of a list over {@link MAX_LINKS}.
  */
 export type PlateLinkRefusal =
   | { readonly code: "well_outside_plate"; readonly position: string; readonly index: number }
-  | { readonly code: "value_empty"; readonly well: WellId }
-  | { readonly code: "value_duplicate"; readonly well: WellId }
+  | { readonly code: "links_too_many"; readonly count: number; readonly limit: number }
   | { readonly code: "value_out_of_bounds"; readonly well: WellId }
+  | { readonly code: "value_too_precise"; readonly well: WellId }
   | { readonly code: "link_duplicate"; readonly well: WellId }
   | { readonly code: "lab_number_missing"; readonly well: WellId }
   | { readonly code: "lab_number_invalid"; readonly well: WellId }
@@ -78,6 +83,17 @@ export class ForeignSampleError extends Error {
   override readonly name = "ForeignSampleError";
 }
 
+/** Thrown when the caller passes two samples with one lab number: a defect, as the key is unique. */
+export class DuplicateLabNumberError extends Error {
+  override readonly name = "DuplicateLabNumberError";
+}
+
+/** The most links one plate takes: one per well (security review of #372). */
+export const MAX_LINKS = 96;
+
+/** The plain decimal text the parser writes for a value: an optional minus, digits, a fraction. */
+const PLAIN_DECIMAL = /^-?([0-9]+)(?:\.([0-9]+))?$/;
+
 const WELLS = plateWells();
 const WELL_IDS: ReadonlySet<string> = new Set(WELLS.map(({ well }) => well));
 
@@ -85,32 +101,26 @@ function isWellId(value: string): value is WellId {
   return WELL_IDS.has(value);
 }
 
-/** Returns the absorbance of each well that holds exactly one value, and the plate's refusals. */
+/** Returns the absorbance of each well as an exact decimal, and the wells whose value is not one. */
 function checkValues(plate: Gen5Plate): {
   readonly values: ReadonlyMap<WellId, string>;
   readonly refusals: readonly PlateLinkRefusal[];
 } {
-  const texts = new Map<WellId, string[]>();
-  for (const { well, absorbance } of plate.wells) {
-    const seen = texts.get(well);
-    if (seen === undefined) texts.set(well, [absorbance.text]);
-    else seen.push(absorbance.text);
-  }
   const values = new Map<WellId, string>();
   const refusals: PlateLinkRefusal[] = [];
-  for (const { well } of WELLS) {
-    const seen = texts.get(well) ?? [];
-    const [text] = seen;
-    if (text === undefined || text.trim() === "") {
-      refusals.push({ code: "value_empty", well });
-    } else if (seen.length > 1) {
-      refusals.push({ code: "value_duplicate", well });
-    } else {
-      // NOTE: the bounds of `checkTolerance` (S15); a value outside them is refused, never rounded.
-      const decimal = parseDecimal(text);
-      if (decimal === null) refusals.push({ code: "value_out_of_bounds", well });
-      else values.set(well, decimal);
-    }
+  for (const { well, absorbance } of plate.wells) {
+    // NOTE: the bounds of `checkTolerance` (S15; maintainer on #372); refused, never rounded.
+    const parts = PLAIN_DECIMAL.exec(absorbance.text);
+    const whole = (parts?.[1] ?? "").replace(/^0+(?=\d)/, "");
+    const fraction = parts?.[2] ?? "";
+    const decimal = parseDecimal(absorbance.text);
+    if (parts === null || whole.length > DECIMAL_INTEGER_DIGITS) {
+      refusals.push({ code: "value_out_of_bounds", well });
+    } else if (fraction.length > DECIMAL_FRACTION_DIGITS) {
+      refusals.push({ code: "value_too_precise", well });
+    } else if (decimal === null) {
+      refusals.push({ code: "value_out_of_bounds", well });
+    } else values.set(well, decimal);
   }
   return { values, refusals };
 }
@@ -165,14 +175,19 @@ function checkLinks(
 /**
  * Checks a parsed Gen5 plate and the team's links from wells to samples for one lab (S4, R-06).
  *
- * The plate must hold one value for each of the 96 wells, each an exact decimal of at most 9
- * digits before the point and 6 after. A link names a well from A1 to H12, at most once, and a
+ * The plate holds one value for each of the 96 wells (its type, `PlateWells`, guarantees it), and
+ * each must be an exact decimal of at most 9 digits before the point and 6 after. A link names a well from A1 to H12, at most once, and a
  * sample by its lab number; it matches only a sample of `labId` (S10), so a sample number shared
  * with another lab never matches. Several wells may hold one sample (replicates, #278), and a
  * well without a link stays unlinked. Every refusal is returned together: the plate's in reading
  * order, then the links' in the order sent.
  *
+ * A list of more than {@link MAX_LINKS} links is refused with `links_too_many` alone, before
+ * anything else is read. A value over the size bounds is `value_out_of_bounds`; one within them
+ * with more than 6 decimals is `value_too_precise`.
+ *
  * @throws ForeignSampleError when `samples` holds a sample of another lab.
+ * @throws DuplicateLabNumberError when two of `samples` share a lab number.
  */
 export function checkPlateLinks(input: {
   readonly labId: LabId;
@@ -180,10 +195,19 @@ export function checkPlateLinks(input: {
   readonly links: readonly WellLinkInput[];
   readonly samples: readonly LabSample[];
 }): PlateLinkResult {
+  if (input.links.length > MAX_LINKS) {
+    return {
+      ok: false,
+      refusals: [{ code: "links_too_many", count: input.links.length, limit: MAX_LINKS }],
+    };
+  }
   const byLabNumber = new Map<string, LabSample>();
   for (const sample of input.samples) {
     if (sample.labId !== input.labId) {
       throw new ForeignSampleError("a sample of another lab was passed to the plate check");
+    }
+    if (byLabNumber.has(sample.labNumber)) {
+      throw new DuplicateLabNumberError("two samples with one lab number were passed");
     }
     byLabNumber.set(sample.labNumber, sample);
   }
@@ -193,7 +217,7 @@ export function checkPlateLinks(input: {
   if (first !== undefined) return { ok: false, refusals: [first, ...rest] };
   return {
     ok: true,
-    wells: WELLS.map(({ well, row, column }) => {
+    wells: input.plate.wells.map(({ well, row, column }) => {
       const absorbance = plate.values.get(well);
       if (absorbance === undefined) throw new RangeError(`no checked value for ${well}`);
       return { well, row, column, absorbance, sample: links.linked.get(well) ?? null };

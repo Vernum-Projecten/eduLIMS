@@ -8,12 +8,14 @@ import { withCheckDigit } from "../../lib/lab-number.ts";
 import { parseSampleId } from "../../lib/lab-records.ts";
 import { plateWells } from "../../lib/plate.ts";
 import { parseLabId } from "../../lib/simulations.ts";
-import type { Gen5Plate, PlateWell } from "./gen5-layout.ts";
+import { type Gen5Plate, type PlateWell, type PlateWells, toPlateWells } from "./gen5-layout.ts";
 import { MAX_ERROR_TEXT } from "./limits.ts";
 import {
   checkPlateLinks,
+  DuplicateLabNumberError,
   ForeignSampleError,
   type LabSample,
+  MAX_LINKS,
   type PlateLinkResult,
   type WellLinkInput,
 } from "./plate-links.ts";
@@ -75,8 +77,14 @@ function plate(change?: (wells: PlateWell[]) => PlateWell[]): Gen5Plate {
       wavelengthNm: 450,
       temperatureCelsius: { text: "21.5", value: 21.5 },
     },
-    wells: change === undefined ? wells : change(wells),
+    wells: plateOf96(change === undefined ? wells : change(wells)),
   };
+}
+
+function plateOf96(wells: readonly PlateWell[]): PlateWells {
+  const checked = toPlateWells(wells);
+  if (checked === undefined) throw new Error("the test plate is not 96 wells in reading order");
+  return checked;
 }
 
 function check(
@@ -126,7 +134,7 @@ describe("the well positions (S4)", () => {
     });
   });
 
-  it.each(["A13", "I1", "I01", "A0", "A01", "a1", "H 12", " A1", "", "Z99"])(
+  it.each(["A13", "I1", "I01", "A0", "A01", "a1", "H 12", " A1", "", "Z99", "A1\u0000", "Ａ1"])(
     "refuses %j as outside the plate",
     (position) => {
       expect(refusalsOf(check([{ well: position, labNumber: SAMPLE_A1.labNumber }]))).toEqual([
@@ -145,31 +153,38 @@ describe("the well positions (S4)", () => {
   });
 });
 
-describe("empty and duplicate values on the plate", () => {
-  it("refuses a well that holds no value", () => {
-    const missing = plate((wells) => wells.filter((w) => w.well !== "C3"));
-    expect(refusalsOf(check([], { plate: missing }))).toEqual([
-      { code: "value_empty", well: "C3" },
-    ]);
+describe("a full plate: exactly one value per well (PlateWells)", () => {
+  const full = () => plateWells().map(({ well: id }) => well(id, "0.1"));
+
+  it("accepts the 96 wells in reading order", () => {
+    expect(toPlateWells(full())).toHaveLength(96);
   });
 
-  it("refuses a well whose value is empty text", () => {
-    const blank = plate((wells) => wells.map((w) => (w.well === "A1" ? well("A1", " ") : w)));
-    expect(refusalsOf(check([], { plate: blank }))).toEqual([{ code: "value_empty", well: "A1" }]);
+  it("refuses a plate with an empty well", () => {
+    expect(toPlateWells(full().filter((w) => w.well !== "C3"))).toBeUndefined();
   });
 
-  it("refuses a well that holds two values", () => {
-    const twice = plate((wells) => [...wells, well("H12", "0.1")]);
-    expect(refusalsOf(check([], { plate: twice }))).toEqual([
-      { code: "value_duplicate", well: "H12" },
-    ]);
+  it("refuses a plate with a well twice", () => {
+    expect(toPlateWells([...full(), well("H12", "0.1")])).toBeUndefined();
   });
 
-  it("refuses two equal values in one well too", () => {
-    const twice = plate((wells) => [...wells, well("B2", "0.1400")]);
-    expect(refusalsOf(check([], { plate: twice }))).toEqual([
-      { code: "value_duplicate", well: "B2" },
-    ]);
+  it("refuses 96 wells with one doubled and one missing", () => {
+    expect(
+      toPlateWells(full().map((w) => (w.well === "B3" ? well("B2", "0.1") : w))),
+    ).toBeUndefined();
+  });
+
+  it("refuses the wells out of reading order", () => {
+    expect(toPlateWells(full().reverse())).toBeUndefined();
+  });
+
+  it("refuses a well whose row or column disagrees with its id", () => {
+    expect(
+      toPlateWells(full().map((w) => (w.well === "A1" ? { ...w, column: 2 as const } : w))),
+    ).toBeUndefined();
+    expect(
+      toPlateWells(full().map((w) => (w.well === "A1" ? { ...w, row: "B" as const } : w))),
+    ).toBeUndefined();
   });
 });
 
@@ -184,13 +199,40 @@ describe("the bounds of a value (as checkTolerance reads it)", () => {
     ["999999999.999999", "999999999.999999"],
     ["0.000001", "0.000001"],
     ["-0.25", "-0.25"],
+    ["-0.000001", "-0.000001"],
+    ["-999999999.999999", "-999999999.999999"],
     ["0", "0"],
   ])("accepts %s", (text, expected) => {
     expect(wellsOf(withA1(text))[0]?.absorbance).toBe(expected);
   });
 
-  it.each(["1000000000", "0.0000001", "0.1234567", "1e-7"])("refuses %s", (text) => {
-    expect(refusalsOf(withA1(text))).toEqual([{ code: "value_out_of_bounds", well: "A1" }]);
+  it.each(["1000000000", "-1000000000", "1000000000.5", "1e-7"])(
+    "refuses %s as out of bounds",
+    (text) => {
+      expect(refusalsOf(withA1(text))).toEqual([{ code: "value_out_of_bounds", well: "A1" }]);
+    },
+  );
+
+  it.each(["0.0000001", "0.1234567", "0.30000000000000004", "1.0000005", "-0.0000001"])(
+    "refuses %s as too precise",
+    (text) => {
+      expect(refusalsOf(withA1(text))).toEqual([{ code: "value_too_precise", well: "A1" }]);
+    },
+  );
+});
+
+describe("the number of links (security review of #372)", () => {
+  const all96 = () =>
+    plateWells().map(({ well: id }) => ({ well: id, labNumber: SAMPLE_A1.labNumber }));
+
+  it("accepts 96 distinct links", () => {
+    expect(wellsOf(check(all96())).every((w) => w.sample?.id === SAMPLE_A1.id)).toBe(true);
+  });
+
+  it("refuses 97 links with links_too_many alone", () => {
+    expect(refusalsOf(check([...all96(), { well: "Z99", labNumber: "" }]))).toEqual([
+      { code: "links_too_many", count: 97, limit: MAX_LINKS },
+    ]);
   });
 });
 
@@ -228,14 +270,28 @@ describe("the links to samples (S4, S10, R-06)", () => {
     ]);
   });
 
-  it.each(["S-001", "1000000010", "100 000 001", "12345"])(
-    "refuses %j, which is no lab number",
-    (labNumber) => {
-      expect(refusalsOf(check([{ well: "A1", labNumber }]))).toEqual([
-        { code: "lab_number_invalid", well: "A1" },
-      ]);
-    },
-  );
+  const good = SAMPLE_A1.labNumber;
+  const wrongCheck = `${good.slice(0, 9)}${(Number(good.slice(9)) + 1) % 10}`;
+  it.each([
+    "S-001",
+    "1000000010",
+    "100 000 001",
+    "12345",
+    ` ${good}`,
+    `${good} `,
+    `${good}\n`,
+    `１${good.slice(1)}`,
+    "١٢٣٤٥٦٧٨٩٠",
+    `+${good.slice(1)}`,
+    `-${good.slice(1)}`,
+    `${good.slice(0, 9)}\u0000`,
+    `${good}0`,
+    wrongCheck,
+  ])("refuses %j, which is no lab number", (labNumber) => {
+    expect(refusalsOf(check([{ well: "A1", labNumber }]))).toEqual([
+      { code: "lab_number_invalid", well: "A1" },
+    ]);
+  });
 
   it("refuses a lab number that names no sample", () => {
     expect(refusalsOf(check([{ well: "A1", labNumber: withCheckDigit("999999999") }]))).toEqual([
@@ -255,11 +311,26 @@ describe("the links to samples (S4, S10, R-06)", () => {
   it("throws when the caller passes a sample of another lab", () => {
     expect(() => check([], { samples: [SAMPLE_A1, SAMPLE_B1] })).toThrow(ForeignSampleError);
   });
+
+  it("throws when the caller passes two samples with one lab number", () => {
+    const tube = { ...SAMPLE_A2, labNumber: SAMPLE_A1.labNumber };
+    expect(() => check([], { samples: [SAMPLE_A1, tube] })).toThrow(DuplicateLabNumberError);
+  });
 });
 
 describe("every refusal together", () => {
   it("reports the plate's refusals in reading order, then the links' in the order sent", () => {
-    const broken = plate((wells) => [...wells.filter((w) => w.well !== "H12"), well("A2", "0.1")]);
+    const broken = plate((wells) =>
+      wells.map((w) =>
+        w.well === "H12"
+          ? well("H12", "1000000000")
+          : w.well === "A2"
+            ? well("A2", "0.0000001")
+            : w.well === "A3"
+              ? well("A3", "-1000000000")
+              : w,
+      ),
+    );
     expect(
       refusalsOf(
         check(
@@ -272,8 +343,9 @@ describe("every refusal together", () => {
         ),
       ),
     ).toEqual([
-      { code: "value_duplicate", well: "A2" },
-      { code: "value_empty", well: "H12" },
+      { code: "value_too_precise", well: "A2" },
+      { code: "value_out_of_bounds", well: "A3" },
+      { code: "value_out_of_bounds", well: "H12" },
       { code: "well_outside_plate", position: "I1", index: 0 },
       { code: "lab_number_missing", well: "B1" },
       { code: "sample_unknown", well: "C1" },
