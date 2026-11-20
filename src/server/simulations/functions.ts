@@ -8,7 +8,8 @@ import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getDb } from "../db/index.ts";
 import { requireRole } from "../middleware.ts";
-import { readAdminSimulation, readAdminSimulations } from "./admin-queries.ts";
+import { readAdminSimulation, readAdminSimulationPage } from "./admin-queries.ts";
+import { listAdminSimulationsInput } from "./admin-schemas.ts";
 import { addEmails, previewEmails, removeEmail } from "./emails.ts";
 import { joinLabWithCode } from "./join.ts";
 import { disableJoinCode, enableJoinCode, getJoinCode, regenerateJoinCode } from "./join-code.ts";
@@ -202,10 +203,11 @@ export const linkMyLabsFn = createServerFn({ method: "POST" })
   .middleware([student])
   .handler(({ context }) => linkWaitingAddresses(getDb(), context.user.id, new Date()));
 
-/** Returns every simulation with its teachers and labs, read-only (B5). */
+/** Returns one page of the simulations with their teachers and labs, read-only (B5, #291). */
 export const listAdminSimulationsFn = createServerFn({ method: "GET" })
   .middleware([admin])
-  .handler(({ context }) => readAdminSimulations(getDb(), context.user));
+  .validator(listAdminSimulationsInput)
+  .handler(({ data, context }) => readAdminSimulationPage(getDb(), context.user, data));
 
 /** Returns one simulation, read-only; throws `notFound` for an unknown id (B5). */
 export const getAdminSimulationFn = createServerFn({ method: "GET" })

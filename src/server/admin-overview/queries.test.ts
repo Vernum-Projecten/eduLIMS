@@ -203,6 +203,25 @@ describe("readAdminOverview (#36)", () => {
     expect(overview.activity.length).toBeLessThanOrEqual(RECENT_EVENTS_LIMIT);
   });
 
+  it("counts every simulation for the overview's tile (B5, #291)", async () => {
+    const database = await testDb();
+    const before = (await readAdminOverview({ db: database, actor: ADMIN }, NOW)).simulations;
+    const teacher = await insertUser(database, { role: "teacher" });
+    for (const name of ["Count one", "Count two"]) {
+      const { id } = await database
+        .insertInto("simulations")
+        .values({ name, created_by: teacher })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      await database
+        .insertInto("simulation_teachers")
+        .values({ simulation_id: id, user_id: teacher })
+        .execute();
+    }
+    const overview = await readAdminOverview({ db: database, actor: ADMIN }, NOW);
+    expect(overview.simulations).toBe(before + 2);
+  });
+
   // NOTE: the requirements' performance criterion and #36: the overview loads within 2 s with
   // the seeded data; the database read is the part of that load this test can time.
   it("reads the seeded demo set within 2 seconds", async () => {
