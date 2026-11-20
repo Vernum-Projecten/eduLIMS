@@ -277,6 +277,18 @@ export interface RequestTests {
   test_id: string;
 }
 
+export interface ResultEhrWrites {
+  attempts: Generated<number>;
+  contribution_uid: string;
+  created_at: Generated<Timestamp>;
+  last_error: string | null;
+  measurement_id: string;
+  next_attempt_at: Generated<Timestamp>;
+  state: Generated<string>;
+  version_uid: string | null;
+  written_at: Timestamp | null;
+}
+
 export interface Samples {
   created_at: Generated<Timestamp>;
   created_by: string | null;
@@ -515,6 +527,7 @@ export interface DB {
   record_corrections: RecordCorrections;
   request_tests: RequestTests;
   requests: Requests;
+  result_ehr_writes: ResultEhrWrites;
   samples: Samples;
   scim_token: ScimToken;
   scimConnectionBinding: ScimConnectionBinding;

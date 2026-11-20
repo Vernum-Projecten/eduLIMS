@@ -15,6 +15,9 @@ export const VALID_ENV = {
   FERROEHR_CLIENT_ID: "edulims-ferroehr",
   FERROEHR_CLIENT_SECRET: "test-only-ferroehr-client-secret",
   FERROEHR_SCOPE: "system/template-*.r system/composition-*.cr",
+  FERROEHR_FACILITY_ISSUER: "urn:example:edulims-test-facility",
+  FERROEHR_FACILITY_ID: "test-lab",
+  FERROEHR_TERRITORY: "NL",
   FERROBRIDGE_BASE_URL: "http://localhost:4002",
   EDULIMS_DEV_LOGIN: "true",
 } as const satisfies Record<string, string>;

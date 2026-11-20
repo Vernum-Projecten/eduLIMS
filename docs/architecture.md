@@ -611,6 +611,7 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
 |---|---|
 | `measurements` | every measurement of a requested test: its sample, the value as `numeric` within the bounds of a correct value, where it came from (`manual`, `afinion`, `epoch_upload`), who entered it (none for an analyser) and the database clock at the insert |
 | `request_tests` | the release, on the requested test itself: one row per requested test, so at most one released measurement |
+| `result_ehr_writes` | per released measurement of a patient request, the write of its Final composition to FerroEHR: `pending` or `written`, the contribution `uid` that keys the write, the version id FerroEHR gave it, the attempts, the last error as a code and the time of the next attempt (#148) |
 
 - **Kept as they arrived.** A trigger refuses any change to a measurement and
   any direct delete; only its lab's cascade removes one. A correction never
@@ -647,10 +648,41 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
   lands and shows, and the release stays final (maintainer on #370). Every
   refusal writes an activity-log row; an analyser's measurement has no
   student (a CHECK), and its time is the database clock (a trigger).
-- **FerroEHR.** The release returns what goes to the patient's record (the
-  patient, the released measurement, the sample number, the test, the value
-  and the time), and #148 writes it as Final after the transaction commits,
-  idempotent on the measurement. A control request returns nothing to write.
+- **FerroEHR (#148).** Before the release, `ensureReleaseEhr` finds or
+  creates the patient's EHR (`ensurePatientEhr`, at most 5 seconds); while it
+  stays pending, the release is refused `ehr_pending` with an activity-log
+  row, and the release transaction refuses a patient without an EHR id too.
+  The release commits a `pending` row in `result_ehr_writes` with it. After
+  the commit, `writeReleasedResult` builds the Final composition
+  (`src/server/openehr/lab-result.ts`) and commits it to the EHR in a
+  CONTRIBUTION (`lab-result-writer.ts`), waiting at most 5 seconds; the team
+  is told `written` or `pending`, and the release itself stands either way. A
+  control request writes nothing (S16).
+- **Idempotent on the measurement.** ITS-REST 1.1.0 gives a composition
+  create no idempotency, but a CONTRIBUTION may carry its own `uid`, which
+  the server refuses with `409` when it is in use (`contribution_create.yaml`).
+  eduLIMS derives that `uid` from the measurement (UUIDv5, RFC 9562 §5.5), so
+  every attempt sends the same one. On a `409` eduLIMS reads that contribution
+  in the patient's EHR and takes its version id; a `409` without it is an
+  error. A retry after a lost answer therefore finds the one composition and
+  never writes a second.
+- **Pending, retried, never skipped.** A failed write (FerroEHR unreachable,
+  a refusal, a result it cannot build yet) stays `pending` with its error
+  code and pauses 2^n minutes after the n-th failure, at most an hour. The
+  app container retries due rows every minute
+  (`src/server/plugins/result-ehr-writes.ts`), leasing each row for 5
+  minutes, so replicas do not write one row at once; a write that lands late
+  still marks its row. Each failure logs `ferroehr_result_pending` with the
+  measurement id and the code, never a value. A written row never changes
+  again (a trigger), as the released result never does.
+- **Not written yet.** FerroEHR accepts eduLIMS's compositions only as a
+  device act whose composer names the analyser by its serial number. A
+  measurement does not record its analyser yet (#158, #152), and a
+  measurement entered by hand has none, so such a result stays pending with
+  `build:no_device_identifier` until the maintainer decides its composer
+  (#148). The committer is the client `edulims-ferroehr`, by name only; the
+  composition names the facility of `FERROEHR_FACILITY_ISSUER` and
+  `FERROEHR_FACILITY_ID` and the territory of `FERROEHR_TERRITORY`.
 - **Who reads.** The team reads every measurement of its own lab with its own
   tolerance; the teachers of the simulation read the same with the released
   measurement marked and the tolerance kept at the release (D11). Neither
@@ -685,13 +717,18 @@ delegation on #146, within the CKM archetypes, W4):
 
 | eduLIMS field | Archetype | Element (at-code) | Data type | In the template |
 |---|---|---|---|---|
-| Sample number | `specimen.v1` | Laboratory specimen identifier (`at0001`) | `DV_IDENTIFIER` | required, one |
-| Well position (Epoch 2) | `specimen.v1` | Specimen label (`at0098`) | `DV_TEXT` | optional |
-| Order identifier | `laboratory_test_result.v1` | Test request details (`at0094`), Requester order identifier (`at0062`) | `DV_IDENTIFIER` | optional; the template has it from the earlier model, for the practical. What eduLIMS writes here in a simulation is a design point that is not settled yet |
+| Lab number (S12) | `specimen.v1` | Laboratory specimen identifier (`at0001`), "normally assigned by the laboratory" | `DV_IDENTIFIER` | required, one |
+| Sample number from the form | `specimen.v1` | External identifier (`at0088`), "assigned by a party external to the laboratory" | `DV_IDENTIFIER` | optional |
+| Material | `specimen.v1` | Specimen type (`at0029`) | `DV_TEXT` | optional |
+| Well position (Epoch 2) | `specimen.v1` | Specimen label (`at0098`) | `DV_TEXT` | optional; not written yet, a measurement does not record its well |
+| Request | `laboratory_test_result.v1` | Test request details (`at0094`), Requester order identifier (`at0062`): the request's eduLIMS UUID (maintainer, 2026-11-20 on #148) | `DV_IDENTIFIER` | optional |
+| Requester as typed from the form | `laboratory_test_result.v1` | Test request details (`at0094`), Requester (`at0090`) | a slot the template closes | not written: the template has no element for it (#148) |
 | Test name | `laboratory_test_result.v1` | Test name (`at0005`) | `DV_TEXT` | required, as in the archetype |
 | Analyte name; for the Epoch 2 it includes the wavelength | `laboratory_test_analyte.v1` | Analyte name (`at0024`) | `DV_TEXT` | required, one |
 | Value and unit | `laboratory_test_analyte.v1` | Analyte result (`at0001`) | `DV_QUANTITY` (`magnitude`, `units`; `magnitude_status` for a value outside the measuring range) | required, one |
-| Result status | `laboratory_test_analyte.v1` | Result status (`at0005`) | `DV_CODED_TEXT`, local `at0017` Preliminary or `at0018` Final | required, one |
+| Result status | `laboratory_test_analyte.v1` | Result status (`at0005`) | `DV_CODED_TEXT`, local `at0017` Preliminary or `at0018` Final | required, one; a released result is Final |
+| Time of release | `laboratory_test_analyte.v1` | Result status time (`at0006`) | `DV_DATE_TIME` | optional |
+| Time of the measurement | `laboratory_test_analyte.v1` | Analysis performed time (`at0031`), and the observation's event time | `DV_DATE_TIME` | optional |
 | Analyser | `device.v1` | Device name (`at0001`), Serial number (`at0020`), Other identifier (`at0024`) | `DV_TEXT`, `DV_TEXT`, `DV_IDENTIFIER` | Device name required, as in the archetype |
 | Lab (facility) | the reference model | `COMPOSITION.context.health_care_facility` | `PARTY_IDENTIFIED` with the identifier of the system client's facility | FerroEHR refuses a composition without it |
 | Composer | the reference model | `COMPOSITION.composer` | `PARTY_IDENTIFIED` naming the analyser, its serial number as identifier under the issuer `https://edulims.eu/id/analyser` | FerroEHR checks it for the `device` origin |

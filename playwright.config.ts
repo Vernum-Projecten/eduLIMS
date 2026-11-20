@@ -56,6 +56,9 @@ const appEnv = {
   FERROEHR_CLIENT_ID: "edulims-ferroehr",
   FERROEHR_CLIENT_SECRET: "e2e-only-ferroehr-client-secret",
   FERROEHR_SCOPE: "system/template-*.r system/composition-*.cr",
+  FERROEHR_FACILITY_ISSUER: "urn:example:edulims-e2e-facility",
+  FERROEHR_FACILITY_ID: "e2e-lab",
+  FERROEHR_TERRITORY: "NL",
   FERROBRIDGE_BASE_URL: `${INTEGRATIONS}/ferrobridge`,
   EDULIMS_DEV_LOGIN: "true",
 };

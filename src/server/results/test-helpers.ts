@@ -4,6 +4,7 @@
 // Shared set-up of the results tests: the records world with an invented patient, a request for
 // two hand-entered tests with two tubes, and the team's own tolerance for the first test. Every
 // value is invented (Q-PRIV-4). Test support only.
+import { randomUUID } from "node:crypto";
 import type { Kysely } from "kysely";
 import type { DB } from "../db/schema.gen.ts";
 import { patientIn, recordsWorld, requestFor } from "../lab-records/test-helpers.ts";
@@ -11,10 +12,16 @@ import type { Person } from "../simulations/test-helpers.ts";
 import { setTolerance } from "../tolerances/actions.ts";
 import { recordManualMeasurement } from "./measurements.ts";
 
-/** The records world with a patient, a request for both tests on two samples, and a tolerance. */
+/**
+ * The records world with a patient whose EHR is resolved, a request for both tests on two samples,
+ * and a tolerance.
+ */
 export async function resultsWorld(db: Kysely<DB>) {
   const w = await recordsWorld(db);
   const patientId = await patientIn(db, w.student, w.labId);
+  // The EHR FerroEHR would have given the patient (#364); a release needs it (#148).
+  const ehrId = randomUUID();
+  await db.updateTable("patients").set({ ehr_id: ehrId }).where("id", "=", patientId).execute();
   const request = await requestFor(db, w.student, w.labId, patientId, [w.hba1c, w.crp], {
     samples: [
       { sampleNumber: "S-001", material: "whole blood" },
@@ -24,7 +31,7 @@ export async function resultsWorld(db: Kysely<DB>) {
   const [first, second] = request.samples;
   if (!first || !second) throw new Error("no samples");
   const toleranceId = await toleranceFor(db, w.student, w.labId, w.hba1c, "4.0", "6.0");
-  return { ...w, patientId, requestId: request.requestId, first, second, toleranceId };
+  return { ...w, patientId, ehrId, requestId: request.requestId, first, second, toleranceId };
 }
 
 /** The world {@link resultsWorld} builds. */

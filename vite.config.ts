@@ -28,6 +28,7 @@ export default defineConfig({
       plugins: [
         "./src/server/plugins/retention-prune.ts",
         "./src/server/plugins/integration-checks.ts",
+        "./src/server/plugins/result-ehr-writes.ts",
       ],
     }),
     viteReact(),

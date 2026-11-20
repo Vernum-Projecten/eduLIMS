@@ -44,7 +44,9 @@ describe("the results server functions (E1, S10)", () => {
     expect(chain.startsWith(`{ method: "${ROLE[name]?.method}" })`)).toBe(true);
   });
 
-  it("returns the student only the time of a release, never the record for FerroEHR", () => {
-    expect(SOURCE).toContain("value: { releasedAt: result.value.releasedAt }");
+  it("returns the student only the time of a release and its state in FerroEHR, never the record", () => {
+    expect(SOURCE).toContain("value: { releasedAt: result.value.releasedAt, ehr } };");
+    expect(SOURCE).not.toContain("value: result.value");
+    expect(SOURCE).not.toMatch(/value: \{[^}]*record/);
   });
 });

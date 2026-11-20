@@ -5,20 +5,24 @@
 // that builds a FerroEHR request: every call has a timeout, follows no redirect, reads a capped
 // body, validates the answer and returns a typed result. It logs nothing.
 import "@tanstack/react-start/server-only";
-import type { ZodType } from "zod";
 import { readCapped } from "../read-capped.ts";
+import { type Answer, classify, parseBody, unexpectedStatus } from "./answer.ts";
+import type { NewContribution } from "./contribution.ts";
 import type { EhrStatus, EhrSubjectRef } from "./ehr.ts";
 import {
-  bearerChallengeError,
   failure,
+  type OpenEhrError,
   type OpenEhrResult,
-  openEhrErrorCode,
   requestFailure,
   success,
 } from "./errors.ts";
 import {
+  type CompositionDocument,
   type ConformanceManifest,
+  type Contribution,
+  compositionDocument,
   conformanceManifest,
+  contribution,
   type EhrSummary,
   ehrSummary,
   type TemplateMetadata,
@@ -26,7 +30,7 @@ import {
   type WebTemplate,
   webTemplate,
 } from "./schemas.ts";
-import { createTokenSource, type HttpFetch, parseJson, type TokenSource } from "./token.ts";
+import { createTokenSource, type HttpFetch, type TokenSource } from "./token.ts";
 
 /** The configuration of the client: FerroEHR's base URL and eduLIMS's client credentials. */
 export interface OpenEhrClientConfig {
@@ -60,6 +64,14 @@ export type TemplateDocument =
  */
 export type CreateEhrOutcome = { outcome: "created"; ehr: EhrSummary } | { outcome: "conflict" };
 
+/**
+ * The outcome of committing a CONTRIBUTION: the stored one, or `conflict` on a `409`, which
+ * ITS-REST 1.1.0 (`contribution_create.yaml`) gives a supplied `uid` that is already in use.
+ */
+export type CreateContributionOutcome =
+  | { outcome: "created"; contribution: Contribution }
+  | { outcome: "conflict" };
+
 /** The operations of FerroEHR that eduLIMS uses. */
 export interface OpenEhrClient {
   /**
@@ -87,6 +99,27 @@ export interface OpenEhrClient {
    * A `409` is the outcome `conflict`, never an error: the caller reads the existing EHR.
    */
   createEhr(status: EhrStatus): Promise<OpenEhrResult<CreateEhrOutcome>>;
+  /**
+   * Commits a CONTRIBUTION to the EHR `ehrId` (EHR API, "Create CONTRIBUTION":
+   * `POST /ehr/{ehr_id}/contribution`). A `409` is the outcome `conflict`, never an error.
+   */
+  createContribution(
+    ehrId: string,
+    body: NewContribution,
+  ): Promise<OpenEhrResult<CreateContributionOutcome>>;
+  /**
+   * Returns a CONTRIBUTION of the EHR `ehrId`, or `null` on a `404` (EHR API, "Get
+   * CONTRIBUTION": `GET /ehr/{ehr_id}/contribution/{contribution_uid}`).
+   */
+  getContribution(ehrId: string, uid: string): Promise<OpenEhrResult<Contribution | null>>;
+  /**
+   * Returns a COMPOSITION of the EHR `ehrId` by a version id or a versioned object id, or
+   * `null` on a `404` (EHR API, "Get COMPOSITION": `GET /ehr/{ehr_id}/composition/{uid_based_id}`).
+   */
+  getComposition(
+    ehrId: string,
+    uidBasedId: string,
+  ): Promise<OpenEhrResult<CompositionDocument | null>>;
 }
 
 // NOTE: no openEHR spec governs this: our own design. Ten seconds per request bounds a hanging
@@ -100,6 +133,10 @@ export const LIST_BODY_LIMIT_BYTES = 1024 * 1024;
 export const TEMPLATE_BODY_LIMIT_BYTES = 16 * 1024 * 1024;
 // NOTE: no openEHR spec governs this limit: our own design; an EHR summary is under 1 KiB.
 export const EHR_BODY_LIMIT_BYTES = 64 * 1024;
+// NOTE: no openEHR spec governs these limits: our own design; a contribution of one version is
+// under 4 KiB, and one eduLIMS-lab composition under 64 KiB.
+export const CONTRIBUTION_BODY_LIMIT_BYTES = 64 * 1024;
+export const COMPOSITION_BODY_LIMIT_BYTES = 1024 * 1024;
 
 const ADL14_TEMPLATES = "definition/template/adl1.4";
 
@@ -117,13 +154,6 @@ interface Call {
   authenticated: boolean;
   bodyLimit: number;
   timeoutMs?: number | undefined;
-}
-
-interface Answer {
-  status: number;
-  body: string | undefined;
-  /** The `WWW-Authenticate` header (RFC 6750 §3), read for a 401 or 403. */
-  challenge: string | null;
 }
 
 /** Creates the client; {@link getOpenEhrClient} holds the one the server uses. */
@@ -164,7 +194,8 @@ export function createOpenEhrClient(
       });
       const body = await readCapped(response, call.bodyLimit);
       const challenge = response.headers.get("WWW-Authenticate");
-      return success({ status: response.status, body, challenge });
+      const etag = response.headers.get("ETag");
+      return success({ status: response.status, body, challenge, etag });
     } catch (error) {
       return failure(requestFailure("ferroehr", error));
     }
@@ -287,6 +318,55 @@ export function createOpenEhrClient(
       const ehr = parseEhr(sent.value);
       return ehr.ok ? success({ outcome: "created", ehr: ehr.value }) : ehr;
     },
+
+    async createContribution(ehrId, body) {
+      const sent = await send({
+        method: "POST",
+        path: `ehr/${encodeURIComponent(ehrId)}/contribution`,
+        json: body,
+        prefer: "return=representation",
+        accept: "application/json",
+        authenticated: true,
+        bodyLimit: CONTRIBUTION_BODY_LIMIT_BYTES,
+      });
+      if (!sent.ok) {
+        const { error } = sent;
+        // NOTE: ITS-REST 1.1.0, `contribution_create.yaml`: a supplied `uid` "will be accepted in
+        // case is not in-use, otherwise error will be returned", the `409` of that operation.
+        return error.kind === "refused" && error.status === 409
+          ? success({ outcome: "conflict" })
+          : sent;
+      }
+      if (sent.value.status !== 201) return unexpectedStatus(sent.value.status);
+      const parsed = parseBody(sent.value, contribution);
+      return parsed.ok ? success({ outcome: "created", contribution: parsed.value }) : parsed;
+    },
+
+    async getContribution(ehrId, uid) {
+      const sent = await send({
+        method: "GET",
+        path: `ehr/${encodeURIComponent(ehrId)}/contribution/${encodeURIComponent(uid)}`,
+        accept: "application/json",
+        authenticated: true,
+        bodyLimit: CONTRIBUTION_BODY_LIMIT_BYTES,
+      });
+      if (!sent.ok) return notFoundAsNull(sent.error);
+      if (sent.value.status !== 200) return unexpectedStatus(sent.value.status);
+      return parseBody(sent.value, contribution);
+    },
+
+    async getComposition(ehrId, uidBasedId) {
+      const sent = await send({
+        method: "GET",
+        path: `ehr/${encodeURIComponent(ehrId)}/composition/${encodeURIComponent(uidBasedId)}`,
+        accept: "application/json",
+        authenticated: true,
+        bodyLimit: COMPOSITION_BODY_LIMIT_BYTES,
+      });
+      if (!sent.ok) return notFoundAsNull(sent.error);
+      if (sent.value.status !== 200) return unexpectedStatus(sent.value.status);
+      return parseBody(sent.value, compositionDocument);
+    },
   };
 }
 
@@ -296,50 +376,7 @@ function parseEhr(answer: Answer): OpenEhrResult<EhrSummary> {
   return parseBody(answer, ehrSummary);
 }
 
-/** A success status the operation does not define, such as a `204` where a body was asked for. */
-function unexpectedStatus<T>(status: number): OpenEhrResult<T> {
-  return failure({
-    kind: "invalid_response",
-    target: "ferroehr",
-    status,
-    problem: "unexpected_shape",
-  });
-}
-
-/** Maps a non-success answer to its typed error; a success goes on. */
-function classify(answer: Answer): OpenEhrResult<Answer> {
-  const { status, body } = answer;
-  if (status >= 200 && status <= 299) {
-    if (body === undefined) {
-      return failure({
-        kind: "invalid_response",
-        target: "ferroehr",
-        status,
-        problem: "too_large",
-      });
-    }
-    return success(answer);
-  }
-  const code = openEhrErrorCode(body);
-  if (status === 401 || status === 403) {
-    // NOTE: FerroEHR book v5.7.0, `using-the-api/index.md`, "Which status a credential problem
-    // gets": the challenge's `error` names the refusal, the problem type names it otherwise.
-    const challenge = bearerChallengeError(answer.challenge);
-    return failure({ kind: "auth_refused", target: "ferroehr", status, reason: challenge ?? code });
-  }
-  return failure({ kind: "refused", target: "ferroehr", status, code });
-}
-
-/** Parses a JSON body with `schema`, mapping a failure to `invalid_response`. */
-function parseBody<T>(answer: Answer, schema: ZodType<T>): OpenEhrResult<T> {
-  const json = parseJson(answer.body);
-  const parsed = schema.safeParse(json);
-  if (parsed.success) return success(parsed.data);
-  return failure({
-    kind: "invalid_response",
-    target: "ferroehr",
-    status: answer.status,
-    problem: json === undefined ? "not_json" : "unexpected_shape",
-    cause: parsed.error,
-  });
+/** Returns `null` for a `404`, which the read operations of the EHR API give an unknown id. */
+function notFoundAsNull<T>(error: OpenEhrError): OpenEhrResult<T | null> {
+  return error.kind === "refused" && error.status === 404 ? success(null) : failure(error);
 }
