@@ -9,6 +9,7 @@ import {
   emailLineLabel,
   isJoinVia,
   joinViaLabel,
+  linkedMessage,
   simulationErrorMessage,
 } from "./simulation-labels";
 
@@ -81,5 +82,34 @@ describe("joinViaLabel", () => {
     expect(isJoinVia("email")).toBe(true);
     expect(isJoinVia("code")).toBe(true);
     expect(isJoinVia("invitation")).toBe(false);
+  });
+});
+
+describe("linkedMessage (S10, #290)", () => {
+  const lab = (labId: string, labName: string) => ({
+    labId,
+    labName,
+    simulationId: "s1",
+    simulationName: "Demo simulation",
+  });
+  const aurora = lab("l1", "Lab Aurora");
+  const borealis = lab("l2", "Lab Borealis");
+
+  it("says nothing when no address was linked", () => {
+    expect(linkedMessage(0, [aurora], [aurora])).toBeNull();
+  });
+
+  it("names the one lab a link added", () => {
+    expect(linkedMessage(1, [aurora], [aurora, borealis])).toBe(
+      "You were added to lab Lab Borealis of Demo simulation.",
+    );
+  });
+
+  it("counts the labs when more than one was linked", () => {
+    expect(linkedMessage(2, [], [aurora, borealis])).toBe("Labs your teacher added you to: 2.");
+  });
+
+  it("counts when the labs read again do not show which lab was added", () => {
+    expect(linkedMessage(1, [aurora], [aurora])).toBe("Labs your teacher added you to: 1.");
   });
 });
