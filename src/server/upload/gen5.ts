@@ -15,7 +15,7 @@ import { hasZipSignature, readZipDirectory } from "./zip.ts";
 
 export type { CellNumber } from "./decimal.ts";
 export type { ArchiveError, Gen5Error, HeaderField, LayoutError } from "./errors.ts";
-export type { Gen5Header, Gen5Plate, PlateWell } from "./gen5-layout.ts";
+export type { Gen5Header, Gen5Plate, PlateWell, PlateWells } from "./gen5-layout.ts";
 
 /** An uploaded file: the name the browser sent and its bytes, held in memory. */
 export interface Gen5Upload {

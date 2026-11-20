@@ -9,6 +9,7 @@ import {
   PLATE_ROWS,
   type PlateColumn,
   type PlateRow,
+  plateWells,
   type WellId,
   wellId,
 } from "../../lib/plate.ts";
@@ -44,10 +45,39 @@ export interface PlateWell {
   readonly absorbance: CellNumber;
 }
 
+declare const plateWellsBrand: unique symbol;
+
+/**
+ * The wells of a full 96-well plate: one per well, in reading order (A1 to H12). Only
+ * {@link toPlateWells} makes one, so a value of this type has passed its check.
+ */
+export type PlateWells = readonly PlateWell[] & { readonly [plateWellsBrand]: true };
+
+const READING_ORDER = plateWells();
+
+/**
+ * Returns `wells` as {@link PlateWells} when they are exactly the 96 wells of the plate in
+ * reading order, each with its own row and column; otherwise `undefined`.
+ */
+export function toPlateWells(wells: readonly PlateWell[]): PlateWells | undefined {
+  if (wells.length !== READING_ORDER.length) return undefined;
+  const ordered = READING_ORDER.every((expected, index) => {
+    const actual = wells[index];
+    return (
+      actual !== undefined &&
+      actual.well === expected.well &&
+      actual.row === expected.row &&
+      actual.column === expected.column
+    );
+  });
+  // NOTE: no requirement governs this: our own design; the check above is the brand's contract.
+  return ordered ? (wells as PlateWells) : undefined;
+}
+
 /** A parsed Gen5 export: the header and the 96 wells in reading order (A1 to H12). */
 export interface Gen5Plate {
   readonly header: Gen5Header;
-  readonly wells: readonly PlateWell[];
+  readonly wells: PlateWells;
 }
 
 /** The plate type the contract accepts (96-well only, the maintainer's decision of 2026-11-12). */
@@ -336,6 +366,10 @@ export function readGen5Layout(sheet: SheetCells): LayoutResult {
   const wells = checkGridFrame(reader, contentRefs) ? readWells(reader, wavelengthNm) : [];
   const [first, ...rest] = reader.errors;
   if (first !== undefined) return { ok: false, errors: [first, ...rest] };
+  const fullPlate = toPlateWells(wells);
+  if (fullPlate === undefined) {
+    throw new Error("the Gen5 layout reader read an incomplete grid without recording an error");
+  }
   if (
     softwareVersion === undefined ||
     date === undefined ||
@@ -363,7 +397,7 @@ export function readGen5Layout(sheet: SheetCells): LayoutResult {
         wavelengthNm,
         temperatureCelsius,
       },
-      wells,
+      wells: fullPlate,
     },
   };
 }

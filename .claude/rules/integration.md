@@ -146,7 +146,12 @@ request.
   LIMS does (S4). It cannot check a sample against the file.
 - **The team links wells to samples** (S4; owner, 2026-11-19, O5): the team
   says which well holds which sample, and the server checks that each sample
-  belongs to that team.
+  belongs to that team. A link names the sample by its lab number, never by
+  the sample number from the form, and one well holds one sample.
+  `checkPlateLinks` (`src/server/upload/plate-links.ts`) is the one check:
+  wells A1 to H12 only, one value per well, values as exact decimals within
+  9 digits before the point and 6 after, and every refusal a typed code with
+  its well (`docs/gen5-export.md`, "The check of the plate and the links").
 - **Who calculates the concentration is the teacher's choice per test** (D9,
   S4; owner, 2026-11-19, O5): the team calculates by its own procedure and
   enters the result, or eduLIMS calculates it from the standards and blanks
