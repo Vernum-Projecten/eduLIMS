@@ -256,7 +256,14 @@ describe("writeReleasedResult (#148)", () => {
         reason: "build:no_device_identifier",
       }),
     ]);
-    expect(JSON.stringify(lines)).not.toContain("5.37");
+    // Every field but the line's own clock, which can read "…35.37…" and is no value.
+    const values = lines.flatMap((line) =>
+      Object.entries(line)
+        .filter(([key]) => key !== "time")
+        .map(([, value]) => JSON.stringify(value)),
+    );
+    expect(values.length).toBeGreaterThan(0);
+    for (const value of values) expect(value).not.toContain("5.37");
   });
 
   it("stays pending while FerroEHR does not answer, and pauses longer after each failure", async () => {

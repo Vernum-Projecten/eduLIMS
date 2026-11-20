@@ -371,6 +371,10 @@ describe("local headers against the central directory", () => {
   it.each([
     ["the data descriptor bit", 0x0008],
     ["the UTF-8 name bit", 0x0800],
+    // The review of #297 on #156: an encryption bit only the local header carries.
+    ["the encryption bit 0", 0x0001],
+    ["the strong encryption bit 6", 0x0040],
+    ["the masked header bit 13", 0x2000],
   ])("refuses a local header whose flags differ in %s", (_, bit) => {
     const bytes = tamper(ONE, ({ view }) => view.setUint16(6, bit, true));
     expect(errorOf(readZipDirectory(bytes, LIMITS))).toMatchObject({ reason: "local_header" });

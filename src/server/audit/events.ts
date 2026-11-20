@@ -70,6 +70,7 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "test_retired",
   "test_restored",
   "upload_complete",
+  "upload_linked",
   "upload_validation_fail",
   "upload_delete",
   "idp_created",
@@ -222,8 +223,10 @@ export const auditMetadataSchema = z.strictObject({
   attest_pkce: z.boolean().optional(),
   /** How many sessions an `idp_disabled` ended. */
   sessions_ended: z.number().int().min(0).optional(),
-  /** The simulation a `lab_*` event belongs to (D10). */
+  /** The simulation a `lab_*` or `upload_*` event belongs to (D10, B4). */
   simulation_id: z.uuid().optional(),
+  /** The lab an `upload_*` event belongs to, the uploader's own (S10, B4). */
+  lab_id: z.uuid().optional(),
   /** The catalogue test a `simulation_value_*`, `simulation_limits_set`, `lab_tolerance_set` or result event is about (D10, S13, S15). */
   test_id: z.uuid().optional(),
   /** The correct value a `simulation_value_*` event is about: its id, never the value (D10). */

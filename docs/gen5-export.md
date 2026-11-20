@@ -22,8 +22,8 @@ of #297).
 | File type | An Office Open XML workbook (ECMA-376), as Gen5 3.11 writes it when it exports a plate to Excel |
 | Extension | `.xlsx`, compared without regard to case; `.xls`, `.xlsm`, `.csv` and the rest are refused |
 | Content | A zip archive (it starts with `PK\x03\x04`) whose `[Content_Types].xml` gives the workbook part the type `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml`; a macro-enabled workbook or a template has another type and is refused |
-| Maximum file size | 1 MiB (1,048,576 bytes), checked before anything else is read |
-| Maximum unpacked size | 8 MiB (8,388,608 bytes): the sum of the sizes the archive declares for its entries, checked before any entry is unpacked |
+| Maximum file size | 5 MiB (5,242,880 bytes), checked before anything else is read; the owner's limit for a file upload (5 MB, 2026-11-20 on #156) |
+| Maximum unpacked size | 40 MiB (41,943,040 bytes): the sum of the sizes the archive declares for its entries, checked before any entry is unpacked; 8 times the file limit, the ratio of the earlier 1 MiB and 8 MiB. Only the parts the reader opens are ever unpacked, each under its own cap |
 | Maximum unpacked size of one part | 1 MiB (1,048,576 bytes) for each part the reader opens, checked from the declared size before it is unpacked and enforced while it is unpacked |
 | Maximum entries | 50 entries in the archive, checked before any entry is unpacked |
 | XML caps, per part | at most 5,000 elements, nesting at most 32 deep (the root is at depth 1), at most 32 attributes on one element, and at most 64 namespace declarations (`xmlns`, `xmlns:p`) in the part; each is enforced while the part is read, so reading stops at the first element or declaration over a cap |
@@ -98,7 +98,7 @@ cell that holds only formatting counts as empty.
 | A7 | `Date` | B7, a whole-number date serial | reads it as `date`, `YYYY-MM-DD` |
 | A8 | `Time` | B8, a fraction of a day | reads it as `time`, `HH:MM:SS`, rounded to the second |
 | A9 | `Reader Type:` | B9, printable ASCII text, 1 to 64 characters | reads it as `readerType` |
-| A10 | `Reader Serial Number:` | B10, ASCII letters and digits, 1 to 32 characters, or a whole number | reads it as `readerSerialNumber` |
+| A10 | `Reader Serial Number:` | B10, ASCII letters and digits, 1 to 32 characters, or a whole number | reads it as `readerSerialNumber`; the upload then needs an Epoch 2 reader in use with that serial number in the analyser register, or refuses the file `reader_not_registered` (maintainer on #400) |
 | A11 | `Reading Type` | B11 | never reads the value |
 | A13 | `Procedure Details` | | |
 | A14 | `Plate Type` | B14 | requires `96 WELL PLATE` |
@@ -163,11 +163,11 @@ by its reference and carries no cell text.
 
 | Rule | Error |
 |---|---|
-| Over 1 MiB | `file_too_large` |
+| Over 5 MiB | `file_too_large` |
 | Not `.xlsx` | `wrong_extension` |
 | Not a zip | `not_a_zip` |
 | More than 50 entries | `too_many_entries` |
-| More than 8 MiB unpacked in total | `unpacked_too_large` |
+| More than 40 MiB unpacked in total | `unpacked_too_large` |
 | A part over 1 MiB unpacked | `part_too_large`, with the part |
 | An entry larger or smaller than it declares | `entry_size_mismatch`, with the part when the reader asked for it |
 | ZIP64, split, encrypted, another compression | `archive_unsupported`, with the reason |

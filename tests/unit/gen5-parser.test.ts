@@ -195,6 +195,44 @@ describe("the limits (ASVS 5.0 V5.2.1, V5.2.3)", () => {
   });
 });
 
+/** A good workbook whose `name` part is `size` bytes of zeros, deflated, declaring `declared`. */
+function bombIn(name: string, size: number, declared = size): Uint8Array {
+  const bomb: ZipPart = { name, data: new Uint8Array(size), method: 8, declaredSize: declared };
+  const parts = workbookParts({ sheets: [gen5Cells()] });
+  const replaced = parts.some((part) => part.name === name)
+    ? parts.map((part) => (part.name === name ? bomb : part))
+    : [...parts, bomb];
+  return buildZip(replaced);
+}
+
+describe("decompression bombs under the 5 MiB file cap (owner, 2026-11-20 on #156; V5.2.3)", () => {
+  const SHEET = "xl/worksheets/sheet1.xml";
+
+  it("refuses an entry that honestly declares more than the unpacked total, uninflated", () => {
+    const bytes = bombIn("xl/media/zeros.bin", MAX_UNPACKED_BYTES + 1);
+    expect(bytes.length).toBeLessThan(MAX_UPLOAD_BYTES);
+    expect(errorsOf(parseGen5Export({ fileName: "plate.xlsx", bytes }))).toEqual([
+      expect.objectContaining({ kind: "unpacked_too_large", limit: MAX_UNPACKED_BYTES }),
+    ]);
+  });
+
+  it("refuses an opened part that declares more than its own cap, before inflating it", () => {
+    const bytes = bombIn(SHEET, 32 * 1024 * 1024);
+    expect(bytes.length).toBeLessThan(MAX_UPLOAD_BYTES);
+    expect(errorsOf(parseGen5Export({ fileName: "plate.xlsx", bytes }))).toEqual([
+      expect.objectContaining({ kind: "part_too_large", part: SHEET }),
+    ]);
+  });
+
+  it("stops inflating a part that lies about its size", () => {
+    const bytes = bombIn(SHEET, 256 * 1024 * 1024, 4096);
+    expect(bytes.length).toBeLessThan(MAX_UPLOAD_BYTES);
+    expect(errorsOf(parseGen5Export({ fileName: "plate.xlsx", bytes }))).toEqual([
+      { kind: "entry_size_mismatch", part: SHEET },
+    ]);
+  });
+});
+
 describe("the file name (ASVS 5.0 V5.2.2, V5.3.2)", () => {
   it("reads the extension without regard to case", () => {
     expect(parseGen5Export({ fileName: "PLATE.XLSX", bytes: buildGen5Workbook() }).ok).toBe(true);

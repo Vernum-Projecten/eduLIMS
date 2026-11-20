@@ -309,6 +309,7 @@ describe("who releases (S10, R-11; maintainer on #270)", () => {
         value: "5.5",
         source: "afinion",
         recordedBy: null,
+        auditActor: { type: "system" },
       }),
     );
     if (!landed.ok) throw new Error(landed.error);
