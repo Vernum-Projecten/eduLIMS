@@ -37,22 +37,37 @@ export const SIMULATION_ACTION_ERRORS = [
   "invalid_code",
   "rate_limited",
   "in_other_lab",
+  "not_prepared",
+  "not_running",
+  "test_not_found",
+  "test_retired",
+  "value_not_found",
+  "missing_limits",
+  "running",
 ] as const;
 export type SimulationActionError = (typeof SIMULATION_ACTION_ERRORS)[number];
 
 /** The outcome of an action: done, with an optional value, or refused with a code. */
 export type SimulationResult<T = null> =
   | { ok: true; value: T }
-  | { ok: false; error: SimulationActionError };
+  | {
+      ok: false;
+      error: SimulationActionError;
+      /** The catalogue tests a `missing_limits` refusal is about: ids only (#267). */
+      testIds?: readonly string[];
+    };
 
 /** Returns a done result. */
 export function done<T>(value: T): SimulationResult<T> {
   return { ok: true, value };
 }
 
-/** Returns a refusal. */
-export function refused<T>(error: SimulationActionError): SimulationResult<T> {
-  return { ok: false, error };
+/** Returns a refusal; `testIds` names the tests a `missing_limits` refusal is about. */
+export function refused<T>(
+  error: SimulationActionError,
+  testIds?: readonly string[],
+): SimulationResult<T> {
+  return testIds === undefined ? { ok: false, error } : { ok: false, error, testIds };
 }
 
 /** Who acts: the session user, never an id from the request. */
@@ -71,13 +86,19 @@ export function assertTeacher(actor: Pick<SimulationActor, "roles">): void {
   if (!hasRole(actor, "teacher")) throw new AuthError(403);
 }
 
-/** What a refused probe asked for: a simulation or a lab. */
-export type ProbeTarget = "simulation" | "lab";
+/** What a refused probe asked for: a simulation, a lab, or a correct value of a simulation. */
+export type ProbeTarget = "simulation" | "lab" | "correct_value";
+
+const PROBE_REASONS: Record<ProbeTarget, string> = {
+  simulation: "not_simulation_teacher",
+  lab: "not_lab_teacher",
+  correct_value: "not_simulation_value",
+};
 
 /**
- * Writes a simulation or lab the actor does not teach (or that does not exist) to the security
- * stream as `authz_fail` (ASVS V16.3.2): the actor's id and the id asked for, nothing else. A
- * malformed id is written as `redacted` by the security log.
+ * Writes a simulation, lab or correct value the actor does not teach (or that does not exist) to
+ * the security stream as `authz_fail` (ASVS V16.3.2): the actor's id and the id asked for,
+ * nothing else. A malformed id is written as `redacted` by the security log.
  */
 export function logNotFound(actorId: string, type: ProbeTarget, id: string): void {
   logSecurityEvent("warn", "authz_fail", {
@@ -86,7 +107,7 @@ export function logNotFound(actorId: string, type: ProbeTarget, id: string): voi
     actor_id: actorId,
     target_type: type,
     target_id: id,
-    reason: type === "simulation" ? "not_simulation_teacher" : "not_lab_teacher",
+    reason: PROBE_REASONS[type],
     status: 404,
   });
 }

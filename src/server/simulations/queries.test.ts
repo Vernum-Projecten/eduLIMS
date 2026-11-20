@@ -44,6 +44,7 @@ describe("listTeacherSimulations (D11: only their own simulations)", () => {
         id: w.simulationId,
         name: "Practice simulation",
         createdAt: expect.any(String),
+        state: "prepared",
         labs: 2,
         members: 7,
         teachers: 2,

@@ -17,6 +17,7 @@ import {
   type SimulationResult,
   withSimulation,
 } from "./access.ts";
+import { stateOf } from "./state.ts";
 
 /**
  * Creates a simulation with the actor as its first teacher, in one transaction with its
@@ -76,8 +77,9 @@ export function renameSimulation(
 }
 
 /**
- * Deletes a simulation the actor teaches, with its labs and waiting addresses, unless a student
- * is in one of its labs (`has_students`, logged).
+ * Deletes a simulation the actor teaches, with its labs and waiting addresses, unless it runs
+ * (`running`; maintainer, 2026-11-20 on #267) or a student is in one of its labs
+ * (`has_students`), each refusal logged.
  */
 export function deleteSimulation(
   db: Kysely<DB>,
@@ -85,17 +87,22 @@ export function deleteSimulation(
   input: { simulationId: string },
 ): Promise<SimulationResult> {
   return withSimulation(db, actor, input.simulationId, async (trx, simulationId) => {
+    const event = {
+      action: "simulation_deleted",
+      actor: { type: "user", id: actor.id },
+      target: { type: "simulation", id: simulationId },
+    } as const;
+    // NOTE: maintainer 2026-11-20 on #267; a running simulation is never deleted.
+    if ((await stateOf(trx, simulationId)) === "running") {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: "running" });
+      return refused("running");
+    }
     const member = await trx
       .selectFrom("lab_members")
       .select("user_id")
       .where("simulation_id", "=", simulationId)
       .limit(1)
       .executeTakeFirst();
-    const event = {
-      action: "simulation_deleted",
-      actor: { type: "user", id: actor.id },
-      target: { type: "simulation", id: simulationId },
-    } as const;
     if (member) {
       await recordAudit(trx, { ...event, outcome: "refused", reason: "has_students" });
       return refused("has_students");
