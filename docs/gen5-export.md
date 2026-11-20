@@ -200,6 +200,54 @@ team says which well holds which sample, and the concentration is calculated
 by the team or by eduLIMS, as the teacher chose for the test (S4, D9; see
 [The LIMS workflow](lims-workflow.md#a-measurement-on-the-epoch-2)).
 
+## The check of the plate and the links
+
+After the parse, `checkPlateLinks` in `src/server/upload/plate-links.ts`
+checks the plate and the team's links from wells to samples for one lab
+(S4, S10, R-06; #155). It is a pure function: the caller loads the lab's
+samples in its own transaction, filtered by the lab in the SQL query, and
+passes them in. A sample of another lab in that list, or two samples with
+one lab number, is a defect of the caller and throws.
+
+A link names a well and a sample by its lab number. The sample number from
+the form is never the key: every team works the same sample numbers (R-11),
+and one lab may record a sample number twice for a second tube (S12). The
+lab number is unique across the teams of every simulation, so a link can
+match only a sample of the uploader's own lab.
+
+The plate it takes holds exactly one value for each of the 96 wells, in
+reading order. Its type says so: `PlateWells` is a branded type that only
+`toPlateWells` in `src/server/upload/gen5-layout.ts` makes, and the parser
+calls it after its 8 by 12 check. An empty well is refused by the parser
+(`well_empty`), and a plate with a well missing or twice cannot reach the
+check. The brand is the defence in depth behind the parser for an empty or
+a doubled value, so the check has no `value_empty` or `value_duplicate`
+refusal: a check the type makes unreachable could be tested only through a
+cast that lies.
+
+The maintainer decided two points on #372: a link names the sample by its
+lab number, the one key unique across every simulation and the number the
+Afinion route uses; and an absorbance keeps at most 6 decimals, the bound of
+the tolerance check, since Gen5 reports fewer.
+
+| Rule | Refusal |
+|---|---|
+| More than 96 links | `links_too_many`, with the count and the limit, and nothing else is checked |
+| A value with more than 9 digits before the point | `value_out_of_bounds`, with the well |
+| A value within that size with more than 6 decimals (`0.30000000000000004`) | `value_too_precise`, with the well |
+| A link to a position outside A1 to H12 (`A13`, `I1`, `A01`) | `well_outside_plate`, with the position as sent (cut to 128 characters) and the index of the link |
+| A well linked more than once | `link_duplicate`, with the well, once |
+| A link without a lab number | `lab_number_missing`, with the well |
+| A lab number that fails the format or the check digit | `lab_number_invalid`, with the well |
+| A lab number of no sample of the lab, another lab's included | `sample_unknown`, with the well |
+
+Every refusal is returned together: the plate's in reading order, then the
+links' in the order sent. Several wells may hold one sample (replicates), and
+a well without a link stays unlinked. On success each of the 96 wells carries
+its absorbance as an exact decimal in the bounds the tolerance check reads,
+and its linked sample or none. The values of the supplied export all fall
+inside those bounds.
+
 ## The fixtures and the mutation test
 
 `tests/fixtures/gen5/README.md` lists the good files and the bad file for each
