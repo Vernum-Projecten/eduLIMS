@@ -91,7 +91,9 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await page.getByRole("option", { name: `${testName} (mmol/L)` }).click();
   await one.getByLabel("Correct value").fill("5,250");
   await save.click();
-  await expect(page.getByText("Correct values saved: 1 added, 0 changed, 0 unchanged.")).toBeVisible();
+  await expect(
+    page.getByText("Correct values saved: 1 added, 0 changed, 0 unchanged."),
+  ).toBeVisible();
   await expect(valuesTable(page).getByRole("row").filter({ hasText: "S-101" })).toContainText(
     "5.250 mmol/L",
   );
@@ -107,7 +109,9 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await expect(valuesTable(page).getByRole("row").filter({ hasText: "S-102" })).toHaveCount(0);
   await rows.fill(`S-102\t${testName}\t6.1\ns-101;${testName};5.250`);
   await paste.getByRole("button", { name: "Save pasted values" }).click();
-  await expect(page.getByText("Correct values saved: 1 added, 0 changed, 1 unchanged.")).toBeVisible();
+  await expect(
+    page.getByText("Correct values saved: 1 added, 0 changed, 1 unchanged."),
+  ).toBeVisible();
   await expect(valuesTable(page).getByRole("row")).toHaveCount(3);
 
   // Change a value with the keyboard alone (WCAG 2.1.1).
@@ -155,9 +159,9 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
 
   // The catalogue shows the lock with an icon and text (D9).
   await page.goto(`/teacher/catalogue?q=${encodeURIComponent(testName)}`);
-  await expect(page.getByRole("table").getByRole("row").filter({ hasText: testName })).toContainText(
-    "In a running simulation",
-  );
+  await expect(
+    page.getByRole("table").getByRole("row").filter({ hasText: testName }),
+  ).toContainText("In a running simulation");
 
   // A student reaches neither the page nor its values (Q-SIM-1).
   const context = await browser.newContext();

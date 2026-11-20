@@ -11,7 +11,7 @@ import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
-import { readAdminSimulation, readAdminSimulations } from "../simulations/admin-queries.ts";
+import { readAdminSimulation, readAdminSimulationPage } from "../simulations/admin-queries.ts";
 import { joinLabWithCode } from "../simulations/join.ts";
 import { linkWaitingAddresses } from "../simulations/linking.ts";
 import { listStudentLabs } from "../simulations/queries.ts";
@@ -157,7 +157,7 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
 
   it("carries no secret in the administrator's read-only view either (B5)", async () => {
     const { database, w, testId } = await open();
-    expectClean(await readAdminSimulations(database, w.admin), testId);
+    expectClean(await readAdminSimulationPage(database, w.admin, {}), testId);
     expectClean(await readAdminSimulation(database, w.admin, w.simulationId), testId);
   });
 });
