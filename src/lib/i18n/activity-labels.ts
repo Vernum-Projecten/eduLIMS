@@ -115,6 +115,7 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   has_students: m.admin_activity_reason_has_students,
   has_records: m.admin_activity_reason_has_records,
   invalid_input: m.admin_activity_reason_invalid_input,
+  another_running: m.admin_activity_reason_another_running,
   missing_limits: m.admin_activity_reason_missing_limits,
   not_prepared: m.admin_activity_reason_not_prepared,
   running: m.admin_activity_reason_running,

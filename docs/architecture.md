@@ -238,9 +238,10 @@ count in one statement, so one snapshot: counts per step and the start's
 verdict from `startRefusal` (`state.ts`), the one rule the start itself
 applies. A start needs a prepared simulation, at least one lab with at least
 one student, at least one correct value and the accuracy limits of every test
-with a value (owner, 2026-11-20 on #394); the refusals are `not_prepared`,
-`no_students`, `no_correct_values` and `missing_limits`, each logged, and a
-reason the start gains later keeps the same shape. While one holds, Start
+with a value (owner, 2026-11-20 on #394), and no other simulation running
+(owner, 2026-11-20 on #386); the refusals, in this order, are `not_prepared`,
+`another_running`, `no_students`, `no_correct_values` and `missing_limits`,
+each logged. While one holds, Start
 stays focusable with `aria-disabled`, says why beside it, and a click sends
 focus to the first step that blocks it. Every page's loader reads through the
 teacher-scoped functions, so a teacher of another simulation gets not found
@@ -412,7 +413,11 @@ student's place and a waiting address point at their lab through the pair
   The lab's work goes through `findWorkingStudentLab`, which also requires
   a running simulation: a prepared or finished simulation takes no work.
 - **State.** A teacher of the simulation starts a prepared simulation and
-  finishes a running one, behind a confirmation; no step goes back. A start
+  finishes a running one, behind a confirmation; no step goes back. Only one
+  simulation runs at a time (owner, 2026-11-20, #386): a start while another
+  runs is refused with `another_running`, which names no other simulation,
+  and the partial unique index `simulations_one_running` (migration
+  `0030_one_running_simulation`) holds the rule when two starts race. A start
   is refused while a test with a correct value has no limits, and the
   refusal names those tests; a running simulation is never deleted
   (maintainer, 2026-11-20 on #267). The correct values and the limits stay

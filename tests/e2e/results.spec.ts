@@ -22,6 +22,7 @@ import {
   setPatientEhr,
 } from "./results-seed";
 import { appUrl } from "./run-env";
+import { keepRunning } from "./running-simulation";
 
 test.describe.configure({ mode: "serial" });
 
@@ -30,6 +31,12 @@ let world: ResultsWorld;
 
 test.beforeAll(async () => {
   world = await seedResults(SUFFIX);
+});
+
+// NOTE: #386; one simulation runs at a time, so a retry, or a seed of another file in between,
+// may have finished this world; each test starts with it running again.
+test.beforeEach(async () => {
+  await keepRunning(world.simulationId);
 });
 
 function measurements(page: Page, name: string) {

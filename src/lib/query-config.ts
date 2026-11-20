@@ -36,6 +36,8 @@ export const STALE_TIME = {
    * simulation; every change invalidates it anyway.
    */
   tolerances: 15_000,
+  /** The teacher dashboard (D11): a start or a finish elsewhere changes it, so every visit reads it. */
+  dashboard: 0,
   /** The test catalogue (D9): administrators change it rarely, and every change invalidates it. */
   catalogue: 30_000,
   /** A provider's SCIM section: its token's last use moves with every directory sync. */

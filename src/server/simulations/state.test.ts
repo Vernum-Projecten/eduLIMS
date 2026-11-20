@@ -290,6 +290,63 @@ describe("starting and finishing a simulation (D10, #267)", () => {
   });
 });
 
+describe("one running simulation at a time (D11, owner 2026-11-20, #386)", () => {
+  it("refuses a start while another teacher's simulation runs, logs it, and names none", async () => {
+    const { db: database, w } = await open();
+    const other = { simulationId: w.outsideSimulationId };
+    await startable(database, w.outsideSimulationId);
+    expect((await startSimulation(database, w.outsiderTeacher, other, NOW)).ok).toBe(true);
+    const refusedStart = await startSimulation(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId },
+      LATER,
+    );
+    expect(refusedStart).toEqual({ ok: false, error: "another_running" });
+    expect(JSON.stringify(refusedStart)).not.toContain(w.outsideSimulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
+    expect(page).toMatchObject({ state: "prepared", startedAt: null });
+    expect(await auditRows(database, "simulation_started")).toEqual([
+      expect.objectContaining({ outcome: "success", target_id: w.outsideSimulationId }),
+      expect.objectContaining({
+        outcome: "refused",
+        reason_code: "another_running",
+        target_id: w.simulationId,
+      }),
+    ]);
+  });
+
+  it("lets the next simulation start once the running one is finished", async () => {
+    const { db: database, w } = await open();
+    const other = { simulationId: w.outsideSimulationId };
+    await startable(database, w.outsideSimulationId);
+    expect((await startSimulation(database, w.outsiderTeacher, other, NOW)).ok).toBe(true);
+    await finishSimulation(database, w.outsiderTeacher, other, LATER);
+    const start = await startSimulation(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId },
+      LATER,
+    );
+    expect(start).toEqual({ ok: true, value: null });
+  });
+
+  it("is held by the database: a second running row is a unique violation", async () => {
+    const { db: database, w } = await open();
+    await setState(database, w.outsideSimulationId, "running");
+    await expect(setState(database, w.simulationId, "running")).rejects.toMatchObject({
+      code: "23505",
+      constraint: "simulations_one_running",
+    });
+  });
+});
+
 describe("labs work only in a running simulation (D10, #267)", () => {
   it("gives a member no working lab while the simulation is prepared", async () => {
     const { db: database, w } = await open();

@@ -450,15 +450,17 @@ describe("more refusals of entry by hand (security review of #370)", () => {
 
   it("refuses a student in two simulations who mixes the ids of both", async () => {
     const { database, w } = await open();
+    // NOTE: #379, #386; one unfinished simulation per student and one running at a time, so the
+    // first one is finished before the second starts.
+    await setState(database, w.simulationId, "finished");
     await startable(database, w.outsideSimulationId);
-    await startSimulation(
+    const started = await startSimulation(
       database,
       w.outsiderTeacher,
       { simulationId: w.outsideSimulationId },
       NOW,
     );
-    // NOTE: #379; one unfinished simulation at a time, so the first one is finished here.
-    await setState(database, w.simulationId, "finished");
+    expect(started.ok).toBe(true);
     await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
     expect(
       await recordManualMeasurement(database, w.student, { ...input(w), labId: w.outsideLabId }),

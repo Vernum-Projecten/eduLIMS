@@ -20,12 +20,14 @@ import { copyAccount, type TestAccount } from "./accounts";
 import { devLogin } from "./fixtures";
 import { rawPost } from "./raw-http";
 import { appUrl } from "./run-env";
+import { finishRunning, keepRunning } from "./running-simulation";
 
 /** The serial number in the header of the invented export (`defaultSpec`). */
 const READER_SERIAL = "EX000001";
 
 let student: TestAccount;
 let labId = "";
+let runningId = "";
 
 function database(): Kysely<DB> {
   const url = process.env["EDULIMS_E2E_DATABASE_URL"];
@@ -109,6 +111,8 @@ test.beforeAll(async () => {
       .select("id")
       .where("email", "=", "teacher@example.test")
       .executeTakeFirstOrThrow();
+    // NOTE: #386; one simulation runs at a time, so an earlier journey's one is finished.
+    await finishRunning(db);
     const { id: simulationId } = await db
       .insertInto("simulations")
       .values({
@@ -125,6 +129,7 @@ test.beforeAll(async () => {
       .returning("id")
       .executeTakeFirstOrThrow();
     labId = lab.id;
+    runningId = simulationId;
     await db
       .insertInto("lab_members")
       .values({
@@ -145,6 +150,11 @@ test.beforeAll(async () => {
       .onConflict((conflict) => conflict.columns(["model", "serial_number"]).doNothing())
       .execute();
   });
+});
+
+// NOTE: #386; a journey of another file may have finished this one's simulation in between.
+test.beforeEach(async () => {
+  await keepRunning(runningId);
 });
 
 test("stores an export of exactly 5 MiB posted through the form path (V5.2.1)", async ({

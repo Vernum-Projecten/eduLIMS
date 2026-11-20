@@ -138,6 +138,7 @@ a new domain adds its row here and there.
 | A lab's tolerances (`tolerancesKeys`) | 15 s | Every member of the lab may change one, and its teachers read the changes; every change invalidates the lab's entry anyway (S13). |
 | Test catalogue page (`catalogueKeys.list`) | 30 s | Administrators change it rarely; every create, edit, retire and restore invalidates it anyway (D9, #393). |
 | A lab's records and the correction log (`labRecordsKeys`) | 10 s | Six students of one lab write the same patients and requests at once; every write invalidates its lab anyway (S11, S12). |
+| Teacher dashboard (`dashboardKeys.running`) | 0 | A start or a finish on another page changes which simulation it shows (#386). |
 | A lab's measurements and results (`resultsKeys`) | 10 s | Analysers and six students add measurements; every measurement and release invalidates the lab's entry anyway (S14, S15). |
 | A provider's SCIM section (`scimKeys.detail`) | 15 s | Its token's last use moves with every directory sync. |
 | Admin overview (`adminOverviewKeys.summary`) | 30 s | A snapshot of counts and the latest events; the next visit after 30 s reads it again (#36). |
