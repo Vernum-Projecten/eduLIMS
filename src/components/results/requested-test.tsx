@@ -35,6 +35,7 @@ import {
 } from "@/lib/i18n/results-labels";
 import { formatLabNumber } from "@/lib/lab-number";
 import type { PatientRecordState, RequestedTestState } from "@/lib/results";
+import { unitSymbol } from "@/lib/ucum";
 import { cn } from "@/lib/utils";
 import type { MeasurementRow, RequestedTestRow } from "@/server/results/queries";
 
@@ -110,7 +111,7 @@ function PatientRecord({ state }: Readonly<{ state: PatientRecordState }>) {
 
 /** The team's own tolerance and the release, or what the test lacks for a release (S13, S15). */
 function ReleaseFacts({ test, labId }: Readonly<{ test: RequestedTestRow; labId: string | null }>) {
-  const unit = test.unit ?? "";
+  const unit = unitSymbol(test.unit);
   if (test.release) {
     return (
       <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
@@ -178,7 +179,9 @@ export function RequestedTest({
             tabIndex={-1}
             className={cn(FOCUSABLE_HEADING, "text-base font-medium")}
           >
-            {test.unit ? m.results_test_with_unit({ test: test.name, unit: test.unit }) : test.name}
+            {test.unit
+              ? m.results_test_with_unit({ test: test.name, unit: unitSymbol(test.unit) })
+              : test.name}
           </h4>
           <TestStateBadge state={test.state} />
         </div>

@@ -141,6 +141,7 @@ describe("0027_gen5_uploads", () => {
     const { database } = await open();
     const down = await createMigrator(database).migrateTo("0026_one_active_simulation_per_student");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
     ]);
     const tables = (await database.introspection.getTables()).map((t) => t.name);

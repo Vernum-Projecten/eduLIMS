@@ -3,28 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 import { m } from "@/i18n/messages";
-import { paraglideMiddleware } from "@/i18n/server";
 import { ROLES } from "@/lib/roles";
 import { THEMES } from "@/lib/theme";
 import { roleLabel, rolesLabel, roleWriteErrorMessage, themeLabel } from "./labels";
-import { defineLocaleCookieServerStrategy } from "./locale-cookie";
-
-// The server entry registers the locale cookie strategy; plain http, as in development.
-defineLocaleCookieServerStrategy(() => false);
-
-/** Runs `fn` inside a request whose locale cookie is `locale`, as the server entry does. */
-async function inLocale<T>(locale: "en" | "nl", fn: () => T): Promise<T> {
-  let result: T | undefined;
-  await paraglideMiddleware(
-    new Request("http://localhost/", { headers: { cookie: `EDULIMS_LOCALE=${locale}` } }),
-    () => {
-      result = fn();
-      return new Response(null);
-    },
-  );
-  if (result === undefined) throw new Error("the middleware did not run the callback");
-  return result;
-}
+import { inLocale } from "./test-helpers";
 
 describe("roleLabel", () => {
   it("names the roles in English by default", () => {

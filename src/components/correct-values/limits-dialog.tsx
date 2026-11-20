@@ -25,6 +25,7 @@ import { type AccuracyLimits, LIMIT_KINDS } from "@/lib/correct-values";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
 import { formatDecimal } from "@/lib/i18n/format";
 import { limitKindLabel, simulationErrorMessage } from "@/lib/i18n/simulation-labels";
+import { unitSymbol } from "@/lib/ucum";
 import { cn } from "@/lib/utils";
 import { setLimitsFn } from "@/server/correct-values/functions";
 import type { SimulationTestEntry } from "@/server/correct-values/queries";
@@ -41,7 +42,7 @@ export interface TestRow extends SimulationTestEntry {
 function limitText(limits: AccuracyLimits, value: string, unit: string | null): string {
   const shown = formatDecimal(value);
   if (limits.kind === "percent") return m.correct_values_limit_percent({ value: shown });
-  return unit ? m.correct_values_limit_absolute({ value: shown, unit }) : shown;
+  return unit ? m.correct_values_limit_absolute({ value: shown, unit: unitSymbol(unit) }) : shown;
 }
 
 /**

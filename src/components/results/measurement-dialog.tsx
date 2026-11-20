@@ -23,6 +23,7 @@ import { m } from "@/i18n/messages";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
 import { resultsErrorMessage } from "@/lib/i18n/results-labels";
 import { formatLabNumber } from "@/lib/lab-number";
+import { unitSymbol } from "@/lib/ucum";
 import type { ResultsActionError } from "@/server/results/access";
 import { recordMeasurementFn } from "@/server/results/functions";
 import type { RequestedTestRow, ResultsRequestRow } from "@/server/results/queries";
@@ -143,7 +144,9 @@ export function MeasurementDialog({
                   <field.TextField
                     label={m.results_value_label()}
                     description={
-                      test.unit ? m.results_value_unit_help({ unit: test.unit }) : undefined
+                      test.unit
+                        ? m.results_value_unit_help({ unit: unitSymbol(test.unit) })
+                        : undefined
                     }
                     inputMode="decimal"
                     autoComplete="off"

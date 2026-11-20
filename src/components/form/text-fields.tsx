@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ComponentProps } from "react";
+import { type ComponentProps, useId } from "react";
 import { type BaseFieldProps, FieldFeedback, useFieldA11y } from "@/components/form/field-a11y";
 import { useFieldContext } from "@/components/form/form-context";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -19,20 +19,27 @@ type InputExtras = Pick<
   | "readOnly"
 >;
 
-/** A one-line text field for a `string` value. */
+/**
+ * A one-line text field for a `string` value. `suggestions` offers earlier entries in the
+ * browser's own list (`datalist`), and the field still takes any text.
+ */
 export function TextField({
   label,
   description,
   className,
   id,
   type = "text",
+  suggestions,
   ...input
 }: BaseFieldProps &
   InputExtras & {
     readonly type?: "text" | "email" | "url" | "search" | "tel" | "password" | "date";
+    readonly suggestions?: readonly string[];
   }) {
   const field = useFieldContext<string>();
   const a11y = useFieldA11y(field, description, id);
+  const listId = useId();
+  const hasSuggestions = suggestions !== undefined && suggestions.length > 0;
   return (
     <Field data-invalid={a11y.isInvalid} className={className}>
       <FieldLabel htmlFor={a11y.controlId}>{label}</FieldLabel>
@@ -40,10 +47,18 @@ export function TextField({
         {...input}
         {...a11y.controlProps}
         type={type}
+        list={hasSuggestions ? listId : undefined}
         value={field.state.value}
         onBlur={field.handleBlur}
         onChange={(e) => field.handleChange(e.target.value)}
       />
+      {hasSuggestions && (
+        <datalist id={listId}>
+          {suggestions.map((suggestion) => (
+            <option key={suggestion} value={suggestion} />
+          ))}
+        </datalist>
+      )}
       <FieldFeedback a11y={a11y} description={description} />
     </Field>
   );

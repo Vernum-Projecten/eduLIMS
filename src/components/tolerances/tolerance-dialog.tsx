@@ -23,6 +23,7 @@ import { m } from "@/i18n/messages";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
 import { formatDecimal } from "@/lib/i18n/format";
 import { toleranceErrorMessage } from "@/lib/i18n/tolerance-labels";
+import { unitSymbol } from "@/lib/ucum";
 import { simulationErrorCode, simulationMutationOptions } from "@/server/simulations/query-options";
 import { setToleranceFn } from "@/server/tolerances/functions";
 import type { ToleranceEntry } from "@/server/tolerances/queries";
@@ -68,7 +69,7 @@ export function ToleranceDialog({
       control.onOpenChange(false);
     },
   });
-  const unitHelp = test.unit ? m.tolerances_unit_help({ unit: test.unit }) : undefined;
+  const unitHelp = test.unit ? m.tolerances_unit_help({ unit: unitSymbol(test.unit) }) : undefined;
   return (
     <Dialog
       open={control.open}

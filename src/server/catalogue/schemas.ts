@@ -7,18 +7,18 @@
 // does not belong to the chosen source never reaches the service.
 import { z } from "zod";
 import { m } from "@/i18n/messages";
+import { afinionAnalyte, afinionUnitAllowed } from "@/lib/afinion";
 import {
   CONTROL_OR_FORMAT,
   EPOCH_CALCULATORS,
-  isAfinionAnalyte,
-  TEST_ANALYTE_MAX,
+  NO_UNIT,
   TEST_MATERIAL_MAX,
   TEST_NAME_MAX,
   TEST_SOURCES,
   TEST_STATUSES,
-  TEST_UNIT_MAX,
   type TestSource,
 } from "@/lib/catalogue";
+import { isUcumCode } from "@/lib/ucum";
 
 /** The columns the catalogue sorts on. */
 export const TEST_SORT_FIELDS = ["name", "unit", "material", "updatedAt"] as const;
@@ -101,6 +101,11 @@ export type TestIdInput = z.infer<typeof testIdInput>;
 
 const tooLong = (max: number) => () => m.form_too_long({ max: String(max) });
 
+/** Returns the stored unit of a checked form's unit: `null` for the explicit choice of none. */
+function unitOf(unit: string): string | null {
+  return unit === NO_UNIT ? null : unit;
+}
+
 /** Free text without control or format characters (ASVS V2.2.1), trimmed, up to `max`. */
 function plainText(max: number) {
   return z
@@ -119,35 +124,59 @@ function requiredText(max: number, required: () => string) {
 const testFormFields = z.object({
   name: requiredText(TEST_NAME_MAX, () => m.catalogue_name_required()),
   // NOTE: maintainer 2026-11-19 (#266); a dimensionless result such as a ratio has no unit.
-  unit: plainText(TEST_UNIT_MAX),
+  // Owner 2026-11-20 (#393): a unit is a UCUM code from the supported list.
+  unit: z
+    .string()
+    .trim()
+    .superRefine((value, ctx) => {
+      if (value === "") ctx.addIssue({ code: "custom", message: m.catalogue_unit_required() });
+      else if (value !== NO_UNIT && !isUcumCode(value)) {
+        ctx.addIssue({ code: "custom", message: m.catalogue_unit_unsupported() });
+      }
+    }),
   material: requiredText(TEST_MATERIAL_MAX, () => m.catalogue_material_required()),
   source: z
     .enum([...TEST_SOURCES, ""])
     .refine((value) => value !== "", { error: () => m.catalogue_source_required() }),
-  analyte: plainText(TEST_ANALYTE_MAX),
+  // NOTE: #393; checked against the analytes the Afinion 2 reports, for that source only.
+  analyte: z.string().trim(),
   calculatedBy: z.enum([...EPOCH_CALCULATORS, ""]),
 });
 type TestFormValues = z.output<typeof testFormFields>;
 
-/** Checks the setting of the chosen source: the analyte of an Afinion 2 test, the calculator of an Epoch 2 one. */
+/**
+ * Checks the setting of the chosen source: an Afinion 2 test names an analyte the analyser
+ * reports, with a unit that analyte allows (#393); an Epoch 2 test says who calculates.
+ */
 function checkSourceSetting(value: TestFormValues, ctx: z.RefinementCtx): void {
-  if (value.source === "afinion") {
-    if (value.analyte === "") {
-      ctx.addIssue({ code: "custom", path: ["analyte"], message: m.catalogue_analyte_required() });
-    } else if (!CONTROL_OR_FORMAT.test(value.analyte) && !isAfinionAnalyte(value.analyte)) {
-      // A control or format character is already refused at the field, once.
-      ctx.addIssue({
-        code: "custom",
-        path: ["analyte"],
-        message: m.catalogue_analyte_characters(),
-      });
-    }
-  }
+  if (value.source === "afinion") checkAfinionSetting(value, ctx);
   if (value.source === "epoch_upload" && value.calculatedBy === "") {
     ctx.addIssue({
       code: "custom",
       path: ["calculatedBy"],
       message: m.catalogue_calculated_by_required(),
+    });
+  }
+}
+
+function checkAfinionSetting(value: TestFormValues, ctx: z.RefinementCtx): void {
+  if (value.analyte === "") {
+    ctx.addIssue({ code: "custom", path: ["analyte"], message: m.catalogue_analyte_required() });
+    return;
+  }
+  const entry = afinionAnalyte(value.analyte);
+  if (entry === undefined) {
+    ctx.addIssue({ code: "custom", path: ["analyte"], message: m.catalogue_analyte_unknown() });
+    return;
+  }
+  if (value.unit === "") return;
+  if (!afinionUnitAllowed(entry, unitOf(value.unit))) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["unit"],
+      message: entry.unitConfigurable
+        ? m.catalogue_unit_required_for_analyte()
+        : m.catalogue_unit_fixed_by_analyte(),
     });
   }
 }
@@ -197,7 +226,7 @@ export function testDefinitionOf(form: TestFormValues, ctx: z.RefinementCtx): Te
     ctx.addIssue({ code: "custom", path: ["source"], message: m.catalogue_source_required() });
     return z.NEVER;
   }
-  const unit = form.unit === "" ? null : form.unit;
+  const unit = unitOf(form.unit);
   return { name: form.name, unit, material: form.material, source };
 }
 

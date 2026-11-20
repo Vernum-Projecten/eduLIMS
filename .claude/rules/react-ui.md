@@ -90,7 +90,11 @@ in a feature component.
   typed from the default values, nested paths too, such as
   `samples[2].material`) renders `field.TextField`,
   `TextareaField`, `NumberField` (`NaN` for an empty entry, which the schema
-  refuses), `SelectField`, `CheckboxField`, `CheckboxGroupField`,
+  refuses), `SelectField`, `ComboboxField` (a searchable select on the shadcn
+  combobox for a long list, such as the UCUM units: typing filters on each
+  option's label and keywords, `""` is no choice, an explicit "none" is an
+  option of its own, and its list renders next to the field so a dialog's
+  focus trap takes it in), `CheckboxField`, `CheckboxGroupField`,
   `RadioGroupField`, `SwitchField`, `DateField` (a `YYYY-MM-DD` value on the
   localised `Calendar`) or `EmailListField` (pasted addresses, checked with
   `emailListSchema`). Each takes a translated `label` and an optional

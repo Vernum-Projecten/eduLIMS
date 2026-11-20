@@ -23,7 +23,7 @@ afterEach(() => setup.destroy());
 
 describe("refused changes in the activity log (ASVS V16.3.3, B4)", () => {
   it("writes exactly one refused row for an in_use refusal, with ids and the code only", async () => {
-    const ctx = await setup.teacher();
+    const ctx = await setup.admin();
     const id = await created(ctx);
     usages.set(id, "used");
     expect(await updateTest(ctx, { testId: id, test: { ...CRP, unit: "mg/dL" } })).toEqual({
@@ -34,6 +34,7 @@ describe("refused changes in the activity log (ASVS V16.3.3, B4)", () => {
     expect(refused).toEqual([
       {
         action: "test_changed",
+        actor_type: "user",
         actor_id: ctx.actor.id,
         target_type: "test",
         target_id: id,
@@ -46,7 +47,7 @@ describe("refused changes in the activity log (ASVS V16.3.3, B4)", () => {
   });
 
   it("logs a running-simulation refusal with its own code", async () => {
-    const ctx = await setup.teacher();
+    const ctx = await setup.admin();
     const id = await created(ctx);
     usages.set(id, "running");
     await updateTest(ctx, { testId: id, test: { ...CRP, material: "serum" } });
@@ -58,7 +59,7 @@ describe("refused changes in the activity log (ASVS V16.3.3, B4)", () => {
   });
 
   it("logs a refused retire and restore against their own actions", async () => {
-    const ctx = await setup.teacher();
+    const ctx = await setup.admin();
     const id = await created(ctx);
     await restoreTest(ctx, { testId: id });
     await retireTest(ctx, { testId: id });
@@ -71,7 +72,7 @@ describe("refused changes in the activity log (ASVS V16.3.3, B4)", () => {
   });
 
   it("logs not_found with the id asked for, and leaves out an id that is not a test id", async () => {
-    const ctx = await setup.teacher();
+    const ctx = await setup.admin();
     await retireTest(ctx, { testId: UNKNOWN });
     await retireTest(ctx, { testId: "not-a-test-id" });
     const rows = (await events(ctx.db)).map((row) => [row.reason_code, row.target_id]);

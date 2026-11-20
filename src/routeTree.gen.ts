@@ -23,6 +23,7 @@ import { Route as DevVirtualRouteImport } from './routes/dev/virtual'
 import { Route as DevVirtualTableRouteImport } from './routes/dev/virtual-table'
 import { Route as AuthedAdminIndexRouteImport } from './routes/_authed/admin/index'
 import { Route as AuthedAdminActivityRouteImport } from './routes/_authed/admin/activity'
+import { Route as AuthedAdminCatalogueRouteImport } from './routes/_authed/admin/catalogue'
 import { Route as AuthedAdminIntegrationsRouteImport } from './routes/_authed/admin/integrations'
 import { Route as AuthedAdminUsersRouteImport } from './routes/_authed/admin/users'
 import { Route as AuthedStudentIndexRouteImport } from './routes/_authed/student/index'
@@ -31,7 +32,6 @@ import { Route as AuthedStudentResultsRouteImport } from './routes/_authed/stude
 import { Route as AuthedStudentTolerancesRouteImport } from './routes/_authed/student/tolerances'
 import { Route as AuthedStudentUploadRouteImport } from './routes/_authed/student/upload'
 import { Route as AuthedTeacherIndexRouteImport } from './routes/_authed/teacher/index'
-import { Route as AuthedTeacherCatalogueRouteImport } from './routes/_authed/teacher/catalogue'
 import { Route as AuthedTeacherDashboardRouteImport } from './routes/_authed/teacher/dashboard'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthedAdminSimulationsIndexRouteImport } from './routes/_authed/admin/simulations/index'
@@ -122,6 +122,11 @@ const AuthedAdminActivityRoute = AuthedAdminActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AuthedAdminRoute,
 } as any)
+const AuthedAdminCatalogueRoute = AuthedAdminCatalogueRouteImport.update({
+  id: '/catalogue',
+  path: '/catalogue',
+  getParentRoute: () => AuthedAdminRoute,
+} as any)
 const AuthedAdminIntegrationsRoute = AuthedAdminIntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
@@ -160,11 +165,6 @@ const AuthedStudentUploadRoute = AuthedStudentUploadRouteImport.update({
 const AuthedTeacherIndexRoute = AuthedTeacherIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthedTeacherRoute,
-} as any)
-const AuthedTeacherCatalogueRoute = AuthedTeacherCatalogueRouteImport.update({
-  id: '/catalogue',
-  path: '/catalogue',
   getParentRoute: () => AuthedTeacherRoute,
 } as any)
 const AuthedTeacherDashboardRoute = AuthedTeacherDashboardRouteImport.update({
@@ -296,13 +296,13 @@ export interface FileRoutesByFullPath {
   '/dev/virtual': typeof DevVirtualRoute
   '/dev/virtual-table': typeof DevVirtualTableRoute
   '/admin/activity': typeof AuthedAdminActivityRoute
+  '/admin/catalogue': typeof AuthedAdminCatalogueRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/student/patients': typeof AuthedStudentPatientsRoute
   '/student/results': typeof AuthedStudentResultsRoute
   '/student/tolerances': typeof AuthedStudentTolerancesRoute
   '/student/upload': typeof AuthedStudentUploadRoute
-  '/teacher/catalogue': typeof AuthedTeacherCatalogueRoute
   '/teacher/dashboard': typeof AuthedTeacherDashboardRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/': typeof AuthedAdminIndexRoute
@@ -337,13 +337,13 @@ export interface FileRoutesByTo {
   '/dev/virtual': typeof DevVirtualRoute
   '/dev/virtual-table': typeof DevVirtualTableRoute
   '/admin/activity': typeof AuthedAdminActivityRoute
+  '/admin/catalogue': typeof AuthedAdminCatalogueRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/student/patients': typeof AuthedStudentPatientsRoute
   '/student/results': typeof AuthedStudentResultsRoute
   '/student/tolerances': typeof AuthedStudentTolerancesRoute
   '/student/upload': typeof AuthedStudentUploadRoute
-  '/teacher/catalogue': typeof AuthedTeacherCatalogueRoute
   '/teacher/dashboard': typeof AuthedTeacherDashboardRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin': typeof AuthedAdminIndexRoute
@@ -381,13 +381,13 @@ export interface FileRoutesById {
   '/dev/virtual': typeof DevVirtualRoute
   '/dev/virtual-table': typeof DevVirtualTableRoute
   '/_authed/admin/activity': typeof AuthedAdminActivityRoute
+  '/_authed/admin/catalogue': typeof AuthedAdminCatalogueRoute
   '/_authed/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/_authed/admin/users': typeof AuthedAdminUsersRouteWithChildren
   '/_authed/student/patients': typeof AuthedStudentPatientsRoute
   '/_authed/student/results': typeof AuthedStudentResultsRoute
   '/_authed/student/tolerances': typeof AuthedStudentTolerancesRoute
   '/_authed/student/upload': typeof AuthedStudentUploadRoute
-  '/_authed/teacher/catalogue': typeof AuthedTeacherCatalogueRoute
   '/_authed/teacher/dashboard': typeof AuthedTeacherDashboardRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/_authed/admin/': typeof AuthedAdminIndexRoute
@@ -427,13 +427,13 @@ export interface FileRouteTypes {
     | '/dev/virtual'
     | '/dev/virtual-table'
     | '/admin/activity'
+    | '/admin/catalogue'
     | '/admin/integrations'
     | '/admin/users'
     | '/student/patients'
     | '/student/results'
     | '/student/tolerances'
     | '/student/upload'
-    | '/teacher/catalogue'
     | '/teacher/dashboard'
     | '/api/auth/$'
     | '/admin/'
@@ -468,13 +468,13 @@ export interface FileRouteTypes {
     | '/dev/virtual'
     | '/dev/virtual-table'
     | '/admin/activity'
+    | '/admin/catalogue'
     | '/admin/integrations'
     | '/admin/users'
     | '/student/patients'
     | '/student/results'
     | '/student/tolerances'
     | '/student/upload'
-    | '/teacher/catalogue'
     | '/teacher/dashboard'
     | '/api/auth/$'
     | '/admin'
@@ -511,13 +511,13 @@ export interface FileRouteTypes {
     | '/dev/virtual'
     | '/dev/virtual-table'
     | '/_authed/admin/activity'
+    | '/_authed/admin/catalogue'
     | '/_authed/admin/integrations'
     | '/_authed/admin/users'
     | '/_authed/student/patients'
     | '/_authed/student/results'
     | '/_authed/student/tolerances'
     | '/_authed/student/upload'
-    | '/_authed/teacher/catalogue'
     | '/_authed/teacher/dashboard'
     | '/api/auth/$'
     | '/_authed/admin/'
@@ -657,6 +657,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAdminActivityRouteImport
       parentRoute: typeof AuthedAdminRoute
     }
+    '/_authed/admin/catalogue': {
+      id: '/_authed/admin/catalogue'
+      path: '/catalogue'
+      fullPath: '/admin/catalogue'
+      preLoaderRoute: typeof AuthedAdminCatalogueRouteImport
+      parentRoute: typeof AuthedAdminRoute
+    }
     '/_authed/admin/integrations': {
       id: '/_authed/admin/integrations'
       path: '/integrations'
@@ -711,13 +718,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/teacher/'
       preLoaderRoute: typeof AuthedTeacherIndexRouteImport
-      parentRoute: typeof AuthedTeacherRoute
-    }
-    '/_authed/teacher/catalogue': {
-      id: '/_authed/teacher/catalogue'
-      path: '/catalogue'
-      fullPath: '/teacher/catalogue'
-      preLoaderRoute: typeof AuthedTeacherCatalogueRouteImport
       parentRoute: typeof AuthedTeacherRoute
     }
     '/_authed/teacher/dashboard': {
@@ -876,6 +876,7 @@ const AuthedAdminUsersRouteWithChildren =
 
 interface AuthedAdminRouteChildren {
   AuthedAdminActivityRoute: typeof AuthedAdminActivityRoute
+  AuthedAdminCatalogueRoute: typeof AuthedAdminCatalogueRoute
   AuthedAdminIntegrationsRoute: typeof AuthedAdminIntegrationsRoute
   AuthedAdminUsersRoute: typeof AuthedAdminUsersRouteWithChildren
   AuthedAdminIndexRoute: typeof AuthedAdminIndexRoute
@@ -890,6 +891,7 @@ interface AuthedAdminRouteChildren {
 
 const AuthedAdminRouteChildren: AuthedAdminRouteChildren = {
   AuthedAdminActivityRoute: AuthedAdminActivityRoute,
+  AuthedAdminCatalogueRoute: AuthedAdminCatalogueRoute,
   AuthedAdminIntegrationsRoute: AuthedAdminIntegrationsRoute,
   AuthedAdminUsersRoute: AuthedAdminUsersRouteWithChildren,
   AuthedAdminIndexRoute: AuthedAdminIndexRoute,
@@ -977,7 +979,6 @@ const AuthedTeacherSimulationsSimulationIdRouteWithChildren =
   )
 
 interface AuthedTeacherRouteChildren {
-  AuthedTeacherCatalogueRoute: typeof AuthedTeacherCatalogueRoute
   AuthedTeacherDashboardRoute: typeof AuthedTeacherDashboardRoute
   AuthedTeacherIndexRoute: typeof AuthedTeacherIndexRoute
   AuthedTeacherSimulationsSimulationIdRoute: typeof AuthedTeacherSimulationsSimulationIdRouteWithChildren
@@ -985,7 +986,6 @@ interface AuthedTeacherRouteChildren {
 }
 
 const AuthedTeacherRouteChildren: AuthedTeacherRouteChildren = {
-  AuthedTeacherCatalogueRoute: AuthedTeacherCatalogueRoute,
   AuthedTeacherDashboardRoute: AuthedTeacherDashboardRoute,
   AuthedTeacherIndexRoute: AuthedTeacherIndexRoute,
   AuthedTeacherSimulationsSimulationIdRoute:
