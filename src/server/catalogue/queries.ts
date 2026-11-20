@@ -18,6 +18,7 @@ import {
   type TestStatus,
   type TestUsage,
 } from "../../lib/catalogue.ts";
+import { unitCodesMatching } from "../../lib/i18n/unit-labels.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { containsPattern } from "../users/queries.ts";
 import { DEFAULT_TEST_PAGE_SIZE, type ListTestsInput, type TestSortField } from "./schemas.ts";
@@ -75,6 +76,12 @@ function statusCondition(eb: TestExpressions, status: TestStatus): Expression<Sq
     : eb("catalogue_tests.retired_at", "is", null);
 }
 
+/** The unit condition of a search: the units whose symbol, code or name hold the text (#404). */
+function unitMatches(eb: TestExpressions, search: string): Expression<SqlBool>[] {
+  const codes = unitCodesMatching(search);
+  return codes.length === 0 ? [] : [eb("catalogue_tests.unit", "in", codes)];
+}
+
 /** The conditions of the search and every facet in `input`, all but the facet `except`. */
 function filterConditions(
   eb: TestExpressions,
@@ -88,9 +95,9 @@ function filterConditions(
     conditions.push(
       eb.or([
         eb("catalogue_tests.name", "ilike", pattern),
-        eb("catalogue_tests.unit", "ilike", pattern),
         eb("catalogue_tests.material", "ilike", pattern),
         eb("catalogue_tests.afinion_analyte", "ilike", pattern),
+        ...unitMatches(eb, search),
       ]),
     );
   }
@@ -256,34 +263,4 @@ export async function listMaterials(db: Kysely<DB>): Promise<string[]> {
     .limit(MATERIAL_SUGGESTIONS_MAX)
     .execute();
   return rows.map((row) => row.material);
-}
-
-/** One active test as a teacher chooses it for a simulation (D9, #393). */
-export interface ActiveCatalogueTest {
-  id: CatalogueTestId;
-  name: string;
-  /** A UCUM code, or `null` for a dimensionless result. */
-  unit: string | null;
-  material: string;
-  source: TestSourceKind;
-}
-
-/**
- * Returns every active test of the catalogue, ordered by name and then id, for the screens that
- * prepare a simulation. The catalogue holds no correct value, so the list holds none either.
- *
- * @throws CatalogueTestRowInvalidError on a value the CHECKs should refuse.
- */
-export async function listActiveTests(db: Kysely<DB>): Promise<ActiveCatalogueTest[]> {
-  const rows = await db
-    .selectFrom("catalogue_tests")
-    .select(STORED_TEST_COLUMNS)
-    .where("catalogue_tests.retired_at", "is", null)
-    .orderBy("catalogue_tests.name")
-    .orderBy("catalogue_tests.id")
-    .execute();
-  return rows.map((row) => {
-    const { id, name, unit, material, source } = toCatalogueTestRow(row, "unused");
-    return { id, name, unit, material, source: source.kind };
-  });
 }

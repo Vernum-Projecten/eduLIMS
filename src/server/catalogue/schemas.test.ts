@@ -5,7 +5,6 @@
 // refuse the same input, and a setting of another source never reaches the service.
 import { describe, expect, it } from "vitest";
 import {
-  activeTestsInput,
   createTestInput,
   listTestsInput,
   type TestForm,
@@ -37,11 +36,16 @@ describe("testFormSchema (D9)", () => {
   it("names every missing field of an empty form", () => {
     expect(
       issuePaths({ name: "", unit: " ", material: "", source: "", analyte: "", calculatedBy: "" }),
-    ).toEqual(["name", "material", "source"]);
+    ).toEqual(["name", "unit", "material", "source"]);
   });
 
-  it("takes an empty unit for a dimensionless result (maintainer 2026-11-19)", () => {
-    expect(issuePaths({ ...FORM, source: "manual", unit: "   " })).toEqual([]);
+  it("takes No unit, an explicit choice, for a dimensionless result (maintainer 2026-11-19)", () => {
+    expect(issuePaths({ ...FORM, source: "manual", unit: "none" })).toEqual([]);
+  });
+
+  it("refuses an empty unit: no choice is not No unit (UI review of #404)", () => {
+    expect(issuePaths({ ...FORM, source: "manual", unit: "   " })).toEqual(["unit"]);
+    expect(issuePaths({ ...FORM, source: "manual", unit: "" })).toEqual(["unit"]);
   });
 
   it("takes a unit from the supported UCUM list only, case-sensitively (#393)", () => {
@@ -61,15 +65,15 @@ describe("testFormSchema (D9)", () => {
   it("holds an analyte with one unit to that unit (#393)", () => {
     expect(issuePaths({ ...FORM, analyte: "CRP", unit: "mg/L" })).toEqual([]);
     expect(issuePaths({ ...FORM, analyte: "CRP", unit: "mg/dL" })).toEqual(["unit"]);
-    expect(issuePaths({ ...FORM, analyte: "CRP", unit: "" })).toEqual(["unit"]);
-    expect(issuePaths({ ...FORM, analyte: "Chol/HDL", unit: "" })).toEqual([]);
+    expect(issuePaths({ ...FORM, analyte: "CRP", unit: "none" })).toEqual(["unit"]);
+    expect(issuePaths({ ...FORM, analyte: "Chol/HDL", unit: "none" })).toEqual([]);
     expect(issuePaths({ ...FORM, analyte: "Chol/HDL", unit: "%" })).toEqual(["unit"]);
   });
 
   it("lets an analyte whose unit the analyser sets take any supported unit, never none (#393)", () => {
     expect(issuePaths({ ...FORM, analyte: "HbA1c", unit: "mmol/mol" })).toEqual([]);
     expect(issuePaths({ ...FORM, analyte: "ACR", unit: "mg/g" })).toEqual([]);
-    expect(issuePaths({ ...FORM, analyte: "HbA1c", unit: "" })).toEqual(["unit"]);
+    expect(issuePaths({ ...FORM, analyte: "HbA1c", unit: "none" })).toEqual(["unit"]);
   });
 
   it("requires the analyte of an Afinion 2 test only", () => {
@@ -137,8 +141,8 @@ describe("createTestInput and updateTestInput (D9)", () => {
     ).toEqual({ kind: "epoch_upload", calculatedBy: "edulims" });
   });
 
-  it("reads an empty unit as no unit, never an empty string", () => {
-    expect(createTestInput.parse({ ...FORM, source: "manual", unit: "  " }).unit).toBeNull();
+  it("reads No unit as no unit, never an empty string", () => {
+    expect(createTestInput.parse({ ...FORM, source: "manual", unit: "none" }).unit).toBeNull();
     expect(createTestInput.parse(FORM).unit).toBe("%");
   });
 
@@ -194,10 +198,5 @@ describe("the list's search params", () => {
     expect(listTestsInput.safeParse({ status: ["gone"] }).success).toBe(false);
     expect(listTestsInput.safeParse({ extra: 1 }).success).toBe(false);
     expect(listTestsInput.parse({ q: "glu", size: 10 })).toEqual({ q: "glu", size: 10 });
-  });
-
-  it("takes nothing for the teachers' read of the active tests (#393)", () => {
-    expect(activeTestsInput.parse({})).toEqual({});
-    expect(activeTestsInput.safeParse({ status: ["retired"] }).success).toBe(false);
   });
 });

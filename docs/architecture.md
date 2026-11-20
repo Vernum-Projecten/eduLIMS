@@ -178,9 +178,8 @@ status, and each has negative tests with a student account (Q-SIM-1).
 
 An administrator manages the test catalogue in Admin → Test catalogue
 (`/admin/catalogue`; owner, 2026-11-20, #393). Every simulation uses the one
-catalogue; a teacher reads its active tests through
-`listActiveCatalogueTests` when preparing a simulation and changes none of
-them. A test's unit is a code of the Unified Code for Units of Measure
+catalogue; a teacher sees its active tests as the options of a simulation's
+correct values (id, name and unit only) and changes none of them. A test's unit is a code of the Unified Code for Units of Measure
 (UCUM, <https://ucum.org/ucum>, case-sensitive form), the unit system of
 openEHR's `DV_QUANTITY.units`. The supported codes are a curated list in
 `src/lib/ucum.ts`, with the common laboratory units first and a translated

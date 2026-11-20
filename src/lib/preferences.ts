@@ -7,7 +7,7 @@
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { hostCookieName, readCookie } from "@/lib/cookies";
-import { columnsCookieName, parseHiddenColumns } from "@/lib/table-columns";
+import { columnsCookieName, hiddenColumnsOr, parseHiddenColumns } from "@/lib/table-columns";
 import {
   parseSidebarOpen,
   parseTheme,
@@ -39,4 +39,16 @@ export const readHiddenColumns = createIsomorphicFn()
   )
   .client((tableId: string): string[] =>
     parseHiddenColumns(clientPreference(columnsCookieName(tableId))),
+  );
+
+/** Reads the hidden columns of table `tableId`, or `defaults` while its cookie was never set. */
+export const readHiddenColumnsOr = createIsomorphicFn()
+  .server((tableId: string, defaults: readonly string[]): string[] =>
+    hiddenColumnsOr(
+      getCookie(hostCookieName(columnsCookieName(tableId), isSecureOrigin())),
+      defaults,
+    ),
+  )
+  .client((tableId: string, defaults: readonly string[]): string[] =>
+    hiddenColumnsOr(clientPreference(columnsCookieName(tableId)), defaults),
   );

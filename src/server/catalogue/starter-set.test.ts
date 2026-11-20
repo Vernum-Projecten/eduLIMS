@@ -5,6 +5,7 @@
 // on an empty catalogue only, once, with their documented units and no correct value.
 import { afterEach, describe, expect, it } from "vitest";
 import { AFINION_ANALYTES } from "../../lib/afinion.ts";
+import { NO_UNIT } from "../../lib/catalogue.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { retireTest } from "./actions.ts";
 import { createTestInput } from "./schemas.ts";
@@ -23,7 +24,7 @@ describe("the starter set (#393)", () => {
     for (const test of STARTER_TESTS) {
       const parsed = createTestInput.parse({
         name: test.name,
-        unit: test.unit ?? "",
+        unit: test.unit ?? NO_UNIT,
         material: test.material,
         source: "afinion",
         analyte: test.analyte,

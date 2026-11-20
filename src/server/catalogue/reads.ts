@@ -1,21 +1,18 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The guarded reads of the test catalogue (D9; owner 2026-11-20 on #393). An administrator reads
-// the whole catalogue to manage it; a teacher reads the active tests to prepare a simulation. The
-// server function checks the role in its middleware first; these check it again, so each read is
-// safe on its own.
+// The guarded read of the test catalogue (D9; owner 2026-11-20 on #393): an administrator reads
+// the whole catalogue to manage it. The server function checks the role in its middleware first;
+// this checks it again, so the read is safe on its own.
 import "@tanstack/react-start/server-only";
 import type { Kysely } from "kysely";
 import type { SessionUser } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
-import { assertCatalogueAdmin, assertCatalogueReader } from "./access.ts";
+import { assertCatalogueAdmin } from "./access.ts";
 import { testUsage } from "./in-use.ts";
 import {
-  type ActiveCatalogueTest,
   type CatalogueTestFacets,
   type CatalogueTestPage,
-  listActiveTests,
   listMaterials,
   listTests,
   testFacets,
@@ -51,14 +48,4 @@ export async function readTestPage(
     listMaterials(ctx.db),
   ]);
   return { ...page, facets, materials };
-}
-
-/**
- * Returns every active test, for a teacher who prepares a simulation.
- *
- * @throws AuthError 403 without the app role teacher.
- */
-export async function readActiveTests(ctx: TestReadContext): Promise<ActiveCatalogueTest[]> {
-  assertCatalogueReader(ctx.actor);
-  return listActiveTests(ctx.db);
 }

@@ -11,6 +11,7 @@ import { afinionAnalyte, afinionUnitAllowed } from "@/lib/afinion";
 import {
   CONTROL_OR_FORMAT,
   EPOCH_CALCULATORS,
+  NO_UNIT,
   TEST_MATERIAL_MAX,
   TEST_NAME_MAX,
   TEST_SOURCES,
@@ -94,15 +95,16 @@ export type ListTestsInput = z.infer<typeof listTestsInput>;
 // NOTE: security review of #312 (F6); an id in upper case names the same test.
 const testId = z.uuid().transform((value) => value.toLowerCase());
 
-/** The input of `listActiveCatalogueTests`: nothing (#393). */
-export const activeTestsInput = z.strictObject({});
-export type ActiveTestsInput = z.infer<typeof activeTestsInput>;
-
 /** The input of the actions about one test: retire and restore. */
 export const testIdInput = z.strictObject({ testId });
 export type TestIdInput = z.infer<typeof testIdInput>;
 
 const tooLong = (max: number) => () => m.form_too_long({ max: String(max) });
+
+/** Returns the stored unit of a checked form's unit: `null` for the explicit choice of none. */
+function unitOf(unit: string): string | null {
+  return unit === NO_UNIT ? null : unit;
+}
 
 /** Free text without control or format characters (ASVS V2.2.1), trimmed, up to `max`. */
 function plainText(max: number) {
@@ -126,8 +128,11 @@ const testFormFields = z.object({
   unit: z
     .string()
     .trim()
-    .refine((value) => value === "" || isUcumCode(value), {
-      error: () => m.catalogue_unit_unsupported(),
+    .superRefine((value, ctx) => {
+      if (value === "") ctx.addIssue({ code: "custom", message: m.catalogue_unit_required() });
+      else if (value !== NO_UNIT && !isUcumCode(value)) {
+        ctx.addIssue({ code: "custom", message: m.catalogue_unit_unsupported() });
+      }
     }),
   material: requiredText(TEST_MATERIAL_MAX, () => m.catalogue_material_required()),
   source: z
@@ -164,7 +169,8 @@ function checkAfinionSetting(value: TestFormValues, ctx: z.RefinementCtx): void 
     ctx.addIssue({ code: "custom", path: ["analyte"], message: m.catalogue_analyte_unknown() });
     return;
   }
-  if (!afinionUnitAllowed(entry, value.unit === "" ? null : value.unit)) {
+  if (value.unit === "") return;
+  if (!afinionUnitAllowed(entry, unitOf(value.unit))) {
     ctx.addIssue({
       code: "custom",
       path: ["unit"],
@@ -220,7 +226,7 @@ export function testDefinitionOf(form: TestFormValues, ctx: z.RefinementCtx): Te
     ctx.addIssue({ code: "custom", path: ["source"], message: m.catalogue_source_required() });
     return z.NEVER;
   }
-  const unit = form.unit === "" ? null : form.unit;
+  const unit = unitOf(form.unit);
   return { name: form.name, unit, material: form.material, source };
 }
 

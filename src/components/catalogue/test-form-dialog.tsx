@@ -26,6 +26,7 @@ import {
   EPOCH_CALCULATORS,
   type LockableTestField,
   lockedTestFields,
+  NO_UNIT,
   TEST_MATERIAL_MAX,
   TEST_NAME_MAX,
   TEST_SOURCES,
@@ -60,7 +61,7 @@ const EMPTY: TestForm = {
 
 function valuesOf(row: CatalogueTestRow | undefined): TestForm {
   if (!row) return EMPTY;
-  const base = { ...EMPTY, name: row.name, unit: row.unit ?? "", material: row.material };
+  const base = { ...EMPTY, name: row.name, unit: row.unit ?? NO_UNIT, material: row.material };
   switch (row.source.kind) {
     case "afinion":
       return { ...base, source: "afinion", analyte: row.source.analyte };
@@ -141,11 +142,11 @@ function unitFixedByAnalyte(source: string, analyte: string): boolean {
   return entry !== undefined && !entry.unitConfigurable;
 }
 
-/** Keeps the dialog open when a click lands in a combobox list, which renders in a portal. */
-function insideComboboxList(event: Event): boolean {
+/** Whether a key event comes from a combobox whose list is open: Escape then closes the list only. */
+function fromOpenList(event: KeyboardEvent): boolean {
   return (
     event.target instanceof Element &&
-    event.target.closest('[data-slot="combobox-content"]') !== null
+    event.target.closest('[role="combobox"][aria-expanded="true"]') !== null
   );
 }
 
@@ -164,10 +165,11 @@ export interface TestDialogControl {
 /**
  * The create and edit form of a test (D9, #266, #393) in a dialog, on `useAppForm` with the
  * schema the server function validates with. The unit is a searchable list of UCUM units with
- * "No unit" first; the material suggests the materials in use. The analyte shows for an Afinion
+ * "No unit" first, a choice of its own: an empty unit is no choice yet, and the form refuses it.
+ * The material suggests the materials in use. The analyte shows for an Afinion
  * 2 test, as a choice of the analytes the analyser reports, and fills in its unit, which stays
  * editable only where the analyser allows more than one; the calculator shows for an Epoch 2
- * test. A setting the test's usage fixes is
+ * test. Escape in an open list closes the list only. A setting the test's usage fixes is
  * read-only, still focusable, with its reason as its description; the server refuses the same
  * change. A taken name or analyte shows at its field; any other refusal at the top of the form,
  * focused (WCAG 3.3.1).
@@ -226,8 +228,8 @@ export function TestFormDialog({
       <DialogContent
         className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg"
         onCloseAutoFocus={control.onCloseAutoFocus}
-        onInteractOutside={(event) => {
-          if (insideComboboxList(event)) event.preventDefault();
+        onEscapeKeyDown={(event) => {
+          if (fromOpenList(event)) event.preventDefault();
         }}
       >
         <form
@@ -267,7 +269,16 @@ export function TestFormDialog({
                   />
                 )}
               </form.AppField>
-              <form.AppField name="source">
+              <form.AppField
+                name="source"
+                listeners={{
+                  // NOTE: UI review of #404; an analyte belongs to the Afinion 2 only, so leaving
+                  // it clears the analyte, and the unit it fixed is no longer held to it.
+                  onChange: ({ value }) => {
+                    if (value !== "afinion") form.setFieldValue("analyte", "");
+                  },
+                }}
+              >
                 {(field) => (
                   <field.SelectField
                     label={m.catalogue_source()}
@@ -289,7 +300,7 @@ export function TestFormDialog({
                       listeners={{
                         onChange: ({ value }) => {
                           const entry = afinionAnalyte(value);
-                          if (entry) form.setFieldValue("unit", entry.unit ?? "");
+                          if (entry) form.setFieldValue("unit", entry.unit ?? NO_UNIT);
                         },
                       }}
                     >
@@ -321,7 +332,6 @@ export function TestFormDialog({
                           readOnly={fixed}
                           placeholder={m.catalogue_unit_placeholder()}
                           emptyText={m.catalogue_unit_empty()}
-                          none={m.catalogue_no_unit()}
                           options={units}
                         />
                       )}

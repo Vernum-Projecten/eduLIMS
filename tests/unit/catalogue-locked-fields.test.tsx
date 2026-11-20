@@ -15,7 +15,6 @@ import type { CatalogueTestRow } from "@/server/catalogue/queries";
 
 vi.mock("@/server/catalogue/functions", () => ({
   listCatalogueTests: vi.fn(),
-  listActiveCatalogueTests: vi.fn(),
   createCatalogueTest: vi.fn(),
   updateCatalogueTest: vi.fn(),
   retireCatalogueTest: vi.fn(),

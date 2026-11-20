@@ -2,36 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Server functions of the test catalogue (D9, S4, #266); bodies run on the server. An
-// administrator manages the catalogue (owner, 2026-11-20, #393): every function but one requires
-// the app role admin first, then parses its input with Zod. A teacher reads the active tests
-// only, to prepare a simulation. No student function exists here.
+// administrator manages the catalogue (owner, 2026-11-20, #393): every function requires the app
+// role admin first, then parses its input with Zod. Teachers see the active tests only as the
+// options of a simulation's correct values (src/server/correct-values/). No student function
+// exists here.
 import { createServerFn } from "@tanstack/react-start";
 import { getDb } from "../db/index.ts";
 import { requireRole } from "../middleware.ts";
 import { createTest, restoreTest, retireTest, updateTest } from "./actions.ts";
-import { readActiveTests, readTestPage } from "./reads.ts";
-import {
-  activeTestsInput,
-  createTestInput,
-  listTestsInput,
-  testIdInput,
-  updateTestInput,
-} from "./schemas.ts";
+import { readTestPage } from "./reads.ts";
+import { createTestInput, listTestsInput, testIdInput, updateTestInput } from "./schemas.ts";
 
 const admin = requireRole("admin");
-const teacher = requireRole("teacher");
 
 /** Returns one page of the catalogue, the count of every status and source, and its materials. */
 export const listCatalogueTests = createServerFn({ method: "GET" })
   .middleware([admin])
   .validator(listTestsInput)
   .handler(({ data, context }) => readTestPage({ db: getDb(), actor: context.user }, data));
-
-/** Returns every active test, for a teacher who prepares a simulation (D9, D10). */
-export const listActiveCatalogueTests = createServerFn({ method: "GET" })
-  .middleware([teacher])
-  .validator(activeTestsInput)
-  .handler(({ context }) => readActiveTests({ db: getDb(), actor: context.user }));
 
 /** Adds a test to the catalogue (D9). */
 export const createCatalogueTest = createServerFn({ method: "POST" })

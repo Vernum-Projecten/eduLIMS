@@ -4,6 +4,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { RequestEditor } from "@/components/dev-forms/request-editor";
 import { SessionForm } from "@/components/dev-forms/session-form";
+import { UnitPicker } from "@/components/dev-forms/unit-picker";
 import { Page } from "@/components/shell/page-header";
 import { PublicLayout } from "@/components/shell/public-layout";
 import { m } from "@/i18n/messages";
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/dev/forms")({
 
 const REQUEST_HEADING = "request-heading";
 const SESSION_HEADING = "session-heading";
+const UNIT_HEADING = "unit-heading";
 
 /** The form foundation (#61) on fictional data: the request editor and every field kind. */
 function DevForms() {
@@ -32,6 +34,12 @@ function DevForms() {
             {m.dev_forms_request_heading()}
           </h2>
           <RequestEditor headingId={REQUEST_HEADING} />
+        </section>
+        <section aria-labelledby={UNIT_HEADING} className="flex flex-col gap-4">
+          <h2 id={UNIT_HEADING} className="text-xl font-semibold tracking-tight">
+            {m.dev_forms_unit_heading()}
+          </h2>
+          <UnitPicker headingId={UNIT_HEADING} />
         </section>
         <section aria-labelledby={SESSION_HEADING} className="flex flex-col gap-4">
           <h2 id={SESSION_HEADING} className="text-xl font-semibold tracking-tight">

@@ -34,6 +34,14 @@ export function parseHiddenColumns(value: string | undefined): string[] {
   return [...new Set(ids)].slice(0, MAX_HIDDEN);
 }
 
+/**
+ * Returns the hidden columns a cookie value names, or `defaults` while the cookie was never set
+ * (`undefined`); an empty value is a choice to show every column.
+ */
+export function hiddenColumnsOr(value: string | undefined, defaults: readonly string[]): string[] {
+  return value === undefined ? [...defaults] : parseHiddenColumns(value);
+}
+
 /** The `document.cookie` assignment that stores the hidden columns of table `tableId`. */
 export function hiddenColumnsCookie(
   tableId: string,

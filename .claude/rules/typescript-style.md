@@ -73,13 +73,12 @@ is a wish, so every rule below names what enforces it.
   `message-scroller.tsx`, and the region label of
   `sonner.tsx`, which takes its theme from the app's `ThemeProvider` in place of
   `next-themes`. `calendar.tsx` defaults react-day-picker's locale to the active
-  Paraglide locale and its `today` to today in the app's time zone. The
-  positioner of `combobox.tsx`'s `ComboboxContent` is
-  `pointer-events-auto isolate z-60` in place of `isolate z-50` (#404): a
-  combobox inside a Radix dialog or sheet renders its list in a portal on
-  `body`, behind the dialog (`z-50`, rendered after it) and under the
-  `pointer-events: none` Radix sets on `body`, so a click on an option missed
-  it. After an update,
+  Paraglide locale and its `today` to today in the app's time zone.
+  `combobox.tsx`'s `ComboboxContent` takes Base UI's portal `container` and
+  passes it on (#404): `ComboboxField` renders its list next to the field, so
+  inside a Radix dialog the list sits within the modal, where the dialog's
+  focus trap and pointer events take it in; on `body` it lay behind the
+  dialog and missed every click. After an update,
   `grep -nE 'sr-only">[A-Za-z]|aria-label="[A-Za-z]|title="[A-Za-z]' src/components/ui/`
   must print nothing.
 

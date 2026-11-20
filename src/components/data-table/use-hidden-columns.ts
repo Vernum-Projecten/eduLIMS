@@ -3,7 +3,7 @@
 
 import { type ColumnVisibilityState, functionalUpdate, type Updater } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import { readHiddenColumns } from "@/lib/preferences";
+import { readHiddenColumnsOr } from "@/lib/preferences";
 import {
   hiddenColumnsCookie,
   hiddenFromVisibility,
@@ -13,10 +13,10 @@ import {
 /**
  * The hidden columns of the table `tableId`, kept in its preference cookie so the server renders
  * the same columns on the next request: the visibility state and its change handler for
- * `useTable`.
+ * `useTable`. `defaults` are hidden until the viewer chooses for themselves.
  */
-export function useHiddenColumns(tableId: string) {
-  const [hidden, setHidden] = useState(() => readHiddenColumns(tableId));
+export function useHiddenColumns(tableId: string, defaults: readonly string[] = []) {
+  const [hidden, setHidden] = useState(() => readHiddenColumnsOr(tableId, defaults));
   const columnVisibility = useMemo(() => visibilityFromHidden(hidden), [hidden]);
   const onColumnVisibilityChange = (updater: Updater<ColumnVisibilityState>) => {
     const next = hiddenFromVisibility(functionalUpdate(updater, columnVisibility));

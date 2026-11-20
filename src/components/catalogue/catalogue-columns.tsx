@@ -11,7 +11,7 @@ import { ACTIONS_COLUMN, DateTimeCell } from "@/components/data-table/common-col
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { m } from "@/i18n/messages";
-import { unitLabel } from "@/lib/i18n/unit-labels";
+import { unitSymbol } from "@/lib/ucum";
 import type { CatalogueTestRow } from "@/server/catalogue/queries";
 
 const helper = createDataTableColumnHelper<CatalogueTestRow>();
@@ -34,7 +34,7 @@ export const catalogueColumns = helper.columns([
       row.original.unit === null ? (
         <span className="text-muted-foreground">{m.catalogue_no_unit()}</span>
       ) : (
-        unitLabel(row.original.unit)
+        unitSymbol(row.original.unit)
       ),
   }),
   helper.accessor("material", {

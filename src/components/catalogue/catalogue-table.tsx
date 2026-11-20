@@ -44,6 +44,9 @@ import {
 /** The id of the catalogue's hidden-columns preference cookie. */
 const TABLE_ID = "admin-catalogue";
 
+/** The columns hidden until an administrator shows them (UI review of #404). */
+const HIDDEN_BY_DEFAULT = ["updatedAt"] as const;
+
 const SORT_LABELS = {
   name: () => m.catalogue_col_name(),
   unit: () => m.catalogue_col_unit(),
@@ -68,7 +71,7 @@ function CatalogueEmpty({ filtered }: Readonly<{ filtered: boolean }>) {
           <ClipboardListIcon aria-hidden="true" />
         </EmptyMedia>
         <EmptyTitle>
-          <h3>{filtered ? m.catalogue_empty_filtered() : m.catalogue_empty()}</h3>
+          <h2>{filtered ? m.catalogue_empty_filtered() : m.catalogue_empty()}</h2>
         </EmptyTitle>
         <EmptyDescription>
           {filtered ? m.catalogue_empty_filtered_body() : m.catalogue_empty_body()}
@@ -104,7 +107,10 @@ export function CatalogueTable({
 }>) {
   const navigate = useNavigate({ from: "/admin/catalogue" });
   const state = useMemo(() => testsTableState(search), [search]);
-  const { columnVisibility, onColumnVisibilityChange } = useHiddenColumns(TABLE_ID);
+  const { columnVisibility, onColumnVisibilityChange } = useHiddenColumns(
+    TABLE_ID,
+    HIDDEN_BY_DEFAULT,
+  );
 
   const urlHandlers = useUrlTable(
     { state: testsTableState, next: nextTestsSearch },

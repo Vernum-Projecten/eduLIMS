@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The TanStack Query layer of the test catalogue (D9, #266): one key factory, the list's query
-// options, the teachers' list of active tests (#393) and the mutation options of create, edit,
-// retire and restore. Every change invalidates the keys `catalogueInvalidation` names.
+// options and the mutation options of create, edit, retire and restore. Every change invalidates
+// the keys `catalogueInvalidation` names: the list pages, the only entries the catalogue has.
 import {
   keepPreviousData,
   mutationOptions,
@@ -14,7 +14,7 @@ import {
 import type { CatalogueTestId } from "../../lib/catalogue.ts";
 import { STALE_TIME } from "../../lib/query-config.ts";
 import type { TestActionError, TestActionResult } from "./actions.ts";
-import { listActiveCatalogueTests, listCatalogueTests } from "./functions.ts";
+import { listCatalogueTests } from "./functions.ts";
 import type { CreateTestInput, ListTestsInput, TestIdInput, UpdateTestInput } from "./schemas.ts";
 
 /** The query keys of the catalogue, from the widest to the narrowest. */
@@ -22,12 +22,11 @@ export const catalogueKeys = {
   all: ["catalogue"] as const,
   lists: () => [...catalogueKeys.all, "list"] as const,
   list: (filters: ListTestsInput) => [...catalogueKeys.lists(), filters] as const,
-  active: () => [...catalogueKeys.all, "active"] as const,
 };
 
-/** What every change to the catalogue invalidates: each cached page and the active tests. */
+/** What every change to the catalogue invalidates: each cached page of the list. */
 export const catalogueInvalidation = {
-  changed: (): QueryKey[] => [catalogueKeys.lists(), catalogueKeys.active()],
+  changed: (): QueryKey[] => [catalogueKeys.lists()],
 };
 
 /**
@@ -42,18 +41,6 @@ export function catalogueTestsQueryOptions(input: ListTestsInput) {
     staleTime: STALE_TIME.catalogue,
     placeholderData: keepPreviousData,
     throwOnError: (_error, query) => query.state.data === undefined,
-  });
-}
-
-/**
- * Every active test, for a teacher who prepares a simulation (D9, D10): the read the screens of
- * a simulation's preparation use, without the administrator's table state.
- */
-export function activeCatalogueTestsQueryOptions() {
-  return queryOptions({
-    queryKey: catalogueKeys.active(),
-    queryFn: () => listActiveCatalogueTests({ data: {} }),
-    staleTime: STALE_TIME.catalogue,
   });
 }
 

@@ -97,7 +97,8 @@ test("an administrator adds, edits, retires and restores a test with the keyboar
 
   await openCatalogue(page, name);
   const row = rowOf(page, name);
-  await expect(row).toContainText("mmol/L (millimole per litre)");
+  // The table shows a unit by its symbol (UI review of #404).
+  await expect(row.getByRole("cell", { name: "mmol/L", exact: true })).toBeVisible();
   await expect(row).toContainText("plasma");
   await expect(row).toContainText("Epoch 2 upload");
   await expect(row).toContainText("The lab calculates");
@@ -160,7 +161,9 @@ test("a fresh installation carries the Afinion 2 tests with their UCUM units (#3
 }) => {
   await signInAsAdmin(page);
   await openCatalogue(page, "cholesterol");
-  await expect(rowOf(page, "Total cholesterol")).toContainText("mmol/L (millimole per litre)");
+  await expect(
+    rowOf(page, "Total cholesterol").getByRole("cell", { name: "mmol/L", exact: true }),
+  ).toBeVisible();
   await expect(rowOf(page, "Total cholesterol")).toContainText("Analyte Chol");
   await openCatalogue(page, "Cholesterol/HDL ratio");
   await expect(
@@ -261,7 +264,10 @@ test("a failing catalogue read shows the error state and its retry recovers (D9)
   await page.unroute(pattern, handler);
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(heading).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "No tests match" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "No tests match" })).toBeVisible();
+  // The filtered empty state is axe-clean. The unfiltered one never shows here: the starter set
+  // fills every installation's catalogue.
+  await axe(page);
 });
 
 test("a ratio without a unit shows no unit in words (D9; maintainer 2026-11-19)", async ({
@@ -321,9 +327,15 @@ for (const [theme, locale] of THEMES_AND_LOCALES) {
       ),
     ).toBeVisible();
     await axe(page);
-    // The unit list, open, is axe-clean too.
-    await dialog.getByRole("combobox", { name: t("catalogue_unit", "Unit") }).click();
-    await expect(page.getByRole("listbox")).toBeVisible();
+    // The unit list, open and unfiltered, is axe-clean, and so is its empty state.
+    const unit = dialog.getByRole("combobox", { name: t("catalogue_unit", "Unit") });
+    await unit.click();
+    await expect(dialog.getByRole("listbox")).toBeVisible();
+    await axe(page);
+    await unit.fill("zzz");
+    await expect(
+      dialog.getByText(t("catalogue_unit_empty", "No unit matches your search.")),
+    ).toBeVisible();
     await axe(page);
   });
 }
@@ -335,11 +347,26 @@ test("the catalogue reflows at 320 px without horizontal scrolling (WCAG 1.4.10)
   await signInAsAdmin(page);
   await openCatalogue(page);
   await page.getByRole("button", { name: "Add test" }).click();
-  await expect(page.getByRole("dialog", { name: "Add a test" })).toBeVisible();
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(0);
+  const dialog = page.getByRole("dialog", { name: "Add a test" });
+  await expect(dialog).toBeVisible();
+  // The dialog's content and the open unit list, measured inside the dialog.
+  await dialog.getByRole("combobox", { name: "Unit" }).click();
+  const list = dialog.getByRole("listbox");
+  await expect(list).toBeVisible();
+  const widths = await dialog.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const listbox = element.querySelector('[role="listbox"]')?.getBoundingClientRect();
+    return {
+      overflow: element.scrollWidth - element.clientWidth,
+      listInside: listbox !== undefined && listbox.left >= box.left && listbox.right <= box.right,
+    };
+  });
+  expect(widths).toEqual({ overflow: 0, listInside: true });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
 });
 
 test("a student and a teacher cannot open the catalogue (D9, A01, #393)", async ({ browser }) => {
