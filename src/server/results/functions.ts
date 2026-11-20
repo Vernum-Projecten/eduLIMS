@@ -8,7 +8,10 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getDb } from "../db/index.ts";
+import { getEnv } from "../env.ts";
 import { requireRole } from "../middleware.ts";
+import { getOpenEhrClient, labResultWriteSettings } from "../openehr/index.ts";
+import { ensureReleaseEhr, type ResultEhrState, writeReleasedResult } from "./ehr-write.ts";
 import { recordManualMeasurement } from "./measurements.ts";
 import { readStudentResults, readTeacherResults } from "./queries.ts";
 import { releaseResult } from "./release.ts";
@@ -38,11 +41,23 @@ export const releaseResultFn = createServerFn({ method: "POST" })
   .middleware([student])
   .validator(releaseResultInput)
   .handler(async ({ data, context }) => {
-    const result = await releaseResult(getDb(), context.user, data);
+    const db = getDb();
+    const client = getOpenEhrClient();
+    const ready = await ensureReleaseEhr(db, client, context.user, data);
+    if (!ready.ok) return ready;
+    const result = await releaseResult(db, context.user, data);
     if (!result.ok) return result;
-    // TODO(#148): write `result.value.record` to the patient's record as Final, after
-    // `ensurePatientEhr` of #364; a control request has no record (S16).
-    return { ok: true as const, value: { releasedAt: result.value.releasedAt } };
+    // NOTE: #148; the release has committed, so a FerroEHR failure leaves the write pending for
+    // the retry schedule, and the team learns only that it is pending (a control has none, S16).
+    const { record } = result.value;
+    const ehr: ResultEhrState =
+      record === null
+        ? "none"
+        : await writeReleasedResult(
+            { db, client, settings: labResultWriteSettings(getEnv()) },
+            record.measurementId,
+          );
+    return { ok: true as const, value: { releasedAt: result.value.releasedAt, ehr } };
   });
 
 /** Returns a lab's measurements and results for its teachers; `notFound` unless taught. */

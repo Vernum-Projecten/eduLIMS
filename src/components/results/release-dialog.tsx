@@ -86,7 +86,10 @@ export function ReleaseDialog({
   const release = useSimulationAction(
     resultsMutationOptions(queryClient, call, resultsInvalidation.release(labId)),
     {
-      success: () => m.results_released({ test: test.name }),
+      success: (released) =>
+        released.ehr === "pending"
+          ? m.results_released_record_pending({ test: test.name })
+          : m.results_released({ test: test.name }),
       toastErrors: false,
       onDone: onReleased,
     },

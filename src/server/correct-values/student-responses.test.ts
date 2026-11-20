@@ -323,6 +323,12 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
     const { database, w, testId } = await open();
     const patient = await registerPatient(database, w.student, { labId: w.labId, ...PATIENT });
     if (!patient.ok) throw new Error(patient.error);
+    // The EHR FerroEHR would have given the patient; a release needs it (#148, #364).
+    await database
+      .updateTable("patients")
+      .set({ ehr_id: "01a1f79f-e2d0-77ea-8eac-fe74ff33c1a2" })
+      .where("id", "=", patient.value.patientId)
+      .execute();
     const recorded = await recordRequest(database, w.student, {
       kind: "patient",
       labId: w.labId,

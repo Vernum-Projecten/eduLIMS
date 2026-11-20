@@ -6,7 +6,7 @@
 // i18n layer (ADR 0011).
 import { m } from "@/i18n/messages";
 import { formatDecimal } from "@/lib/i18n/format";
-import type { MeasurementSource, RequestedTestState } from "@/lib/results";
+import type { MeasurementSource, PatientRecordState, RequestedTestState } from "@/lib/results";
 import { checkMeasuredValue, type ToleranceCheck } from "@/lib/tolerance";
 import type { ResultsActionError } from "@/server/results/access";
 
@@ -37,10 +37,28 @@ export function resultsErrorMessage(code: ResultsActionError | null): string {
       return m.results_error_no_tolerance();
     case "tolerance_changed":
       return m.results_error_tolerance_changed();
+    case "ehr_pending":
+      return m.results_error_ehr_pending();
     case null:
       return m.results_error_failed();
     default: {
       const unknown: never = code;
+      return unknown;
+    }
+  }
+}
+
+/** Returns the translated state of a released result in the patient's record, or `null` for none. */
+export function patientRecordLabel(state: PatientRecordState): string | null {
+  switch (state) {
+    case "written":
+      return m.results_record_written();
+    case "pending":
+      return m.results_record_pending();
+    case "none":
+      return null;
+    default: {
+      const unknown: never = state;
       return unknown;
     }
   }

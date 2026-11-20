@@ -125,6 +125,7 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   released: m.admin_activity_reason_released,
   no_tolerance: m.admin_activity_reason_no_tolerance,
   tolerance_changed: m.admin_activity_reason_tolerance_changed,
+  ehr_pending: m.admin_activity_reason_ehr_pending,
   value_invalid: m.admin_activity_reason_value_invalid,
   not_manual_test: m.admin_activity_reason_not_manual_test,
   source_mismatch: m.admin_activity_reason_source_mismatch,

@@ -13,6 +13,7 @@ import { checkMeasuredValue, type ToleranceCheck } from "../../lib/tolerance.ts"
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { logRecordsProbe } from "../lab-records/access.ts";
+import { finalResultContributionUid } from "../openehr/contribution.ts";
 import type { StudentLab } from "../simulations/student-access.ts";
 import {
   done,
@@ -76,8 +77,10 @@ function releaseEvent(actorId: string, lab: StudentLab, requestId: RequestId, te
  * lab check: the lab row `FOR SHARE` (a tolerance change takes it `FOR NO KEY UPDATE`, so the
  * tolerance read stays the one in force), then the request `FOR UPDATE` (as a correction does).
  * Refused: `request_not_found` and `measurement_not_found` (logged), `test_not_found`, `released`
- * for a second release, `no_tolerance` without a tolerance, `tolerance_changed` when the one in
- * force is not the one the team saw, and `value_invalid` for a value the check cannot read.
+ * for a second release, `ehr_pending` for a patient whose EHR is not resolved yet, `no_tolerance`
+ * without a tolerance, `tolerance_changed` when the one in force is not the one the team saw, and
+ * `value_invalid` for a value the check cannot read. A patient's release commits a pending write
+ * to FerroEHR with it (`result_ehr_writes`, #148).
  *
  * @throws AuthError 403 without the app role student.
  */
@@ -103,10 +106,11 @@ export function releaseResult(
           ? undefined
           : await trx
               .selectFrom("requests")
-              .select(["id", "kind", "patient_id"])
-              .where("id", "=", requestId)
-              .where("lab_id", "=", lab.labId)
-              .forUpdate()
+              .leftJoin("patients", "patients.id", "requests.patient_id")
+              .select(["requests.id", "requests.kind", "requests.patient_id", "patients.ehr_id"])
+              .where("requests.id", "=", requestId)
+              .where("requests.lab_id", "=", lab.labId)
+              .forUpdate("requests")
               .executeTakeFirst();
       if (!request || requestId === null) {
         logRecordsProbe(actor.id, "request", input.requestId);
@@ -126,6 +130,9 @@ export function releaseResult(
         .executeTakeFirst();
       if (!requested) return refused<Release>("test_not_found");
       if (requested.released_at !== null) return refuse("released");
+      // NOTE: #148 (security review of #364); a patient's result is released only once its EHR
+      // exists, so the write after the commit always has an EHR to go to.
+      if (request.patient_id !== null && request.ehr_id === null) return refuse("ehr_pending");
       const measurementId = parseMeasurementId(input.measurementId);
       const measurement =
         measurementId === null
@@ -163,6 +170,18 @@ export function releaseResult(
         .returning("released_at")
         .executeTakeFirst();
       if (!stored?.released_at) throw new Error("the release stored no time of release");
+      if (request.patient_id !== null) {
+        // NOTE: #148; the write to FerroEHR commits as pending with the release, so a release is
+        // never without it; the write after the commit, or the retry schedule, completes it.
+        await trx
+          .insertInto("result_ehr_writes")
+          .values({
+            measurement_id: measurementId,
+            contribution_uid: finalResultContributionUid(measurementId),
+            next_attempt_at: sql`now() + interval '1 minute'`,
+          })
+          .execute();
+      }
       await recordAudit(trx, {
         ...event,
         outcome: "success",

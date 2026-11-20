@@ -32,8 +32,10 @@ Epoch 2 upload or entry by hand (D9). A result calculated from other results
 is a test with entry by hand. Every result is a number with a unit; a result
 that is not a number stays outside eduLIMS (W8). Every measurement is a row
 in the eduLIMS database and the release names one of them
-(`src/server/results/`, #270); in FerroEHR a measurement is Preliminary and
-the released one Final (#148). A released result is final (S15). A released
+(`src/server/results/`, #270). FerroEHR holds only the released result,
+written once as Final; every measurement stays in the eduLIMS database, where
+the teacher sees them (maintainer, 2026-11-20 on #148). A released result is
+final (S15). A released
 control result is stored in the eduLIMS database only and never reaches
 FerroEHR (#270).
 
@@ -106,13 +108,18 @@ specification governs a choice (retry timing, the client's caching), flag it:
   validation failure is a defect to fix in the mapping, never a field to drop
   (Q-COMP-1: "measurement data passes openEHR validation against the
   template `eduLIMS-lab`").
-- **The sample number from the request form ties the chain together.** It
-  goes in the specimen cluster's identifier, and the device cluster carries
-  the analyser and its serial number, so every measurement traces to device,
-  sample, patient and team (Q-TRACE-1). The sample number alone does not
-  name the team, because every team works the same numbers (R-11). The lab
-  number eduLIMS gives the sample (S12) does: it is unique across the teams
-  of every simulation.
+- **The specimen cluster ties the chain together** (maintainer, 2026-11-20
+  on #148): the lab number eduLIMS gives the sample (S12) goes in Laboratory
+  specimen identifier (`at0001`, "normally assigned by the laboratory"), the
+  sample number from the request form in External identifier (`at0088`), and
+  the material in Specimen type (`at0029`). The device cluster carries the
+  analyser and its serial number, or for a result entered by hand the fixed
+  device `eduLIMS manual entry` (identifier `manual`), so every result traces
+  to device, sample, patient and team (Q-TRACE-1). The sample number alone
+  does not name the team, because every team works the same numbers (R-11);
+  the lab number does: it is unique across the teams of every simulation. The
+  request goes in Requester order identifier (`at0062`) as its eduLIMS id;
+  the requester as typed stays in eduLIMS.
 - **AQL uses parameters.** Pass values through `query_parameters`
   (`WHERE … = $sample_number`); never interpolate a value into the AQL string
   (OWASP A05). Queries are named constants with a test against the template's

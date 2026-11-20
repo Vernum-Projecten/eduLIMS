@@ -274,6 +274,38 @@ describe("FerroEHR client credentials (#145, RFC 6749 §4.4)", () => {
   });
 });
 
+describe("the facility and territory of a result composition (#146, #148)", () => {
+  it.each(["FERROEHR_FACILITY_ISSUER", "FERROEHR_FACILITY_ID", "FERROEHR_TERRITORY"] as const)(
+    "stops at a missing %s, naming it",
+    (name) => {
+      const error: unknown = (() => {
+        try {
+          return parseEnv({ ...VALID_ENV, [name]: undefined });
+        } catch (caught) {
+          return caught;
+        }
+      })();
+      expect(error).toBeInstanceOf(EnvConfigError);
+      expect(error).toMatchObject({ variables: [name] });
+    },
+  );
+
+  it("parses the three settings", () => {
+    const env = parseEnv(VALID_ENV);
+    expect([
+      env.FERROEHR_FACILITY_ISSUER,
+      env.FERROEHR_FACILITY_ID,
+      env.FERROEHR_TERRITORY,
+    ]).toEqual([VALID_ENV.FERROEHR_FACILITY_ISSUER, VALID_ENV.FERROEHR_FACILITY_ID, "NL"]);
+  });
+
+  it.each(["nl", "NLD", "N1", ""])("refuses the territory %j: not ISO 3166-1 alpha-2", (value) => {
+    expect(() => parseEnv({ ...VALID_ENV, FERROEHR_TERRITORY: value })).toThrow(
+      /FERROEHR_TERRITORY/,
+    );
+  });
+});
+
 describe("PostgreSQL TLS in production (#40, ASVS V12.3.1)", () => {
   const production = { ...VALID_ENV, ...PRODUCTION };
 
