@@ -3,42 +3,17 @@
 
 // The client is the only FerroEHR code (#145, integration.md): no other module reads a FerroEHR
 // setting or names an openEHR REST path, so none can build a FerroEHR request.
-import { execFileSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { join, sep } from "node:path";
+import { sep } from "node:path";
 import { describe, expect, it } from "vitest";
-
-const ROOT = join(import.meta.dirname, "..", "..", "..");
-// The Paraglide output (`pnpm i18n`): over a thousand generated message modules.
-const GENERATED_DIRS = [`src${sep}i18n${sep}`];
-
-/** Runs `git ls-files -z` on `src/` and returns the paths, relative to the root, in this OS's form. */
-function gitFiles(...args: string[]): string[] {
-  const out = execFileSync("git", ["ls-files", "-z", ...args, "--", "src"], {
-    cwd: ROOT,
-    encoding: "utf8",
-  });
-  return out
-    .split("\0")
-    .filter((path) => path !== "")
-    .map((path) => path.split("/").join(sep));
-}
+import { handWrittenFiles, handWrittenSources } from "../test-source-files.ts";
 
 /**
- * Every hand-written TypeScript source under `src/`, tests and generated files excluded: the
- * tracked and the new files git sees, less those deleted from the working tree. A listing from
- * git replaces a walk of the tree, so only these files are opened (#249).
+ * Every hand-written TypeScript source under `src/`, tests and generated files excluded. A
+ * listing from git and biome.json replaces a walk of the tree (#249, #320).
  */
 function sources(): string[] {
-  const deleted = new Set(gitFiles("--deleted"));
-  const listed = new Set(gitFiles("--cached", "--others", "--exclude-standard"));
-  return [...listed].filter(
-    (path) =>
-      !deleted.has(path) &&
-      !GENERATED_DIRS.some((dir) => path.startsWith(dir)) &&
-      /\.(ts|tsx)$/.test(path) &&
-      !/\.test\.tsx?$/.test(path) &&
-      !path.endsWith(".gen.ts"),
+  return handWrittenFiles("src").filter(
+    (path) => /\.(ts|tsx)$/.test(path) && !/\.test\.tsx?$/.test(path),
   );
 }
 
@@ -53,11 +28,13 @@ const FERROEHR_REQUEST =
 
 describe("the openEHR client boundary (#145, Q-COMP-1)", () => {
   it("leaves FerroEHR settings and openEHR paths to src/server/openehr/ and env.ts", async () => {
-    const candidates = sources().filter(
-      (path) => !ALLOWED.some((allowed) => path.startsWith(allowed)),
+    const checked = new Set(
+      sources().filter((path) => !ALLOWED.some((allowed) => path.startsWith(allowed))),
     );
-    const texts = await Promise.all(candidates.map((path) => readFile(join(ROOT, path), "utf8")));
-    const offenders = candidates.filter((_, index) => FERROEHR_REQUEST.test(texts[index] ?? ""));
+    const texts = await handWrittenSources("src");
+    const offenders = [...texts]
+      .filter(([path, text]) => checked.has(path) && FERROEHR_REQUEST.test(text))
+      .map(([path]) => path);
     expect(offenders).toEqual([]);
   });
 

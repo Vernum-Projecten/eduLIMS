@@ -24,8 +24,8 @@ import type { DB } from "./schema.gen.ts";
 
 declare module "vitest" {
   export interface ProvidedContext {
-    /** The URL of this run's database, provided by test-global-setup.ts. */
-    testDatabaseUrl: string;
+    /** The URLs of this run's databases, one per worker, provided by test-global-setup.ts. */
+    testDatabaseUrls: string[];
   }
 }
 
@@ -41,9 +41,22 @@ export function baseTestDatabaseUrl(): string {
   return url ? url : DEFAULT_TEST_DATABASE_URL;
 }
 
-/** The URL of this run's database; available in a test, not in the global setup. */
+/**
+ * The URL of this worker's database of this run; available in a test, not in the global setup.
+ * Each worker has a migrated copy of its own, so the test lock only orders its own tests.
+ *
+ * @throws Error when Vitest names no worker the run made a database for.
+ */
 export function testDatabaseUrl(): string {
-  return inject("testDatabaseUrl");
+  const urls = inject("testDatabaseUrls");
+  const worker = Number(process.env["VITEST_POOL_ID"]);
+  const url = Number.isInteger(worker) ? urls[worker - 1] : undefined;
+  if (url === undefined) {
+    throw new Error(
+      `No test database for worker ${process.env["VITEST_POOL_ID"] ?? "(none)"} of ${urls.length}.`,
+    );
+  }
+  return url;
 }
 
 /**

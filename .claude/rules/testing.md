@@ -110,8 +110,9 @@ people. Fixtures are synthetic, so they can be committed.
   in the test, `destroy()` in `afterEach`. The database is the run's own
   `edulims_test_<run id>`, which the Vitest global setup creates next to
   `edulims_test` on the dev stack (`TEST_DATABASE_URL`; a service container
-  in CI), migrates once and drops at the end, never the `edulims`
-  development database. Do not mock Kysely. A pg deprecation warning (a
+  in CI), migrates once, copies once per Vitest worker (so a worker never
+  waits on another worker's test lock) and drops at the end, never the
+  `edulims` development database. Do not mock Kysely. A pg deprecation warning (a
   query on a busy client) fails the test it appears in.
 - External HTTP (FerroEHR, FerroBRIDGE health) is stubbed at the HTTP layer
   in unit tests, and exercised for real in the integration level.

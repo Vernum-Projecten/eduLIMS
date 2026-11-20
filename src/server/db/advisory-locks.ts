@@ -12,9 +12,9 @@
 export const RETENTION_PRUNE_LOCK_KEY = 6_502_026_111;
 
 /**
- * Serialises the database tests: each test holds it for its whole transaction, so test files
- * that run in parallel use the run's database one at a time (`src/server/db/test-db.ts`).
- * PostgreSQL scopes it to that database, so it never meets the app's locks.
+ * Serialises the database tests: each test holds it for its whole transaction, so the tests on
+ * one of the run's databases use it one at a time (`src/server/db/test-db.ts`); each worker has
+ * a database of its own. PostgreSQL scopes it to that database, so it never meets the app's locks.
  */
 export const TEST_DATABASE_LOCK_KEY = 7_212_026_018;
 

@@ -101,11 +101,15 @@ async function dropDatabase(client: pg.Client, name: string): Promise<void> {
 /**
  * Creates the run database of `runId` next to the database `baseUrl` names, after dropping the
  * stale run databases of the same base this user owns, and returns its URL. The new database is
- * empty: the caller migrates it.
+ * empty, for the caller to migrate, or a copy of the run database `template` names.
  *
  * @throws Error naming the missing privilege when the user may not create databases.
  */
-export async function createRunDatabase(baseUrl: string, runId: string): Promise<string> {
+export async function createRunDatabase(
+  baseUrl: string,
+  runId: string,
+  template?: string,
+): Promise<string> {
   const base = databaseOf(baseUrl);
   const name = runDatabaseName(base, runId);
   await onBase(baseUrl, async (client) => {
@@ -120,8 +124,11 @@ export async function createRunDatabase(baseUrl: string, runId: string): Promise
       await dropDatabase(client, stale);
     }
     try {
+      if (template !== undefined && runDatabaseCreatedAt(base, template) === undefined) {
+        throw new Error(`Refusing to copy ${template}: it is not a run database of ${base}.`);
+      }
       await client.query(
-        `CREATE DATABASE ${pg.escapeIdentifier(name)} ENCODING 'UTF8' TEMPLATE template0`,
+        `CREATE DATABASE ${pg.escapeIdentifier(name)} ENCODING 'UTF8' TEMPLATE ${pg.escapeIdentifier(template ?? "template0")}`,
       );
     } catch (error) {
       if (error instanceof Error && Reflect.get(error, "code") === "42501") {

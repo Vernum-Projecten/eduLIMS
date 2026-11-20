@@ -5,6 +5,7 @@
 // URL that opens the same view, paging, the link to the user sheet, the error state and its
 // retry, keyboard use, Dutch and dark, 320 px, and the refusal for a student and a teacher.
 import { expect, type Page, type Route, test } from "@playwright/test";
+import { copyAccount, recordSignIns } from "./accounts";
 import { axe, dutch, signInAsAdmin } from "./admin-users-helpers";
 import { devLogin, expectHydrated } from "./fixtures";
 import { appUrl } from "./run-env";
@@ -128,10 +129,14 @@ test("a shared URL opens the same filtered page (#36)", async ({ page, browser }
 });
 
 test("pages through the log and changes the page size (#36)", async ({ page }) => {
+  // Other journeys write events all the time, and a new event can add a page after "Last page"
+  // was computed. The journey pages through the events of an account of its own (#321).
+  const account = await copyAccount("student@example.test", "pager");
+  await recordSignIns(account, 120);
   await signInAsAdmin(page);
-  await openLog(page);
+  await openLog(page, `?actor=${account.id}`);
   const pager = page.getByRole("navigation", { name: "Pages of the activity log" });
-  await expect(pager).toContainText(/Showing 1 to 25 of [\d,]+ events/);
+  await expect(pager).toContainText("Showing 1 to 25 of 120 events");
   // The header is row 1, so the events on page 1 are rows 2 to 26 and on page 2 rows 27 to 51.
   // The minute-resolution time column cannot tell the pages apart when 50 events share a minute.
   const positions = (from: number) => Array.from({ length: 25 }, (_, i) => String(from + i));
@@ -147,8 +152,9 @@ test("pages through the log and changes the page size (#36)", async ({ page }) =
   await expect(page).not.toHaveURL(/page=/);
   await expect(bodyRows(page)).toHaveCount(50);
   await pager.getByRole("button", { name: "Last page" }).click();
-  await expect(page).toHaveURL(/page=\d+/);
+  await expect(page).toHaveURL(/page=3/);
   await expect(pager.getByRole("button", { name: "Next page" })).toBeDisabled();
+  await expect(bodyRows(page)).toHaveCount(20);
 });
 
 test("filters on a user found by name and opens their user sheet (#36)", async ({ page }) => {
@@ -190,7 +196,9 @@ test("filters on a user found by name and opens their user sheet (#36)", async (
 test("the user sheet links to that user's events (#36)", async ({ page }) => {
   await signInAsAdmin(page);
   await page.goto("/admin/users?q=Test%20Administrator");
-  await page.getByRole("table").getByRole("link", { name: "Test Administrator" }).click();
+  const user = page.getByRole("table").getByRole("link", { name: "Test Administrator" });
+  await expectHydrated(user);
+  await user.click();
   const sheet = page.getByRole("dialog", { name: "Test Administrator" });
   await sheet.getByRole("link", { name: "Events by this user" }).click();
   await expect(page).toHaveURL(/\/admin\/activity\?actor=/);

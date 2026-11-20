@@ -4,7 +4,8 @@
 // The portal switcher and multiple roles (ADR 0012).
 import { readFileSync } from "node:fs";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { devLogin, expectNoA11yViolations } from "./fixtures";
+import { copyAccount } from "./accounts";
+import { devLogin, expectHydrated, expectNoA11yViolations } from "./fixtures";
 import { appUrl } from "./run-env";
 
 const nl: Readonly<Record<string, string>> = JSON.parse(
@@ -17,7 +18,7 @@ function dutch(key: string): string {
   return message;
 }
 
-/** Seeded teacher-admin users: the suite switches portals only with SWITCHER. */
+/** Seeded teacher-admin users: a test that switches portals takes its own copy of SWITCHER. */
 const COORDINATOR = "teacher-admin@example.test";
 const SWITCHER = "switcher@example.test";
 
@@ -97,73 +98,72 @@ test("a single-role user sees the portal heading without a menu", async ({ page 
   await expectNoA11yViolations(page);
 });
 
-// One account switches in order, so the saved portal each test starts from is known.
-test.describe
-  .serial(`switching (${SWITCHER})`, () => {
-    test("switching portals navigates, is remembered on the next sign-in, and has shortcuts", async ({
-      page,
-      browser,
-      context,
-    }) => {
-      await emulatePlatform(context, "MacIntel");
-      await devLogin(page, SWITCHER);
-      await expect(page).toHaveURL(/\/teacher$/);
+// Switching saves the portal on the account, so each test switches with an account of its own
+// and starts from the teacher portal, whatever runs beside it or before it (#321).
+test.describe(`switching (a copy of ${SWITCHER})`, () => {
+  test("switching portals navigates, is remembered on the next sign-in, and has shortcuts", async ({
+    page,
+    browser,
+    context,
+  }) => {
+    const account = await copyAccount(SWITCHER, "switcher");
+    await emulatePlatform(context, "MacIntel");
+    await devLogin(page, account.email);
+    await expect(page).toHaveURL(/\/teacher$/);
 
-      const menu = await openSwitcher(page);
-      await expect(menu.getByRole("menuitem").nth(1)).toContainText("⌥2");
-      const saved = portalSaved(page);
-      await menu.getByRole("menuitem", { name: /Admin portal/ }).click();
-      await expect(page).toHaveURL(/\/admin$/);
-      expect((await saved).ok()).toBe(true);
-      await expect(page.getByRole("heading", { level: 1, name: "Admin portal" })).toBeVisible();
-      await expect(
-        page
-          .getByRole("navigation", { name: "Breadcrumb" })
-          .getByRole("link", { name: "Admin portal" }),
-      ).toBeVisible();
-      await expect(switcher(page, "Admin portal")).toBeVisible();
+    const menu = await openSwitcher(page);
+    await expect(menu.getByRole("menuitem").nth(1)).toContainText("⌥2");
+    const saved = portalSaved(page);
+    await menu.getByRole("menuitem", { name: /Admin portal/ }).click();
+    await expect(page).toHaveURL(/\/admin$/);
+    expect((await saved).ok()).toBe(true);
+    await expect(page.getByRole("heading", { level: 1, name: "Admin portal" })).toBeVisible();
+    await expect(
+      page
+        .getByRole("navigation", { name: "Breadcrumb" })
+        .getByRole("link", { name: "Admin portal" }),
+    ).toBeVisible();
+    await expect(switcher(page, "Admin portal")).toBeVisible();
 
-      // A fresh browser context signs in again and lands on the saved portal.
-      const fresh = await browser.newContext();
-      const second = await fresh.newPage();
-      await devLogin(second, SWITCHER);
-      await expect(second).toHaveURL(/\/admin$/);
-      await second.goto("/");
-      await expect(second).toHaveURL(/\/admin$/);
-      await fresh.close();
+    // A fresh browser context signs in again and lands on the saved portal.
+    const fresh = await browser.newContext();
+    const second = await fresh.newPage();
+    await devLogin(second, account.email);
+    await expect(second).toHaveURL(/\/admin$/);
+    await second.goto("/");
+    await expect(second).toHaveURL(/\/admin$/);
+    await fresh.close();
 
-      // ⌥1 on macOS: the same Alt+digit key press, shown with the macOS glyph.
-      const back = portalSaved(page);
-      await page.keyboard.press("Alt+Digit1");
-      await expect(page).toHaveURL(/\/teacher$/);
-      expect((await back).ok()).toBe(true);
+    // ⌥1 on macOS: the same Alt+digit key press, shown with the macOS glyph.
+    const back = portalSaved(page);
+    await page.keyboard.press("Alt+Digit1");
+    await expect(page).toHaveURL(/\/teacher$/);
+    expect((await back).ok()).toBe(true);
 
-      // A shortcut typed into a text field stays in the field.
-      await page.evaluate(() => {
-        const field = document.createElement("input");
-        field.setAttribute("aria-label", "Scratch field");
-        document.querySelector("main")?.append(field);
-      });
-      await page.getByRole("textbox", { name: "Scratch field" }).focus();
-      await page.keyboard.press("Alt+Digit2");
-      await expect(page).toHaveURL(/\/teacher$/);
+    // A shortcut typed into a text field stays in the field.
+    await page.evaluate(() => {
+      const field = document.createElement("input");
+      field.setAttribute("aria-label", "Scratch field");
+      document.querySelector("main")?.append(field);
     });
-
-    test("on Windows the shortcut reads Alt+2 and switches with Alt+2", async ({
-      page,
-      context,
-    }) => {
-      await emulatePlatform(context, "Win32");
-      await devLogin(page, SWITCHER);
-      await expect(page).toHaveURL(/\/teacher$/);
-      const menu = await openSwitcher(page);
-      await expect(menu.getByRole("menuitem").nth(1)).toContainText("Alt+2");
-      await page.keyboard.press("Escape");
-      await page.keyboard.press("Alt+Digit2");
-      await expect(page).toHaveURL(/\/admin$/);
-      await expect(page.getByRole("heading", { level: 1, name: "Admin portal" })).toBeVisible();
-    });
+    await page.getByRole("textbox", { name: "Scratch field" }).focus();
+    await page.keyboard.press("Alt+Digit2");
+    await expect(page).toHaveURL(/\/teacher$/);
   });
+
+  test("on Windows the shortcut reads Alt+2 and switches with Alt+2", async ({ page, context }) => {
+    const account = await copyAccount(SWITCHER, "switcher");
+    await emulatePlatform(context, "Win32");
+    await devLogin(page, account.email);
+    await expect(page).toHaveURL(/\/teacher$/);
+    const menu = await openSwitcher(page);
+    await expect(menu.getByRole("menuitem").nth(1)).toContainText("Alt+2");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Alt+Digit2");
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Admin portal" })).toBeVisible();
+  });
+});
 
 test("a teacher-admin may open both portals, a pure admin not the teacher portal", async ({
   page,
@@ -210,6 +210,8 @@ test.describe("axe with the switcher open", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "nl");
     const trigger = page.getByRole("button", { name: new RegExp(dutch("portal_switcher_open")) });
     await expect(trigger).toContainText(dutch("portal_teacher"));
+    // The page is a new document: a click before hydration opens no menu.
+    await expectHydrated(trigger);
     await trigger.click();
     const menu = page.getByRole("menu");
     await expect(menu.getByText(dutch("portal_switcher_label"))).toBeVisible();
