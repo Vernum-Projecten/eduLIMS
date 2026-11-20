@@ -55,6 +55,8 @@ export async function classifyEmails(
   labId: string,
   lines: readonly string[],
 ): Promise<EmailLine[]> {
+  // NOTE: review of #392 (N3); better-auth stores every address in lower case (its internal
+  // adapter on create and update, SCIM included), so `user.email` compares as is, on its index.
   const normalized = lines.map(normalizeEmail);
   const valid = [...new Set(normalized.filter((email) => address.safeParse(email).success))];
   const [members, waiting, active] = valid.length
@@ -63,13 +65,9 @@ export async function classifyEmails(
           .selectFrom("lab_members")
           .innerJoin("user", "user.id", "lab_members.user_id")
           .innerJoin("labs", "labs.id", "lab_members.lab_id")
-          .select((eb) => [
-            eb.fn<string>("lower", ["user.email"]).as("email"),
-            "labs.id as lab_id",
-            "labs.name as lab_name",
-          ])
+          .select(["user.email", "labs.id as lab_id", "labs.name as lab_name"])
           .where("lab_members.simulation_id", "=", simulationId)
-          .where((eb) => eb(eb.fn("lower", ["user.email"]), "in", valid))
+          .where("user.email", "in", valid)
           .execute(),
         trx
           .selectFrom("lab_member_emails")
@@ -84,11 +82,11 @@ export async function classifyEmails(
           .selectFrom("lab_members")
           .innerJoin("user", "user.id", "lab_members.user_id")
           .innerJoin("simulations", "simulations.id", "lab_members.simulation_id")
-          .select((eb) => eb.fn<string>("lower", ["user.email"]).as("email"))
+          .select("user.email")
           .where("lab_members.simulation_id", "<>", simulationId)
           .where("simulations.state", "<>", "finished")
           .where("user.emailVerified", "=", true)
-          .where((eb) => eb(eb.fn("lower", ["user.email"]), "in", valid))
+          .where("user.email", "in", valid)
           .execute(),
       ])
     : [[], [], []];

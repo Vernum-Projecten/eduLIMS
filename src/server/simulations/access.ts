@@ -39,6 +39,7 @@ export const SIMULATION_ACTION_ERRORS = [
   "rate_limited",
   "in_other_lab",
   "in_other_simulation",
+  "simulation_finished",
   "not_prepared",
   "not_running",
   "test_not_found",

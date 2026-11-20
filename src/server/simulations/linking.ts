@@ -47,6 +47,9 @@ export async function hasWaitingLabAddress(db: Kysely<DB>, email: string): Promi
 
 type RowOutcome = "linked" | "refused" | "gone";
 
+/** Why a link keeps its address waiting; each is logged once per address or removal. */
+type LinkRefusal = "removed" | "in_other_simulation" | "simulation_finished";
+
 /**
  * Returns whether a link refusal with `reason` was logged for `userId` in the simulation at or
  * after `since`: the time of their removal record, or the time the address was added.
@@ -55,7 +58,7 @@ async function refusedSince(
   trx: Kysely<DB>,
   simulationId: string,
   userId: string,
-  reason: "removed" | "in_other_simulation",
+  reason: LinkRefusal,
   since: Date,
 ): Promise<boolean> {
   const row = await trx
@@ -82,9 +85,9 @@ async function linkRow(
 ): Promise<RowOutcome> {
   return db.transaction().execute(async (trx) => {
     // NOTE: #280; the simulation row first, as every teacher write locks it, then the address.
-    await trx
+    const simulation = await trx
       .selectFrom("simulations")
-      .select("id")
+      .select("state")
       .where("id", "=", simulationId)
       .forUpdate()
       .executeTakeFirst();
@@ -103,7 +106,7 @@ async function linkRow(
     } as const;
     const metadata = { simulation_id: simulationId, user_id: userId, join_via: "email" } as const;
     /** Logs a refusal that keeps the address waiting, once from `since` on. */
-    const refuseOnce = async (reason: "removed" | "in_other_simulation", since: Date) => {
+    const refuseOnce = async (reason: LinkRefusal, since: Date) => {
       if (!(await refusedSince(trx, simulationId, userId, reason, since))) {
         // A `now` taken before this transaction waited on the lock can predate `since`; the row
         // then carries that time, so the check above finds it next time.
@@ -112,6 +115,10 @@ async function linkRow(
       }
       return "refused" as const;
     };
+    // NOTE: maintainer on the review of #392 (N2); a finished simulation is history and links no one.
+    if (simulation?.state === "finished") {
+      return refuseOnce("simulation_finished", waiting.added_at);
+    }
     const removal = await removedAt(trx, simulationId, userId);
     if (removal !== null) {
       // NOTE: #330 (maintainer, 2026-11-20); a teacher's removal wins over a waiting address, which
@@ -168,7 +175,8 @@ async function linkRow(
  * removed from the simulation is refused, logged once per removal, and the address keeps waiting
  * (#330). A student in a lab of another prepared or running simulation is refused with
  * `in_other_simulation`, logged once per address, and the address keeps waiting (#379); the
- * simulations are tried in the order of their ids, so the first that links wins.
+ * simulations are tried in the order of their ids, so the first that links wins. An address of a
+ * finished simulation never links (review of #392, N2).
  */
 export async function linkWaitingAddresses(
   db: Kysely<DB>,
@@ -187,12 +195,23 @@ export async function linkWaitingAddresses(
   const email = normalizeEmail(user.email);
   const rows = await db
     .selectFrom("lab_member_emails")
-    .select("simulation_id")
-    .where("email", "=", email)
-    .orderBy("simulation_id")
+    .innerJoin("simulations", "simulations.id", "lab_member_emails.simulation_id")
+    .select(["lab_member_emails.simulation_id", "lab_member_emails.added_at"])
+    .where("lab_member_emails.email", "=", email)
+    .where("simulations.state", "<>", "finished")
+    .orderBy("lab_member_emails.simulation_id")
     .execute();
   const outcome = { ...NONE };
   for (const row of rows) {
+    // NOTE: security review of #392 (S2); a refusal already logged is decided without a lock, so
+    // a student in another simulation does not take this simulation's row on every overview read.
+    if (
+      (await inOtherActiveSimulation(db, userId, row.simulation_id, { lock: false })) &&
+      (await refusedSince(db, row.simulation_id, userId, "in_other_simulation", row.added_at))
+    ) {
+      outcome.refused += 1;
+      continue;
+    }
     try {
       const result = await linkRow(db, userId, email, row.simulation_id, now);
       if (result === "linked") outcome.linked += 1;

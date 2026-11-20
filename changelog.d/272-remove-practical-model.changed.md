@@ -1,0 +1,1 @@
+- The descriptions of eduLIMS (the app, the container image, the citation files and the development realm's teacher role) and the form and chart demos now describe the workplace simulation instead of practicals and grading.

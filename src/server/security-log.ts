@@ -13,7 +13,8 @@ export type SecurityLogLevel = "info" | "warn" | "error";
 
 /**
  * The only keys a security log line carries beside `time`, `level`, `app`, `log` and `event`.
- * None of them has room for a name, an e-mail address, a token, a request body or a grade.
+ * None of them has room for a name, an e-mail address, a token, a request body or a correct
+ * value.
  */
 export const SECURITY_LOG_FIELDS = [
   "outcome",
