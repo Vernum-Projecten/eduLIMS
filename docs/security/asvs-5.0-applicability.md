@@ -72,8 +72,8 @@ moves a row to `met` in the same pull request.
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 174 |
 | Status met | 97 |
-| Status partial | 56 |
-| Status planned | 13 |
+| Status partial | 57 |
+| Status planned | 12 |
 | Status open | 8 |
 | Status n-a | 171 |
 
@@ -261,7 +261,7 @@ Text: [vendor/asvs/en/0x13-V4-API-and-Web-Service.md](vendor/asvs/en/0x13-V4-API
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V4.2.1 | 2 | yes | Node.js HTTP parser behind the reverse proxy; the proxy configuration is the operator's (`docs/deployment.md`) | manual, operator | partial |
+| V4.2.1 | 2 | yes | Node.js HTTP parser behind the reverse proxy: on Node 26.13.1 it answers 400 to a request with both `Transfer-Encoding` and `Content-Length`, to two `Content-Length` fields (equal or not), to a listed length (`5, 5`) or a signed one (`+5`), and to an HTTP/1.0 POST without a length, and reads no more than the declared length as the body (probed on #347); the proxy configuration is the operator's (`docs/deployment.md`) | manual, operator; the parser probe on PR #349 | partial |
 | V4.2.2 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V4.2.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V4.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -297,7 +297,7 @@ Text: [vendor/asvs/en/0x14-V5-File-Handling.md](vendor/asvs/en/0x14-V5-File-Hand
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.2.1 | 1 | yes | in place: the Gen5 parser refuses a file over 1 MiB before it reads anything else, a part over 1 MiB unpacked before it inflates it, and an XML part over 5,000 elements, depth 32, 32 attributes on one element or 64 namespace declarations while it reads it; an element keeps only its own declarations and resolves a prefix by walking up at most 32 levels, so these caps bound the reader's memory per part and across the six parts it opens (`src/server/upload/gen5.ts`, `limits.ts`, `zip.ts`, `xml.ts`, S4); open: the request-body limit of the upload's server function (#156) and the lab logo (D10) | unit `tests/unit/gen5-parser.test.ts`, `tests/unit/gen5-parser-hardening.test.ts` (each cap at and one over, every opened part flooded at once), `src/server/upload/xml.test.ts` | partial |
+| V5.2.1 | 1 | yes | in place: the Gen5 parser refuses a file over 1 MiB before it reads anything else, a part over 1 MiB unpacked before it inflates it, and an XML part over 5,000 elements, depth 32, 32 attributes on one element or 64 namespace declarations while it reads it; an element keeps only its own declarations and resolves a prefix by walking up at most 32 levels, so these caps bound the reader's memory per part and across the six parts it opens (`src/server/upload/gen5.ts`, `limits.ts`, `zip.ts`, `xml.ts`, S4); a JSON body to a server function is refused before Start reads it, with 411 without a `Content-Length` and 413 over 1 MiB declared or streamed, counted on a clone and cut off at the limit, and the refusal closes the connection so the body is not drained (`src/server/json-body-limit.ts`, #347); a GET payload over Node's 16 KiB header limit gets 431 before eduLIMS runs; the limits and their derivation are in `docs/architecture.md` (Request size limits); open: the request-body limit of the upload's server function (#156) and the lab logo (D10) | unit `tests/unit/gen5-parser.test.ts`, `tests/unit/gen5-parser-hardening.test.ts` (each cap at and one over, every opened part flooded at once), `src/server/upload/xml.test.ts`, `src/server/json-body-limit.test.ts` (at, under and over the limit, no length, leading zeros, a streamed body under a false length, a failing stream, `Connection: close`); e2e `tests/e2e/json-body-limit.spec.ts` (413, 411, at the limit, a 100 MiB declared body closed unread, a 20 KiB GET payload 431) | partial |
 | V5.2.2 | 1 | yes | the Gen5 parser checks the `.xlsx` extension, the zip signature and the SpreadsheetML workbook content type, so a macro-enabled workbook, a template or a renamed file is refused (`src/server/upload/gen5.ts`, `workbook.ts`, S4); entries the reader never opens (styles, theme, printer settings, properties) are not inspected, which holds only while the original file is neither stored nor served; the extension and content check of the lab logo (D10) is not built | unit `tests/unit/gen5-parser.test.ts`, `tests/unit/upload-workbook.test.ts` | partial |
 | V5.2.3 | 2 | yes | the `.xlsx` is a zip: the entry count (50) and the declared unpacked size (8 MiB in total) are checked from the central directory before any entry is unpacked; a part the reader opens is refused over 1 MiB declared before it is inflated, and inflation stops once the output passes the declared size (`src/server/upload/zip.ts`, S4) | unit `tests/unit/upload-zip.test.ts`, `tests/unit/gen5-parser.test.ts`, `tests/unit/gen5-parser-hardening.test.ts` (zip bomb, limits at and one over) | met |
 | V5.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -778,7 +778,7 @@ Text: [vendor/asvs/en/0x24-V15-Secure-Coding-and-Architecture.md](vendor/asvs/en
 |---|---|---|---|---|---|
 | V15.1.1 | 1 | partly | Dependabot with a 7-day cooldown and the Trivy gate on fixable HIGH and CRITICAL (`docs/ci-cd.md`); no remediation time frame written | review | partial |
 | V15.1.2 | 2 | yes | every release image carries a signed SPDX SBOM; the tarball a CycloneDX SBOM (`docs/release.md`) | CI `release-image.yml`, `release-build.yml` | met |
-| V15.1.3 | 2 | partly | the Gen5 upload and the dashboard queries are the heavy functions (Q-PERF-1, Q-PERF-2); not documented as such | review | planned |
+| V15.1.3 | 2 | partly | the request size limits of server functions and how each was chosen are documented (`docs/architecture.md`, Request size limits, #347); the Gen5 upload and the dashboard queries are the heavy functions (Q-PERF-1, Q-PERF-2), not documented as such | review | partial |
 | V15.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V15.1.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -787,7 +787,7 @@ Text: [vendor/asvs/en/0x24-V15-Secure-Coding-and-Architecture.md](vendor/asvs/en
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V15.2.1 | 1 | yes | `pnpm audit --prod`, dependency review on every PR, and Trivy before a tag (`.github/workflows/ci.yml`, `scan-and-tag.yml`) | CI `audit`, `dependency-review`, `scan-and-tag.yml` | met |
-| V15.2.2 | 2 | yes | in place: the Gen5 parser's size, per-part, element, depth, attribute and namespace-declaration caps bound its memory and work, with no per-element copy of the namespace scope (S4, `src/server/upload/limits.ts`, `xml.ts`); a whole-file test floods all six opened parts to the caps at once inside a time budget, and a seeded mutation test holds 4,500 mutants to a time budget (`tests/unit/gen5-mutation.test.ts`); open: a parse-time measure of the upload in the test stack (Q-PERF-2) and the dashboard query limits (D11) | unit `tests/unit/gen5-parser-hardening.test.ts`, `tests/unit/gen5-mutation.test.ts` | partial |
+| V15.2.2 | 2 | yes | in place: the Gen5 parser's size, per-part, element, depth, attribute and namespace-declaration caps bound its memory and work, with no per-element copy of the namespace scope (S4, `src/server/upload/limits.ts`, `xml.ts`); a whole-file test floods all six opened parts to the caps at once inside a time budget, and a seeded mutation test holds 4,500 mutants to a time budget (`tests/unit/gen5-mutation.test.ts`); a server function reads no JSON body over 1 MiB, declared or streamed, and closes the connection on a refusal; a GET payload is bounded by Node's 16 KiB header limit (431); the decision is `docs/architecture.md`, Request size limits (`src/server/json-body-limit.ts`, #347); open: a parse-time measure of the upload in the test stack (Q-PERF-2) and the dashboard query limits (D11) | unit `tests/unit/gen5-parser-hardening.test.ts`, `tests/unit/gen5-mutation.test.ts`, `src/server/json-body-limit.test.ts`; e2e `tests/e2e/json-body-limit.spec.ts` | partial |
 | V15.2.3 | 2 | yes | the image holds production dependencies only (`pnpm deploy --prod`); the dev login and demo accounts are refused in production | unit `src/server/env.test.ts`, `src/server/demo-accounts.test.ts` | met |
 | V15.2.4 | 3 | yes | the frozen lockfile with integrity hashes, the npm registry only, and pinned image digests (Level 3, done anyway) | CI `install` | met |
 | V15.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |

@@ -492,6 +492,51 @@ result make one replica check per interval. The Admin portal reads the stored
 result and refetches it every 30 seconds, so an unreachable service shows
 within the 5 minutes of B3.
 
+### Request size limits
+
+TanStack Start reads the body of a server function call whole before the
+function's own middleware runs: `request.formData()` for a form,
+`request.json()` for everything else. So request middleware in `src/start.ts`
+checks the size first, after the CSRF check, and the server never buffers more
+than the limit for a caller who is not signed in (ASVS 5.0 V5.2.1, V15.2.2).
+
+| Request | Limit | Refusal |
+|---|---|---|
+| JSON body to a server function | 1 MiB, declared and as it streams | 411 without a `Content-Length`, 413 over the limit |
+| Form body to a server function (multipart or URL-encoded) | the largest lab logo (512 KiB) plus 16 KiB for its fields, declared (#292) | 411 without a `Content-Length`, 413 over the limit |
+| GET payload of a server function (the `payload` query parameter) | Node's 16 KiB limit on the request line and headers | 431 from Node's HTTP parser, before eduLIMS runs |
+
+**The JSON limit** comes from the largest input any server function takes:
+the pasted list of a lab's member addresses, 500 lines of 320 characters
+(D10). Serialized as the Start client sends it, that list is 167,699 bytes in
+ASCII, 487,699 bytes in 3-byte characters, and 807,699 bytes when every
+character is `<`, which the serializer escapes. 1 MiB holds it for any
+printable text. Only a list made mostly of control characters or U+2028,
+which JSON writes as 6 or 7 bytes each, passes it, and no address list or IdP
+metadata is made of those. The next largest input, a SAML provider with 100 KiB
+of metadata, stays under 0.7 MB in every case.
+
+The JSON check (`src/server/json-body-limit.ts`, #347) refuses a declared
+length over the limit without reading a byte. Under it, the check reads a
+clone of the body, counts the bytes, keeps none, and cuts the stream off as
+soon as it passes the limit. Start then reads the other branch of the clone.
+On Node, the HTTP parser already reads no more than the declared length as the
+body, so the count is the guard for a body that lies about its length on
+another path.
+
+**The form limit** (#292) checks only the declared length: a form without a
+`Content-Length` or above the limit is refused before Start reads it.
+
+The JSON refusal is an empty response with `Connection: close`, so Node closes
+the socket instead of reading and discarding the refused body to keep the
+connection alive. Each refusal writes an `input_validation_fail` line to the
+security log; [deployment.md](deployment.md#keeping-the-log-on-the-host-bounded)
+says how to keep a flood of them from filling the host.
+
+A GET payload never reaches Start above 16 KiB: Node answers 431 first. An
+e2e test (`tests/e2e/json-body-limit.spec.ts`) sends a 20 KiB payload, so a
+raised header limit (`--max-http-header-size`) fails CI.
+
 ## Deployment
 
 Two places carry the system:
