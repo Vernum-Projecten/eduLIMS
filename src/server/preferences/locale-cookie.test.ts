@@ -8,9 +8,9 @@ import { createTestDb } from "../db/test-db.ts";
 import { parseEnv } from "../env.ts";
 import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
+import { TEST_PASSWORD } from "../users/test-helpers.ts";
 import { savedLocale } from "./locale-cookie.ts";
 
-const PASSWORD = "correct-horse-battery";
 const EMAIL = "student@example.test";
 let db: Kysely<DB> | undefined;
 
@@ -40,10 +40,12 @@ async function signInWithSavedLocale(locale: string | null) {
     db: database,
     type: "postgres",
   });
-  await auth.api.createUser({ body: { email: EMAIL, name: "Test Student", password: PASSWORD } });
+  await auth.api.createUser({
+    body: { email: EMAIL, name: "Test Student", password: TEST_PASSWORD },
+  });
   await database.updateTable("user").set({ locale }).where("email", "=", EMAIL).execute();
   const response = await auth.api.signInEmail({
-    body: { email: EMAIL, password: PASSWORD },
+    body: { email: EMAIL, password: TEST_PASSWORD },
     asResponse: true,
   });
   expect(response.status).toBe(200);

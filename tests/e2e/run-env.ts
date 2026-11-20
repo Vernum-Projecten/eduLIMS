@@ -10,12 +10,16 @@ import { readdir, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import {
+  DEFAULT_TEST_DATABASE_URL,
   databaseOf,
   newRunId,
   runDatabaseName,
   staleRunDatabases,
   withDatabase,
 } from "../../src/server/db/test-run-database.ts";
+
+/** The base database of `pnpm test:e2e` on the dev stack, when `E2E_DATABASE_URL` is unset. */
+export const DEFAULT_E2E_DATABASE_URL = withDatabase(DEFAULT_TEST_DATABASE_URL, "edulims_e2e");
 
 /**
  * The ports a run picks from: below the ephemeral ranges of Linux (from 32768) and macOS and

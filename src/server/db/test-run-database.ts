@@ -8,6 +8,12 @@
 import { randomBytes } from "node:crypto";
 import pg from "pg";
 
+/**
+ * The base database of `pnpm test` on the dev stack of compose.dev.yaml, whose `edulims` role has
+ * the public development password `edulims`. `pnpm test:e2e` uses `edulims_e2e` beside it.
+ */
+export const DEFAULT_TEST_DATABASE_URL = "postgres://edulims:edulims@127.0.0.1:5432/edulims_test";
+
 /** A run database older than this is left over from a crashed run and dropped at the next start. */
 export const STALE_RUN_DATABASE_MS = 6 * 60 * 60 * 1000;
 
