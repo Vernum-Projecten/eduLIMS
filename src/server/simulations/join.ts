@@ -202,7 +202,7 @@ async function lockedAttempt(
       .execute();
     // NOTE: #323 (maintainer, 2026-11-19); the first lab joined wins, so no waiting address of the
     // student is left in the simulation to link them back after a removal.
-    await dropWaitingAddressesOf(trx, lab.simulation_id, actor.id, { verifiedOnly: true });
+    await dropWaitingAddressesOf(trx, lab.simulation_id, actor.id);
     await recordAudit(trx, {
       action: "lab_member_joined",
       actor: { type: "user", id: actor.id },
