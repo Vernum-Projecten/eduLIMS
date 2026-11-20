@@ -37,42 +37,66 @@ export interface TeacherWrite {
 
 /** Everything a write could change, read back to show that a refusal changed nothing. */
 async function snapshot(db: Kysely<DB>) {
-  const [simulations, teachers, labs, members, emails, removals, codes, audit, values, limits] =
-    await Promise.all([
-      db
-        .selectFrom("simulations")
-        .select(["id", "name", "state", "started_at", "finished_at"])
-        .orderBy("id")
-        .execute(),
-      db
-        .selectFrom("simulation_teachers")
-        .select(["simulation_id", "user_id"])
-        .orderBy("simulation_id")
-        .orderBy("user_id")
-        .execute(),
-      db.selectFrom("labs").select(["id", "name"]).orderBy("id").execute(),
-      db.selectFrom("lab_members").select(["lab_id", "user_id"]).orderBy("user_id").execute(),
-      db.selectFrom("lab_member_emails").select(["lab_id", "email"]).orderBy("email").execute(),
-      db.selectFrom("simulation_removals").select(["user_id"]).orderBy("user_id").execute(),
-      db
-        .selectFrom("lab_join_codes")
-        .select(["lab_id", "code_hash", "expires_at", "max_uses", "uses"])
-        .orderBy("lab_id")
-        .execute(),
-      db.selectFrom("audit_event").select("id").orderBy("id").execute(),
-      db
-        .selectFrom("correct_values")
-        .select(["id", "sample_number", "test_id", "value", "updated_at"])
-        .orderBy("id")
-        .execute(),
-      db
-        .selectFrom("simulation_test_limits")
-        .select(["simulation_id", "test_id", "kind", "yellow_limit", "red_limit"])
-        .orderBy("simulation_id")
-        .orderBy("test_id")
-        .execute(),
-    ]);
-  return { simulations, teachers, labs, members, emails, removals, codes, audit, values, limits };
+  const [
+    simulations,
+    teachers,
+    labs,
+    members,
+    emails,
+    removals,
+    codes,
+    logos,
+    audit,
+    values,
+    limits,
+  ] = await Promise.all([
+    db
+      .selectFrom("simulations")
+      .select(["id", "name", "state", "started_at", "finished_at"])
+      .orderBy("id")
+      .execute(),
+    db
+      .selectFrom("simulation_teachers")
+      .select(["simulation_id", "user_id"])
+      .orderBy("simulation_id")
+      .orderBy("user_id")
+      .execute(),
+    db.selectFrom("labs").select(["id", "name"]).orderBy("id").execute(),
+    db.selectFrom("lab_members").select(["lab_id", "user_id"]).orderBy("user_id").execute(),
+    db.selectFrom("lab_member_emails").select(["lab_id", "email"]).orderBy("email").execute(),
+    db.selectFrom("simulation_removals").select(["user_id"]).orderBy("user_id").execute(),
+    db
+      .selectFrom("lab_join_codes")
+      .select(["lab_id", "code_hash", "expires_at", "max_uses", "uses"])
+      .orderBy("lab_id")
+      .execute(),
+    db.selectFrom("lab_logos").select(["lab_id", "sha256"]).orderBy("lab_id").execute(),
+    db.selectFrom("audit_event").select("id").orderBy("id").execute(),
+    db
+      .selectFrom("correct_values")
+      .select(["id", "sample_number", "test_id", "value", "updated_at"])
+      .orderBy("id")
+      .execute(),
+    db
+      .selectFrom("simulation_test_limits")
+      .select(["simulation_id", "test_id", "kind", "yellow_limit", "red_limit"])
+      .orderBy("simulation_id")
+      .orderBy("test_id")
+      .execute(),
+  ]);
+  return {
+    simulations,
+    teachers,
+    labs,
+    members,
+    emails,
+    removals,
+    codes,
+    logos,
+    audit,
+    values,
+    limits,
+  };
 }
 
 /**

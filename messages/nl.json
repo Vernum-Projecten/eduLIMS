@@ -463,6 +463,7 @@
   "audit_action_lab_join_code_enabled": "Labcode aangezet",
   "audit_action_lab_join_code_regenerated": "Labcode vervangen",
   "audit_action_lab_join_failed": "Aansluiten met een labcode mislukt",
+  "audit_action_lab_logo_changed": "Lablogo gewijzigd",
   "audit_action_lab_member_joined": "In een lab gekomen",
   "audit_action_lab_member_moved": "Naar een ander lab verplaatst",
   "audit_action_lab_member_removed": "Uit een simulatie verwijderd",

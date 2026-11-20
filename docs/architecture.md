@@ -392,11 +392,51 @@ student's place and a waiting address point at their lab through the pair
   `simulation_*` and `lab_*` actions, a count for a pasted list, never an
   address or a name.
 
-The lab logo is a new upload. It follows the upload rules of the security
-baseline (ASVS V5, the File_Upload cheat sheet): the server accepts a
-defined set of types up to a configured size limit, checks the content, and
-never trusts the file name or the MIME type alone. Its formats and its size
-limit are not decided.
+#### The lab logo
+
+The lab logo is an upload, held to the upload rules of the security baseline
+(ASVS V5, the File_Upload cheat sheet; maintainer on #280 and #292):
+
+- **What is accepted:** PNG and JPEG (baseline, extended 8-bit or
+  progressive Huffman), at most 512 KiB and 1024 by 1024 pixels. The type
+  comes from the first bytes and the image header; the file name and the
+  declared type are never read. SVG, GIF, WebP, a lossless, hierarchical,
+  arithmetic or 12-bit JPEG, and every other file are refused with a typed
+  code (`logo_unsupported_type`, `logo_too_large`, `logo_too_many_pixels`,
+  `logo_malformed`).
+- **How it is made safe:** a small filter in `src/server/logo/` reads the
+  PNG chunks (every CRC checked) or the JPEG marker segments and writes the
+  file again with only what a browser needs to render it: for a PNG the
+  critical chunks (a palette only for a palette image, with at most
+  2^bit-depth entries), transparency and the fixed-size colour chunks; for a
+  JPEG the frame, the quantisation and Huffman tables and the restart
+  interval (each must consume its segment exactly), the scans and the fixed
+  Adobe segment. EXIF, XMP, IPTC, ICC profiles, text and time chunks,
+  comments and a truecolour image's suggested palette are dropped, and so is
+  anything after the end of the image. The pixels are copied, never decoded
+  or re-encoded. A photo loses its EXIF orientation and its colour profile
+  with the rest.
+- **Where it lives:** `lab_logos` in the eduLIMS database, one row per lab
+  with the bytes, the type, the size, the dimensions and the SHA-256 (a CHECK
+  holds it equal to `sha256(content)`), and no file name. It goes with its
+  lab, and the database backup covers it.
+- **Who changes it:** a teacher of the lab's simulation, through
+  `uploadLabLogoFn` and `removeLabLogoFn`, under the lock of the simulation
+  row. Every change and every refused file writes `lab_logo_changed` with
+  ids and codes only. A form to any server function is refused before its
+  body is read when it declares no length or more than 528 KiB, and the
+  refusal closes the connection so Node does not read the rest
+  (`src/server/form-body-limit.ts`). A logo can be changed in a finished
+  simulation, the same as a lab's name: it carries no result (maintainer on
+  #346).
+- **Who reads it:** `GET /api/labs/$labId/logo` answers a member of the lab
+  and a teacher of its simulation, in the same query that reads the logo,
+  with the stored type, `nosniff`, `Content-Disposition: inline` with a name
+  the server makes from the stored type, a sandboxing CSP,
+  `Cross-Origin-Resource-Policy: same-origin` and `Cache-Control: no-store`
+  like every other response (#41). Everyone else, an administrator and a
+  signed-out caller included, gets the same empty 404 as a lab without a
+  logo.
 
 ### Template `eduLIMS-lab`
 
@@ -516,6 +556,51 @@ system); **Check now** logs it as the administrator who pressed it. A PostgreSQL
 result make one replica check per interval. The Admin portal reads the stored
 result and refetches it every 30 seconds, so an unreachable service shows
 within the 5 minutes of B3.
+
+### Request size limits
+
+TanStack Start reads the body of a server function call whole before the
+function's own middleware runs: `request.formData()` for a form,
+`request.json()` for everything else. So request middleware in `src/start.ts`
+checks the size first, after the CSRF check, and the server never buffers more
+than the limit for a caller who is not signed in (ASVS 5.0 V5.2.1, V15.2.2).
+
+| Request | Limit | Refusal |
+|---|---|---|
+| JSON body to a server function | 1 MiB, declared and as it streams | 411 without a `Content-Length`, 413 over the limit |
+| Form body to a server function (multipart or URL-encoded) | the largest lab logo (512 KiB) plus 16 KiB for its fields, declared (#292) | 411 without a `Content-Length`, 413 over the limit |
+| GET payload of a server function (the `payload` query parameter) | Node's 16 KiB limit on the request line and headers | 431 from Node's HTTP parser, before eduLIMS runs |
+
+**The JSON limit** comes from the largest input any server function takes:
+the pasted list of a lab's member addresses, 500 lines of 320 characters
+(D10). Serialized as the Start client sends it, that list is 167,699 bytes in
+ASCII, 487,699 bytes in 3-byte characters, and 807,699 bytes when every
+character is `<`, which the serializer escapes. 1 MiB holds it for any
+printable text. Only a list made mostly of control characters or U+2028,
+which JSON writes as 6 or 7 bytes each, passes it, and no address list or IdP
+metadata is made of those. The next largest input, a SAML provider with 100 KiB
+of metadata, stays under 0.7 MB in every case.
+
+The JSON check (`src/server/json-body-limit.ts`, #347) refuses a declared
+length over the limit without reading a byte. Under it, the check reads a
+clone of the body, counts the bytes, keeps none, and cuts the stream off as
+soon as it passes the limit. Start then reads the other branch of the clone.
+On Node, the HTTP parser already reads no more than the declared length as the
+body, so the count is the guard for a body that lies about its length on
+another path.
+
+**The form limit** (#292) checks only the declared length: a form without a
+`Content-Length` or above the limit is refused before Start reads it.
+
+The JSON and the form refusals are empty responses with `Connection: close`, so Node closes
+the socket instead of reading and discarding the refused body to keep the
+connection alive. Each refusal writes an `input_validation_fail` line to the
+security log; [deployment.md](deployment.md#keeping-the-log-on-the-host-bounded)
+says how to keep a flood of them from filling the host.
+
+A GET payload never reaches Start above 16 KiB: Node answers 431 first. An
+e2e test (`tests/e2e/json-body-limit.spec.ts`) sends a 20 KiB payload, so a
+raised header limit (`--max-http-header-size`) fails CI.
 
 ## Deployment
 

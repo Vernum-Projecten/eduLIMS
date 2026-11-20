@@ -59,6 +59,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0003_user_last_portal");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
       ["0016_test_catalogue", "Success"],
@@ -88,6 +89,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0002_user_locale");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
       ["0016_test_catalogue", "Success"],
@@ -117,6 +119,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0001_auth");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
       ["0016_test_catalogue", "Success"],
@@ -170,6 +173,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0005_audit_event");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
       ["0016_test_catalogue", "Success"],
@@ -206,6 +210,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0007_user_role_source");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
       ["0016_test_catalogue", "Success"],
@@ -245,6 +250,7 @@ describe("migrations", () => {
     const migrator = createMigrator(db);
     const down = await migrator.migrateTo("0010_integration_check");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
       ["0016_test_catalogue", "Success"],
@@ -270,6 +276,7 @@ describe("migrations", () => {
     // The migration below 0013 is 0012_simulations_and_labs; 0015, 0014 and then 0013 revert.
     const down = await migrator.migrateTo("0012_simulations_and_labs");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
       ["0016_test_catalogue", "Success"],
@@ -380,6 +387,7 @@ describe("migrations", () => {
           values ('ferrobridge', 'not_ready', now(), 'readiness_down')`);
     const down = await migrator.migrateTo("0014_lab_join_code");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
       ["0016_test_catalogue", "Success"],
@@ -412,6 +420,7 @@ describe("migrations", () => {
     await expect(insert("GLUCOSE", false)).rejects.toThrow(/catalogue_tests_active_name_key/);
     const down = await migrator.migrateTo("0015_integration_check_steps");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
       ["0016_test_catalogue", "Success"],
@@ -464,6 +473,7 @@ describe("migrations", () => {
     await inSavepoint(sql`delete from catalogue_tests`);
     const down = await migrator.migrateTo("0016_test_catalogue");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
       ["0017_catalogue_follow_ups", "Success"],
     ]);
@@ -521,6 +531,7 @@ describe("migrations", () => {
     ).rejects.toThrow(/correct_values_test_id_fkey/);
     const down = await migrator.migrateTo("0017_catalogue_follow_ups");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
       ["0018_simulation_state_and_correct_values", "Success"],
     ]);
     await expect(inSavepoint(sql`select id from correct_values`)).rejects.toThrow(
@@ -528,6 +539,65 @@ describe("migrations", () => {
     );
     await expect(inSavepoint(sql`select state from simulations`)).rejects.toThrow(
       /column "state" does not exist/,
+    );
+    expect((await migrator.migrateToLatest()).error).toBeUndefined();
+  });
+
+  it("0019_lab_logos holds a logo's type, size, dimensions and hash, goes with its lab, and reverts (#292)", async () => {
+    const database = await createTestDb();
+    db = database;
+    const migrator = createMigrator(database);
+    const inSavepoint = (query: ReturnType<typeof sql>) =>
+      database.transaction().execute((trx) => query.execute(trx));
+    const simulation = await sql<{ id: string }>`insert into simulations (name)
+        values ('Logo simulation') returning id`.execute(database);
+    const simulationId = simulation.rows[0]?.id;
+    const lab = await sql<{ id: string }>`insert into labs (simulation_id, name)
+        values (${simulationId}, 'Logo lab') returning id`.execute(database);
+    const labId = lab.rows[0]?.id;
+    const logo = (fields: {
+      type?: string;
+      content?: ReturnType<typeof sql>;
+      size?: number;
+      width?: number;
+      height?: number;
+      sha?: ReturnType<typeof sql>;
+    }) => {
+      const content = fields.content ?? sql`'\\x0102'::bytea`;
+      return inSavepoint(sql`insert into lab_logos (lab_id, content, media_type, byte_size, width, height, sha256)
+          values (${labId}, ${content}, ${fields.type ?? "image/png"},
+            ${fields.size ?? 2}, ${fields.width ?? 1}, ${fields.height ?? 1},
+            ${fields.sha ?? sql`sha256(${content})`})`);
+    };
+    await expect(logo({ type: "image/svg+xml" })).rejects.toThrow(/lab_logos_media_type/);
+    await expect(logo({ size: 3 })).rejects.toThrow(/lab_logos_byte_size/);
+    await expect(logo({ content: sql`'\\x'::bytea`, size: 0 })).rejects.toThrow(
+      /lab_logos_byte_size/,
+    );
+    await expect(
+      logo({ content: sql`decode(repeat('00', 524289), 'hex')`, size: 524_289 }),
+    ).rejects.toThrow(/lab_logos_byte_size/);
+    await expect(logo({ width: 1025 })).rejects.toThrow(/lab_logos_dimensions/);
+    await expect(logo({ height: 0 })).rejects.toThrow(/lab_logos_dimensions/);
+    await expect(logo({ sha: sql`'\\x00'::bytea` })).rejects.toThrow(/lab_logos_sha256/);
+    // A hash of 32 bytes that is not the hash of the content (N3, the review of #346).
+    await expect(logo({ sha: sql`sha256('\\x0103'::bytea)` })).rejects.toThrow(/lab_logos_sha256/);
+    await logo({
+      content: sql`decode(repeat('00', 524288), 'hex')`,
+      size: 524_288,
+      width: 1024,
+      height: 1024,
+    });
+    await expect(logo({})).rejects.toThrow(/lab_logos_pkey/);
+    await inSavepoint(sql`delete from labs where id = ${labId}`);
+    const left = await sql`select lab_id from lab_logos`.execute(database);
+    expect(left.rows).toEqual([]);
+    const down = await migrator.migrateTo("0018_simulation_state_and_correct_values");
+    expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0019_lab_logos", "Success"],
+    ]);
+    await expect(inSavepoint(sql`select lab_id from lab_logos`)).rejects.toThrow(
+      /relation "lab_logos" does not exist/,
     );
     expect((await migrator.migrateToLatest()).error).toBeUndefined();
   });
