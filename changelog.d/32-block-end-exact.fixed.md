@@ -1,0 +1,1 @@
+- A block with an end date ends exactly at the close of that day; it could end a second or more later when the server was busy.
