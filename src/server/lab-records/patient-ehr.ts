@@ -86,7 +86,6 @@ export interface PatientEhrOptions {
  * @throws Error when the patient does not exist, or when it holds another EHR id than the one
  *   its subject resolves to.
  */
-// TODO(#148): the release of a result calls ensurePatientEhr and refuses on `pending`.
 export async function ensurePatientEhr(
   db: Kysely<DB>,
   client: PatientEhrClient,

@@ -96,6 +96,14 @@ export const envFields = z.object({
   FERROEHR_CLIENT_SECRET: z.string().min(1),
   /** The space-separated SMART on openEHR `system/` scopes eduLIMS asks for (RFC 6749 §3.3). */
   FERROEHR_SCOPE: z.string().trim().min(1),
+  /**
+   * The issuer and the id of the facility eduLIMS commits for, equal to a `facilities` entry of
+   * its `[[authz.system_client]]` in FerroEHR (#146); every result composition names it.
+   */
+  FERROEHR_FACILITY_ISSUER: z.string().trim().min(1).max(255),
+  FERROEHR_FACILITY_ID: z.string().trim().min(1).max(255),
+  /** The ISO 3166-1 alpha-2 code of the territory a result composition is written in (RM). */
+  FERROEHR_TERRITORY: z.string().regex(/^[A-Z]{2}$/, "must be an ISO 3166-1 alpha-2 code"),
   FERROBRIDGE_BASE_URL: httpUrl(),
   EDULIMS_DEV_LOGIN: z.stringbool().default(false),
 });

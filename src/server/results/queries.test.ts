@@ -152,3 +152,36 @@ describe("the teacher's view of a lab's results (D11)", () => {
     expect(await readTeacherResults(database, both, w.labId)).toBeNull();
   });
 });
+
+describe("where a released result stands in the patient's record (#148)", () => {
+  /** Returns the release of HbA1c on the team's page. */
+  async function releaseOn(database: Kysely<DB>, w: Awaited<ReturnType<typeof open>>["w"]) {
+    const page = await readStudentResults(database, w.student, w.labId);
+    return page?.requests[0]?.tests.find((row) => row.testId === w.hba1c)?.release;
+  }
+
+  it("shows a release pending until its write lands, then written, to the team and its teachers", async () => {
+    const { database, w } = await open();
+    expect((await releaseOn(database, w))?.record).toBe("pending");
+    await database
+      .updateTable("result_ehr_writes")
+      .set({
+        state: "written",
+        version_uid: "01a1f79f-e2e6-713c-878c-1f1b2f8278c6::ferroehr.local::1",
+        written_at: new Date(),
+      })
+      .execute();
+    expect((await releaseOn(database, w))?.record).toBe("written");
+    const teacherPage = await readTeacherResults(database, w.teacher, w.labId);
+    const taught = teacherPage?.requests[0]?.tests.find((row) => row.testId === w.hba1c);
+    expect(taught?.release?.record).toBe("written");
+  });
+
+  it("gives the team no version id, no error code and no attempt count", async () => {
+    const { database, w } = await open();
+    const text = JSON.stringify(await readStudentResults(database, w.student, w.labId));
+    for (const field of ["version_uid", "last_error", "attempts", "contribution", "::"]) {
+      expect(text).not.toContain(field);
+    }
+  });
+});

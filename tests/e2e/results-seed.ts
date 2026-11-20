@@ -6,7 +6,7 @@
 // first lab an invented patient with one request on one sample for five invented tests: three
 // entered by hand with the team's tolerance (the second and third with one measurement already),
 // one from the Afinion 2 and one by hand without a tolerance. Everything is invented (Q-PRIV-4).
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool } from "pg";
 import { withCheckDigit } from "../../src/lib/lab-number.ts";
@@ -27,6 +27,9 @@ export interface ResultsWorld {
   otherLabId: string;
   otherLab: string;
   patient: string;
+  patientId: string;
+  /** The EHR id FerroEHR would have given the patient; a release needs one (#148, #364). */
+  ehrId: string;
   requestId: string;
   sampleId: string;
   /** Entered by hand, with a tolerance of 4 to 6 and no measurement: the keyboard journey. */
@@ -125,11 +128,13 @@ export async function seedResults(suffix: string): Promise<ResultsWorld> {
       const narrow = await test("Glucose", "manual");
       const afinion = await test("Cystatin", "afinion");
       const untolerated = await test("Albumin", "manual");
+      const ehrId = randomUUID();
       const { id: patientId } = await trx
         .insertInto("patients")
         .values({
           simulation_id: simulationId,
           lab_id: labId,
+          ehr_id: ehrId,
           name: names.patient,
           date_of_birth: "1979-06-02",
           sex: "unknown",
@@ -208,6 +213,8 @@ export async function seedResults(suffix: string): Promise<ResultsWorld> {
         simulationId,
         labId,
         otherLabId,
+        patientId,
+        ehrId,
         requestId,
         sampleId,
         journey,
@@ -220,6 +227,20 @@ export async function seedResults(suffix: string): Promise<ResultsWorld> {
       };
     }),
   );
+}
+
+/**
+ * Sets the patient's EHR id: `null` makes it pending, as a registration that FerroEHR did not
+ * answer leaves it (#364), so the release gate refuses (#148).
+ */
+export function setPatientEhr(world: ResultsWorld, ehrId: string | null): Promise<void> {
+  return withDatabase(async (db) => {
+    await db
+      .updateTable("patients")
+      .set({ ehr_id: ehrId })
+      .where("id", "=", world.patientId)
+      .execute();
+  });
 }
 
 /** Sets a new tolerance for `testId`, as a classmate would (the dialog's tolerance goes stale). */

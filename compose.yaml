@@ -327,6 +327,11 @@ services:
       FERROEHR_CLIENT_ID: ${FERROEHR_CLIENT_ID:?set FERROEHR_CLIENT_ID in .env}
       FERROEHR_CLIENT_SECRET: ${FERROEHR_CLIENT_SECRET:?set FERROEHR_CLIENT_SECRET in .env}
       FERROEHR_SCOPE: ${FERROEHR_SCOPE:?set FERROEHR_SCOPE in .env}
+      # The facility of eduLIMS's [[authz.system_client]] in config/ferroehr.toml, and the
+      # territory every result composition names (.env.example).
+      FERROEHR_FACILITY_ISSUER: ${FERROEHR_FACILITY_ISSUER:?set FERROEHR_FACILITY_ISSUER in .env}
+      FERROEHR_FACILITY_ID: ${FERROEHR_FACILITY_ID:?set FERROEHR_FACILITY_ID in .env}
+      FERROEHR_TERRITORY: ${FERROEHR_TERRITORY:?set FERROEHR_TERRITORY in .env}
       FERROBRIDGE_BASE_URL: http://ferrobridge:8080
     volumes:
       - ./config/postgres-tls/ca.crt:/etc/edulims/postgres-ca.crt:ro

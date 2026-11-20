@@ -19,6 +19,7 @@ import {
   type ResultsWorld,
   releaseElsewhere,
   seedResults,
+  setPatientEhr,
 } from "./results-seed";
 import { appUrl } from "./run-env";
 
@@ -158,7 +159,12 @@ test("a student measures and releases one result with the keyboard alone (S14, S
   await expect(anyway).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(confirm).toHaveCount(0);
-  await expect(page.getByText(`The result of ${name} is released.`)).toBeVisible();
+  // NOTE: #148; this run's FerroEHR does not take the write, so the release stands as pending.
+  await expect(
+    page.getByText(
+      `The result of ${name} is released. It is not in the patient's record yet; eduLIMS keeps trying.`,
+    ),
+  ).toBeVisible();
   await expect(heading(page, name)).toBeFocused();
   const rows = measurements(page, name).getByRole("row");
   await expect(rows.filter({ hasText: "7.2" })).toContainText("Released");
@@ -166,6 +172,8 @@ test("a student measures and releases one result with the keyboard alone (S14, S
   await expect(measure).toHaveCount(0);
   await expect(page.getByText("Tolerance at the release:")).toBeVisible();
   await expect(page.getByText("Released:").first()).toBeVisible();
+  await expect(page.getByText("Patient's record:")).toBeVisible();
+  await expect(page.getByText("Not yet: eduLIMS keeps trying")).toBeVisible();
   await axe(page);
 });
 
@@ -199,8 +207,25 @@ test("a refusal shows at its field, and one that ends the dialog shows at the te
   await page.keyboard.press("Escape");
   await expect(measure).toBeFocused();
 
-  // The tolerance changed after the dialog opened: the dialog closes, the page says why.
+  // The patient's record is not created yet: the dialog stays and says so, nothing is released.
   const confirm = releaseDialog(page, name);
+  await setPatientEhr(world, null);
+  await releaseOf(page, name, "5").click();
+  await confirm.getByRole("button", { name: "Release result" }).click();
+  await expect(
+    confirm.getByRole("alert").filter({
+      hasText:
+        "The patient's record is not created yet, so this result cannot be released. Try again in a minute.",
+    }),
+  ).toBeVisible();
+  await axe(page);
+  await setPatientEhr(world, world.ehrId);
+  await page.keyboard.press("Escape");
+  await expect(confirm).toHaveCount(0);
+  // Nothing was released: the measurement can still be released.
+  await expect(releaseOf(page, name, "5")).toBeVisible();
+
+  // The tolerance changed after the dialog opened: the dialog closes, the page says why.
   await releaseOf(page, name, "5").click();
   await expect(confirm.getByRole("button", { name: "Cancel" })).toBeFocused();
   await changeTolerance(world, world.refused.id);

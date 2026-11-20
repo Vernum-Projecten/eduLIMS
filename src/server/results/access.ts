@@ -32,6 +32,7 @@ export const RESULTS_ACTION_ERRORS = [
   "released",
   "no_tolerance",
   "tolerance_changed",
+  "ehr_pending",
 ] as const;
 export type ResultsActionError = (typeof RESULTS_ACTION_ERRORS)[number];
 

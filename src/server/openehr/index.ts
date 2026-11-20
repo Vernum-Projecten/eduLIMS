@@ -5,6 +5,7 @@
 import "@tanstack/react-start/server-only";
 import { type Env, getEnv } from "../env.ts";
 import { createOpenEhrClient, type OpenEhrClient } from "./client.ts";
+import type { LabResultWriteSettings } from "./lab-result-writer.ts";
 
 /** Returns the client configuration from the FerroEHR settings of the environment. */
 export function openEhrConfig(
@@ -26,6 +27,23 @@ export function openEhrConfig(
   };
 }
 
+/** Returns the settings of a result write from the environment: facility, territory, committer. */
+export function labResultWriteSettings(
+  env: Pick<
+    Env,
+    | "FERROEHR_CLIENT_ID"
+    | "FERROEHR_FACILITY_ISSUER"
+    | "FERROEHR_FACILITY_ID"
+    | "FERROEHR_TERRITORY"
+  >,
+): LabResultWriteSettings {
+  return {
+    facility: { issuer: env.FERROEHR_FACILITY_ISSUER, id: env.FERROEHR_FACILITY_ID },
+    territory: env.FERROEHR_TERRITORY,
+    committerName: env.FERROEHR_CLIENT_ID,
+  };
+}
+
 let client: OpenEhrClient | undefined;
 
 /**
@@ -42,6 +60,7 @@ export function getOpenEhrClient(): OpenEhrClient {
 }
 
 export type {
+  CreateContributionOutcome,
   OpenEhrClient,
   OpenEhrClientConfig,
   TemplateDocument,

@@ -105,9 +105,10 @@ erDiagram
   and the released one is marked as the one that counts (D11).
 - Every measurement is a row in the eduLIMS database, and the release names
   one of them (#270), so the one-release rule and the time of release hold
-  in one transaction. The template has a result status (Preliminary, Final):
-  the Afinion 2 route writes to FerroEHR on arrival as Preliminary, and the
-  release makes the released one Final (#148).
+  in one transaction. eduLIMS writes the released result to the patient's
+  record once, as Final; every measurement stays in the eduLIMS database,
+  where the teacher sees them (maintainer, 2026-11-20 on #148). How the
+  Afinion 2 route below fits that is settled in #158 and #160.
 
 ## A measurement on the Afinion 2
 
