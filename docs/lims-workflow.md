@@ -274,7 +274,10 @@ adding or removing a lab is no extra work. A teacher can change a correct
 value before, during and after the simulation; the change is logged and the
 dashboard follows the current value. A teacher can add other teachers to a
 simulation, with the same rights (D10). Copying a simulation to a new one,
-with its correct values and without its labs, is a Could (D15).
+with its correct values and without its labs, is a Could (D15). A
+simulation is prepared until a teacher starts it and running until a teacher
+finishes it; labs work only while it runs, and no step goes back. The
+correct values and the limits stay changeable in every state (#267).
 
 During the simulation the dashboard shows every
 lab's requests with their times, every measurement of a requested test with

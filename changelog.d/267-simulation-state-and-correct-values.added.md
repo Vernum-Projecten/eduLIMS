@@ -1,0 +1,1 @@
+- A teacher starts and finishes a simulation, enters or pastes the correct value per sample number and test once for every lab, changes it at any time, and sets the yellow and red accuracy limits per test; students never see any of it (D10, D13). The test catalogue shows which tests a simulation, or a running simulation, uses. The upgrade runs a database migration.

@@ -8,6 +8,7 @@ import {
   testSourceDetail,
   testSourceLabel,
   testStatusLabel,
+  testUsageLabel,
 } from "./catalogue-labels";
 
 describe("test catalogue labels (D9, #266)", () => {
@@ -17,6 +18,12 @@ describe("test catalogue labels (D9, #266)", () => {
     expect(testSourceLabel("manual")).toBe("Entry by hand");
     expect(testStatusLabel("active")).toBe("Active");
     expect(testStatusLabel("retired")).toBe("Retired");
+  });
+
+  it("names how simulations use a test, and nothing for an unused one (#267)", () => {
+    expect(testUsageLabel("unused")).toBeNull();
+    expect(testUsageLabel("used")).toBe("Used by a simulation");
+    expect(testUsageLabel("running")).toBe("In a running simulation");
   });
 
   it("puts a source's setting in words", () => {

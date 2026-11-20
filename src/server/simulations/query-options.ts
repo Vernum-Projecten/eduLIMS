@@ -32,6 +32,9 @@ export const simulationsKeys = {
     [...simulationsKeys.detail(simulationId), "lab", labId] as const,
   joinCode: (simulationId: string, labId: string) =>
     [...simulationsKeys.lab(simulationId, labId), "join-code"] as const,
+  /** The correct values and limits of a simulation, teacher-scoped (D10, D13). */
+  correctValues: (simulationId: string) =>
+    [...simulationsKeys.detail(simulationId), "correct-values"] as const,
   student: () => [...simulationsKeys.all, "student"] as const,
   admin: () => [...simulationsKeys.all, "admin"] as const,
   adminList: () => [...simulationsKeys.admin(), "list"] as const,

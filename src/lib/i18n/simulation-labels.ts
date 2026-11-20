@@ -4,8 +4,9 @@
 // The translated words of the simulation and lab screens (D10, S10): the refusals of the server,
 // the outcome of each pasted line, and how a student came into a lab.
 import { m } from "@/i18n/messages";
+import type { LimitKind } from "@/lib/correct-values";
 import { formatNumber } from "@/lib/i18n/format";
-import type { JoinVia } from "@/lib/simulations";
+import type { JoinVia, SimulationState } from "@/lib/simulations";
 import type { SimulationActionError } from "@/server/simulations/access";
 import type { EmailLine } from "@/server/simulations/emails";
 import type { StudentLabRow } from "@/server/simulations/queries";
@@ -45,6 +46,16 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.labs_error_rate_limited();
     case "in_other_lab":
       return m.labs_error_in_other_lab();
+    case "not_prepared":
+      return m.simulations_error_not_prepared();
+    case "not_running":
+      return m.simulations_error_not_running();
+    case "test_not_found":
+      return m.correct_values_error_test_not_found();
+    case "test_retired":
+      return m.correct_values_error_test_retired();
+    case "value_not_found":
+      return m.correct_values_error_value_not_found();
     case null:
       return m.simulations_error_failed();
     default: {
@@ -71,6 +82,36 @@ export function emailLineLabel(line: EmailLine): string {
         : m.labs_line_in_other_lab_unnamed();
     default: {
       const unknown: never = line.status;
+      return unknown;
+    }
+  }
+}
+
+/** Returns the name of a simulation's state (D10, #267). */
+export function simulationStateLabel(state: SimulationState): string {
+  switch (state) {
+    case "prepared":
+      return m.simulations_state_prepared();
+    case "running":
+      return m.simulations_state_running();
+    case "finished":
+      return m.simulations_state_finished();
+    default: {
+      const unknown: never = state;
+      return unknown;
+    }
+  }
+}
+
+/** Returns how a test's accuracy limits are expressed, in words (D13). */
+export function limitKindLabel(kind: LimitKind): string {
+  switch (kind) {
+    case "percent":
+      return m.correct_values_kind_percent();
+    case "absolute":
+      return m.correct_values_kind_absolute();
+    default: {
+      const unknown: never = kind;
       return unknown;
     }
   }

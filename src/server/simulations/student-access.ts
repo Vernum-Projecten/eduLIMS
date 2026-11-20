@@ -54,3 +54,26 @@ export async function findStudentLab(
   const simulationId = row ? parseSimulationId(row.simulation_id) : null;
   return simulationId === null ? null : { labId: id, simulationId };
 }
+
+/**
+ * Returns the lab `labId` when `userId` is a member of it and its simulation is running, or
+ * `null` otherwise (D10, #267: labs work only in a running simulation). Every write of a lab's
+ * work starts here, so a prepared or finished simulation takes no work. The state is read in the
+ * same query as the membership.
+ */
+export async function findWorkingStudentLab(
+  db: Kysely<DB>,
+  userId: string,
+  labId: string,
+): Promise<StudentLab | null> {
+  const id = parseLabId(labId);
+  if (id === null) return null;
+  const row = await studentLabsQuery(db, userId)
+    .innerJoin("simulations", "simulations.id", "labs.simulation_id")
+    .select(["labs.id", "labs.simulation_id"])
+    .where("labs.id", "=", id)
+    .where("simulations.state", "=", "running")
+    .executeTakeFirst();
+  const simulationId = row ? parseSimulationId(row.simulation_id) : null;
+  return simulationId === null ? null : { labId: id, simulationId };
+}

@@ -37,6 +37,11 @@ export const SIMULATION_ACTION_ERRORS = [
   "invalid_code",
   "rate_limited",
   "in_other_lab",
+  "not_prepared",
+  "not_running",
+  "test_not_found",
+  "test_retired",
+  "value_not_found",
 ] as const;
 export type SimulationActionError = (typeof SIMULATION_ACTION_ERRORS)[number];
 

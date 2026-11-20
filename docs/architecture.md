@@ -238,12 +238,14 @@ and all students of a year take part in it. The service is
 
 | Table | What it holds |
 |---|---|
-| `simulations` | the name, who created it and when |
+| `simulations` | the name, who created it and when, and its state: prepared, running or finished, with the server's time of the start and the finish (#267) |
 | `simulation_teachers` | the teachers of a simulation, all with the same rights (D10) |
 | `labs` | the labs of a simulation; a name is unique within its simulation, case-insensitively |
 | `lab_members` | the students of a lab; the key (simulation, student) keeps a student in at most one lab of a simulation (S10) |
 | `lab_member_emails` | the addresses a teacher pasted that wait for a student to sign in; the key (simulation, address) keeps an address in at most one lab of a simulation |
 | `simulation_removals` | the students a teacher removed, so a lab's code does not let them back in |
+| `correct_values` | the correct value per simulation, sample number and catalogue test, never per lab; one per sample number (regardless of case) and test; the value as `numeric`, never a float (D10) |
+| `simulation_test_limits` | per simulation and test, the kind of limit (a percentage of the correct value or an absolute distance) and the yellow and red limits (D13) |
 | `lab_join_codes`, `lab_join_attempts` | the join code of a lab, stored only as an HMAC with its key's fingerprint, and the wrong-code counters per student and per client IP, stored only as keyed hashes (#288) |
 
 Every foreign key to a simulation or a lab cascades on delete, and a
@@ -258,6 +260,22 @@ student's place and a waiting address point at their lab through the pair
   goes to the security log. A student reaches a lab only through
   their own `lab_members` row; that predicate is one exported helper
   (`studentLabsQuery`, `findStudentLab`) that the lab's work builds on.
+  The lab's work goes through `findWorkingStudentLab`, which also requires
+  a running simulation: a prepared or finished simulation takes no work.
+- **State.** A teacher of the simulation starts a prepared simulation and
+  finishes a running one, behind a confirmation; no step goes back. The
+  correct values and the limits stay changeable in every state (D10).
+  Starting locks the catalogue tests the simulation's correct values name
+  `FOR SHARE`, so a catalogue edit that a running simulation forbids (D9)
+  waits for the start and is then refused.
+- **Correct values and limits.** The service is `src/server/correct-values/`;
+  its one read and its writes go through the simulation's teacher row, and
+  no function a student can reach imports it (Q-SIM-1). The limits live per
+  simulation and test, not on the catalogue test: the catalogue is shared by
+  every teacher, while a teacher sets the limits while preparing their own
+  simulation, and a copy of a simulation takes its limits along (D15). Every
+  change of a value or a limit leaves an activity-log row with the ids of the
+  simulation, the test and the value, never the value itself (B4).
 - **The email list.** A teacher pastes the addresses of a lab's members. The
   server classifies each line (invalid, repeated, already in this lab, in
   another lab of the simulation, new) and stores the new ones; no answer
