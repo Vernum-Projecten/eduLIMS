@@ -28,6 +28,7 @@ import {
   setLocalRoles,
   unblockUser,
 } from "./actions.ts";
+import { deleteUser } from "./delete-user.ts";
 import { getUserDetail } from "./detail.ts";
 import { listUsers, userFacets } from "./queries.ts";
 import {
@@ -113,6 +114,15 @@ export const setAdminUserRoles = createServerFn({ method: "POST" })
   .middleware([requireRole("admin")])
   .validator(setUserRolesInput)
   .handler(async ({ data, context }) => setLocalRoles(actionContext(context.user), data));
+
+/**
+ * Deletes a user with their sessions and accounts in one transaction (#318, D10); never the
+ * administrator's own account, never the only active teacher of a simulation.
+ */
+export const deleteAdminUser = createServerFn({ method: "POST" })
+  .middleware([requireRole("admin")])
+  .validator(userIdInput)
+  .handler(async ({ data, context }) => deleteUser(actionContext(context.user), data));
 
 /** Ends every session of each selected user (#58); the per-user rules of a single action apply. */
 export const bulkEndAdminUserSessions = createServerFn({ method: "POST" })

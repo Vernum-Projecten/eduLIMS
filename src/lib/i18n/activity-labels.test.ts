@@ -277,6 +277,10 @@ describe("activity log labels (#36)", () => {
     );
   });
 
+  it("names the refusal of deleting one's own account (#318)", () => {
+    expect(activityReasonLabel("cannot_delete_self")).toBe("nobody can delete their own account");
+  });
+
   it("says when the metadata cannot be read, and returns nothing for an event without details", () => {
     expect(activityDetails({ reason: null, provider: null, metadata: "unreadable" })).toEqual([
       "The details of this event could not be read.",

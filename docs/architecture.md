@@ -302,11 +302,15 @@ student's place and a waiting address point at their lab through the pair
 - **Teachers.** A teacher adds another teacher by the address of an existing
   account with the teacher role; an unknown address and a non-teacher get
   the same refusal. The last teacher of a simulation cannot be removed: a
-  teacher row counts only while its user holds the teacher role. Better-auth's
-  `admin/remove-user` refuses an account that is the only teacher of a
-  simulation, and a deferred constraint trigger refuses any commit that
-  leaves an existing simulation without a teacher row, so the two cannot
-  race past each other.
+  teacher row counts only while its user holds the teacher role. An
+  administrator deletes a user from the Users screen in one transaction
+  (`src/server/users/delete-user.ts`, #318): it locks the user's simulations
+  in id order, refuses the only active teacher of a simulation, and deletes
+  the sessions, the accounts and the user with their activity-log rows, so a
+  refusal changes nothing. Better-auth's `admin/remove-user` answers 404. A
+  `BEFORE DELETE` trigger on `user` and a deferred constraint trigger, which
+  refuses any commit that leaves an existing simulation without a teacher
+  row, stay as the last line.
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it, and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.

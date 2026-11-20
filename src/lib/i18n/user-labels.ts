@@ -162,6 +162,8 @@ export function adminActionErrorMessage(code: string): string {
       return m.role_error_not_allowed();
     case "only_simulation_teacher":
       return m.admin_users_error_only_simulation_teacher();
+    case "cannot_delete_self":
+      return m.admin_users_error_delete_self();
     default:
       return m.admin_users_error_failed();
   }

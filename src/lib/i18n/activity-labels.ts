@@ -109,6 +109,7 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   admin_revoke: m.admin_activity_reason_admin_revoke,
   banned_user: m.admin_activity_reason_banned_user,
   cannot_change_own_roles: m.admin_activity_reason_own_roles,
+  cannot_delete_self: m.admin_activity_reason_cannot_delete_self,
   has_students: m.admin_activity_reason_has_students,
   in_other_lab: m.admin_activity_reason_in_other_lab,
   last_teacher: m.admin_activity_reason_last_teacher,

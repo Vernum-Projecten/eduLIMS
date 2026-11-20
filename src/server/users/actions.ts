@@ -34,6 +34,8 @@ export const ADMIN_ACTION_ERRORS = [
   OWN_ROLES_ERROR,
   "roles_not_local",
   "role_set_not_allowed",
+  "cannot_delete_self",
+  "only_simulation_teacher",
   "failed",
 ] as const;
 export type AdminActionError = (typeof ADMIN_ACTION_ERRORS)[number];

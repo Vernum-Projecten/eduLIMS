@@ -228,6 +228,30 @@ export function unblockUserMutationOptions(
   });
 }
 
+/**
+ * Deletes a user (#318). No optimistic change: a refusal is common (the only teacher of a
+ * simulation). A deletion refreshes every list page; a refusal or failure refreshes the user's
+ * detail too. The detail of a deleted user leaves the cache through {@link forgetUser}, once
+ * the sheet that observes it has closed.
+ */
+export function deleteUserMutationOptions(
+  queryClient: QueryClient,
+  call: ActionCall<{ userId: string }>,
+) {
+  return mutationOptions({
+    mutationFn: (data: { userId: string }) => settled(call, data),
+    onSettled: (_result, error, data) =>
+      error
+        ? invalidateUsers(queryClient, [data.userId])
+        : queryClient.invalidateQueries({ queryKey: usersKeys.lists() }),
+  });
+}
+
+/** Removes the detail of a deleted user from the cache. */
+export function forgetUser(queryClient: QueryClient, userId: string): void {
+  queryClient.removeQueries({ queryKey: usersKeys.detail(userId) });
+}
+
 /** Ends every session of each selected user; the result says who was refused. */
 export function bulkEndSessionsMutationOptions(
   queryClient: QueryClient,

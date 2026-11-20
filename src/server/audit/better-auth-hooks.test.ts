@@ -292,13 +292,20 @@ describe("the activity log of better-auth flows (B4)", () => {
     ]);
   });
 
-  it("records user_deleted", async () => {
+  it("records user_deleted when better-auth deletes a user outside an endpoint", async () => {
     const { auth, database } = await setup();
-    const { adminId, studentId, headers } = await adminAndStudent(auth);
-    await auth.api.removeUser({ body: { userId: studentId }, headers });
+    const { studentId } = await adminAndStudent(auth);
+    await (await auth.$context).internalAdapter.deleteUser(studentId);
     expect(await events(database, "user_deleted")).toEqual([
-      expect.objectContaining({ actor_id: adminId, target_id: studentId, outcome: "success" }),
+      expect.objectContaining({ actor_type: "system", target_id: studentId, outcome: "success" }),
     ]);
+  });
+
+  it("records nothing of its own for the disabled admin/remove-user (#318)", async () => {
+    const { auth, database } = await setup();
+    const { studentId, headers } = await adminAndStudent(auth);
+    await expect(auth.api.removeUser({ body: { userId: studentId }, headers })).rejects.toThrow();
+    expect(await events(database, "user_deleted")).toEqual([]);
   });
 });
 

@@ -237,6 +237,100 @@ test("an administrator blocks a user with a reason and an end date, and unblocks
   await other.context().close();
 });
 
+test("an administrator deletes a user, and the only teacher of a simulation is refused in the dialog (#318, D10)", async ({
+  page,
+  browser,
+}) => {
+  // The sole teacher creates a simulation of their own, so they are its only teacher.
+  const teacherPage = await signedInElsewhere(browser, "sole-teacher@example.test");
+  await teacherPage.goto("/teacher/simulations");
+  const create = teacherPage.getByRole("button", { name: "Create simulation" });
+  await expectHydrated(create);
+  await create.click();
+  const createDialog = teacherPage.getByRole("dialog", { name: "Create a simulation" });
+  await createDialog.getByLabel("Name").fill("Sole teacher run");
+  await createDialog.getByRole("button", { name: "Create simulation" }).click();
+  await expect(
+    teacherPage.getByRole("heading", { level: 1, name: "Sole teacher run" }),
+  ).toBeVisible();
+
+  // Deleting the only teacher of a simulation is refused in the dialog, and nothing changes.
+  await signInAsAdmin(page);
+  const teacherSheet = await openUser(page, "Sole Test Teacher");
+  const teacherId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  await teacherSheet.getByRole("button", { name: "Delete user" }).click();
+  const refusedDialog = page.getByRole("alertdialog", { name: "Delete Sole Test Teacher?" });
+  await expect(refusedDialog).toBeVisible();
+  await axe(page);
+  const sent = page.waitForRequest(
+    (request) => request.method() === "POST" && request.url().includes("/_serverFn/"),
+  );
+  await refusedDialog.getByRole("button", { name: "Delete user" }).click();
+  const deleteRequest = await sent;
+  const refusal = refusedDialog.getByRole("alert");
+  await expect(refusal).toContainText(
+    "This user is the only teacher of a simulation. Add another teacher to that simulation first.",
+  );
+  await expect(refusal).toBeFocused();
+  await axe(page);
+  await refusedDialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(refusedDialog).toBeHidden();
+  await expect(teacherSheet).toBeVisible();
+  await page.keyboard.press("Escape");
+  // The refused deletion left the teacher's session alone.
+  await teacherPage.reload();
+  await expect(teacherPage).toHaveURL(/\/teacher\/simulations\//);
+  await teacherPage.context().close();
+
+  // The same server function refuses a teacher, a student and a request without a session (E1):
+  // the deletion request, aimed at the user below, deletes nothing for them.
+  const sheet = await openUser(page, "Deletion Test Student");
+  const deletionId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  const body = (deleteRequest.postData() ?? "").replaceAll(teacherId, deletionId);
+  expect(body).toContain(deletionId);
+  const headers = await deleteRequest.allHeaders();
+  const replay = Object.fromEntries(
+    Object.entries(headers).filter(([name]) => name !== "cookie" && !name.startsWith(":")),
+  );
+  // TanStack Start answers a thrown server-function error with 200 and the serialised error.
+  for (const [email, error] of [
+    ["teacher@example.test", "Forbidden"],
+    ["student@example.test", "Forbidden"],
+    [null, "Not signed in"],
+  ] as const) {
+    const context = await browser.newContext();
+    if (email) await devLogin(await context.newPage(), email);
+    const response = await context.request.post(deleteRequest.url(), {
+      headers: replay,
+      data: body,
+    });
+    expect([email, await response.text()]).toEqual([email, expect.stringContaining(error)]);
+    await context.close();
+  }
+  await page.reload();
+  await expect(page.getByRole("dialog", { name: "Deletion Test Student" })).toBeVisible();
+
+  // A deletion closes the dialog and the sheet; the user is gone from the list.
+  await sheet.getByRole("button", { name: "Delete user" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Delete Deletion Test Student?" });
+  await dialog.getByRole("button", { name: "Delete user" }).click();
+  await expect(page.getByText("Deletion Test Student is deleted.")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Deletion Test Student" })).toBeHidden();
+  await expect(page).toHaveURL(/\/admin\/users(\?|$)/);
+  await expect(
+    usersTable(page).getByRole("link", { name: "Deletion Test Student", exact: true }),
+  ).toHaveCount(0);
+  const gone = await browser.newContext();
+  const signIn = await submitDevLogin(await gone.newPage(), "deletion@example.test");
+  expect(signIn.ok()).toBe(false);
+  await gone.close();
+
+  // The administrator's own sheet offers no deletion.
+  const own = await openUser(page, "Test Administrator");
+  await expect(own.getByText("You cannot delete your own account.")).toBeVisible();
+  await expect(own.getByRole("button", { name: "Delete user" })).toHaveCount(0);
+});
+
 test("an administrator changes a local role set after confirming it (owner decision on #32)", async ({
   page,
 }) => {

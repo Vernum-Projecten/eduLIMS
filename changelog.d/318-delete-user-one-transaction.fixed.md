@@ -1,0 +1,1 @@
+Administrators delete a user from the user's detail sheet on the Users screen, in one step that either removes the account with its sessions and sign-in links or changes nothing. Deleting the only teacher of a simulation is refused in the dialog and no longer signs that teacher out (D10).
