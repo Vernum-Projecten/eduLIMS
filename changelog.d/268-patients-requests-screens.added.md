@@ -1,0 +1,1 @@
+- In the Student portal, Patients and requests lets a team register and correct patients, record and correct requests for a patient or a control sample with their tests and samples, and copy each sample's lab number to type on the Afinion 2; a teacher reads every correction on the simulation page (S11, S12, S16).

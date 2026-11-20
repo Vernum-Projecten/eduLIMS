@@ -12,7 +12,7 @@ import {
   isIsoDate,
   PATIENT_IDENTIFIER_MAX,
   PATIENT_NAME_MAX,
-  PATIENT_SEXES,
+  parsePatientSex,
   RECORD_SAMPLE_NUMBER_MAX,
   REMARKS_MAX,
   REQUEST_SAMPLES_MAX,
@@ -62,7 +62,15 @@ export const patientDetailsSchema = z.object({
     .trim()
     .min(1, { error: () => m.records_patient_birth_required() })
     .refine(isIsoDate, { error: () => m.records_patient_birth_invalid() }),
-  sex: z.enum(PATIENT_SEXES, { error: () => m.records_patient_sex_required() }),
+  // A string in, so the form starts with no choice: eduLIMS picks no sex for the team (W7).
+  sex: z.string().transform((value, ctx) => {
+    const sex = parsePatientSex(value);
+    if (sex === undefined) {
+      ctx.addIssue({ code: "custom", message: m.records_patient_sex_required() });
+      return z.NEVER;
+    }
+    return sex;
+  }),
   identifier: formLine(PATIENT_IDENTIFIER_MAX, () => m.records_patient_identifier_required()),
 });
 export type PatientDetailsForm = z.input<typeof patientDetailsSchema>;
@@ -143,6 +151,39 @@ export const correctRequestInput = z.object({
     ),
 });
 export type CorrectRequestForm = z.input<typeof correctRequestInput>;
+
+/**
+ * The request dialog (S12, S16): one flat form for a new request and a correction, built from
+ * the same field rules as {@link recordRequestInput} and {@link correctRequestInput}, which the
+ * server functions validate again. A patient request needs its patient and its requester.
+ */
+export const requestFormSchema = z
+  .object({
+    kind: z.enum(["patient", "control"]),
+    patientId: z.string(),
+    requester: optionalLine(REQUESTER_MAX),
+    ...requestFields,
+    samples: z
+      .array(sampleSchema.extend({ key: z.string(), sampleId: z.string().optional() }))
+      .min(1, { error: () => m.records_samples_required() })
+      .max(REQUEST_SAMPLES_MAX, {
+        error: () => m.records_samples_too_many({ max: String(REQUEST_SAMPLES_MAX) }),
+      }),
+  })
+  .superRefine((form, ctx) => {
+    if (form.kind !== "patient") return;
+    if (form.patientId === "") {
+      ctx.addIssue({ code: "custom", path: ["patientId"], message: m.records_patient_required() });
+    }
+    if (form.requester === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["requester"],
+        message: m.records_requester_required(),
+      });
+    }
+  });
+export type RequestForm = z.input<typeof requestFormSchema>;
 
 /** The records of one lab, as its student reads them. */
 export const labRecordsInput = z.object({ labId: id });
