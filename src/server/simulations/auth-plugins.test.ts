@@ -9,8 +9,9 @@ import type { DB } from "../db/schema.gen.ts";
 import { authOnTestDb, createUser, signIn } from "../users/test-helpers.ts";
 import { addEmails } from "./emails.ts";
 import { createLab } from "./labs.ts";
+import { removeMember } from "./members.ts";
 import { createSimulation } from "./simulations.ts";
-import { NOW } from "./test-helpers.ts";
+import { NOW, place } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -99,6 +100,42 @@ describe("labSignInLink (S10: in the lab at sign-in)", () => {
       .where("user_id", "=", studentId)
       .executeTakeFirst();
     expect(place).toEqual({ lab_id: labId, joined_via: "email" });
+  });
+
+  it("refuses a removed student at sign-in and logs it once per removal (#330)", async () => {
+    const { auth, db: database } = await setup();
+    const teacherId = await createUser(auth, "teacher@example.test", ["teacher"]);
+    const studentId = await createUser(auth, "late-verified@example.test", ["student"]);
+    const { teacher, simulationId, labId } = await simulationWithLab(database, teacherId);
+    const other = await createLab(database, teacher, { simulationId, name: "Lab Borealis" }, NOW);
+    if (!other.ok) throw new Error(other.error);
+    await addEmails(
+      database,
+      teacher,
+      { labId: other.value.labId, emails: ["late-verified@example.test"] },
+      NOW,
+    );
+    await place(database, simulationId, labId, studentId);
+    const removed = await removeMember(database, teacher, { simulationId, userId: studentId }, NOW);
+    expect(removed).toEqual({ ok: true, value: null });
+    await verify(database, studentId);
+    await signIn(auth, "late-verified@example.test");
+    await signIn(auth, "late-verified@example.test");
+    const places = await database
+      .selectFrom("lab_members")
+      .select("lab_id")
+      .where("user_id", "=", studentId)
+      .execute();
+    expect(places).toEqual([]);
+    const refusals = await database
+      .selectFrom("audit_event")
+      .select(["actor_id", "reason_code", "target_id"])
+      .where("action", "=", "lab_member_joined")
+      .where("outcome", "=", "refused")
+      .execute();
+    expect(refusals).toEqual([
+      { actor_id: studentId, reason_code: "removed", target_id: other.value.labId },
+    ]);
   });
 
   it("never fails a sign-in when the link fails", async () => {

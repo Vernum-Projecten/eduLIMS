@@ -224,7 +224,10 @@ export const auditMetadataSchema = z.strictObject({
   previous_lab_id: z.uuid().optional(),
   /** How a student came into a lab, on a `lab_member_joined` (S10). */
   join_via: z.enum(["email", "code"]).optional(),
-  /** How many addresses a `lab_emails_added` stored: a count, never an address. */
+  /**
+   * How many addresses a `lab_emails_added` stored, or a `lab_member_moved` or
+   * `lab_member_removed` dropped from waiting (#330): a count, never an address.
+   */
   count: z.number().int().min(0).optional(),
   /** The term and the most joins a teacher chose for a lab's join code (#288); never the code. */
   valid_days: z.number().int().min(1).max(JOIN_CODE_DAYS_MAX).optional(),

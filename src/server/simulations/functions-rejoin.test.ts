@@ -12,8 +12,9 @@ import type { Role } from "../../lib/roles.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import type { SimulationActor } from "./access.ts";
-import type { World } from "./test-helpers.ts";
+import { person, type World } from "./test-helpers.ts";
 import { context, key, labOf, worldWithCode } from "./test-join.ts";
+import { removals, removedRefusals, verify, waiting } from "./test-removal.ts";
 
 const session = vi.hoisted(() => {
   const state: { user: { id: string; roles: readonly Role[] } | null; db: unknown } = {
@@ -131,6 +132,35 @@ describe("a removed student through the server functions (#323, R-01)", () => {
   it("stays out when the address waited in another lab of the simulation", async () => {
     if (!db) throw new Error("no database");
     await sequence(db, (w) => w.otherLabId);
+  });
+
+  it("refuses the link of a removed student through linkMyLabsFn, logged once (#330)", async () => {
+    if (!db) throw new Error("no database");
+    const w = await worldWithCode(db);
+    const student = await person(db, "late-verified", ["student"], { verified: false });
+    as(w.teacher);
+    expect(await addEmailsFn({ data: { labId: w.otherLabId, emails: [student.email] } })).toEqual({
+      ok: true,
+      value: expect.objectContaining({ added: 1 }),
+    });
+    as(student);
+    expect((await joinLabFn({ data: { code: w.code } })).ok).toBe(true);
+    as(w.teacher);
+    expect(
+      await removeMemberFn({ data: { simulationId: w.simulationId, userId: student.id } }),
+    ).toEqual({ ok: true, value: null });
+    await verify(db, student.id);
+    as(student);
+    expect(await linkMyLabsFn()).toEqual({ linked: 0, refused: 1, failed: 0 });
+    expect(await linkMyLabsFn()).toEqual({ linked: 0, refused: 1, failed: 0 });
+    expect(await labOf(db, w.simulationId, student.id)).toBeNull();
+    expect(await removals(db, w.simulationId)).toEqual([{ user_id: student.id }]);
+    expect(await waiting(db, student.email)).toHaveLength(1);
+    expect(await removedRefusals(db)).toHaveLength(1);
+    expect(await joinLabFn({ data: { code: w.code } })).toEqual({
+      ok: false,
+      error: "invalid_code",
+    });
   });
 
   it("refuses a teacher calling the student's join with 403, before any input is read", async () => {
