@@ -1,0 +1,1 @@
+- The correct values of a simulation are now one grid: sample numbers as rows, tests as columns with their accuracy limits in the header. Paste the whole grid from a spreadsheet in one go, with anything that does not read marked at its header, row or cell, then change a value cell by cell (D10, D13).
