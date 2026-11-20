@@ -220,7 +220,7 @@ Text: [vendor/asvs/en/0x12-V3-Web-Frontend-Security.md](vendor/asvs/en/0x12-V3-W
 |---|---|---|---|---|---|
 | V3.5.1 | 1 | yes | `createCsrfMiddleware` on every server function (`src/start.ts`); better-auth checks the origin on `/api/auth/*` | review; no dedicated test yet | met |
 | V3.5.2 | 1 | no | eduLIMS does not rely on CORS preflight; V3.5.1 applies | none | n-a |
-| V3.5.3 | 1 | yes | every state-changing server function is `POST` (`src/server/preferences/functions.ts`); `GET` functions only read | review | met |
+| V3.5.3 | 1 | yes | every state-changing server function is `POST` (`src/server/preferences/functions.ts`); `GET` functions only read; SCIM writes use `PUT`, `PATCH` and `DELETE` with a bearer token (#365), and better-auth's origin check covers every non-safe method on `/api/auth/*` when a cookie is present (better-auth 1.7.20 turns it off when `NODE_ENV` is `test`, so the e2e build does not run it) | review | met |
 | V3.5.4 | 2 | yes | eduLIMS, Keycloak and the docs site run on separate hostnames (`docs/deployment.md`) | review | met |
 | V3.5.5 | 2 | no | no `postMessage` listener | none | n-a |
 | V3.5.6 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -254,7 +254,7 @@ Text: [vendor/asvs/en/0x13-V4-API-and-Web-Service.md](vendor/asvs/en/0x13-V4-API
 | V4.1.1 | 1 | partly | TanStack Start and `Response.json` set `Content-Type`; the charset on every body is not verified | review | partial |
 | V4.1.2 | 2 | yes | the reverse proxy redirects browsers to HTTPS (`docs/deployment.md`); API paths are not redirected | manual, operator | partial |
 | V4.1.3 | 2 | yes | no `X-Forwarded-*` header is read by eduLIMS today; better-auth rate limiting will need a trusted client IP | review | partial |
-| V4.1.4 | 3 | no | Level 3, above the L2 target | none | n-a |
+| V4.1.4 | 3 | no | Level 3, above the L2 target; even so, `/api/auth/$` serves only the methods better-auth registers, with no `ANY` (`src/routes/api/auth/$.ts`, #365) | unit `src/server/auth-route-methods.test.ts` | n-a |
 | V4.1.5 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V4.2 HTTP Message Structure Validation

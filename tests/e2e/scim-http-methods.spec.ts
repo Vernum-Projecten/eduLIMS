@@ -3,12 +3,13 @@
 
 // SCIM over HTTP against the built server (#365, B4, Q-SEC-2, ASVS V7.4.2): PUT, PATCH and
 // DELETE reach better-auth through the `/api/auth/$` server route, not only through
-// `auth.handler` as the integration tests call it. The directory deactivates a signed-in user and
-// every session of that user ends; it replaces a user; it deletes a user and a group with the
+// `auth.handler` as the integration tests call it. The directory deactivates (PATCH or PUT) or
+// deletes a signed-in user and every session of that user ends; it replaces a user; it deletes
+// a user and a group with the
 // status codes of RFC 7644 §3.5.1, §3.5.2 and §3.6; each write is in the activity log. The token belongs to `keycloak-saml`, so
 // this file never meets the `keycloak` token of admin-scim.spec.ts. Everything is invented.
 import { randomBytes } from "node:crypto";
-import { type APIRequestContext, expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, type PlaywrightWorkerArgs, test } from "@playwright/test";
 import { Kysely, PostgresDialect } from "kysely";
 import { Pool } from "pg";
 import { newId } from "../../src/server/db/ids.ts";
@@ -147,13 +148,26 @@ async function sessionUser(request: APIRequestContext): Promise<string | null> {
   return typeof id === "string" ? id : null;
 }
 
-test("a SCIM PATCH active:false deprovisions a signed-in user and ends their sessions (V7.4.2)", async ({
-  playwright,
-  request,
-}) => {
-  // A signed-in user whose account with the provider carries the directory id, so SCIM links it.
-  const account = await copyAccount("student@example.test", "scim-patch");
-  const externalId = `e2e-patch-${tag()}`;
+/** A user the directory provisioned and linked, signed in with a session cookie of its own. */
+interface SignedInUser {
+  userId: string;
+  email: string;
+  externalId: string;
+  scimId: string;
+  browser: APIRequestContext;
+}
+
+/**
+ * Provisions a copy of the dev student over SCIM, linked through the provider account that
+ * carries the directory id, and signs it in over HTTP. The caller disposes `browser`.
+ */
+async function provisionSignedIn(
+  playwright: PlaywrightWorkerArgs["playwright"],
+  request: APIRequestContext,
+  prefix: string,
+): Promise<SignedInUser> {
+  const account = await copyAccount("student@example.test", prefix);
+  const externalId = `e2e-${prefix}-${tag()}`;
   await db
     .insertInto("account")
     .values({
@@ -175,33 +189,64 @@ test("a SCIM PATCH active:false deprovisions a signed-in user and ends their ses
   expect(await userOf(scimId)).toBe(account.id);
 
   const browser = await playwright.request.newContext({ baseURL: appUrl() });
-  try {
-    const signIn = await browser.post(`${appUrl()}/api/auth/sign-in/email`, {
-      data: { email: account.email, password: DEV_PASSWORD },
-    });
-    expect(signIn.status()).toBe(200);
-    expect(await sessionUser(browser)).toBe(account.id);
-    expect(await sessionCount(account.id)).toBeGreaterThan(0);
+  const signIn = await browser.post(`${appUrl()}/api/auth/sign-in/email`, {
+    data: { email: account.email, password: DEV_PASSWORD },
+  });
+  expect(signIn.status()).toBe(200);
+  expect(await sessionUser(browser)).toBe(account.id);
+  expect(await sessionCount(account.id)).toBeGreaterThan(0);
+  return { userId: account.id, email: account.email, externalId, scimId, browser };
+}
 
+/** Asserts that the user is deprovisioned and that no session of theirs is left (V7.4.2). */
+async function expectDeprovisioned(user: SignedInUser): Promise<void> {
+  expect(await deprovisionedAt(user.userId)).toBeInstanceOf(Date);
+  expect(await sessionCount(user.userId)).toBe(0);
+  expect(await sessionUser(user.browser)).toBeNull();
+  await expect.poll(() => loggedActions(user.userId)).toContain("user_deprovisioned");
+}
+
+test("a SCIM PATCH active:false deprovisions a signed-in user and ends their sessions (V7.4.2)", async ({
+  playwright,
+  request,
+}) => {
+  const user = await provisionSignedIn(playwright, request, "scim-patch");
+  try {
     const off = await scim(
       request,
       "PATCH",
-      `/Users/${scimId}`,
+      `/Users/${user.scimId}`,
       patch([{ op: "replace", path: "active", value: false }]),
     );
     // RFC 7644 §3.5.2: 200 with the entire resource (or 204); never the app's HTML or a 406.
     expect(off.status).toBe(200);
     expect(off.contentType).toContain("json");
-    expect(off.json["id"]).toBe(scimId);
+    expect(off.json["id"]).toBe(user.scimId);
     expect(off.json["active"]).toBe(false);
-
-    expect(await deprovisionedAt(account.id)).toBeInstanceOf(Date);
-    expect(await sessionCount(account.id)).toBe(0);
-    expect(await sessionUser(browser)).toBeNull();
-    await expect.poll(() => loggedActions(scimId)).toContain("scim_user_updated");
-    await expect.poll(() => loggedActions(account.id)).toContain("user_deprovisioned");
+    await expectDeprovisioned(user);
+    await expect.poll(() => loggedActions(user.scimId)).toContain("scim_user_updated");
   } finally {
-    await browser.dispose();
+    await user.browser.dispose();
+  }
+});
+
+test("a SCIM PUT with active:false deprovisions a signed-in user and ends their sessions (V7.4.2)", async ({
+  playwright,
+  request,
+}) => {
+  // Okta deactivates a user with a PUT of the whole resource.
+  const user = await provisionSignedIn(playwright, request, "scim-put-off");
+  try {
+    const off = await scim(request, "PUT", `/Users/${user.scimId}`, {
+      ...userBody(user.externalId, user.email, "Noor Brink"),
+      active: false,
+    });
+    expect(off.status).toBe(200);
+    expect(off.json["id"]).toBe(user.scimId);
+    expect(off.json["active"]).toBe(false);
+    await expectDeprovisioned(user);
+  } finally {
+    await user.browser.dispose();
   }
 });
 
@@ -233,33 +278,27 @@ test("a SCIM PUT replaces a user (RFC 7644 §3.5.1)", async ({ request }) => {
   await expect.poll(() => loggedActions(scimId)).toContain("scim_user_updated");
 });
 
-test("a SCIM DELETE of a user answers 204, and the user is gone from SCIM (RFC 7644 §3.6)", async ({
+test("a SCIM DELETE of a signed-in user answers 204, ends their sessions, and the user is gone from SCIM (RFC 7644 §3.6)", async ({
+  playwright,
   request,
 }) => {
-  const email = `scim-delete-${tag()}@example.test`;
-  const created = await scim(
-    request,
-    "POST",
-    "/Users",
-    userBody(`e2e-delete-${tag()}`, email, "Noor Brink"),
-  );
-  expect(created.status).toBe(201);
-  const scimId = String(created.json["id"]);
-  const userId = await userOf(scimId);
+  const user = await provisionSignedIn(playwright, request, "scim-delete");
+  try {
+    const deleted = await scim(request, "DELETE", `/Users/${user.scimId}`);
+    expect(deleted.status).toBe(204);
+    expect(deleted.text).toBe("");
 
-  const deleted = await scim(request, "DELETE", `/Users/${scimId}`);
-  expect(deleted.status).toBe(204);
-  expect(deleted.text).toBe("");
-
-  expect((await scim(request, "GET", `/Users/${scimId}`)).status).toBe(404);
-  const filter = encodeURIComponent(`userName eq "${email}"`);
-  const listed = await scim(request, "GET", `/Users?filter=${filter}`);
-  expect(listed.status).toBe(200);
-  expect(listed.json["totalResults"]).toBe(0);
-  // The eduLIMS user stays, deprovisioned: no sign-in and no erasure (#47).
-  expect(await deprovisionedAt(userId)).toBeInstanceOf(Date);
-  expect(await sessionCount(userId)).toBe(0);
-  await expect.poll(() => loggedActions(scimId)).toContain("scim_user_deleted");
+    expect((await scim(request, "GET", `/Users/${user.scimId}`)).status).toBe(404);
+    const filter = encodeURIComponent(`userName eq "${user.email}"`);
+    const listed = await scim(request, "GET", `/Users?filter=${filter}`);
+    expect(listed.status).toBe(200);
+    expect(listed.json["totalResults"]).toBe(0);
+    // The eduLIMS user stays, deprovisioned: no sign-in and no erasure (#47).
+    await expectDeprovisioned(user);
+    await expect.poll(() => loggedActions(user.scimId)).toContain("scim_user_deleted");
+  } finally {
+    await user.browser.dispose();
+  }
 });
 
 test("a SCIM DELETE of a group answers 204, and the group is gone (RFC 7644 §3.6)", async ({

@@ -27,17 +27,26 @@ interface Registered {
   methods: string[];
 }
 
-/** Returns the path and methods of every endpoint the instance's API holds. */
+function field(value: unknown, key: string): unknown {
+  return (typeof value === "object" || typeof value === "function") && value !== null
+    ? Reflect.get(value, key)
+    : undefined;
+}
+
+/**
+ * Returns the path and methods of every endpoint better-call routes: it skips an endpoint
+ * without options or a path, or one marked `SERVER_ONLY` (better-call 1.4.5, `router.mjs`).
+ */
 function registeredEndpoints(api: object): Registered[] {
   return Object.values(api).flatMap((endpoint: unknown): Registered[] => {
     if (typeof endpoint !== "function") return [];
-    const path: unknown = Reflect.get(endpoint, "path");
-    const options: unknown = Reflect.get(endpoint, "options");
-    const method: unknown =
-      typeof options === "object" && options !== null ? Reflect.get(options, "method") : undefined;
-    if (typeof path !== "string") return [];
+    const path = field(endpoint, "path");
+    const options = field(endpoint, "options");
+    if (typeof path !== "string" || path === "" || options === undefined) return [];
+    if (field(field(options, "metadata"), "SERVER_ONLY")) return [];
+    const method = field(options, "method");
     const methods = (Array.isArray(method) ? method : [method]).filter(
-      (m): m is string => typeof m === "string",
+      (m): m is string => typeof m === "string" && m !== "",
     );
     return [{ path, methods }];
   });
@@ -70,6 +79,12 @@ describe("the better-auth server route (#365)", () => {
     const routed = new Set(routedMethods());
     const missing = [...methods].filter((method) => !routed.has(method));
     expect(missing).toEqual([]);
+  });
+
+  it("gives every routed endpoint a method, since rou3 matches a missing one to every method", async () => {
+    const registered = await endpoints();
+    expect(registered.length).toBeGreaterThan(0);
+    expect(registered.filter((endpoint) => endpoint.methods.length === 0)).toEqual([]);
   });
 
   it("finds the SCIM write endpoints, so the check above is not vacuous", async () => {
