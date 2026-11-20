@@ -55,4 +55,24 @@ test("the overview shows that another simulation runs before the start is tried 
     await expect(stepOf(nl ? dutch("simulation_step_start") : "Start")).toContainText(message);
     await axe(page);
   }
+
+  // The dashboard shows the running simulation to its teachers only; the teacher learns only
+  // that it is not theirs, and once it is finished that none runs (#386).
+  await page.context().addCookies([
+    { name: "EDULIMS_THEME", value: "light", url: appUrl() },
+    { name: "EDULIMS_LOCALE", value: "en", url: appUrl() },
+  ]);
+  await page.goto("/teacher/dashboard");
+  await expect(
+    page.getByRole("heading", { level: 2, name: "The running simulation is not one of yours" }),
+  ).toBeVisible();
+  await expect(page.getByText(world.running)).toHaveCount(0);
+  await axe(page);
+  await finishRunningSimulations();
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "No simulation is running" }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Open your simulations" }).click();
+  await expect(page).toHaveURL(/\/teacher\/simulations$/);
 });

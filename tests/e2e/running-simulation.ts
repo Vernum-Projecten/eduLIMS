@@ -78,3 +78,27 @@ export function seedAnotherRunning(suffix: string): Promise<AnotherRunningWorld>
     }),
   );
 }
+
+/**
+ * Makes `simulationId` the one running simulation again, finishing any other, so a journey that
+ * seeded once in `beforeAll` still finds its world running when a retry or an earlier file's seed
+ * finished it (test set-up only). A running one keeps its start.
+ */
+export function keepRunning(simulationId: string): Promise<void> {
+  return withDatabase((db) =>
+    db.transaction().execute(async (trx) => {
+      await trx
+        .updateTable("simulations")
+        .set({ state: "finished", finished_at: sql<Date>`greatest(now(), started_at)` })
+        .where("state", "=", "running")
+        .where("id", "<>", simulationId)
+        .execute();
+      await trx
+        .updateTable("simulations")
+        .set({ state: "running", finished_at: null })
+        .where("id", "=", simulationId)
+        .where("state", "<>", "running")
+        .execute();
+    }),
+  );
+}

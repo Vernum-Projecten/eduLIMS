@@ -11,6 +11,7 @@ import { expect, type Page, type Route, test } from "@playwright/test";
 import { axe, dutch } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
+import { keepRunning } from "./running-simulation";
 import { finishTolerances, seedTolerances, type ToleranceWorld } from "./tolerances-seed";
 
 test.describe.configure({ mode: "serial" });
@@ -20,6 +21,12 @@ let world: ToleranceWorld;
 
 test.beforeAll(async () => {
   world = await seedTolerances(SUFFIX);
+});
+
+// NOTE: #386; one simulation runs at a time, so a retry, or a seed of another file in between,
+// may have finished this world; each test starts with it running again.
+test.beforeEach(async () => {
+  await keepRunning(world.simulationId);
 });
 
 function tolerances(page: Page, lab: string) {

@@ -112,34 +112,52 @@ export async function seedLabRecords(
 export async function seedSecondLab(
   studentId: string,
   suffix: string,
-): Promise<{ labId: string; lab: string; simulation: string }> {
+): Promise<{ simulationId: string; labId: string; lab: string; simulation: string }> {
   const db = database();
   try {
     const simulation = `Second records ${suffix}`;
     const lab = `Second lab ${suffix}`;
-    const { labId } = await labWith(db, studentId, simulation, lab, "running", new Date());
-    return { labId, lab, simulation };
+    const placed = await labWith(db, studentId, simulation, lab, "running", new Date());
+    return { ...placed, lab, simulation };
   } finally {
     await db.destroy();
   }
 }
 
 /**
- * Stores a lab of another student in a finished simulation, which the journey's student is not
- * in, and returns its id. Finished, since only one simulation runs at a time (#386).
+ * Stores a lab of another student, which the journey's student is not in, and returns its id:
+ * in the running simulation `simulationId` when given (R-01: a classmate's lab next door), or
+ * else in a simulation of its own that is finished, since only one runs at a time (#386).
  */
-export async function seedForeignLab(suffix: string): Promise<string> {
+export async function seedForeignLab(suffix: string, simulationId?: string): Promise<string> {
   const other = await copyAccount("student@example.test", "records-other");
   const db = database();
   try {
-    const { labId } = await labWith(
-      db,
-      other.id,
-      `Foreign ${suffix}`,
-      `Foreign lab ${suffix}`,
-      "finished",
-      new Date(),
-    );
+    if (simulationId === undefined) {
+      const { labId } = await labWith(
+        db,
+        other.id,
+        `Foreign ${suffix}`,
+        `Foreign lab ${suffix}`,
+        "finished",
+        new Date(),
+      );
+      return labId;
+    }
+    const { id: labId } = await db
+      .insertInto("labs")
+      .values({ simulation_id: simulationId, name: `Foreign lab ${suffix}` })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await db
+      .insertInto("lab_members")
+      .values({
+        simulation_id: simulationId,
+        lab_id: labId,
+        user_id: other.id,
+        joined_via: "email",
+      })
+      .execute();
     return labId;
   } finally {
     await db.destroy();
