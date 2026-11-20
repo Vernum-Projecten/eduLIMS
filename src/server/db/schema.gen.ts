@@ -282,6 +282,7 @@ export interface ResultEhrWrites {
   contribution_uid: string;
   created_at: Generated<Timestamp>;
   last_error: string | null;
+  lease_id: string | null;
   measurement_id: string;
   next_attempt_at: Generated<Timestamp>;
   state: Generated<string>;

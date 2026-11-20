@@ -6,6 +6,7 @@
 // `result_ehr_writes` row with it; after the commit eduLIMS writes the Final composition and
 // marks the row written. A write that fails, or runs past its budget, leaves the row pending, and
 // the retry schedule takes it up with a growing pause: never skipped, never reported as written.
+// Each attempt leases its row first and records its outcome under that lease (#382).
 import "@tanstack/react-start/server-only";
 import { type Kysely, sql } from "kysely";
 import { parsePatientId, parseRequestId } from "../../lib/lab-records.ts";
@@ -28,8 +29,16 @@ import {
   writeFinalLabResult,
 } from "../openehr/lab-result-writer.ts";
 import { failureCause, logFailure, logSecurityEvent } from "../security-log.ts";
-import { findStudentLab } from "../simulations/student-access.ts";
+import { findWorkingStudentLab } from "../simulations/student-access.ts";
 import { done, type ResultsActor, type ResultsResult, refused } from "./access.ts";
+import {
+  dueWrites,
+  type ResultWriteLease,
+  recordFailure,
+  recordWritten,
+  takeLease,
+  writeState,
+} from "./ehr-write-lease.ts";
 
 /** Where a released result stands in the patient's record, as the release reports it. */
 export type ResultEhrState = PatientRecordState;
@@ -44,18 +53,19 @@ export interface ResultWriteDeps {
 }
 
 // NOTE: no openEHR spec governs these: our own design (#148). The release waits at most 5 s for
-// the EHR and 5 s for the write; the schedule leases a row for 5 minutes and pauses after the
-// n-th failure 2^n minutes, at most an hour.
+// the EHR and 5 s for the write; a retry run takes up to 20 due writes, one lease at a time.
 export const RELEASE_EHR_BUDGET_MS = 5_000;
 export const RESULT_WRITE_BUDGET_MS = 5_000;
 export const RESULT_WRITE_BATCH = 20;
-const LEASE = sql`interval '5 minutes'`;
-const MAX_PAUSE_MINUTES = 60;
+
+/** The `last_error` of an attempt that threw, which is logged as `ferroehr_result_failed`. */
+export const UNEXPECTED_ERROR_CODE = "unexpected";
 
 /**
  * Makes sure the patient of a patient request has its EHR before the release (#148, #364): a
- * member's request whose EHR stays pending is refused `ehr_pending` with an activity-log row.
- * Anything else passes on to the release, which checks the lab and the request itself.
+ * member's request in a running simulation whose EHR stays pending is refused `ehr_pending` with
+ * an activity-log row. Anything else, a simulation that does not run included, passes on to the
+ * release, which checks the lab and the request itself and refuses without asking FerroEHR.
  *
  * @throws AuthError 403 without the app role student.
  */
@@ -66,7 +76,9 @@ export async function ensureReleaseEhr(
   input: { labId: string; requestId: string; testId: string },
 ): Promise<ResultsResult<null>> {
   assertStudent(actor);
-  const lab = await findStudentLab(db, actor.id, input.labId);
+  // NOTE: #382; only a member of a running simulation makes eduLIMS resolve an EHR, so a finished
+  // one gets the release's `not_running` and FerroEHR is never asked.
+  const lab = await findWorkingStudentLab(db, actor.id, input.labId);
   const requestId = parseRequestId(input.requestId);
   if (lab === null || requestId === null) return done(null);
   const request = await db
@@ -92,23 +104,24 @@ export async function ensureReleaseEhr(
 
 /**
  * Writes the released result of `measurementId` to the patient's record and returns `written`,
- * or `pending` when it failed or ran past `budgetMs`. A write past the budget runs on and records
- * its own outcome; an unexpected error is logged as `ferroehr_result_failed` and leaves it pending.
+ * or `pending` when it failed or ran past `budgetMs`. It leases the pending row whatever its
+ * pause. A write past the budget runs on and records its own outcome; an unexpected error is
+ * logged as `ferroehr_result_failed` and leaves it pending.
  */
 export async function writeReleasedResult(
   deps: ResultWriteDeps,
   measurementId: MeasurementId,
   options: { budgetMs?: number } = { budgetMs: RESULT_WRITE_BUDGET_MS },
 ): Promise<"written" | "pending"> {
-  const attempt = attemptWrite(deps, measurementId).catch((error: unknown) => {
-    // NOTE: #148; the release has committed, so an error must not undo it or reach the team as a
-    // failed release: the row stays pending and the schedule tries again.
-    logFailure("ferroehr_result_failed", error, {
-      target_type: "measurement",
-      target_id: measurementId,
-    });
-    return "pending" as const;
-  });
+  const attempt = settle(
+    measurementId,
+    attemptWrite(deps, measurementId, { due: false }).then(async (outcome) => {
+      if (outcome !== "not_leased") return outcome;
+      const state = await writeState(deps.db, measurementId);
+      if (state === undefined) throw new Error(`no result write for measurement ${measurementId}`);
+      return state === "written" ? "written" : "pending";
+    }),
+  );
   if (options.budgetMs === undefined) return attempt;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const expired = new Promise<"pending">((resolve) => {
@@ -122,33 +135,38 @@ export async function writeReleasedResult(
 }
 
 /**
- * Takes up to `limit` pending writes whose pause is over, leases each, and writes them one by one
- * (the retry schedule). Returns how many it wrote and how many stay pending.
+ * Takes up to `limit` pending writes whose pause is over and writes them one by one, each under a
+ * lease taken just before its attempt (the retry schedule). A row another run took in the
+ * meantime is skipped. Returns how many it wrote and how many stay pending.
  */
 export async function runPendingResultWrites(
   deps: ResultWriteDeps,
   limit: number = RESULT_WRITE_BATCH,
 ): Promise<{ written: number; pending: number }> {
-  const claimed = await sql<{ measurement_id: string }>`
-    update result_ehr_writes set next_attempt_at = now() + ${LEASE}
-    where measurement_id in (
-      select measurement_id from result_ehr_writes
-      where state = 'pending' and next_attempt_at <= now()
-      order by next_attempt_at, measurement_id
-      limit ${limit}
-      for update skip locked)
-    returning measurement_id`.execute(deps.db);
   const tally = { written: 0, pending: 0 };
-  const ids = claimed.rows.map((row) => row.measurement_id).toSorted();
-  for (const id of ids) {
+  for (const id of await dueWrites(deps.db, limit)) {
     const measurementId = parseMeasurementId(id);
     if (measurementId === null) throw new Error(`result write ${id} has no measurement id`);
-    tally[await writeReleasedResult(deps, measurementId, {})] += 1;
+    const outcome = await settle(measurementId, attemptWrite(deps, measurementId, { due: true }));
+    if (outcome !== "not_leased") tally[outcome] += 1;
   }
   return tally;
 }
 
-/** The released measurement as the write needs it, with the state of its write. */
+/** Logs an error that escaped an attempt as `ferroehr_result_failed` and answers `pending`. */
+function settle<T>(measurementId: MeasurementId, attempt: Promise<T>): Promise<T | "pending"> {
+  return attempt.catch((error: unknown) => {
+    // NOTE: #148; the release has committed, so an error must not undo it or reach the team as a
+    // failed release: the row stays pending and the schedule tries again.
+    logFailure("ferroehr_result_failed", error, {
+      target_type: "measurement",
+      target_id: measurementId,
+    });
+    return "pending" as const;
+  });
+}
+
+/** The released measurement as the write needs it; `undefined` when no release names it. */
 async function loadRelease(db: Kysely<DB>, measurementId: MeasurementId) {
   return db
     .selectFrom("result_ehr_writes as w")
@@ -163,7 +181,6 @@ async function loadRelease(db: Kysely<DB>, measurementId: MeasurementId) {
     .innerJoin("samples as s", "s.id", "m.sample_id")
     .innerJoin("catalogue_tests as t", "t.id", "m.test_id")
     .select([
-      "w.state",
       "m.source",
       "m.recorded_at",
       sql<string>`m.value::text`.as("value"),
@@ -203,23 +220,48 @@ export function deviceOfSource(measurement: { source: MeasurementSource }): Resu
   }
 }
 
-/** One attempt: the EHR, the composition, and the row marked written or failed. */
+/**
+ * One attempt under a lease taken just before it: `not_leased` when the row is not pending (or,
+ * with `due`, not due). An error inside it is recorded as {@link UNEXPECTED_ERROR_CODE} with its
+ * pause, and passed on to be logged only when the row's error code changed.
+ */
 async function attemptWrite(
   deps: ResultWriteDeps,
   measurementId: MeasurementId,
+  options: { due: boolean },
+): Promise<"written" | "pending" | "not_leased"> {
+  const lease = await takeLease(deps.db, measurementId, options);
+  if (lease === null) return "not_leased";
+  try {
+    return await writeUnderLease(deps, measurementId, lease);
+  } catch (error) {
+    const recorded = await recordFailure(deps.db, measurementId, lease, UNEXPECTED_ERROR_CODE);
+    // NOTE: #382; a write that keeps failing logs once per error code: the same error again is
+    // counted on the row with its pause and not logged a second time.
+    if (recorded !== "same") throw error;
+    return "pending";
+  }
+}
+
+/** The EHR, the composition, and the row marked written or failed, all under `lease`. */
+async function writeUnderLease(
+  deps: ResultWriteDeps,
+  measurementId: MeasurementId,
+  lease: ResultWriteLease,
 ): Promise<"written" | "pending"> {
+  const fail = (code: string, error?: LabResultWriteError) =>
+    failed(deps.db, measurementId, lease, code, error);
   const row = await loadRelease(deps.db, measurementId);
-  if (!row) throw new Error(`no released result to write for measurement ${measurementId}`);
-  if (row.state === "written") return "written";
+  if (!row) return fail("release:missing");
   const patientId = row.patient_id === null ? null : parsePatientId(row.patient_id);
   const requestId = parseRequestId(row.request_id);
   if (patientId === null || requestId === null || row.released_at === null) {
-    throw new Error(`measurement ${measurementId} is no released result of a patient`);
+    return fail("release:no_patient");
   }
   const source = parseMeasurementSource(row.source);
-  if (source === undefined) throw new Error(`measurement ${measurementId} has an unknown source`);
+  if (source === undefined) return fail("release:unknown_source");
   const ehr = await ensurePatientEhr(deps.db, deps.client, patientId);
-  if (ehr.state === "pending") return failed(deps.db, measurementId, "ehr_pending");
+  if (ehr.state === "pending") return fail("ehr_pending");
   const outcome = await writeFinalLabResult(
     deps.client,
     {
@@ -240,26 +282,17 @@ async function attemptWrite(
     },
     deps.settings,
   );
-  if (outcome.outcome === "failed") {
-    return failed(deps.db, measurementId, errorCode(outcome.error), outcome.error);
+  if (outcome.outcome === "failed") return fail(errorCode(outcome.error), outcome.error);
+  // NOTE: #382; a lost lease means another run holds the row and finds this contribution by its
+  // uid, so FerroEHR holds the result either way and only the holder records it.
+  if (await recordWritten(deps.db, measurementId, lease, outcome.versionUid)) {
+    logSecurityEvent("info", "ferroehr_result_written", {
+      outcome: "success",
+      target_type: "measurement",
+      target_id: measurementId,
+      kind: outcome.committed,
+    });
   }
-  await deps.db
-    .updateTable("result_ehr_writes")
-    .set({
-      state: "written",
-      version_uid: outcome.versionUid,
-      written_at: sql`now()`,
-      last_error: null,
-    })
-    .where("measurement_id", "=", measurementId)
-    .where("state", "=", "pending")
-    .execute();
-  logSecurityEvent("info", "ferroehr_result_written", {
-    outcome: "success",
-    target_type: "measurement",
-    target_id: measurementId,
-    kind: outcome.committed,
-  });
   return "written";
 }
 
@@ -282,23 +315,18 @@ export function errorCode(error: LabResultWriteError): string {
   }
 }
 
-/** Records a failed attempt with its pause, logs it with ids only, and returns `pending`. */
+/**
+ * Records a failed attempt under `lease` with its pause, logs it with ids only when its error
+ * code changed, and returns `pending`.
+ */
 async function failed(
   db: Kysely<DB>,
   measurementId: MeasurementId,
+  lease: ResultWriteLease,
   code: string,
   error?: LabResultWriteError,
 ): Promise<"pending"> {
-  await db
-    .updateTable("result_ehr_writes")
-    .set({
-      attempts: sql`attempts + 1`,
-      last_error: code,
-      next_attempt_at: sql`now() + least(power(2, attempts) * interval '1 minute', ${sql.lit(MAX_PAUSE_MINUTES)} * interval '1 minute')`,
-    })
-    .where("measurement_id", "=", measurementId)
-    .where("state", "=", "pending")
-    .execute();
+  if ((await recordFailure(db, measurementId, lease, code)) !== "changed") return "pending";
   const cause = error?.kind === "openehr" && "cause" in error.error ? error.error.cause : undefined;
   logSecurityEvent("error", "ferroehr_result_pending", {
     outcome: "failure",

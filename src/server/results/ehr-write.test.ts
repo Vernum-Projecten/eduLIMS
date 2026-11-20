@@ -14,7 +14,8 @@ import { recordRequest } from "../lab-records/requests.ts";
 import { AuthError } from "../middleware.ts";
 import { finalResultContributionUid } from "../openehr/contribution.ts";
 import { success } from "../openehr/errors.ts";
-import { auditRows, securityLines } from "../simulations/test-helpers.ts";
+import { finishSimulation } from "../simulations/state.ts";
+import { auditRows, NOW, securityLines } from "../simulations/test-helpers.ts";
 import { ensureReleaseEhr, writeReleasedResult } from "./ehr-write.ts";
 import { releaseResult } from "./release.ts";
 import {
@@ -94,6 +95,32 @@ describe("the EHR before a release (#148, #364)", () => {
       });
     }
     expect(client.getEhrBySubject).not.toHaveBeenCalled();
+  });
+
+  it("asks FerroEHR nothing in a finished simulation, and the release refuses not_running (#382, D10)", async () => {
+    const { database, w } = await open();
+    await database.updateTable("patients").set({ ehr_id: null }).execute();
+    const id = await measure(database, w, "5.3");
+    const finished = await finishSimulation(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId },
+      NOW,
+    );
+    expect(finished.ok).toBe(true);
+    const { client } = ferroEhr();
+    expect(await ensureReleaseEhr(database, client, w.student, input(w, id))).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect(await releaseResult(database, w.student, input(w, id))).toEqual({
+      ok: false,
+      error: "not_running",
+    });
+    expect(client.getEhrBySubject).not.toHaveBeenCalled();
+    expect(client.createEhr).not.toHaveBeenCalled();
+    const reasons = (await auditRows(database, "lab_result_released")).map((r) => r.reason_code);
+    expect(reasons).not.toContain("ehr_pending");
   });
 
   it("asks nothing for a control request, which has no patient (S16)", async () => {
