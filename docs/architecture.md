@@ -351,7 +351,8 @@ student's place and a waiting address point at their lab through the pair
   refuses any commit that leaves an existing simulation without a teacher
   row, stay as the last line.
 - **Deleting.** A lab can be deleted with its waiting addresses and its
-  code once no student is in it, and a simulation only while no student is in
+  code once no student is in it and it holds no patient or request
+  (`has_records`, maintainer, 2026-11-20), and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.
 - **The administrator** reads each simulation with its teachers' names and
   its labs with their member counts, and nothing else (B5). The list in
@@ -385,8 +386,9 @@ A team's records from the paper request form live in the eduLIMS database
   request through the pair (id, lab), so no row can name another lab's
   patient or request. Every key cascades with its lab.
 - **Access.** Every write starts with `findWorkingStudentLab` in its own
-  transaction, so the simulation row stays locked `FOR SHARE` until the write
-  commits and a finish cannot overtake it. A member of a lab in a simulation
+  transaction, so the simulation row and the student's place stay locked
+  `FOR SHARE` until the write commits: a finish cannot overtake it, and a
+  removal or move that commits first leaves the waiting write no row. A member of a lab in a simulation
   that does not run gets `not_running`; anyone else gets `not_found`, and the
   probe goes to the security log. Every read joins the student's own
   `lab_members` row. Only a teacher of the simulation reads the correction
@@ -394,12 +396,19 @@ A team's records from the paper request form live in the eduLIMS database
 - **The time of entry** is the database clock of the transaction that stores
   the request: a trigger sets it on insert, whatever the insert carries, and
   refuses any change to it (G-01, Q-SIM-2).
+- **What a form check refuses:** a missing required field, a date that is no
+  date, a text past its bound, a control or format character (the remarks
+  keep tab and line breaks), and a date of birth after today in
+  Europe/Amsterdam by the database clock (maintainer, 2026-11-20). Nothing
+  is checked against the scenario, and a second patient with the same
+  patient ID in a lab is allowed.
 - **The lab number** is ten digits: nine from `crypto.randomInt`, the first
   never zero, and a Damm check digit. A database function checks the digit
   in a CHECK, and a unique constraint holds it across every simulation; a
   drawn number that is taken is drawn again (`on conflict do nothing`), and
-  five collisions in a row fail loud. A sample number has no unique key: a
-  lab may record the same one twice (a second tube).
+  five collisions in a row fail loud. A trigger refuses any change to a
+  sample's lab number. A sample number has no unique key: a lab may record
+  the same one twice (a second tube).
 - **Corrections** are allowed until a requested test of the request, or of
   one of the patient's requests, has a time of release. A correction locks
   the request or patient `FOR UPDATE` (a patient correction also reads the

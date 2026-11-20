@@ -7,6 +7,7 @@
 // released, and leaves a correction row for the teacher (maintainer, 2026-11-19 on #268).
 import "@tanstack/react-start/server-only";
 import { type Kysely, sql, type Transaction } from "kysely";
+import { APP_TIME_ZONE } from "../../lib/i18n/format.ts";
 import { type PatientId, type PatientSex, parsePatientId } from "../../lib/lab-records.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
@@ -38,13 +39,31 @@ export interface RegisteredPatient {
   ehr: PatientEhrSubject;
 }
 
-/** Registers a patient in the actor's lab (S11) and logs `lab_patient_registered` with ids. */
+/**
+ * Returns whether `dateOfBirth` (`YYYY-MM-DD`) lies after today in {@link APP_TIME_ZONE}, by the
+ * clock of the database server in the caller's transaction.
+ */
+export async function bornAfterToday(trx: Kysely<DB>, dateOfBirth: string): Promise<boolean> {
+  // NOTE: maintainer, 2026-11-20 on #268; a real LIMS refuses a birth date in the future,
+  // which is a check of the date, never of the scenario (W7).
+  const result = await sql<{ future: boolean }>`
+    select ${dateOfBirth}::date > (now() at time zone ${APP_TIME_ZONE})::date as future`.execute(
+    trx,
+  );
+  return result.rows[0]?.future === true;
+}
+
+/**
+ * Registers a patient in the actor's lab (S11) and logs `lab_patient_registered` with ids. A
+ * date of birth after today is refused (`birth_in_future`).
+ */
 export function registerPatient(
   db: Kysely<DB>,
   actor: RecordsActor,
   input: { labId: string } & PatientDetails,
 ): Promise<RecordsResult<RegisteredPatient>> {
   return withWorkingLab(db, actor, input.labId, async (trx, lab) => {
+    if (await bornAfterToday(trx, input.dateOfBirth)) return refused("birth_in_future");
     const row = await trx
       .insertInto("patients")
       .values({
@@ -126,7 +145,7 @@ export interface CorrectionOutcome {
 
 /**
  * Corrects a patient of the actor's lab (S11): refused once a result of one of its requests is
- * released (`released`). The fields that differ are written with a correction row and logged as
+ * released (`released`), and a date of birth after today (`birth_in_future`). The fields that differ are written with a correction row and logged as
  * `lab_patient_corrected` with ids; a correction that changes nothing writes nothing.
  */
 export function correctPatient(
@@ -150,6 +169,7 @@ export function correctPatient(
       await recordAudit(trx, { ...event, outcome: "refused", reason: "released" });
       return refused("released");
     }
+    if (await bornAfterToday(trx, input.dateOfBirth)) return refused("birth_in_future");
     const changes: CorrectionChange[] = plainChanges(
       ["name", "date_of_birth", "sex", "identifier"],
       patient,

@@ -1058,6 +1058,7 @@
   "labs_empty_body": "Maak de labs van deze simulatie aan en voeg dan hun studenten toe.",
   "labs_empty_title": "Nog geen labs",
   "labs_error_email_not_found": "Dit adres wacht niet meer op dit lab.",
+  "labs_error_has_records": "Dit lab bevat patiënten of aanvragen en kan daarom niet worden verwijderd. De gegevens blijven voor het dashboard.",
   "labs_error_in_other_lab": "Je zit al in een ander lab van deze simulatie.",
   "labs_error_invalid_code": "Deze code werkt niet. Controleer hem bij je docent.",
   "labs_error_join_code_exists": "Dit lab heeft al een code. Vervang hem of zet hem uit.",

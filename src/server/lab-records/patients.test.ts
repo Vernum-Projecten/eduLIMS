@@ -4,14 +4,14 @@
 // Registering and correcting a patient (S11) on a real database: stored as typed, within the
 // student's own lab of a running simulation, correctable until the first release with a
 // correction row for the teacher, and logged with ids only (E4). Every other caller is refused.
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
 import { finishSimulation } from "../simulations/state.ts";
 import { auditRows, NOW, securityLines, world } from "../simulations/test-helpers.ts";
-import { correctPatient, registerPatient } from "./patients.ts";
+import { bornAfterToday, correctPatient, registerPatient } from "./patients.ts";
 import { PATIENT, patientIn, recordsWorld, release, requestFor } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
@@ -155,6 +155,61 @@ describe("registering a patient (S11)", () => {
       error: "not_running",
     });
     expect(await patients(database)).toEqual([]);
+  });
+});
+
+/** Returns today plus `days` in Europe/Amsterdam by the database clock, as `YYYY-MM-DD`. */
+async function amsterdamDay(database: Kysely<DB>, days: number): Promise<string> {
+  const result = await sql<{ day: string }>`
+    select to_char((now() at time zone 'Europe/Amsterdam')::date + ${days}::int, 'YYYY-MM-DD')
+      as day`.execute(database);
+  const day = result.rows[0]?.day;
+  if (day === undefined) throw new Error("no day");
+  return day;
+}
+
+describe("a date of birth after today (S11; maintainer, 2026-11-20 on #268)", () => {
+  it("takes today and yesterday in Europe/Amsterdam, and refuses tomorrow", async () => {
+    const { db: database, w } = await open();
+    const register = async (days: number) =>
+      registerPatient(database, w.student, {
+        labId: w.labId,
+        ...PATIENT,
+        dateOfBirth: await amsterdamDay(database, days),
+      });
+    expect((await register(-1)).ok).toBe(true);
+    expect((await register(0)).ok).toBe(true);
+    expect(await register(1)).toEqual({ ok: false, error: "birth_in_future" });
+    expect(await patients(database)).toHaveLength(2);
+  });
+
+  it("agrees with the day in Europe/Amsterdam on both sides of today", async () => {
+    const { db: database } = await open();
+    const amsterdam = await amsterdamDay(database, 0);
+    expect(await bornAfterToday(database, amsterdam)).toBe(false);
+    const tomorrow = await amsterdamDay(database, 1);
+    expect(await bornAfterToday(database, tomorrow)).toBe(true);
+  });
+
+  it("refuses a correction to a date after today, and changes nothing", async () => {
+    const { db: database, w } = await open();
+    const patientId = await patientIn(database, w.student, w.labId);
+    expect(
+      await correctPatient(database, w.student, {
+        labId: w.labId,
+        patientId,
+        ...PATIENT,
+        dateOfBirth: await amsterdamDay(database, 1),
+      }),
+    ).toEqual({ ok: false, error: "birth_in_future" });
+    expect(
+      await correctPatient(database, w.student, {
+        labId: w.labId,
+        patientId,
+        ...PATIENT,
+        dateOfBirth: await amsterdamDay(database, 0),
+      }),
+    ).toEqual({ ok: true, value: { changed: 1 } });
   });
 });
 

@@ -120,7 +120,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     )
     .addCheckConstraint(
       "requests_remarks",
-      sql`remarks is null or (remarks = btrim(remarks) and char_length(remarks) between 1 and ${sql.lit(REMARKS_MAX)})`,
+      sql`remarks is null or (remarks = btrim(remarks) and char_length(remarks) between 1 and ${sql.lit(REMARKS_MAX)} and remarks !~ '[\\x01-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]')`,
     )
     .execute();
   await db.schema
@@ -207,6 +207,20 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .on("samples")
     .columns(["request_id", "created_at"])
     .execute();
+  // NOTE: S12, R-11 (security review of #351, N2); the team typed the lab number on the
+  // analyser, so changing it would send a result to another sample.
+  await sql`
+    create function samples_lab_number_fixed() returns trigger language plpgsql as $$
+    begin
+      if new.lab_number is distinct from old.lab_number then
+        raise exception 'the lab number of a sample never changes'
+          using errcode = 'check_violation', constraint = 'samples_lab_number_fixed';
+      end if;
+      return new;
+    end $$`.execute(db);
+  await sql`
+    create trigger samples_lab_number_fixed before update on samples
+    for each row execute function samples_lab_number_fixed()`.execute(db);
 
   await db.schema
     .createTable("record_corrections")
@@ -257,6 +271,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropTable("record_corrections").execute();
   await db.schema.dropTable("samples").execute();
+  await sql`drop function samples_lab_number_fixed()`.execute(db);
   await db.schema.dropTable("request_tests").execute();
   await db.schema.dropTable("requests").execute();
   await sql`drop function requests_entered_at()`.execute(db);

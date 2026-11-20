@@ -262,6 +262,57 @@ describe("the database rules of the records (E5)", () => {
     ).rejects.toThrow(/time of entry/);
   });
 
+  it("refuses any change of a sample's lab number (S12, R-11; review of #351, N2)", async () => {
+    const { db: database, w, patientId } = await open();
+    const recorded = await requestFor(database, w.student, w.labId, patientId, [w.hba1c]);
+    const other = await requestFor(database, w.student, w.labId, patientId, [w.crp]);
+    const sampleId = recorded.samples[0]?.id ?? "";
+    await expect(
+      database.transaction().execute((trx) =>
+        trx
+          .updateTable("samples")
+          .set({ lab_number: other.samples[0]?.labNumber ?? "" })
+          .where("id", "=", sampleId)
+          .execute(),
+      ),
+    ).rejects.toThrow(/lab number of a sample never changes/);
+    await database
+      .updateTable("samples")
+      .set({ material: "serum" })
+      .where("id", "=", sampleId)
+      .execute();
+    const row = await database
+      .selectFrom("samples")
+      .select(["lab_number", "material"])
+      .where("id", "=", sampleId)
+      .executeTakeFirstOrThrow();
+    expect(row).toEqual({ lab_number: recorded.samples[0]?.labNumber, material: "serum" });
+  });
+
+  it("keeps a line break in the remarks and refuses a control character (S1)", async () => {
+    const { db: database, w, patientId } = await open();
+    const recorded = await requestFor(database, w.student, w.labId, patientId, [w.hba1c], {
+      remarks: "Fasting.\nHaemolysed.",
+    });
+    const stored = await database
+      .selectFrom("requests")
+      .select("remarks")
+      .where("id", "=", recorded.requestId)
+      .executeTakeFirstOrThrow();
+    expect(stored.remarks).toBe("Fasting.\nHaemolysed.");
+    for (const bad of ["\u000b", "\u001b", "\u007f"]) {
+      await expect(
+        database.transaction().execute((trx) =>
+          trx
+            .updateTable("requests")
+            .set({ remarks: `Bad${bad}remark` })
+            .where("id", "=", recorded.requestId)
+            .execute(),
+        ),
+      ).rejects.toThrow(/requests_remarks/);
+    }
+  });
+
   it("refuses a lab number twice and a lab number with a wrong check digit", async () => {
     const { db: database, w, patientId } = await open();
     const recorded = await requestFor(database, w.student, w.labId, patientId, [w.hba1c]);

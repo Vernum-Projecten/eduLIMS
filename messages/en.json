@@ -1058,6 +1058,7 @@
   "labs_empty_body": "Create the labs of this simulation, then add their students.",
   "labs_empty_title": "No labs yet",
   "labs_error_email_not_found": "This address no longer waits for this lab.",
+  "labs_error_has_records": "This lab holds patients or requests, so it cannot be deleted. Its records stay for the dashboard.",
   "labs_error_in_other_lab": "You are already in another lab of this simulation.",
   "labs_error_invalid_code": "This code does not work. Check it with your teacher.",
   "labs_error_join_code_exists": "This lab already has a code. Replace it or turn it off.",
