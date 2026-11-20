@@ -12,9 +12,11 @@ import { MembersSection } from "@/components/simulations/members-section";
 import { SimulationNotFound, simulationPageTitle } from "@/components/simulations/not-found";
 import { PastePanel } from "@/components/simulations/paste-panel";
 import { WaitingSection } from "@/components/simulations/waiting-section";
+import { LabTolerancesSection } from "@/components/tolerances/lab-tolerances-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/i18n/messages";
 import { joinCodeQueryOptions, labPageQueryOptions } from "@/server/simulations/query-options";
+import { labTolerancesQueryOptions } from "@/server/tolerances/query-options";
 
 export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId/labs/$labId")({
   loader: async ({ context, params }) => {
@@ -23,9 +25,12 @@ export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId
     );
     // A lab of another simulation under this simulation's address is not this page.
     if (page.simulation.id !== params.simulationId) throw notFound();
-    await context.queryClient.ensureQueryData(
-      joinCodeQueryOptions(params.simulationId, params.labId),
-    );
+    await Promise.all([
+      context.queryClient.ensureQueryData(joinCodeQueryOptions(params.simulationId, params.labId)),
+      context.queryClient.ensureQueryData(
+        labTolerancesQueryOptions(params.simulationId, params.labId),
+      ),
+    ]);
     return { crumb: page.name, simulation: page.simulation.name };
   },
   head: ({ loaderData, match }) => ({
@@ -68,6 +73,7 @@ function LabPage() {
       <PastePanel simulationId={page.simulation.id} labId={page.id} labName={page.name} />
       <WaitingSection page={page} busy={isFetching} />
       <JoinCodePanel simulationId={page.simulation.id} labId={page.id} labName={page.name} />
+      <LabTolerancesSection simulationId={page.simulation.id} labId={page.id} labName={page.name} />
     </Page>
   );
 }

@@ -183,6 +183,17 @@ export interface Labs {
   updated_at: Generated<Timestamp>;
 }
 
+export interface LabTolerances {
+  id: Generated<string>;
+  lab_id: string;
+  lower_limit: Numeric;
+  set_at: Generated<Timestamp>;
+  set_by: string | null;
+  simulation_id: string;
+  test_id: string;
+  upper_limit: Numeric;
+}
+
 export interface PendingAdminGrant {
   created_at: Generated<Timestamp>;
   email: string;
@@ -406,6 +417,7 @@ export interface DB {
   lab_join_codes: LabJoinCodes;
   lab_member_emails: LabMemberEmails;
   lab_members: LabMembers;
+  lab_tolerances: LabTolerances;
   labs: Labs;
   pending_admin_grant: PendingAdminGrant;
   scim_token: ScimToken;

@@ -20,7 +20,15 @@ import { findStudentLab, findWorkingStudentLab } from "../simulations/student-ac
 import { NOW, person, world } from "../simulations/test-helpers.ts";
 import { codeOf, context } from "../simulations/test-join.ts";
 import { handWrittenSources } from "../test-source-files.ts";
-import { SECRET_RED, SECRET_VALUE, SECRET_YELLOW, seedSecrets } from "./test-helpers.ts";
+import { setTolerance } from "../tolerances/actions.ts";
+import { readStudentTolerances } from "../tolerances/queries.ts";
+import {
+  catalogueTest,
+  SECRET_RED,
+  SECRET_VALUE,
+  SECRET_YELLOW,
+  seedSecrets,
+} from "./test-helpers.ts";
 
 /** A call of `createServerFn(` in code, wherever it stands. */
 const CALL = /\bcreateServerFn\(/g;
@@ -89,6 +97,8 @@ const STUDENT_REACHABLE: Record<string, string> = {
   "src/server/simulations/functions.ts#getMyLabs": "serialised below",
   "src/server/simulations/functions.ts#joinLabFn": "serialised below",
   "src/server/simulations/functions.ts#linkMyLabsFn": "serialised below",
+  "src/server/tolerances/functions.ts#getMyTolerancesFn": "serialised below",
+  "src/server/tolerances/functions.ts#setToleranceFn": "serialised below",
 };
 
 /** What must never appear in a student's response: the secrets in every written form. */
@@ -193,6 +203,29 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
     const { database, w, testId } = await open();
     expectClean(await findStudentLab(database, w.student.id, w.labId), testId);
     expectClean(await findWorkingStudentLab(database, w.student.id, w.labId), testId);
+  });
+
+  it("carries no secret in the lab's tolerance page or a set (getMyTolerancesFn, setToleranceFn)", async () => {
+    const { database, w, testId } = await open();
+    const plain = await catalogueTest(database, "Albumin (invented)");
+    const set = await setTolerance(database, w.student, {
+      labId: w.labId,
+      testId,
+      lower: "1",
+      upper: "2",
+    });
+    expect(set).toEqual({ ok: true, value: { changed: true } });
+    expectClean(set, testId);
+    const page = await readStudentTolerances(database, w.student, w.labId);
+    // NOTE: S13; the page lists the whole active catalogue, so the test with a correct value is
+    // there by its id like any other, with the same fields and nothing derived from its value.
+    const text = JSON.stringify(page);
+    for (const needle of NEEDLES) expect(text).not.toContain(needle);
+    const [secret, other] = [testId, plain].map((id) =>
+      Object.keys(page?.tests.find((test) => test.testId === id) ?? {}).sort(),
+    );
+    expect(secret).toEqual(other);
+    expect(secret).toEqual(["lower", "name", "setAt", "testId", "unit", "upper"]);
   });
 
   it("carries no secret in the administrator's read-only view either (B5)", async () => {
