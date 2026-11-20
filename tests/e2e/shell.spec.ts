@@ -103,13 +103,16 @@ test("a section shows its coming-soon state, and the breadcrumb and title follow
 }) => {
   await signInAs(page, "student");
   const nav = page.getByRole("navigation", { name: "Main menu" });
-  await nav.getByRole("link", { name: "Tolerances" }).click();
+  // NOTE: #273; the coming-soon state needs a section that is still a placeholder.
+  await nav.getByRole("link", { name: "Measurements and results" }).click();
 
-  await expect(page).toHaveURL(/\/student\/tolerances$/);
-  await expect(page).toHaveTitle("Tolerances | Student portal | eduLIMS");
-  await expect(page.getByRole("heading", { level: 1, name: "Tolerances" })).toBeVisible();
+  await expect(page).toHaveURL(/\/student\/results$/);
+  await expect(page).toHaveTitle("Measurements and results | Student portal | eduLIMS");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Measurements and results" }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Coming soon" })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "Tolerances" })).toHaveAttribute(
+  await expect(nav.getByRole("link", { name: "Measurements and results" })).toHaveAttribute(
     "aria-current",
     "page",
   );
@@ -120,7 +123,7 @@ test("a section shows its coming-soon state, and the breadcrumb and title follow
 
   const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
   await expect(breadcrumb.getByRole("link", { name: "Student portal" })).toBeVisible();
-  await expect(breadcrumb).toContainText("Tolerances");
+  await expect(breadcrumb).toContainText("Measurements and results");
   await expectNoA11yViolations(page);
 
   await breadcrumb.getByRole("link", { name: "Student portal" }).click();

@@ -45,6 +45,7 @@ export const SIMULATION_ACTION_ERRORS = [
   "value_not_found",
   "missing_limits",
   "running",
+  "lab_has_students",
 ] as const;
 export type SimulationActionError = (typeof SIMULATION_ACTION_ERRORS)[number];
 

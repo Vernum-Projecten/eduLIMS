@@ -195,6 +195,17 @@ export interface Labs {
   updated_at: Generated<Timestamp>;
 }
 
+export interface LabTolerances {
+  id: Generated<string>;
+  lab_id: string;
+  lower_limit: Numeric;
+  set_at: Generated<Timestamp>;
+  set_by: string | null;
+  simulation_id: string;
+  test_id: string;
+  upper_limit: Numeric;
+}
+
 export interface Patients {
   created_at: Generated<Timestamp>;
   created_by: string | null;
@@ -479,6 +490,7 @@ export interface DB {
   lab_logos: LabLogos;
   lab_member_emails: LabMemberEmails;
   lab_members: LabMembers;
+  lab_tolerances: LabTolerances;
   labs: Labs;
   patients: Patients;
   pending_admin_grant: PendingAdminGrant;

@@ -10,6 +10,7 @@ import { createTestDb } from "../db/test-db.ts";
 import { patientIn, recordsWorld, requestFor } from "../lab-records/test-helpers.ts";
 import { finishSimulation, startSimulation } from "../simulations/state.ts";
 import { NOW, world } from "../simulations/test-helpers.ts";
+import { runningWorld, studentSets } from "../tolerances/test-helpers.ts";
 import { updateTest } from "./actions.ts";
 import { testUsage, usageOf } from "./in-use.ts";
 import { readTestPage } from "./reads.ts";
@@ -125,5 +126,28 @@ describe("a test a lab's request names (D9, S12, #268)", () => {
     const hba1c = parseCatalogueTestId(w.hba1c);
     if (hba1c === null) throw new Error("catalogue_tests.id is not a UUID");
     expect(await usageOf(database, hba1c)).toBe("unused");
+  });
+});
+
+describe("a test a lab has a tolerance for (D9, S13; review of #352, S4)", () => {
+  it("is in use, so its unit cannot change, and running while its simulation runs", async () => {
+    const database = await createTestDb();
+    db = database;
+    const { w, testId: raw } = await runningWorld(database);
+    const testId = parseCatalogueTestId(raw);
+    if (testId === null) throw new Error("catalogue_tests.id is not a UUID");
+    expect(await usageOf(database, testId)).toBe("unused");
+    await studentSets(database, w, testId, "4", "6");
+    expect(await usageOf(database, testId)).toBe("running");
+    const ctx = { db: database, actor: w.teacher, now: NOW };
+    const test = {
+      name: "Creatinine (invented)",
+      unit: "mg/dL",
+      material: "plasma",
+      source: { kind: "manual" } as const,
+    };
+    expect(await updateTest(ctx, { testId, test })).toEqual({ ok: false, error: "in_use" });
+    await finishSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    expect(await usageOf(database, testId)).toBe("used");
   });
 });

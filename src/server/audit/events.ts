@@ -60,6 +60,7 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "lab_patient_corrected",
   "lab_request_recorded",
   "lab_request_corrected",
+  "lab_tolerance_set",
   "test_created",
   "test_changed",
   "test_retired",
@@ -219,10 +220,12 @@ export const auditMetadataSchema = z.strictObject({
   sessions_ended: z.number().int().min(0).optional(),
   /** The simulation a `lab_*` event belongs to (D10). */
   simulation_id: z.uuid().optional(),
-  /** The catalogue test a `simulation_value_*` or `simulation_limits_set` event is about (D10). */
+  /** The catalogue test a `simulation_value_*`, `simulation_limits_set` or `lab_tolerance_set` event is about (D10, S13). */
   test_id: z.uuid().optional(),
   /** The correct value a `simulation_value_*` event is about: its id, never the value (D10). */
   correct_value_id: z.uuid().optional(),
+  /** The tolerance a `lab_tolerance_set` event stored: its id, never its limits (S13). */
+  tolerance_id: z.uuid().optional(),
   /** The person a `simulation_teacher_*` or `lab_member_*` event is about: an id only. */
   user_id: z.string().min(1).max(128).optional(),
   /** The lab a `lab_member_moved` took the student from. */

@@ -113,6 +113,8 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   cannot_delete_self: m.admin_activity_reason_cannot_delete_self,
   last_admin: m.admin_activity_reason_last_admin,
   has_students: m.admin_activity_reason_has_students,
+  has_records: m.admin_activity_reason_has_records,
+  lab_has_students: m.admin_activity_reason_lab_has_students,
   in_other_lab: m.admin_activity_reason_in_other_lab,
   last_teacher: m.admin_activity_reason_last_teacher,
   only_simulation_teacher: m.admin_activity_reason_only_simulation_teacher,

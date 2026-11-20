@@ -12,20 +12,29 @@ import { MembersSection } from "@/components/simulations/members-section";
 import { SimulationNotFound, simulationPageTitle } from "@/components/simulations/not-found";
 import { PastePanel } from "@/components/simulations/paste-panel";
 import { WaitingSection } from "@/components/simulations/waiting-section";
+import { LabTolerancesSection } from "@/components/tolerances/lab-tolerances-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/i18n/messages";
 import { joinCodeQueryOptions, labPageQueryOptions } from "@/server/simulations/query-options";
+import { labTolerancesQueryOptions } from "@/server/tolerances/query-options";
+import { labPageSearch } from "@/server/tolerances/schemas";
 
 export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId/labs/$labId")({
-  loader: async ({ context, params }) => {
+  validateSearch: labPageSearch,
+  loaderDeps: ({ search }) => ({ changes: search.changes ?? 1 }),
+  loader: async ({ context, params, deps, cause }) => {
+    const tolerances = labTolerancesQueryOptions(params.simulationId, params.labId, deps.changes);
+    // Another page of changes keeps the page on screen while it loads (TanStack rule, lists).
+    if (cause === "stay") void context.queryClient.prefetchQuery(tolerances);
     const page = await context.queryClient.ensureQueryData(
       labPageQueryOptions(params.simulationId, params.labId),
     );
     // A lab of another simulation under this simulation's address is not this page.
     if (page.simulation.id !== params.simulationId) throw notFound();
-    await context.queryClient.ensureQueryData(
-      joinCodeQueryOptions(params.simulationId, params.labId),
-    );
+    await Promise.all([
+      context.queryClient.ensureQueryData(joinCodeQueryOptions(params.simulationId, params.labId)),
+      cause === "stay" ? undefined : context.queryClient.ensureQueryData(tolerances),
+    ]);
     return { crumb: page.name, simulation: page.simulation.name };
   },
   head: ({ loaderData, match }) => ({
@@ -57,6 +66,7 @@ function LabPending() {
 
 function LabPage() {
   const { simulationId, labId } = Route.useParams();
+  const { changes } = Route.useSearch();
   const { data: page, isFetching } = useSuspenseQuery(labPageQueryOptions(simulationId, labId));
   return (
     <Page
@@ -68,6 +78,12 @@ function LabPage() {
       <PastePanel simulationId={page.simulation.id} labId={page.id} labName={page.name} />
       <WaitingSection page={page} busy={isFetching} />
       <JoinCodePanel simulationId={page.simulation.id} labId={page.id} labName={page.name} />
+      <LabTolerancesSection
+        simulationId={page.simulation.id}
+        labId={page.id}
+        labName={page.name}
+        changesPage={changes ?? 1}
+      />
     </Page>
   );
 }
