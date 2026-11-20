@@ -357,9 +357,11 @@ The lab logo is an upload, held to the upload rules of the security baseline
 - **Who reads it:** `GET /api/labs/$labId/logo` answers a member of the lab
   and a teacher of its simulation, in the same query that reads the logo,
   with the stored type, `nosniff`, `Content-Disposition: inline` with a name
-  the server makes, a sandboxing CSP, `Cache-Control: private, no-cache` and
-  an ETag. Everyone else, an administrator and a signed-out caller included,
-  gets the same empty 404 as a lab without a logo.
+  the server makes from the stored type, a sandboxing CSP,
+  `Cross-Origin-Resource-Policy: same-origin` and `Cache-Control: no-store`
+  like every other response (#41). Everyone else, an administrator and a
+  signed-out caller included, gets the same empty 404 as a lab without a
+  logo.
 
 ### Template `eduLIMS-lab`
 

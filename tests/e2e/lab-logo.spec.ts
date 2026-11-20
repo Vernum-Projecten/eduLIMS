@@ -17,7 +17,6 @@ import { devLogin } from "./fixtures";
 import { appUrl } from "./run-env";
 
 const LOGO = png(12, 8);
-const ETAG = /^"[0-9a-f]{64}"$/;
 
 let labId = "";
 let teacher: TestAccount;
@@ -91,14 +90,11 @@ for (const who of ["student", "teacher"] as const) {
     expect(headers["content-type"]).toBe("image/png");
     expect(headers["x-content-type-options"]).toBe("nosniff");
     expect(headers["content-disposition"]).toBe('inline; filename="lab-logo.png"');
-    expect(headers["cache-control"]).toBe("private, no-cache");
+    expect(headers["cache-control"]).toBe("no-store");
     expect(headers["content-security-policy"]).toBe("default-src 'none'; sandbox");
-    expect(headers["etag"]).toMatch(ETAG);
+    expect(headers["cross-origin-resource-policy"]).toBe("same-origin");
+    expect(headers["etag"]).toBeUndefined();
     expect(new Uint8Array(await response.body())).toEqual(LOGO);
-    const again = await page.request.get(path(), {
-      headers: { "If-None-Match": headers["etag"] ?? "" },
-    });
-    expect(again.status()).toBe(304);
   });
 }
 

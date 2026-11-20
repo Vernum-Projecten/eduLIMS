@@ -317,7 +317,6 @@ describe("readLabLogo (S10, D10, D11, #280)", () => {
         content: Buffer.from(png(5, 5)),
         mediaType: "image/png",
         byteSize: png(5, 5).length,
-        sha256: createHash("sha256").update(png(5, 5)).digest("hex"),
       },
     });
   });

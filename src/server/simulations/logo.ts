@@ -149,7 +149,6 @@ export interface StoredLogo {
   content: Buffer;
   mediaType: LogoMediaType;
   byteSize: number;
-  sha256: string;
 }
 
 /**
@@ -180,15 +179,9 @@ export async function readLabLogo(
     "lab_logos.content",
     "lab_logos.media_type",
     "lab_logos.byte_size",
-    "lab_logos.sha256",
   ] as const;
   let row:
-    | {
-        content: Buffer | null;
-        media_type: string | null;
-        byte_size: number | null;
-        sha256: Buffer | null;
-      }
+    | { content: Buffer | null; media_type: string | null; byte_size: number | null }
     | undefined;
   if (hasRole(reader, "student")) {
     row = await studentLabsQuery(db, reader.id)
@@ -207,13 +200,10 @@ export async function readLabLogo(
       .executeTakeFirst();
   }
   if (row === undefined) return { access: false };
-  const { content, media_type, byte_size, sha256 } = row;
-  if (content === null || media_type === null || byte_size === null || sha256 === null) {
+  const { content, media_type, byte_size } = row;
+  if (content === null || media_type === null || byte_size === null) {
     return { access: true, logo: null };
   }
   if (!isLogoMediaType(media_type)) throw new Error("lab_logos.media_type is not a logo type");
-  return {
-    access: true,
-    logo: { content, mediaType: media_type, byteSize: byte_size, sha256: sha256.toString("hex") },
-  };
+  return { access: true, logo: { content, mediaType: media_type, byteSize: byte_size } };
 }

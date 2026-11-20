@@ -2,12 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import {
-  createNonce,
-  PRIVATE_REVALIDATE,
-  securityHeaders,
-  withSecurityHeaders,
-} from "./security-headers.ts";
+import { createNonce, securityHeaders, withSecurityHeaders } from "./security-headers.ts";
 
 describe("createNonce", () => {
   it("returns a fresh base64 value of 128 bits", () => {
@@ -65,24 +60,6 @@ describe("withSecurityHeaders", () => {
     const result = withSecurityHeaders(original, securityHeaders({ nonce: "n", production: true }));
     expect(result.headers.get("Cache-Control")).toBe("no-store");
   });
-
-  it("keeps a private cache that revalidates on every use, for the lab logo (#292)", () => {
-    const original = new Response(null, { headers: { "Cache-Control": PRIVATE_REVALIDATE } });
-    const result = withSecurityHeaders(original, securityHeaders({ nonce: "n", production: true }));
-    expect(result.headers.get("Cache-Control")).toBe("private, no-cache");
-  });
-
-  it.each(["private, max-age=600", "private", "no-cache", "private, no-cache, max-age=60"])(
-    "still replaces %s with no-store (#41)",
-    (policy) => {
-      const original = new Response(null, { headers: { "Cache-Control": policy } });
-      const result = withSecurityHeaders(
-        original,
-        securityHeaders({ nonce: "n", production: true }),
-      );
-      expect(result.headers.get("Cache-Control")).toBe("no-store");
-    },
-  );
 
   it("keeps the handler's cache policy outside production", () => {
     const original = new Response(null, { headers: { "Cache-Control": "max-age=60" } });

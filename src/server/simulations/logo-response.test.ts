@@ -4,7 +4,6 @@
 // The server route that serves a lab's logo (S10, D10, D11, Q-SEC-2, #292): the image with its
 // headers to the lab's members and its simulation's teachers, and the same empty 404 to everyone
 // else, an administrator and a signed-out caller included, with the refusal logged.
-import { createHash } from "node:crypto";
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { SessionUser } from "../authz.ts";
@@ -12,7 +11,7 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { jpeg, png } from "../logo/test-images.ts";
 import { setLabLogo } from "./logo.ts";
-import { labLogoResponse, matchesEtag, type SessionReader } from "./logo-response.ts";
+import { labLogoResponse, type SessionReader } from "./logo-response.ts";
 import { NOW, type Person, securityLines, type World, world } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
@@ -23,7 +22,6 @@ afterEach(async () => {
 });
 
 const LOGO = png(6, 3);
-const ETAG = `"${createHash("sha256").update(LOGO).digest("hex")}"`;
 
 async function withLogo(bytes: Uint8Array = LOGO): Promise<{ database: Kysely<DB>; w: World }> {
   const database = await createTestDb();
@@ -59,13 +57,12 @@ describe("GET /api/labs/$labId/logo (#292)", () => {
     const response = await labLogoResponse(database, get(w.labId), w.labId, as(w.student));
     expect(response.status).toBe(200);
     expect(Object.fromEntries(response.headers)).toEqual({
-      "cache-control": "private, no-cache",
+      "cache-control": "no-store",
       "content-disposition": 'inline; filename="lab-logo.png"',
       "content-length": String(LOGO.length),
       "content-security-policy": "default-src 'none'; sandbox",
       "content-type": "image/png",
       "cross-origin-resource-policy": "same-origin",
-      etag: ETAG,
       "x-content-type-options": "nosniff",
     });
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(LOGO);
@@ -84,30 +81,21 @@ describe("GET /api/labs/$labId/logo (#292)", () => {
     expect(response.status).toBe(200);
   });
 
-  it("answers 304 to a browser that holds the same logo, after the access check", async () => {
+  it("answers a conditional request with the whole logo: no ETag, no 304 (#41)", async () => {
     const { database, w } = await withLogo();
-    const cached = get(w.labId, { "if-none-match": ETAG });
-    const response = await labLogoResponse(database, cached, w.labId, as(w.student));
-    expect(response.status).toBe(304);
-    expect(response.headers.get("etag")).toBe(ETAG);
-    expect(response.headers.get("cache-control")).toBe("private, no-cache");
-    expect(await response.text()).toBe("");
-    const outsider = await labLogoResponse(database, cached, w.labId, as(w.outsideStudent));
-    expect(outsider.status).toBe(404);
+    const conditional = get(w.labId, { "if-none-match": "*" });
+    const response = await labLogoResponse(database, conditional, w.labId, as(w.student));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("etag")).toBeNull();
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(LOGO);
   });
 
-  it("serves the new logo after a replacement: the ETag follows the content", async () => {
+  it("serves the new logo after a replacement", async () => {
     const { database, w } = await withLogo();
     const second = png(9, 9);
     await setLabLogo(database, w.teacher, { labId: w.labId, bytes: second }, NOW);
-    const response = await labLogoResponse(
-      database,
-      get(w.labId, { "if-none-match": ETAG }),
-      w.labId,
-      as(w.student),
-    );
-    expect(response.status).toBe(200);
-    expect(response.headers.get("etag")).not.toBe(ETAG);
+    const response = await labLogoResponse(database, get(w.labId), w.labId, as(w.student));
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(second);
   });
 
   const refused: [string, (w: World) => Person][] = [
@@ -176,19 +164,5 @@ describe("GET /api/labs/$labId/logo (#292)", () => {
     });
     expect(response?.status).toBe(404);
     expect(lines).toEqual([expect.objectContaining({ target_id: "redacted" })]);
-  });
-});
-
-describe("matchesEtag (RFC 9110 §13.1.2)", () => {
-  it.each<[string | null, boolean]>([
-    [null, false],
-    ['"abc"', true],
-    ['W/"abc"', true],
-    ['"x", "abc"', true],
-    ["*", true],
-    ['"abd"', false],
-    ["abc", false],
-  ])("reads %j as %s", (header, expected) => {
-    expect(matchesEtag(header, '"abc"')).toBe(expected);
   });
 });
