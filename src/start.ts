@@ -32,6 +32,15 @@ const jsonBodyLimitMiddleware = createMiddleware().server(
 );
 
 /**
+ * Returns the path of the Gen5 upload's server function. Exported, so the client build keeps the
+ * module of the upload's functions: Start registers a server function on the server only when
+ * the client build references it, and their screen (#157) does not exist yet (#156, #400).
+ */
+export function gen5UploadPath(): string {
+  return uploadGen5Fn.url;
+}
+
+/**
  * Refuses a form sent to a server function before its body is read, when it is too large. The
  * Gen5 upload's function takes its larger form from a signed-in caller only, a few at a time
  * (#156; security review of #400, S1).
@@ -39,7 +48,7 @@ const jsonBodyLimitMiddleware = createMiddleware().server(
 const formBodyLimitMiddleware = createMiddleware().server(
   async ({ next, request, handlerType }) => {
     if (handlerType !== "serverFn") return next();
-    if (!isGen5UploadCall(new URL(request.url).pathname, uploadGen5Fn.url)) {
+    if (!isGen5UploadCall(new URL(request.url).pathname, gen5UploadPath())) {
       return refuseFormBody(request) ?? next();
     }
     const { getSessionUser } = await import("@/server/session");

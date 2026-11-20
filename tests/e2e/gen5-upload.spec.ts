@@ -44,15 +44,32 @@ async function onDb<T>(work: (db: Kysely<DB>) => Promise<T>): Promise<T> {
   }
 }
 
-/** The id the build gave `uploadGen5Fn`, read from the server bundle `pnpm start` serves. */
+/** The `.mjs` files of the server build, in every folder the bundler may put a chunk in. */
+function serverModules(dir = join(".output", "server")): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return serverModules(path);
+    return entry.name.endsWith(".mjs") ? [path] : [];
+  });
+}
+
+/**
+ * The path the build gave `uploadGen5Fn`, read from the server bundle `pnpm start` serves. The
+ * function has no screen yet, so the bundler may place it in any chunk, and Start adds `_<n>` to an
+ * id it has already handed out; both are accepted.
+ */
 function uploadFnPath(): string {
-  const dir = join(".output", "server", "_ssr");
-  const pattern = /id: "([0-9a-f]{64})",\s+name: "uploadGen5Fn"/;
-  for (const file of readdirSync(dir).filter((name) => name.endsWith(".mjs"))) {
-    const match = pattern.exec(readFileSync(join(dir, file), "utf8"));
+  const pattern = /id:\s*"([0-9a-f]{64}(?:_\d+)?)",\s*name:\s*"uploadGen5Fn"/;
+  const named: string[] = [];
+  for (const file of serverModules()) {
+    const source = readFileSync(file, "utf8");
+    const match = pattern.exec(source);
     if (match?.[1]) return `/_serverFn/${match[1]}`;
+    if (source.includes("uploadGen5Fn")) named.push(file);
   }
-  throw new Error("The build has no uploadGen5Fn; run pnpm build first.");
+  throw new Error(
+    `The build has no uploadGen5Fn id; files naming it: ${named.join(", ") || "none"}. Run pnpm build first.`,
+  );
 }
 
 /** A good invented export padded with a stored entry to exactly `total` bytes. */

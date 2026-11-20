@@ -399,6 +399,10 @@ whose reader is not registered this way (`reader_not_registered`), and a
 released Epoch 2 result names the reader by its serial number from the
 register, never from the file (maintainer on #400).
 
+The server reads at most 2 Gen5 uploads of one student and 4 in all at once,
+and refuses the next with 429. Both caps count per server process: a
+deployment that runs several eduLIMS replicas allows that many per replica.
+
 ## Migrations
 
 `edulims-migrate` runs before the server on every `docker compose up`: the

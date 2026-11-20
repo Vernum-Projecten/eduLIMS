@@ -11,7 +11,8 @@ import { FORM_BODY_MAX, GEN5_FORM_BODY_MAX, refuseFormBody } from "../form-body-
 import { BODY_REFUSAL_HEADERS } from "../json-body-limit.ts";
 
 // NOTE: no requirement governs these: our own design (security review of #400, S1). Two let a
-// student retry while one upload is slow; four bound the buffered bodies to about 21 MiB.
+// student retry while one upload is slow, four bound the buffered bodies to about 21 MiB, and
+// both count per server process, so a deployment of several replicas allows as many per replica.
 /** The most Gen5 upload bodies one user may have in flight at once. */
 export const UPLOADS_PER_USER = 2;
 /** The most Gen5 upload bodies one server process reads at once. */

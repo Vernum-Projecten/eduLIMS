@@ -980,7 +980,8 @@ anonymous call keeps the logo's limit, so its body is refused unread. A
 signed-in caller also needs a free slot: at most 2 uploads of one user and 4
 in the process are read at once, and the next is refused 429 with
 `Connection: close` before its body is read (our own design). Four uploads in
-flight bound the buffered bodies to about 21 MiB. The parser then
+flight bound the buffered bodies to about 21 MiB. Both caps count per server
+process, so a deployment of several replicas allows as many per replica. The parser then
 refuses a file over 5 MiB before it reads anything else, and an archive that
 declares more than 40 MiB unpacked before it unpacks any entry
 ([the Gen5 export contract](gen5-export.md)). The parse is synchronous, so
