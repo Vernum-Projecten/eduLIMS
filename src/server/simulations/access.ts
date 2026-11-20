@@ -28,6 +28,7 @@ export const SIMULATION_ACTION_ERRORS = [
   "last_teacher",
   "teacher_not_found",
   "has_students",
+  "has_records",
   "member_not_found",
   "same_lab",
   "email_not_found",
