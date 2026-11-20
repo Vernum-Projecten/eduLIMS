@@ -113,8 +113,10 @@ export function CorrectionLogSection({ simulationId }: Readonly<{ simulationId: 
                   <TableCell className="whitespace-normal break-words">{entry.labName}</TableCell>
                   <TableCell className="whitespace-normal break-words">
                     {entry.target.kind === "patient"
-                      ? m.records_log_patient()
-                      : m.records_log_request()}
+                      ? m.records_log_patient({ name: entry.target.name })
+                      : m.records_log_request({
+                          numbers: entry.target.labNumbers.map(formatLabNumber).join(", "),
+                        })}
                   </TableCell>
                   <TableCell className="whitespace-normal break-words">
                     {entry.correctedBy ?? m.records_log_gone()}

@@ -29,6 +29,8 @@ export function recordsErrorMessage(code: RecordsActionError | null): string {
       return m.records_error_released();
     case "requester_required":
       return m.records_requester_required();
+    case "birth_in_future":
+      return m.records_error_birth_in_future();
     case null:
       return m.records_error_failed();
     default: {

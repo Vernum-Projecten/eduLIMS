@@ -22,6 +22,7 @@ import { sexLabel } from "@/lib/i18n/records-labels";
 import { PATIENT_IDENTIFIER_MAX, PATIENT_NAME_MAX, PATIENT_SEXES } from "@/lib/lab-records";
 import { correctPatientFn, registerPatientFn } from "@/server/lab-records/functions";
 import type { PatientRow } from "@/server/lab-records/queries";
+import { recordsErrorCode } from "@/server/lab-records/query-options";
 import { type PatientDetailsForm, patientDetailsSchema } from "@/server/lab-records/schemas";
 import { recordsRefusal, useRecordsAction } from "./use-records-action";
 
@@ -64,7 +65,13 @@ export function PatientDialog({
           await register.mutateAsync({ ...details, labId });
         }
       } catch (error) {
-        applyServerRefusal(formApi, { form: recordsRefusal(error) });
+        const message = recordsRefusal(error);
+        applyServerRefusal(
+          formApi,
+          recordsErrorCode(error) === "birth_in_future"
+            ? { fields: { dateOfBirth: message } }
+            : { form: message },
+        );
         return;
       }
       formApi.reset(EMPTY);
@@ -116,8 +123,8 @@ export function PatientDialog({
                   <field.TextField
                     label={m.records_patient_birth()}
                     description={m.records_patient_birth_help()}
+                    type="date"
                     autoComplete="off"
-                    inputMode="numeric"
                   />
                 )}
               </form.AppField>

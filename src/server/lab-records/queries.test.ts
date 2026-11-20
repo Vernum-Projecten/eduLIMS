@@ -142,7 +142,7 @@ describe("readCorrectionLog (S11, S12, D10)", () => {
         expect.objectContaining({
           labId: w.labId,
           labName: "Pipette Pilots",
-          target: { kind: "patient", patientId },
+          target: { kind: "patient", patientId, name: "Ada Corrected" },
           correctedBy: "Test student-1",
           changes: [{ field: "name", before: PATIENT.name, after: "Ada Corrected" }],
         }),
@@ -168,6 +168,14 @@ describe("readCorrectionLog (S11, S12, D10)", () => {
     });
     const log = await readCorrectionLog(database, w.teacher, w.simulationId);
     expect(log?.testNames).toEqual({ [w.hba1c]: "HbA1c (invented)", [w.crp]: "CRP (invented)" });
+    // A request is named by the lab numbers of its samples (maintainer, 2026-11-20).
+    expect(log?.entries.map((entry) => entry.target)).toEqual([
+      {
+        kind: "request",
+        requestId: recorded.requestId,
+        labNumbers: recorded.samples.map((sample) => sample.labNumber),
+      },
+    ]);
   });
 
   it("returns an empty log for a simulation without corrections", async () => {

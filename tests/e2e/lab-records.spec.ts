@@ -40,22 +40,34 @@ test("a team registers a patient, records and corrects a request, and copies a l
   await expect(page.getByText("No patients yet", { exact: true })).toBeVisible();
   await axe(page);
 
-  // Registering: a missing field and a date that is no date are named at their fields.
+  // Registering: the missing fields are named at their fields.
   await page.getByRole("button", { name: "Register a patient" }).click();
   const patientDialog = page.getByRole("dialog", { name: "Register a patient" });
-  await patientDialog.getByLabel("Date of birth").fill("1984-02-30");
   await patientDialog.getByRole("button", { name: "Register a patient" }).click();
   await expect(
     patientDialog.getByText("Enter the patient's name as it stands on the form."),
   ).toBeVisible();
-  await expect(
-    patientDialog.getByText("Enter the date of birth as a date, for example 1984-03-21."),
-  ).toBeVisible();
+  await expect(patientDialog.getByText("Enter the date of birth.")).toBeVisible();
   await axe(page);
   await patientDialog.getByLabel("Name").fill("Bo Invented");
-  await patientDialog.getByLabel("Date of birth").fill("1984-02-03");
+
+  // The date of birth is the browser's date input, typed with the keyboard; a date after today
+  // is refused by the server at its field (maintainer, 2026-11-20).
+  const birth = patientDialog.getByLabel("Date of birth");
+  await expect(birth).toHaveAttribute("type", "date");
+  await patientDialog.getByLabel("Name").press("Tab");
+  await expect(birth).toBeFocused();
+  // Day and month alike, so the order of the segments in the browser's locale does not matter.
+  await page.keyboard.type("11112099");
+  await expect(birth).toHaveValue("2099-11-11");
   await patientDialog.getByRole("radio", { name: "Male", exact: true }).check();
   await patientDialog.getByLabel("Patient ID").fill("PID-E2E-1");
+  await patientDialog.getByRole("button", { name: "Register a patient" }).click();
+  await expect(
+    patientDialog.getByText("The date of birth lies after today. Check it against the form."),
+  ).toBeVisible();
+  await axe(page);
+  await birth.fill("1984-02-03");
   await patientDialog.getByRole("button", { name: "Register a patient" }).click();
   await expect(patientDialog).toHaveCount(0);
   await expect(page.getByRole("rowheader", { name: "Bo Invented" })).toBeVisible();
@@ -134,6 +146,10 @@ test("a team registers a patient, records and corrects a request, and copies a l
   const log = teacher.getByRole("table", { name: "Corrections" });
   await expect(log.getByRole("cell", { name: seeded.lab })).toBeVisible();
   await expect(log.getByText(/Sample added:/)).toBeVisible();
+  // The log names the request by its lab numbers (maintainer, 2026-11-20).
+  await expect(
+    log.getByRole("cell", { name: /^Request with lab number \d{3} \d{3} \d{4}/ }),
+  ).toBeVisible();
   await axe(teacher);
   await teacher.context().close();
 });
