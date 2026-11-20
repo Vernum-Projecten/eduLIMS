@@ -149,9 +149,18 @@ export async function getSimulationReadiness(
       students,
       correctValues: values,
       // Ordered by id, as the start's own read orders them.
-      missingLimits: missing.map((test) => test.id).sort(),
+      missingLimits: missing.map((test) => test.id).sort(byCodeUnit),
     }),
   };
+}
+
+/**
+ * Orders lowercase UUIDs as PostgreSQL orders the `uuid` type: by code unit, never by locale, so
+ * the ids match the order of the start's own read ({@link startRefusal}).
+ */
+function byCodeUnit(a: string, b: string): number {
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
 }
 
 /**
