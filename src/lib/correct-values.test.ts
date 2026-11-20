@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { parseLimitKind, parsePastedGrid } from "./correct-values.ts";
+import { GRID_TEXT_MAX, parseLimitKind, parsePastedGrid } from "./correct-values.ts";
 
 const GLUCOSE = "0190a000-0000-7000-8000-000000000001";
 const UREA = "0190a000-0000-7000-8000-000000000002";
@@ -34,7 +34,9 @@ describe("parsePastedGrid (D10, #401)", () => {
   });
 
   it("refuses an unknown, an empty and a repeated test at its header, never creating one", () => {
-    const grid = parsePastedGrid(`Sample\tAlbumin\t\tGlucose\tglucose\nS-1\t1\t2\t3\t4`, TESTS);
+    // Four test columns stay under the column cap with four tests in the catalogue.
+    const four = [...TESTS, { id: "t-3", name: "Albumin III" }, { id: "t-4", name: "Albumin IV" }];
+    const grid = parsePastedGrid(`Sample\tAlbumin\t\tGlucose\tglucose\nS-1\t1\t2\t3\t4`, four);
     expect(grid.problems).toEqual([
       { kind: "header", column: 1, reason: "unknown_test", text: "Albumin" },
       { kind: "header", column: 2, reason: "empty_test", text: "" },
@@ -68,6 +70,23 @@ describe("parsePastedGrid (D10, #401)", () => {
       reason: "unknown_test",
       text: `${"X".repeat(40)}…`,
     });
+  });
+
+  it("quotes an unknown test name without format or control characters (security review of #408)", () => {
+    const [problem] = parsePastedGrid("Sample\tAlb\u202Eumin\u200B", TESTS).problems;
+    expect(problem).toEqual({ kind: "header", column: 1, reason: "unknown_test", text: "Albumin" });
+  });
+
+  it("refuses a paste longer than its cap, reading nothing", () => {
+    const grid = parsePastedGrid(`Sample\tGlucose\n${"S".repeat(GRID_TEXT_MAX)}`, TESTS);
+    expect(grid.problems).toEqual([{ kind: "grid", reason: "too_long" }]);
+    expect(grid.rows).toEqual([]);
+  });
+
+  it("refuses more test columns than the catalogue has tests", () => {
+    const grid = parsePastedGrid("Sample\tGlucose\tUrea\tExtra\nS-1\t1\t2\t3", TESTS);
+    expect(grid.problems).toEqual([{ kind: "grid", reason: "too_many_columns" }]);
+    expect(grid.rows).toEqual([]);
   });
 
   it("reads nothing from an empty paste", () => {

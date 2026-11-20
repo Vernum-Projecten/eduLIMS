@@ -105,7 +105,12 @@ describe("the paste of a grid (D10, #401)", () => {
   });
 
   it("counts the parts that do not read, which the preview marks", () => {
-    expect(messages(schema.safeParse({ text: "Sample\tAlbumin\tGlucose\nS-1\t1\tx" }))).toEqual([
+    // Two tests in the catalogue, so two test columns stay under the column cap.
+    const two = gridPasteSchema([
+      { id: TEST, name: "Glucose" },
+      { id: ID, name: "Urea" },
+    ]);
+    expect(messages(two.safeParse({ text: "Sample\tAlbumin\tGlucose\nS-1\t1\tx" }))).toEqual([
       "2 parts of the paste need a fix. They are marked in the preview.",
     ]);
     expect(messages(schema.safeParse({ text: "Sample\tAlbumin\nS-1\t1" }))).toEqual([
@@ -121,6 +126,12 @@ describe("the paste of a grid (D10, #401)", () => {
     ]);
   });
 
+  it("names a cap at the field, not as a part of the preview", () => {
+    expect(messages(schema.safeParse({ text: "Sample\tGlucose\tUrea\nS-1\t1\t2" }))).toEqual([
+      "The paste has more test columns than the catalogue has tests. Check the first row.",
+    ]);
+  });
+
   it("words every problem", () => {
     const problems: GridProblem[] = [
       { kind: "header", column: 1, reason: "unknown_test", text: "Albumin" },
@@ -130,6 +141,8 @@ describe("the paste of a grid (D10, #401)", () => {
       { kind: "row", row: 1, reason: "repeated_sample" },
       { kind: "row", row: 1, reason: "columns" },
       { kind: "cell", row: 1, column: 1, reason: "number" },
+      { kind: "grid", reason: "too_long" },
+      { kind: "grid", reason: "too_many_columns" },
     ];
     const words = problems.map(gridProblemMessage);
     expect(words[0]).toContain("Albumin");

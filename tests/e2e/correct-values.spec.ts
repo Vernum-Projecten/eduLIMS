@@ -60,7 +60,8 @@ async function createSimulation(page: Page, name: string): Promise<string> {
 function testHeader(page: Page, test: string) {
   return page
     .getByRole("region", { name: "Correct values per sample and test" })
-    .getByRole("columnheader", { name: new RegExp(`^${test}`) });
+    .getByRole("columnheader")
+    .filter({ has: page.getByRole("button", { name: `Set accuracy limits for ${test}` }) });
 }
 
 /** The cell of one test and sample in the grid, named by both (#401). */
@@ -135,18 +136,22 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   const pasteDialog = page.getByRole("dialog", { name: "Paste the grid" });
   const grid = pasteDialog.getByLabel("Grid to paste");
 
-  // An unknown test is refused at its header and a value that is no number at its cell; the
-  // preview marks both, and nothing is stored (WCAG 3.3.1).
-  await grid.fill(`Sample\t${testName}\tNo such test ${id}\nS-101\t5,250\t1\nS-102\tlow\t`);
+  // An unknown test is refused at its header, and a value that is no number at its cell; the
+  // preview marks each, and nothing is stored (WCAG 3.3.1). The paste takes no more test
+  // columns than the catalogue has tests, so each case is its own paste.
+  await grid.fill(`Sample\tNo such test ${id}\nS-101\t1`);
   await pasteDialog.getByRole("button", { name: "Save values" }).click();
   await expect(
-    pasteDialog.getByText("2 parts of the paste need a fix. They are marked in the preview."),
+    pasteDialog.getByText("1 part of the paste needs a fix. It is marked in the preview."),
   ).toBeVisible();
   const preview = pasteDialog.getByRole("region", { name: "Preview of the paste" });
   await expect(preview.getByRole("columnheader", { name: /No such test/ })).toContainText(
     `The catalogue has no active test named “No such test ${id}”.`,
   );
+  await grid.fill(`Sample\t${testName}\nS-101\t5,250\nS-102\tlow`);
+  await pasteDialog.getByRole("button", { name: "Save values" }).click();
   await expect(preview.getByRole("cell", { name: /^low/ })).toContainText("Enter a number");
+  await expect(preview.getByRole("cell", { name: /^5,250/ })).toContainText("(stored as 5.25)");
   await axe(page);
 
   // The fixed grid is stored in one write; an empty cell is not requested.
@@ -187,12 +192,40 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
     page
       .getByRole("main")
       .getByRole("status")
-      .filter({ hasText: `Saved ${testName} of sample S-101.` }),
+      .filter({ hasText: `Saved ${testName} of sample S-101: 5.3 mmol/L.` }),
   ).toBeVisible();
   await expect(s101).toBeFocused();
   // The arrow keys move between cells.
   await page.keyboard.press("ArrowDown");
   await expect(cell(page, testName, "S-102")).toBeFocused();
+
+  // An open editor with a refused value is axe-clean, and keeps focus in its field.
+  await page.keyboard.press("Enter");
+  const s102 = page.getByLabel(`Correct value of ${testName} for sample S-102`);
+  await expect(s102).toBeFocused();
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.type("low");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(/^Enter a number with at most 9 digits/)).toBeVisible();
+  await expect(s102).toBeFocused();
+  await axe(page);
+  await page.keyboard.press("Escape");
+  await expect(cell(page, testName, "S-102")).toBeFocused();
+
+  // The page and the paste dialog reflow at 320 px (WCAG 1.4.10).
+  await page.setViewportSize({ width: 320, height: 800 });
+  const overflow = () =>
+    page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  await page.getByRole("button", { name: "Paste values" }).click();
+  const narrowPaste = page.getByRole("dialog", { name: "Paste the grid" });
+  await narrowPaste.getByLabel("Grid to paste").fill(`Sample\t${testName}\nS-9\t1,5`);
+  await expect(narrowPaste.getByRole("region", { name: "Preview of the paste" })).toBeVisible();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  await narrowPaste.getByRole("button", { name: "Cancel" }).click();
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   // Before the limits, the overview names the test that blocks the start, and Start waits for
   // it, saying why beside the button; the checklist reads the server's verdict (#381).
@@ -221,7 +254,7 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await page.getByRole("link", { name: "Open correct values" }).first().click();
   await expect(page.getByRole("heading", { level: 1, name: "Correct values" })).toBeVisible();
   const section = testHeader(page, testName);
-  await expect(section).toContainText("No accuracy limits yet: this blocks the start.");
+  await expect(section).toContainText("No accuracy limits yet");
   await section.getByRole("button", { name: `Set accuracy limits for ${testName}` }).click();
   const limits = page.getByRole("dialog", { name: `Accuracy limits of ${testName}` });
   await limits.getByLabel("Yellow limit").fill("0,30");

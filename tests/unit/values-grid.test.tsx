@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // @vitest-environment jsdom
 
-// The correct values as one grid (#401, D10, D13): each cell named by its test and sample, Enter
-// edits and saves through the correct-value service, Escape cancels, an empty save clears a
-// value, the arrow keys move between cells; the paste dialog marks each part that does not read
-// at its header, row or cell before anything is stored. Server functions are mocked; every test,
-// sample and value is invented (Q-PRIV-4).
+// The correct values as one grid (#401, D10, D13) and the reviews of #408: one Tab stop with the
+// arrow keys, Home and End; Enter edits and saves, Escape or leaving the cell cancels; a clear
+// says the old value and can be undone; focus finds the nearest cell when its row goes; the
+// paste dialog marks every problem, past the first hundred rows too, shows each value as it
+// will be stored, refuses a paste over its caps, and sends only cells under known tests. Server
+// functions are mocked; every test, sample and value is invented (Q-PRIV-4).
 import { readFileSync } from "node:fs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { useGridPaste } from "@/components/correct-values/grid-paste";
-import { ValuesGrid } from "@/components/correct-values/values-grid";
-import { asCorrectValue } from "@/lib/correct-values";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { storedText, useGridPaste } from "@/components/correct-values/grid-paste";
+import { type GridStatus, ValuesGrid } from "@/components/correct-values/values-grid";
+import { asCorrectValue, GRID_TEXT_MAX, parsePastedGrid } from "@/lib/correct-values";
 import type { CorrectValuesPage } from "@/server/correct-values/queries";
 import { correctValuesQueryOptions } from "@/server/correct-values/query-options";
 
@@ -34,16 +35,12 @@ vi.mock("@tanstack/react-start", async (original) => ({
   ...(await original<typeof import("@tanstack/react-start")>()),
   useServerFn: <T,>(fn: T) => fn,
 }));
-vi.mock("@/lib/toast", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+const toasts = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
+vi.mock("@/lib/toast", () => ({ toast: toasts }));
 
-const { setCorrectValuesFn, removeCorrectValueFn } = await import(
+const { getCorrectValuesFn, setCorrectValuesFn, removeCorrectValueFn } = await import(
   "@/server/correct-values/functions"
 );
-
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
-});
 
 globalThis.ResizeObserver ??= class {
   observe() {}
@@ -54,13 +51,14 @@ globalThis.ResizeObserver ??= class {
 const SIM = "01960000-0000-7000-8000-000000000001";
 const GLU = "01960000-0000-7000-8000-0000000000a1";
 const URE = "01960000-0000-7000-8000-0000000000a2";
+const C1 = "01960000-0000-7000-8000-0000000000c1";
 
 const PAGE: CorrectValuesPage = {
   simulationId: SIM,
   state: "prepared",
   values: [
     {
-      id: "01960000-0000-7000-8000-0000000000c1",
+      id: C1,
       sampleNumber: "S-1",
       testId: GLU,
       value: asCorrectValue("5.2"),
@@ -91,18 +89,27 @@ const PAGE: CorrectValuesPage = {
   ],
 };
 
-function client(): QueryClient {
+const saved = vi.fn<(status: GridStatus) => void>();
+
+beforeEach(() => {
+  vi.mocked(getCorrectValuesFn).mockResolvedValue(PAGE);
+});
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+function client(page: CorrectValuesPage = PAGE): QueryClient {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { staleTime: Number.POSITIVE_INFINITY },
       mutations: { retry: false },
     },
   });
-  queryClient.setQueryData(correctValuesQueryOptions(SIM).queryKey, PAGE);
+  queryClient.setQueryData(correctValuesQueryOptions(SIM).queryKey, page);
   return queryClient;
 }
-
-const saved = vi.fn();
 
 function PasteHarness() {
   const paste = useGridPaste(SIM, saved);
@@ -114,69 +121,92 @@ function PasteHarness() {
   );
 }
 
-function renderGrid() {
+function renderGrid(page: CorrectValuesPage = PAGE) {
   return render(
-    <QueryClientProvider client={client()}>
-      <ValuesGrid simulationId={SIM} emptyAction={null} onSaved={saved} />
+    <QueryClientProvider client={client(page)}>
+      <h1 id="page-title" tabIndex={-1}>
+        Correct values
+      </h1>
+      <ValuesGrid
+        simulationId={SIM}
+        emptyAction={<button type="button">Paste values</button>}
+        onSaved={saved}
+      />
     </QueryClientProvider>,
   );
 }
 
-describe("ValuesGrid (#401)", () => {
-  it("shows samples as rows and tests as columns, the limits in the header", () => {
+const cell = (name: RegExp) => screen.getByRole("button", { name });
+
+function openEditor(name: RegExp, label: string): HTMLElement {
+  fireEvent.click(cell(name));
+  return screen.getByLabelText(label);
+}
+
+describe("ValuesGrid (#401, the reviews of #408)", () => {
+  it("shows samples as rows, tests as columns, and the limits in a second header row", () => {
     renderGrid();
     const grid = screen.getByRole("table");
     expect(within(grid).getByRole("rowheader", { name: "S-1" })).toBeDefined();
-    expect(within(grid).getByRole("columnheader", { name: /^Glucose/ }).textContent).toContain(
-      "No accuracy limits yet: this blocks the start.",
-    );
-    expect(within(grid).getByRole("columnheader", { name: /^Urea/ }).textContent).toContain(
-      "Yellow beyond 5%, red beyond 10%",
-    );
-    expect(screen.getByRole("button", { name: "Glucose of sample S-1: 5.2 mmol/L" })).toBeDefined();
-    expect(screen.getByRole("button", { name: "Urea of sample S-1: not requested" })).toBeDefined();
+    expect(within(grid).getByText("No accuracy limits yet")).toBeDefined();
+    expect(within(grid).getByText("Yellow beyond 5%, red beyond 10%")).toBeDefined();
+    expect(cell(/^Glucose of sample S-1: 5.2 mmol\/L$/)).toBeDefined();
+    expect(cell(/^Urea of sample S-1: no correct value$/)).toBeDefined();
     expect(
       screen.getByRole("region", { name: "Correct values per sample and test" }),
     ).toBeDefined();
+    expect(screen.getByText(/^Enter edits a cell and saves it/)).toBeDefined();
   });
 
-  it("moves between cells with the arrow keys", () => {
+  it("is one Tab stop, with the arrow keys, Home and End moving between cells", () => {
     renderGrid();
-    const first = screen.getByRole("button", { name: /^Glucose of sample S-1/ });
+    const reachable = screen
+      .getAllByRole("button")
+      .filter((button) => button.id.startsWith("values-grid-cell-") && button.tabIndex === 0);
+    expect(reachable).toHaveLength(1);
+    const first = cell(/^Glucose of sample S-1/);
     first.focus();
     fireEvent.keyDown(first, { key: "ArrowRight" });
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: /^Urea of sample S-1/ }),
-    );
+    expect(document.activeElement).toBe(cell(/^Urea of sample S-1/));
     fireEvent.keyDown(document.activeElement ?? first, { key: "ArrowDown" });
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: /^Urea of sample S-2/ }),
-    );
+    expect(document.activeElement).toBe(cell(/^Urea of sample S-2/));
+    fireEvent.keyDown(document.activeElement ?? first, { key: "Home" });
+    expect(document.activeElement).toBe(cell(/^Glucose of sample S-2/));
+    fireEvent.keyDown(document.activeElement ?? first, { key: "End" });
+    expect(document.activeElement).toBe(cell(/^Urea of sample S-2/));
+    expect(cell(/^Urea of sample S-2/).tabIndex).toBe(0);
+    expect(first.tabIndex).toBe(-1);
   });
 
-  it("edits a cell with Enter, cancels with Escape and returns focus to the cell", async () => {
+  it("names the instruction in the editor and cancels with Escape, focus back on the cell", async () => {
     renderGrid();
-    fireEvent.click(screen.getByRole("button", { name: /^Glucose of sample S-1/ }));
-    const field = screen.getByLabelText("Correct value of Glucose for sample S-1");
+    const field = openEditor(/^Glucose of sample S-1/, "Correct value of Glucose for sample S-1");
     await waitFor(() => expect(document.activeElement).toBe(field));
+    expect(field.getAttribute("aria-describedby")).toBeTruthy();
     fireEvent.change(field, { target: { value: "9" } });
     fireEvent.keyDown(field, { key: "Escape" });
+    await waitFor(() => expect(document.activeElement).toBe(cell(/^Glucose of sample S-1: 5.2/)));
+    expect(setCorrectValuesFn).not.toHaveBeenCalled();
+  });
+
+  it("cancels an edit when focus leaves the cell", async () => {
+    renderGrid();
+    const field = openEditor(/^Glucose of sample S-1/, "Correct value of Glucose for sample S-1");
+    fireEvent.change(field, { target: { value: "9" } });
+    fireEvent.focusOut(field, { relatedTarget: document.body });
     await waitFor(() =>
-      expect(document.activeElement).toBe(
-        screen.getByRole("button", { name: "Glucose of sample S-1: 5.2 mmol/L" }),
-      ),
+      expect(screen.queryByLabelText("Correct value of Glucose for sample S-1")).toBeNull(),
     );
     expect(setCorrectValuesFn).not.toHaveBeenCalled();
   });
 
-  it("saves a cell through the correct-value service, and refuses a value that is no number", async () => {
+  it("saves a cell, says what it saved in the status line, and sends no toast", async () => {
     vi.mocked(setCorrectValuesFn).mockResolvedValue({
       ok: true,
       value: { added: 1, changed: 0, unchanged: 0 },
     });
     renderGrid();
-    fireEvent.click(screen.getByRole("button", { name: /^Urea of sample S-1/ }));
-    const field = screen.getByLabelText("Correct value of Urea for sample S-1");
+    const field = openEditor(/^Urea of sample S-1/, "Correct value of Urea for sample S-1");
     fireEvent.change(field, { target: { value: "low" } });
     fireEvent.submit(field.closest("form") ?? field);
     expect(await screen.findByText(/^Enter a number with at most 9 digits/)).toBeDefined();
@@ -184,42 +214,102 @@ describe("ValuesGrid (#401)", () => {
     fireEvent.change(field, { target: { value: "6,5" } });
     fireEvent.submit(field.closest("form") ?? field);
     await waitFor(() =>
-      expect(setCorrectValuesFn).toHaveBeenCalledWith({
-        data: { simulationId: SIM, rows: [{ sampleNumber: "S-1", testId: URE, value: "6,5" }] },
-      }),
+      expect(saved).toHaveBeenCalledWith({ message: "Saved Urea of sample S-1: 6.5 mmol/L." }),
     );
-    // The page's status line says what was saved, beside the toast (WCAG 4.1.3).
-    await waitFor(() => expect(saved).toHaveBeenCalledWith("Saved Urea of sample S-1."));
+    expect(setCorrectValuesFn).toHaveBeenCalledWith({
+      data: { simulationId: SIM, rows: [{ sampleNumber: "S-1", testId: URE, value: "6,5" }] },
+    });
+    expect(toasts.success).not.toHaveBeenCalled();
   });
 
-  it("clears a stored value when the cell is saved empty", async () => {
-    vi.mocked(removeCorrectValueFn).mockResolvedValue({ ok: true, value: null });
+  it("keeps focus in the field when the server refuses the value", async () => {
+    vi.mocked(setCorrectValuesFn).mockResolvedValue({
+      ok: false,
+      error: "missing_limits",
+      testIds: [GLU],
+    });
     renderGrid();
-    fireEvent.click(screen.getByRole("button", { name: /^Glucose of sample S-1/ }));
-    const field = screen.getByLabelText("Correct value of Glucose for sample S-1");
+    const field = openEditor(/^Glucose of sample S-2/, "Correct value of Glucose for sample S-2");
+    fireEvent.change(field, { target: { value: "4" } });
+    fireEvent.submit(field.closest("form") ?? field);
+    expect(
+      await screen.findByText(
+        "Set the accuracy limits of Glucose before you start the simulation.",
+      ),
+    ).toBeDefined();
+    expect(document.activeElement).toBe(field);
+    expect(saved).not.toHaveBeenCalled();
+  });
+
+  it("clears a value with its old value in the status, Undo restores it, and focus finds a cell", async () => {
+    vi.mocked(removeCorrectValueFn).mockResolvedValue({ ok: true, value: null });
+    vi.mocked(setCorrectValuesFn).mockResolvedValue({
+      ok: true,
+      value: { added: 1, changed: 0, unchanged: 0 },
+    });
+    // The read after the clear: sample S-1 had one value, so its row is gone.
+    vi.mocked(getCorrectValuesFn).mockResolvedValue({
+      ...PAGE,
+      values: PAGE.values.filter((value) => value.id !== C1),
+    });
+    renderGrid();
+    const field = openEditor(/^Glucose of sample S-1/, "Correct value of Glucose for sample S-1");
     fireEvent.change(field, { target: { value: "" } });
     fireEvent.submit(field.closest("form") ?? field);
     await waitFor(() =>
       expect(removeCorrectValueFn).toHaveBeenCalledWith({
-        data: { simulationId: SIM, correctValueId: "01960000-0000-7000-8000-0000000000c1" },
+        data: { simulationId: SIM, correctValueId: C1 },
       }),
     );
-    await waitFor(() =>
-      expect(saved).toHaveBeenCalledWith("Glucose of sample S-1 is no longer requested."),
-    );
+    await waitFor(() => expect(saved).toHaveBeenCalled());
+    const status = saved.mock.calls[0]?.[0];
+    expect(status?.message).toBe("Correct value cleared: Glucose of sample S-1 (was 5.2 mmol/L).");
+    // The row went: focus moves to the cell that took its place (WCAG 2.4.3).
+    await waitFor(() => expect(screen.queryByRole("rowheader", { name: "S-1" })).toBeNull());
+    await waitFor(() => expect(document.activeElement).toBe(cell(/^Glucose of sample S-2/)));
+    await status?.undo?.();
+    expect(setCorrectValuesFn).toHaveBeenCalledWith({
+      data: { simulationId: SIM, rows: [{ sampleNumber: "S-1", testId: GLU, value: "5.2" }] },
+    });
+    expect(saved).toHaveBeenLastCalledWith({
+      message: "Restored Glucose of sample S-1: 5.2 mmol/L.",
+    });
+  });
+
+  it("shows the empty state with its action when the tests have no sample yet", () => {
+    renderGrid({ ...PAGE, values: [] });
+    expect(screen.getByText("No correct values yet")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Paste values" })).toBeDefined();
+    expect(screen.queryByRole("table")).toBeNull();
   });
 });
 
-describe("the paste of a grid (#401)", () => {
-  it("marks an unknown test at its header and a bad value at its cell, and stores nothing", async () => {
+describe("storedText (security review of #408, S1)", () => {
+  it("shows a pasted value as it will be stored when the two read otherwise", () => {
+    const [cellText] =
+      parsePastedGrid("Sample\tGlucose\nS-1\t1.234", PAGE.options).samples[0]?.cells ?? [];
+    expect(cellText).toBe("1.234");
+    expect(storedText(cellText ?? "", { locale: "nl" })).toBe("1,234");
+    expect(storedText(cellText ?? "", { locale: "en" })).toBeNull();
+    expect(storedText("1,5", { locale: "en" })).toBe("1.5");
+    expect(storedText("low", { locale: "en" })).toBeNull();
+  });
+});
+
+describe("the paste of a grid (#401, the reviews of #408)", () => {
+  async function openPaste(page: CorrectValuesPage = PAGE) {
     render(
-      <QueryClientProvider client={client()}>
+      <QueryClientProvider client={client(page)}>
         <PasteHarness />
       </QueryClientProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Paste values" }));
     const dialog = await screen.findByRole("dialog", { name: "Paste the grid" });
-    const field = within(dialog).getByLabelText("Grid to paste");
+    return { dialog, field: within(dialog).getByLabelText("Grid to paste") };
+  }
+
+  it("marks an unknown test at its header and a bad value at its cell, and sends nothing", async () => {
+    const { dialog, field } = await openPaste();
     fireEvent.change(field, { target: { value: "Sample\tAlbumin\tGlucose\nS-1\t1\tx" } });
     const preview = within(dialog).getByRole("region", { name: "Preview of the paste" });
     expect(within(preview).getByRole("columnheader", { name: /Albumin/ }).textContent).toContain(
@@ -237,21 +327,80 @@ describe("the paste of a grid (#401)", () => {
     expect(setCorrectValuesFn).not.toHaveBeenCalled();
   });
 
-  it("stores a grid that reads in one write", async () => {
+  it("sends no cell under an unknown column, even under readable rows", async () => {
+    // The parser keeps only cells under a known test; the schema then refuses the paste whole.
+    const grid = parsePastedGrid("Sample\tAlbumin\tGlucose\nS-1\t1\t2", PAGE.options);
+    expect(grid.rows).toEqual([{ sampleNumber: "S-1", testId: GLU, value: "2" }]);
+    const { dialog, field } = await openPaste();
+    fireEvent.change(field, { target: { value: "Sample\tAlbumin\tGlucose\nS-1\t1\t2" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save values" }));
+    expect(await within(dialog).findByText(/^1 part of the paste needs a fix/)).toBeDefined();
+    expect(setCorrectValuesFn).not.toHaveBeenCalled();
+  });
+
+  it("shows a problem past the first hundred rows (WCAG 3.3.1)", async () => {
+    const rows = Array.from({ length: 101 }, (_, n) =>
+      n === 100 ? `S-${n + 1}\tlow` : `S-${n + 1}\t1`,
+    );
+    const { dialog, field } = await openPaste();
+    fireEvent.change(field, { target: { value: ["Sample\tGlucose", ...rows].join("\n") } });
+    const preview = within(dialog).getByRole("region", { name: "Preview of the paste" });
+    expect(within(preview).getByRole("rowheader", { name: "S-101" })).toBeDefined();
+    expect(within(preview).getByRole("cell", { name: /^low/ }).textContent).toContain(
+      "Enter a number",
+    );
+  });
+
+  it("shows the value as it will be stored next to the pasted text", async () => {
+    const { dialog, field } = await openPaste();
+    fireEvent.change(field, { target: { value: "Sample\tGlucose\nS-1\t1,5" } });
+    const preview = within(dialog).getByRole("region", { name: "Preview of the paste" });
+    expect(within(preview).getByRole("cell", { name: /^1,5/ }).textContent).toBe(
+      "1,5 (stored as 1.5)",
+    );
+  });
+
+  it("refuses a paste over its length and its columns, naming the cap", async () => {
+    const { dialog, field } = await openPaste();
+    fireEvent.change(field, { target: { value: `Sample\tGlucose\n${"S".repeat(GRID_TEXT_MAX)}` } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save values" }));
+    expect(
+      await within(dialog).findByText(/^The paste is longer than 100000 characters/),
+    ).toBeDefined();
+    fireEvent.change(field, { target: { value: "Sample\tGlucose\tUrea\tExtra\nS-1\t1\t2\t3" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save values" }));
+    expect(
+      await within(dialog).findByText(/^The paste has more test columns than the catalogue/),
+    ).toBeDefined();
+    expect(setCorrectValuesFn).not.toHaveBeenCalled();
+  });
+
+  it("marks a test the running simulation refuses at its header and stays open", async () => {
+    vi.mocked(setCorrectValuesFn).mockResolvedValue({
+      ok: false,
+      error: "missing_limits",
+      testIds: [GLU],
+    });
+    const { dialog, field } = await openPaste();
+    fireEvent.change(field, { target: { value: "Sample\tGlucose\nS-3\t4" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save values" }));
+    const preview = within(dialog).getByRole("region", { name: "Preview of the paste" });
+    await waitFor(() =>
+      expect(within(preview).getByRole("columnheader", { name: /Glucose/ }).textContent).toContain(
+        "Set the accuracy limits of Glucose before you start the simulation.",
+      ),
+    );
+    expect(screen.getByRole("dialog", { name: "Paste the grid" })).toBe(dialog);
+    expect(saved).not.toHaveBeenCalled();
+  });
+
+  it("stores a grid that reads in one write and says so in the status line only", async () => {
     vi.mocked(setCorrectValuesFn).mockResolvedValue({
       ok: true,
       value: { added: 2, changed: 0, unchanged: 0 },
     });
-    render(
-      <QueryClientProvider client={client()}>
-        <PasteHarness />
-      </QueryClientProvider>,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Paste values" }));
-    const dialog = await screen.findByRole("dialog", { name: "Paste the grid" });
-    fireEvent.change(within(dialog).getByLabelText("Grid to paste"), {
-      target: { value: "Sample\tGlucose\tUrea\nS-3\t4,1\t\nS-4\t\t8" },
-    });
+    const { dialog, field } = await openPaste();
+    fireEvent.change(field, { target: { value: "Sample\tGlucose\tUrea\nS-3\t4,1\t\nS-4\t\t8" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save values" }));
     await waitFor(() =>
       expect(setCorrectValuesFn).toHaveBeenCalledWith({
@@ -266,7 +415,10 @@ describe("the paste of a grid (#401)", () => {
     );
     expect(setCorrectValuesFn).toHaveBeenCalledTimes(1);
     await waitFor(() =>
-      expect(saved).toHaveBeenCalledWith("Correct values saved: 2 added, 0 changed, 0 unchanged."),
+      expect(saved).toHaveBeenCalledWith({
+        message: "Correct values saved: 2 added, 0 changed, 0 unchanged.",
+      }),
     );
+    expect(toasts.success).not.toHaveBeenCalled();
   });
 });
