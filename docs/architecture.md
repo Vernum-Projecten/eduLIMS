@@ -648,9 +648,11 @@ A team's records from the paper request form live in the eduLIMS database
 - **Screens.** The Student portal has a Patients page and a Requests page
   (#380), each for the student's current lab, which the server picks (#379).
   A patient links to its requests and a request to its patient
-  (`?patient=`). The requests list shows every sample's lab number in groups
-  of three, three and four digits, and a request opens its details in a
-  sheet. The copy action copies the digits and says
+  (`?patient=`; a patient of no lab of the student's shows nothing but that
+  line). The requests list shows every sample's lab number in groups of
+  three, three and four digits; a request's name opens its details in a
+  sheet, whose footer corrects it. A badge with a lock marks a record a
+  released result locks. The copy action copies the digits and says
   so in a status region (WCAG 4.1.3). Writing is open only while the
   simulation runs. The date of birth is the browser's native date input,
   shown in the reader's locale and sent as `YYYY-MM-DD`. The correction log

@@ -3,17 +3,9 @@
 
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  FileTextIcon,
-  PanelRightOpenIcon,
-  PencilIcon,
-  PhoneIcon,
-  PlusIcon,
-  UserRoundIcon,
-} from "lucide-react";
-import { createContext, type MouseEvent, use, useMemo, useRef } from "react";
+import { FileTextIcon, PencilIcon, PhoneIcon, UserRoundIcon } from "lucide-react";
+import { useMemo, useRef } from "react";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
-import { PageFrame } from "@/components/shell/page-frame";
 import { RowActions } from "@/components/shell/row-actions";
 import { ListTable } from "@/components/simulations/list-table";
 import { Badge } from "@/components/ui/badge";
@@ -38,13 +30,7 @@ import type { StudentLabRow } from "@/server/simulations/queries";
 import { CopyAnnouncer, LabNumber } from "./lab-number";
 import { RequestDetailsSheet, requestTitle } from "./request-details-sheet";
 import { RequestDialog } from "./request-dialog";
-import {
-  AllRequestsLink,
-  RecordStatus,
-  RecordsActionButton,
-  RecordsContext,
-  RecordsFilter,
-} from "./student-records";
+import { ClearIcon, LockedBadge, patientFilter, RecordsPage, rowContext } from "./student-records";
 import { useRecordDialog } from "./use-record-dialog";
 
 /** A request in the list, with the name the list shows for it. */
@@ -59,14 +45,9 @@ interface RequestsTableContext {
   correct: (request: RequestRow, opener: HTMLElement | null) => void;
 }
 
-const TableContext = createContext<RequestsTableContext | null>(null);
+const [TableContext, useTableContext] = rowContext<RequestsTableContext>("requests");
 
-function useTableContext(): RequestsTableContext {
-  const context = use(TableContext);
-  if (context === null) throw new Error("a requests row renders outside its table");
-  return context;
-}
-
+/** The request's name, a button that opens its details, with its time of entry and badges. */
 function RequestCell({ request }: Readonly<{ request: RequestListRow }>) {
   const { details } = useTableContext();
   return (
@@ -75,20 +56,23 @@ function RequestCell({ request }: Readonly<{ request: RequestListRow }>) {
         type="button"
         variant="link"
         className="h-auto p-0 text-left font-medium break-words whitespace-normal"
-        onClick={(event: MouseEvent<HTMLButtonElement>) => details(request, event.currentTarget)}
+        onClick={(event) => details(request, event.currentTarget)}
       >
         {request.title}
       </Button>
-      <span className="text-muted-foreground text-sm">
+      <span className="font-normal text-muted-foreground text-sm">
         {m.records_entered_label()}{" "}
         <time dateTime={request.enteredAt}>{formatDateTime(request.enteredAt)}</time>
       </span>
-      {request.phoneThrough ? (
-        <Badge variant="outline">
-          <PhoneIcon aria-hidden="true" data-icon="inline-start" />
-          {m.records_phone_through()}
-        </Badge>
-      ) : null}
+      <span className="flex flex-wrap gap-1">
+        {request.phoneThrough ? (
+          <Badge variant="outline">
+            <PhoneIcon aria-hidden="true" data-icon="inline-start" />
+            {m.records_phone_through()}
+          </Badge>
+        ) : null}
+        <LockedBadge locked={request.locked} />
+      </span>
     </div>
   );
 }
@@ -99,6 +83,7 @@ const columns = helper.columns([
   helper.accessor("title", {
     id: "request",
     header: () => m.records_col_request(),
+    meta: { rowHeader: true },
     cell: ({ row }) => <RequestCell request={row.original} />,
   }),
   helper.accessor("tests", {
@@ -135,11 +120,6 @@ const columns = helper.columns([
       </ul>
     ),
   }),
-  helper.accessor("locked", {
-    id: "status",
-    header: () => m.records_col_status(),
-    cell: ({ row }) => <RecordStatus locked={row.original.locked} />,
-  }),
   helper.display({
     id: "actions",
     meta: { className: "w-12" },
@@ -148,15 +128,22 @@ const columns = helper.columns([
   }),
 ]);
 
+/**
+ * The row's menu: Correct until a result is released, and the request's patient. The name adds
+ * the time of entry, so two requests for one patient have two names (WCAG 2.4.6).
+ */
 function RequestRowActions({ request }: Readonly<{ request: RequestListRow }>) {
-  const { running, details, correct } = useTableContext();
+  const { running, correct } = useTableContext();
   const trigger = useRef<HTMLButtonElement>(null);
+  if (request.locked && request.patientId === null) return null;
   return (
-    <RowActions label={m.data_table_row_actions({ name: request.title })} triggerRef={trigger}>
-      <DropdownMenuItem onSelect={() => details(request, trigger.current)}>
-        <PanelRightOpenIcon aria-hidden="true" />
-        {m.records_view_details()}
-      </DropdownMenuItem>
+    <RowActions
+      label={m.records_request_actions({
+        title: request.title,
+        time: formatDateTime(request.enteredAt),
+      })}
+      triggerRef={trigger}
+    >
       {request.locked ? null : (
         <DropdownMenuItem disabled={!running} onSelect={() => correct(request, trigger.current)}>
           <PencilIcon aria-hidden="true" />
@@ -197,16 +184,16 @@ function RequestsEmpty({ patient }: Readonly<{ patient: string | undefined }>) {
 
 /**
  * The requests of the student's lab (S12, S16, #380): the list with each request's tests, its
- * samples with their lab numbers to copy, and whether it can still be corrected. Recording is
- * the page's one action; the details sheet, the correction and the patient sit in the row's
- * menu. With `patientId` the list shows that patient's requests, the target of the link from a
- * patient. Nothing of another lab and no correct value (Q-SIM-1).
+ * samples with their lab numbers to copy, and a badge on a request a released result locks.
+ * Recording is the page's one action; the request's name opens its details, and the correction
+ * and the patient sit in the row's menu. With `patientId` the list shows that patient's requests,
+ * and a new request starts with that patient. Nothing of another lab and no correct value
+ * (Q-SIM-1).
  */
 export function RequestsView({
   lab,
   patientId,
 }: Readonly<{ lab: StudentLabRow; patientId: string | undefined }>) {
-  const section = sectionOf("student", "requests");
   const { data: records, isFetching } = useSuspenseQuery(labRecordsQueryOptions(lab.labId));
   const { data: tests } = useSuspenseQuery(requestableTestsQueryOptions());
   const dialog = useRecordDialog<RequestRow>();
@@ -215,11 +202,12 @@ export function RequestsView({
     () => new Map(records.patients.map((patient) => [patient.id, patient.name])),
     [records.patients],
   );
-  const patient = records.patients.find((row) => row.id === patientId);
+  const filter = patientFilter(patientId, records.patients);
+  const chosen = filter.kind === "found" ? patientId : undefined;
   const rows = useMemo(
     () =>
       records.requests
-        .filter((request) => !patient || request.patientId === patient.id)
+        .filter((request) => chosen === undefined || request.patientId === chosen)
         .map((request) => ({
           ...request,
           title: requestTitle(
@@ -227,57 +215,65 @@ export function RequestsView({
             request.patientId ? names.get(request.patientId) : undefined,
           ),
         })),
-    [records.requests, patient, names],
+    [records.requests, chosen, names],
   );
   // The sheet reads the request from the cache, so a correction shows in it at once.
-  const shownId = sheet.row?.id;
-  const detail = records.requests.find((request) => request.id === shownId);
+  const detail = records.requests.find((request) => request.id === sheet.row?.id);
   const context: RequestsTableContext = {
     running: records.running,
     details: (request, opener) => sheet.openWith(opener, request),
     correct: (request, opener) => dialog.openWith(opener, request),
   };
   return (
-    <PageFrame
-      title={section.label()}
-      description={section.description()}
-      action={
-        <RecordsActionButton enabled={records.running} onOpen={(event) => dialog.openFrom(event)}>
-          <PlusIcon aria-hidden="true" data-icon="inline-start" />
-          {m.records_request_record()}
-        </RecordsActionButton>
+    <RecordsPage
+      section={sectionOf("student", "requests")}
+      lab={lab}
+      running={records.running}
+      action={m.records_request_record()}
+      onAction={(event) => dialog.openFrom(event)}
+      filter={filter}
+      filterText={(name) => m.records_requests_filter({ name })}
+      clearFilter={
+        <Link to="/student/requests">
+          <ClearIcon />
+          {m.records_show_all_requests()}
+        </Link>
       }
     >
-      <RecordsContext lab={lab.labName} simulation={lab.simulationName} running={records.running} />
-      {patient ? (
-        <RecordsFilter text={m.records_requests_filter({ name: patient.name })}>
-          <AllRequestsLink />
-        </RecordsFilter>
-      ) : null}
-      <CopyAnnouncer>
-        <TableContext value={context}>
-          <ListTable
-            columns={columns}
-            data={rows}
-            rowId={(row) => row.id}
-            caption={m.records_requests_caption({ lab: lab.labName })}
-            busy={isFetching}
-            empty={<RequestsEmpty patient={patient?.name} />}
-          />
-        </TableContext>
-      </CopyAnnouncer>
+      {filter.kind === "unknown" ? null : (
+        <CopyAnnouncer>
+          <TableContext value={context}>
+            <ListTable
+              columns={columns}
+              data={rows}
+              rowId={(row) => row.id}
+              caption={m.records_requests_caption({ lab: lab.labName })}
+              busy={isFetching}
+              empty={<RequestsEmpty patient={filter.kind === "found" ? filter.name : undefined} />}
+            />
+          </TableContext>
+        </CopyAnnouncer>
+      )}
       <RequestDialog
         key={dialog.key}
         control={dialog.control}
         records={records}
         tests={tests}
         request={dialog.row}
+        patientId={chosen}
       />
       <RequestDetailsSheet
         control={sheet.control}
         request={detail}
         patientName={detail?.patientId ? names.get(detail.patientId) : undefined}
+        running={records.running}
+        onCorrect={(request) => {
+          // The dialog takes the sheet's place, so its focus goes back to the sheet's opener.
+          const opener = sheet.opener();
+          sheet.control.onOpenChange(false);
+          dialog.openWith(opener, request);
+        }}
       />
-    </PageFrame>
+    </RecordsPage>
   );
 }

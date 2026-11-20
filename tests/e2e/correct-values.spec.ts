@@ -11,7 +11,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { copyAccount } from "./accounts";
 import { axe, dutch } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
-import { appUrl } from "./run-env";
+import { inEachLook, OTHER_LOOKS } from "./looks";
 
 const TEACHER = "teacher@example.test";
 
@@ -273,19 +273,8 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await page.keyboard.press("Escape");
 
   // Axe on the filled page in dark and in Dutch.
-  for (const [theme, locale] of [
-    ["dark", "en"],
-    ["light", "nl"],
-    ["dark", "nl"],
-  ] as const) {
-    await page.context().addCookies([
-      { name: "EDULIMS_THEME", value: theme, url: appUrl() },
-      { name: "EDULIMS_LOCALE", value: locale, url: appUrl() },
-    ]);
-    await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+  await inEachLook(page, OTHER_LOOKS, async (locale) => {
     const heading = locale === "nl" ? dutch("simulation_nav_values") : "Correct values";
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
-    await axe(page);
-  }
+  });
 });

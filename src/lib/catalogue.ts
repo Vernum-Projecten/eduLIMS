@@ -84,9 +84,10 @@ export const TEST_ANALYTE_MAX = 40;
 
 /**
  * Control and format characters (`\p{Cc}`, `\p{Cf}`: NUL, line breaks, bidi overrides,
- * zero-width characters), which no catalogue text may hold (ASVS V2.2.1).
+ * zero-width characters) and lone UTF-16 surrogates (`\p{Cs}`, which no database text can
+ * hold), which no catalogue or record text may hold (ASVS V2.2.1).
  */
-export const CONTROL_OR_FORMAT = /[\p{Cc}\p{Cf}]/u;
+export const CONTROL_OR_FORMAT = /[\p{Cc}\p{Cf}\p{Cs}]/u;
 
 /**
  * An analyte name the Afinion 2 can send in OBX-3: printable ASCII without the HL7 v2 delimiters

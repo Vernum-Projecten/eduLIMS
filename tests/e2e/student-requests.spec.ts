@@ -6,10 +6,17 @@
 // in the details sheet, corrects it with a second tube, and records a control request; the
 // teacher reads the correction and the tests not offered. Axe in light, dark and Dutch, reflow at
 // 320 px. Every patient, test and value is invented (Q-PRIV-4).
-import { expect, type Route, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { axe, signedInElsewhere } from "./admin-users-helpers";
 import { devLogin, expectHydrated } from "./fixtures";
-import { axeInEveryLook, expectNoPageOverflow, openRequests, suffix } from "./lab-records-helpers";
+import {
+  axeInEveryLook,
+  expectErrorStateRetries,
+  expectNoPageOverflow,
+  expectReadOnly,
+  openRequests,
+  suffix,
+} from "./lab-records-helpers";
 import { seedControlRequest, seedLabRecords, seedPatient } from "./lab-records-seed";
 
 const LAB_NUMBER = /^\d{3} \d{3} \d{4}$/;
@@ -50,8 +57,28 @@ test("a team records, reads and corrects a request, and copies a lab number (S12
   // The new row takes the focus, and the change is announced (WCAG 2.4.3, 4.1.3).
   await expect(notOffered.getByLabel("Test as on the form")).toBeFocused();
   await expect(
-    requestDialog.getByRole("status").filter({ hasText: "Test not offered 1" }),
+    requestDialog.getByRole("status").filter({ hasText: "Test not offered 1 added." }),
   ).toHaveCount(1);
+  // A second row moves up and is removed again: each change is announced, and the focus stays
+  // on the moved row's control, then goes to the remaining row (WCAG 2.4.3, 4.1.3).
+  await requestDialog.getByRole("button", { name: "Add a test not offered" }).click();
+  await page.keyboard.type("Invented test X");
+  await requestDialog.getByRole("button", { name: "Move Test not offered 2 up" }).click();
+  await expect(
+    requestDialog
+      .getByRole("status")
+      .filter({ hasText: "Test not offered 2 moved to position 1 of 2." }),
+  ).toHaveCount(1);
+  await expect(
+    requestDialog.getByRole("button", { name: "Move Test not offered 1 down" }),
+  ).toBeFocused();
+  await expect(notOffered.getByLabel("Test as on the form")).toHaveValue("Invented test X");
+  await requestDialog.getByRole("button", { name: "Remove Test not offered 1" }).click();
+  await expect(
+    requestDialog.getByRole("status").filter({ hasText: "Test not offered 1 removed." }),
+  ).toHaveCount(1);
+  await expect(notOffered.getByLabel("Test as on the form")).toBeFocused();
+  await expect(notOffered.getByLabel("Test as on the form")).toHaveValue("");
   // An empty entry is refused at its field.
   const first = requestDialog.getByRole("group", { name: "Sample 1" });
   await first.getByLabel("Sample number").fill("E2E-001");
@@ -72,7 +99,8 @@ test("a team records, reads and corrects a request, and copies a lab number (S12
   const row = list.getByRole("row").filter({ hasText: "Request for Bo Invented" });
   await expect(row).toBeVisible();
   await expect(row.getByText("1 test not offered")).toBeVisible();
-  await expect(row.getByText("Can be corrected")).toBeVisible();
+  // Only the exception has a badge: no result is released yet.
+  await expect(row.getByText("Result released")).toHaveCount(0);
   const copy = row.getByRole("button", { name: /^Copy lab number / });
   // The name spells the digits one by one (maintainer, 2026-11-20).
   const label = (await copy.getAttribute("aria-label")) ?? "";
@@ -98,6 +126,9 @@ test("a team records, reads and corrects a request, and copies a lab number (S12
   await expect(sheet.getByText("Dr. Invented")).toBeVisible();
   const samples = sheet.getByRole("table", { name: "Samples of Request for Bo Invented" });
   await expect(samples.getByText(grouped, { exact: true })).toBeVisible();
+  // The sheet shows no empty field: no phone-through and no remarks were given.
+  await expect(sheet.getByText("Phone the result through")).toHaveCount(0);
+  await expect(sheet.getByText("Remarks")).toHaveCount(0);
   await axe(page);
   await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);
@@ -105,7 +136,10 @@ test("a team records, reads and corrects a request, and copies a lab number (S12
 
   // Correcting the request with the keyboard from the row's menu: a second tube gets its own
   // lab number, and the test not offered is changed.
-  const actions = row.getByRole("button", { name: "Actions for Request for Bo Invented" });
+  // The menu's name adds the time of entry, so two requests for one patient differ.
+  const actions = row.getByRole("button", {
+    name: /^Actions for Request for Bo Invented, entered /,
+  });
   await actions.focus();
   await page.keyboard.press("Enter");
   await page.getByRole("menuitem", { name: "Correct" }).press("Enter");
@@ -136,6 +170,20 @@ test("a team records, reads and corrects a request, and copies a lab number (S12
   await expect(actions).toBeFocused();
   await expect(row.getByRole("button", { name: /^Copy lab number / })).toHaveCount(2);
 
+  // A second correction, from the sheet's footer, starts from the first one as saved, and the
+  // dialog gives the focus back to the sheet's opener.
+  await open.click();
+  await sheet.getByRole("button", { name: "Correct" }).click();
+  await expect(
+    correction.getByRole("group", { name: "Sample 2" }).getByLabel("Sample number"),
+  ).toHaveValue("E2E-001");
+  await expect(
+    correction.getByRole("group", { name: "Test not offered 1" }).getByLabel("Test as on the form"),
+  ).toHaveValue("Invented test R");
+  await page.keyboard.press("Escape");
+  await expect(correction).toHaveCount(0);
+  await expect(open).toBeFocused();
+
   // A request links to its patient (#380).
   await actions.click();
   await page.getByRole("menuitem", { name: "Open the patient" }).click();
@@ -144,6 +192,12 @@ test("a team records, reads and corrects a request, and copies a lab number (S12
   await expect(page.getByRole("link", { name: "1 request" })).toBeVisible();
   await page.getByRole("link", { name: "1 request" }).click();
   await expect(page.getByText("Showing the requests of Bo Invented.")).toBeVisible();
+  // A new request from the filtered list starts with that patient.
+  await page.getByRole("button", { name: "Record a request" }).click();
+  await expect(requestDialog.getByRole("combobox", { name: "Patient" })).toContainText(
+    "Bo Invented",
+  );
+  await page.keyboard.press("Escape");
   await page.getByRole("link", { name: "Show all requests" }).click();
 
   // A control request has no patient (S16).
@@ -161,6 +215,18 @@ test("a team records, reads and corrects a request, and copies a lab number (S12
   await expect(list.getByRole("button", { name: "Control sample", exact: true })).toBeVisible();
 
   await axeInEveryLook(page, "Requests", "nav_requests");
+  // At 320 px the details sheet fits the width too (WCAG 1.4.10).
+  await list
+    .getByRole("row")
+    .filter({ hasText: "Request for Bo Invented" })
+    .getByRole("button", { name: "Request for Bo Invented", exact: true })
+    .click();
+  await expect(
+    sheet.getByRole("table", { name: "Samples of Request for Bo Invented" }),
+  ).toBeVisible();
+  await expectNoPageOverflow(page);
+  await axe(page);
+  await page.keyboard.press("Escape");
 
   // The teacher reads the correction on the simulation's Corrections page (#381) and the tests
   // not offered on the lab's page (D11, #398).
@@ -193,27 +259,7 @@ test("a team records, reads and corrects a request, and copies a lab number (S12
 test("the requests page shows an error state and its retry loads it again (#268, #380)", async ({
   page,
 }) => {
-  const seeded = await seedLabRecords(suffix());
-  await devLogin(page, seeded.student.email);
-  const pattern = "**/_serverFn/**";
-  const fail = (route: Route) => {
-    const request = route.request();
-    return request.method() === "GET" && decodeURIComponent(request.url()).includes(seeded.labId)
-      ? route.fulfill({ status: 500, body: "forced failure" })
-      : route.fallback();
-  };
-  await page.route(pattern, fail);
-  const nav = page.getByRole("navigation", { name: "Main menu" });
-  const link = nav.getByRole("link", { name: "Requests", exact: true });
-  await expectHydrated(link);
-  await link.click();
-  const heading = page.getByRole("heading", { level: 1, name: "Something went wrong" });
-  await expect(heading).toBeVisible();
-  await axe(page);
-  await page.unroute(pattern, fail);
-  await page.getByRole("button", { name: "Try again" }).click();
-  await expect(heading).toHaveCount(0);
-  await expect(page.getByRole("heading", { level: 1, name: "Requests" })).toBeVisible();
+  await expectErrorStateRetries(page, "Requests");
 });
 
 test("a refused clipboard says so in the status region (WCAG 4.1.3)", async ({ page }) => {
@@ -238,23 +284,17 @@ test("a refused clipboard says so in the status region (WCAG 4.1.3)", async ({ p
 });
 
 test("a finished simulation reads but takes no new requests (#267, #380)", async ({ page }) => {
-  const seeded = await seedLabRecords(suffix(), "finished");
-  await seedControlRequest(seeded);
-  await devLogin(page, seeded.student.email);
-  await page.goto("/student/requests");
-  await expect(page.getByRole("heading", { level: 1, name: "Requests" })).toBeVisible();
-  await expect(
-    page.getByRole("alert").filter({ hasText: "The simulation is not running" }),
-  ).toBeVisible();
-  const record = page.getByRole("button", { name: "Record a request" });
-  await expectHydrated(record);
-  await expect(record).toHaveAttribute("aria-disabled", "true");
-  await record.press("Enter");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const { seeded, check } = await expectReadOnly(
+    page,
+    "/student/requests",
+    "Requests",
+    "Record a request",
+  );
+  await check();
   // The request still reads, and its correction is disabled in the row's menu.
   const list = page.getByRole("table", { name: `Requests of ${seeded.lab}` });
   await expect(list.getByRole("button", { name: "Control sample", exact: true })).toBeVisible();
-  await list.getByRole("button", { name: "Actions for Control sample" }).click();
+  await list.getByRole("button", { name: /^Actions for Control sample, entered / }).click();
   await expect(page.getByRole("menuitem", { name: "Correct" })).toBeDisabled();
   await page.keyboard.press("Escape");
   await axe(page);

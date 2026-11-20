@@ -234,6 +234,12 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
       phoneThrough: false,
       remarks: null,
       testIds: [testId],
+      // N2 of the #405 review: one entry carries the secret test's own name, so a field derived
+      // from a match with the catalogue would carry a secret into the response.
+      notOffered: [
+        { name: "Glucose (invented)", remark: null },
+        { name: "Invented test Q", remark: "on the form" },
+      ],
       samples: [{ sampleNumber: "S-001", material: "whole blood" }],
     });
     if (!recorded.ok) throw new Error(recorded.error);
@@ -250,9 +256,13 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
       phoneThrough: true,
       remarks: null,
       testIds: [testId],
+      notOffered: [{ name: "Glucose (invented)", remark: "second page" }],
       samples: [{ sampleNumber: "S-002", material: "plasma" }],
     });
     const records = await readLabRecords(database, w.student, w.labId);
+    expect(records?.requests[0]?.notOffered).toEqual([
+      { name: "Glucose (invented)", remark: "second page" },
+    ]);
     const tests = await listRequestableTests(database, w.student);
     // The test's id is the request's own, so these responses are searched for the values only.
     const responses = [patient, recorded, patientCorrection, requestCorrection, records, tests];
@@ -337,6 +347,12 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
       phoneThrough: false,
       remarks: null,
       testIds: [testId],
+      // N2 of the #405 review: one entry carries the secret test's own name, so a field derived
+      // from a match with the catalogue would carry a secret into the response.
+      notOffered: [
+        { name: "Glucose (invented)", remark: null },
+        { name: "Invented test Q", remark: "on the form" },
+      ],
       samples: [{ sampleNumber: "S-001", material: "whole blood" }],
     });
     if (!recorded.ok) throw new Error(recorded.error);

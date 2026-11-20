@@ -123,10 +123,14 @@ export async function seedSecondLab(
 
 /** Stores a lab of another student, which the journey's student is not in, and returns its id. */
 export async function seedForeignLab(suffix: string): Promise<string> {
+  return (await foreignLab(suffix)).labId;
+}
+
+async function foreignLab(suffix: string): Promise<{ simulationId: string; labId: string }> {
   const other = await copyAccount("student@example.test", "records-other");
   const db = database();
   try {
-    const { labId } = await labWith(
+    return await labWith(
       db,
       other.id,
       `Foreign ${suffix}`,
@@ -134,10 +138,15 @@ export async function seedForeignLab(suffix: string): Promise<string> {
       "running",
       new Date(),
     );
-    return labId;
   } finally {
     await db.destroy();
   }
+}
+
+/** Stores a patient called `name` in a lab of another student and returns the patient's id. */
+export async function seedForeignPatient(suffix: string, name: string): Promise<string> {
+  const { simulationId, labId } = await foreignLab(suffix);
+  return seedPatientIn(simulationId, labId, name);
 }
 
 /** Stores a control request with one sample in `lab` and returns the sample's lab number. */
@@ -183,14 +192,18 @@ export async function seedControlRequest(lab: SeededLab): Promise<string> {
 }
 
 /** Stores an invented patient called `name` in `lab` and returns its id. */
-export async function seedPatient(lab: SeededLab, name: string): Promise<string> {
+export function seedPatient(lab: SeededLab, name: string): Promise<string> {
+  return seedPatientIn(lab.simulationId, lab.labId, name);
+}
+
+async function seedPatientIn(simulationId: string, labId: string, name: string): Promise<string> {
   const db = database();
   try {
     const { id } = await db
       .insertInto("patients")
       .values({
-        simulation_id: lab.simulationId,
-        lab_id: lab.labId,
+        simulation_id: simulationId,
+        lab_id: labId,
         name,
         date_of_birth: "1984-02-03",
         sex: "male",

@@ -137,14 +137,27 @@ export function DataTable<TData extends RowData>({
                   data-state={row.getIsSelected() ? "selected" : undefined}
                   className="data-[state=selected]:bg-muted/40"
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn("align-top", cell.column.columnDef.meta?.className)}
-                    >
-                      <table.FlexRender cell={cell} />
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) =>
+                    cell.column.columnDef.meta?.rowHeader ? (
+                      <TableHead
+                        key={cell.id}
+                        scope="row"
+                        className={cn(
+                          "h-auto p-2 align-top font-normal",
+                          cell.column.columnDef.meta.className,
+                        )}
+                      >
+                        <table.FlexRender cell={cell} />
+                      </TableHead>
+                    ) : (
+                      <TableCell
+                        key={cell.id}
+                        className={cn("align-top", cell.column.columnDef.meta?.className)}
+                      >
+                        <table.FlexRender cell={cell} />
+                      </TableCell>
+                    ),
+                  )}
                 </TableRow>
               ))
             )}

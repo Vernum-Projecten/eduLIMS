@@ -5,14 +5,21 @@
 // refusals show at their fields, every dialog gives the focus back to its opener, and a patient
 // links to its requests and back. Axe in light, dark and Dutch, and reflow at 320 px. Every
 // patient is invented (Q-PRIV-4).
-import { expect, type Route, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { axe } from "./admin-users-helpers";
-import { devLogin, expectHydrated } from "./fixtures";
-import { axeInEveryLook, openPatients, suffix } from "./lab-records-helpers";
+import { devLogin } from "./fixtures";
 import {
-  seedControlRequest,
+  axeInEveryLook,
+  expectErrorStateRetries,
+  expectReadOnly,
+  openPatients,
+  suffix,
+} from "./lab-records-helpers";
+import {
   seedForeignLab,
+  seedForeignPatient,
   seedLabRecords,
+  seedPatient,
   seedSecondLab,
 } from "./lab-records-seed";
 
@@ -81,7 +88,8 @@ test("a team registers and corrects a patient, and opens its requests (S11, #380
     "1984-02-03",
   );
   // The state is an icon and text (WCAG 1.4.1).
-  await expect(row.getByText("Can be corrected")).toBeVisible();
+  // Only the exception has a badge: no result is released yet.
+  await expect(row.getByText("Result released")).toHaveCount(0);
 
   // Correcting from the row's menu with the keyboard; the dialog closes back to the menu button.
   const actions = row.getByRole("button", { name: "Actions for Bo Invented" });
@@ -116,27 +124,7 @@ test("a team registers and corrects a patient, and opens its requests (S11, #380
 test("the patients page shows an error state and its retry loads it again (#268, #380)", async ({
   page,
 }) => {
-  const seeded = await seedLabRecords(suffix());
-  await devLogin(page, seeded.student.email);
-  const pattern = "**/_serverFn/**";
-  const fail = (route: Route) => {
-    const request = route.request();
-    return request.method() === "GET" && decodeURIComponent(request.url()).includes(seeded.labId)
-      ? route.fulfill({ status: 500, body: "forced failure" })
-      : route.fallback();
-  };
-  await page.route(pattern, fail);
-  const nav = page.getByRole("navigation", { name: "Main menu" });
-  const link = nav.getByRole("link", { name: "Patients", exact: true });
-  await expectHydrated(link);
-  await link.click();
-  const heading = page.getByRole("heading", { level: 1, name: "Something went wrong" });
-  await expect(heading).toBeVisible();
-  await axe(page);
-  await page.unroute(pattern, fail);
-  await page.getByRole("button", { name: "Try again" }).click();
-  await expect(heading).toHaveCount(0);
-  await expect(page.getByRole("heading", { level: 1, name: "Patients" })).toBeVisible();
+  await expectErrorStateRetries(page, "Patients");
 });
 
 test("a student sees the lab of their running simulation, with no picker and no lab in the URL (S10, #379)", async ({
@@ -164,20 +152,44 @@ test("a student sees the lab of their running simulation, with no picker and no 
   }
 });
 
-test("a finished simulation reads but takes no new patients (#267, #380)", async ({ page }) => {
-  const seeded = await seedLabRecords(suffix(), "finished");
-  await seedControlRequest(seeded);
+test("a patient of no lab of the student's shows nothing of it, and a malformed id every record (S10, #380)", async ({
+  page,
+}) => {
+  const id = suffix();
+  const seeded = await seedLabRecords(id);
+  await seedPatient(seeded, "Bo Invented");
+  const foreign = await seedForeignPatient(id, `Foreign patient ${id}`);
   await devLogin(page, seeded.student.email);
-  await page.goto("/student/patients");
-  await expect(page.getByRole("heading", { level: 1, name: "Patients" })).toBeVisible();
-  await expect(
-    page.getByRole("alert").filter({ hasText: "The simulation is not running" }),
-  ).toBeVisible();
-  // The button stays in the tab order with aria-disabled, and a click opens nothing.
-  const register = page.getByRole("button", { name: "Register a patient" });
-  await expectHydrated(register);
-  await expect(register).toHaveAttribute("aria-disabled", "true");
-  await register.press("Enter");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  for (const [path, h1] of [
+    ["/student/patients", "Patients"],
+    ["/student/requests", "Requests"],
+  ] as const) {
+    await page.goto(`${path}?patient=${foreign}`);
+    await expect(page.getByRole("heading", { level: 1, name: h1 })).toBeVisible();
+    await expect(page.getByText("This patient is not in your lab.")).toBeVisible();
+    await expect(page.getByText(`Foreign patient ${id}`)).toHaveCount(0);
+    await expect(page.getByRole("table")).toHaveCount(0);
+    await axe(page);
+    await page.goto(`${path}?patient=not-a-uuid`);
+    await expect(page.getByText("This patient is not in your lab.")).toHaveCount(0);
+    await expect(page.getByRole("table")).toBeVisible();
+  }
+  await openPatients(page);
+  await expect(page.getByRole("row").filter({ hasText: "Bo Invented" })).toBeVisible();
+});
+
+test("a finished simulation reads but takes no new patients (#267, #380)", async ({ page }) => {
+  const { seeded, check } = await expectReadOnly(
+    page,
+    "/student/patients",
+    "Patients",
+    "Register a patient",
+  );
+  await seedPatient(seeded, "Bo Invented");
+  await check();
+  // The correction stays in the row's menu, disabled, while the simulation does not run.
+  await page.getByRole("button", { name: "Actions for Bo Invented" }).click();
+  await expect(page.getByRole("menuitem", { name: "Correct" })).toBeDisabled();
+  await page.keyboard.press("Escape");
   await axe(page);
 });

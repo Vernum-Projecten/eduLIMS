@@ -51,10 +51,11 @@ function optionalLine(max: number) {
 }
 
 /**
- * A control or format character other than a tab or a line break: remarks take several lines,
- * never a NUL, an escape or a hidden direction mark (security review of #351, S1).
+ * A control or format character other than a tab or a line break, or a lone surrogate: remarks
+ * take several lines, never a NUL, an escape or a hidden direction mark (security review of
+ * #351, S1), and never half a character (security review of #405, S1).
  */
-const REMARKS_FORBIDDEN = /(?![\t\n\r])[\p{Cc}\p{Cf}]/u;
+const REMARKS_FORBIDDEN = /(?![\t\n\r])[\p{Cc}\p{Cf}\p{Cs}]/u;
 
 /** The remarks: free text over several lines, empty becomes `null`. */
 const remarks = z

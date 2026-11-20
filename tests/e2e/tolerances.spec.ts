@@ -10,7 +10,7 @@ import { randomBytes } from "node:crypto";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import { axe, dutch } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
-import { appUrl } from "./run-env";
+import { ALL_LOOKS, inEachLook } from "./looks";
 import { finishTolerances, seedTolerances, type ToleranceWorld } from "./tolerances-seed";
 
 test.describe.configure({ mode: "serial" });
@@ -166,23 +166,11 @@ test("a finished simulation takes no change, in light, dark and Dutch (S13)", as
   await expect(
     page.getByRole("button", { name: `Set the tolerance of ${world.testName}` }),
   ).toHaveCount(0);
-  for (const [theme, locale] of [
-    ["light", "en"],
-    ["dark", "en"],
-    ["light", "nl"],
-    ["dark", "nl"],
-  ] as const) {
-    await page.context().addCookies([
-      { name: "EDULIMS_THEME", value: theme, url: appUrl() },
-      { name: "EDULIMS_LOCALE", value: locale, url: appUrl() },
-    ]);
-    await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+  await inEachLook(page, ALL_LOOKS, async (locale) => {
     const heading =
       locale === "nl"
         ? dutch("tolerances_heading").replace("{lab}", world.lab)
         : `Tolerances of ${world.lab}`;
     await expect(page.getByRole("heading", { level: 2, name: heading })).toBeVisible();
-    await axe(page);
-  }
+  });
 });

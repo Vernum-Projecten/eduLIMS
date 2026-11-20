@@ -1,9 +1,15 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { Link } from "@tanstack/react-router";
-import { FlaskConicalIcon, LockIcon, PencilIcon, XIcon } from "lucide-react";
-import type { ComponentProps, MouseEvent, ReactNode } from "react";
+import { FlaskConicalIcon, LockIcon, PlusIcon, XIcon } from "lucide-react";
+import {
+  type ComponentProps,
+  type Context,
+  createContext,
+  type MouseEvent,
+  type ReactNode,
+  use,
+} from "react";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { PageFrame } from "@/components/shell/page-frame";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -19,6 +25,7 @@ import {
 import { m } from "@/i18n/messages";
 import type { NavItem } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+import type { StudentLabRow } from "@/server/simulations/queries";
 
 /** The loading state of a records page: its frame and skeleton rows. */
 export function RecordsPending({ section }: Readonly<{ section: NavItem }>) {
@@ -47,32 +54,9 @@ export function NoLabPage({ section }: Readonly<{ section: NavItem }>) {
 }
 
 /**
- * The lab and simulation the page shows, and, while the simulation does not run, why nothing
- * can be entered (D10, #267). The alert is the page's one statement of that state (#384, 5).
- */
-export function RecordsContext({
-  lab,
-  simulation,
-  running,
-}: Readonly<{ lab: string; simulation: string; running: boolean }>) {
-  return (
-    <>
-      <p className="text-muted-foreground">{m.records_lab_choice({ lab, simulation })}</p>
-      {running ? null : (
-        <Alert>
-          <LockIcon aria-hidden="true" />
-          <AlertTitle>{m.records_not_running_title()}</AlertTitle>
-          <AlertDescription>{m.records_not_running_body()}</AlertDescription>
-        </Alert>
-      )}
-    </>
-  );
-}
-
-/**
  * The button that opens a records dialog. While the simulation does not run it stays in the tab
  * order with `aria-disabled`, so the keyboard and a screen reader still find it and the alert
- * above says why; a click does nothing (WCAG 4.1.2).
+ * above says why; a press does nothing (WCAG 4.1.2).
  */
 export function RecordsActionButton({
   enabled,
@@ -98,49 +82,114 @@ export function RecordsActionButton({
   );
 }
 
-/** Whether a record can still be corrected, with an icon and text (WCAG 1.4.1, #384, 5). */
-export function RecordStatus({ locked }: Readonly<{ locked: boolean }>) {
-  return locked ? (
+/** The one exception a record shows: a released result locks it, with an icon and text (1.4.1). */
+export function LockedBadge({ locked }: Readonly<{ locked: boolean }>) {
+  if (!locked) return null;
+  return (
     <Badge variant="secondary">
       <LockIcon aria-hidden="true" data-icon="inline-start" />
       {m.records_locked()}
     </Badge>
-  ) : (
-    <Badge variant="outline">
-      <PencilIcon aria-hidden="true" data-icon="inline-start" />
-      {m.records_status_open()}
-    </Badge>
   );
 }
 
-/** The line above a list that shows one patient's records, with the way back to all of them. */
-export function RecordsFilter({ text, children }: Readonly<{ text: string; children: ReactNode }>) {
+/** The patient a records page is filtered to, as `?patient=` names it. */
+export type PatientFilter =
+  | { kind: "none" }
+  | { kind: "found"; name: string }
+  | { kind: "unknown" };
+
+/**
+ * Returns the filter of `patientId` among the lab's `patients`: a malformed id never reaches here
+ * (the search schema drops it), and an id of no patient of the lab is `unknown`, which shows no
+ * record and says so, the same for another lab's patient and a deleted one (S10).
+ */
+export function patientFilter(
+  patientId: string | undefined,
+  patients: readonly { id: string; name: string }[],
+): PatientFilter {
+  if (patientId === undefined) return { kind: "none" };
+  const patient = patients.find((row) => row.id === patientId);
+  return patient ? { kind: "found", name: patient.name } : { kind: "unknown" };
+}
+
+/**
+ * The frame of the student's patients and requests pages (#380, #384): the title, the sentence,
+ * the one primary action, the lab and simulation the page shows, the not-running alert (the
+ * page's one statement of that state, #384, 5), the filter line, then the list and its dialogs.
+ */
+export function RecordsPage({
+  section,
+  lab,
+  running,
+  action,
+  onAction,
+  filter,
+  filterText,
+  clearFilter,
+  children,
+}: Readonly<{
+  section: NavItem;
+  lab: StudentLabRow;
+  running: boolean;
+  action: string;
+  onAction: (event: MouseEvent<HTMLButtonElement>) => void;
+  filter: PatientFilter;
+  filterText: (name: string) => string;
+  clearFilter: ReactNode;
+  children: ReactNode;
+}>) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <p>{text}</p>
-      <Button asChild variant="outline" size="sm">
-        {children}
-      </Button>
-    </div>
+    <PageFrame
+      title={section.label()}
+      description={section.description()}
+      action={
+        <RecordsActionButton enabled={running} onOpen={onAction}>
+          <PlusIcon aria-hidden="true" data-icon="inline-start" />
+          {action}
+        </RecordsActionButton>
+      }
+    >
+      <p className="text-muted-foreground">
+        {m.records_lab_choice({ lab: lab.labName, simulation: lab.simulationName })}
+      </p>
+      {running ? null : (
+        <Alert>
+          <LockIcon aria-hidden="true" />
+          <AlertTitle>{m.records_not_running_title()}</AlertTitle>
+          <AlertDescription>{m.records_not_running_body()}</AlertDescription>
+        </Alert>
+      )}
+      {filter.kind === "none" ? null : (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p>{filter.kind === "found" ? filterText(filter.name) : m.records_patient_unknown()}</p>
+          <Button asChild variant="outline" size="sm">
+            {clearFilter}
+          </Button>
+        </div>
+      )}
+      {children}
+    </PageFrame>
   );
 }
 
-/** The link back to every patient. */
-export function AllPatientsLink() {
-  return (
-    <Link to="/student/patients">
-      <XIcon aria-hidden="true" data-icon="inline-start" />
-      {m.records_show_all_patients()}
-    </Link>
-  );
+/** The icon of the link that clears a filter. */
+export function ClearIcon() {
+  return <XIcon aria-hidden="true" data-icon="inline-start" />;
 }
 
-/** The link back to every request. */
-export function AllRequestsLink() {
-  return (
-    <Link to="/student/requests">
-      <XIcon aria-hidden="true" data-icon="inline-start" />
-      {m.records_show_all_requests()}
-    </Link>
-  );
+/**
+ * Returns a context for what a list's rows need from their page (whether the lab can write, the
+ * dialogs to open) and the hook that reads it, failing loud outside its provider.
+ */
+export function rowContext<T>(name: string): [Context<T | null>, () => T] {
+  const context = createContext<T | null>(null);
+  return [
+    context,
+    () => {
+      const value = use(context);
+      if (value === null) throw new Error(`a ${name} row renders outside its table`);
+      return value;
+    },
+  ];
 }

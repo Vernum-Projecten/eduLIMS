@@ -250,12 +250,16 @@ export function correctRequest(
       return refused("released");
     }
     if (kindOf(request.kind) === "patient" && input.requester === null) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: "requester_required" });
       return refused("requester_required");
     }
     const before = new Set(tests.map((test) => test.test_id));
     const after = new Set(input.testIds);
     const refusal = await testRefusal(trx, [...after], before);
-    if (refusal !== null) return refused(refusal);
+    if (refusal !== null) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: refusal });
+      return refused(refusal);
+    }
     // NOTE: S12, S14 (maintainer on #268, 2026-11-20); a correction never removes a requested
     // test, so a measurement always keeps the test it belongs to.
     if ([...before].some((testId) => !after.has(testId))) {

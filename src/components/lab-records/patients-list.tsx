@@ -3,10 +3,9 @@
 
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { FileTextIcon, PencilIcon, PlusIcon, UserRoundIcon } from "lucide-react";
-import { createContext, use, useMemo, useRef } from "react";
+import { PencilIcon, UserRoundIcon } from "lucide-react";
+import { useMemo, useRef } from "react";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
-import { PageFrame } from "@/components/shell/page-frame";
 import { RowActions } from "@/components/shell/row-actions";
 import { ListTable } from "@/components/simulations/list-table";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -25,13 +24,7 @@ import type { PatientRow } from "@/server/lab-records/queries";
 import { labRecordsQueryOptions } from "@/server/lab-records/query-options";
 import type { StudentLabRow } from "@/server/simulations/queries";
 import { PatientDialog } from "./patient-dialog";
-import {
-  AllPatientsLink,
-  RecordStatus,
-  RecordsActionButton,
-  RecordsContext,
-  RecordsFilter,
-} from "./student-records";
+import { ClearIcon, LockedBadge, patientFilter, RecordsPage, rowContext } from "./student-records";
 import { useRecordDialog } from "./use-record-dialog";
 
 /** A patient in the list, with the number of its requests. */
@@ -45,13 +38,7 @@ interface PatientsTableContext {
   correct: (patient: PatientRow, opener: HTMLElement | null) => void;
 }
 
-const TableContext = createContext<PatientsTableContext | null>(null);
-
-function useTableContext(): PatientsTableContext {
-  const context = use(TableContext);
-  if (context === null) throw new Error("a patients row renders outside its table");
-  return context;
-}
+const [TableContext, useTableContext] = rowContext<PatientsTableContext>("patients");
 
 const helper = createDataTableColumnHelper<PatientListRow>();
 
@@ -59,8 +46,12 @@ const columns = helper.columns([
   helper.accessor("name", {
     id: "name",
     header: () => m.records_patient_name(),
+    meta: { rowHeader: true },
     cell: ({ row }) => (
-      <span className="font-medium break-words whitespace-normal">{row.original.name}</span>
+      <span className="flex flex-wrap items-center gap-2 whitespace-normal">
+        <span className="font-medium break-words">{row.original.name}</span>
+        <LockedBadge locked={row.original.locked} />
+      </span>
     ),
   }),
   helper.accessor("dateOfBirth", {
@@ -99,11 +90,6 @@ const columns = helper.columns([
       </Link>
     ),
   }),
-  helper.accessor("locked", {
-    id: "status",
-    header: () => m.records_col_status(),
-    cell: ({ row }) => <RecordStatus locked={row.original.locked} />,
-  }),
   helper.display({
     id: "actions",
     meta: { className: "w-12" },
@@ -112,22 +98,16 @@ const columns = helper.columns([
   }),
 ]);
 
+/** The row's menu: correcting is its one action, gone once a result is released (S11). */
 function PatientRowActions({ patient }: Readonly<{ patient: PatientListRow }>) {
   const { running, correct } = useTableContext();
   const trigger = useRef<HTMLButtonElement>(null);
+  if (patient.locked) return null;
   return (
     <RowActions label={m.data_table_row_actions({ name: patient.name })} triggerRef={trigger}>
-      {patient.locked ? null : (
-        <DropdownMenuItem disabled={!running} onSelect={() => correct(patient, trigger.current)}>
-          <PencilIcon aria-hidden="true" />
-          {m.records_correct()}
-        </DropdownMenuItem>
-      )}
-      <DropdownMenuItem asChild>
-        <Link to="/student/requests" search={{ patient: patient.id }}>
-          <FileTextIcon aria-hidden="true" />
-          {m.records_view_requests()}
-        </Link>
+      <DropdownMenuItem disabled={!running} onSelect={() => correct(patient, trigger.current)}>
+        <PencilIcon aria-hidden="true" />
+        {m.records_correct()}
       </DropdownMenuItem>
     </RowActions>
   );
@@ -148,16 +128,15 @@ function PatientsEmpty() {
 }
 
 /**
- * The patients of the student's lab (S11, #380): the list with each patient's requests and
- * whether it can still be corrected; registering is the page's one action, correcting sits in
- * the row's menu. With `patientId` the list shows that patient alone, the target of the link
- * from a request. Nothing of another lab and no correct value (Q-SIM-1).
+ * The patients of the student's lab (S11, #380): the list with each patient's requests, and a
+ * badge on a patient a released result locks; registering is the page's one action, correcting
+ * sits in the row's menu. With `patientId` the list shows that patient alone, the target of the
+ * link from a request. Nothing of another lab and no correct value (Q-SIM-1).
  */
 export function PatientsView({
   lab,
   patientId,
 }: Readonly<{ lab: StudentLabRow; patientId: string | undefined }>) {
-  const section = sectionOf("student", "patients");
   const { data: records, isFetching } = useSuspenseQuery(labRecordsQueryOptions(lab.labId));
   const dialog = useRecordDialog<PatientRow>();
   const rows = useMemo(() => {
@@ -172,45 +151,49 @@ export function PatientsView({
       requests: counts.get(patient.id) ?? 0,
     }));
   }, [records]);
-  const chosen = rows.find((row) => row.id === patientId);
-  const shown = useMemo(() => (chosen ? [chosen] : rows), [chosen, rows]);
+  const filter = patientFilter(patientId, records.patients);
+  const shown = useMemo(
+    () => (filter.kind === "none" ? rows : rows.filter((row) => row.id === patientId)),
+    [filter.kind, rows, patientId],
+  );
   const context: PatientsTableContext = {
     running: records.running,
     correct: (patient, opener) => dialog.openWith(opener, patient),
   };
   return (
-    <PageFrame
-      title={section.label()}
-      description={section.description()}
-      action={
-        <RecordsActionButton enabled={records.running} onOpen={(event) => dialog.openFrom(event)}>
-          <PlusIcon aria-hidden="true" data-icon="inline-start" />
-          {m.records_patient_register()}
-        </RecordsActionButton>
+    <RecordsPage
+      section={sectionOf("student", "patients")}
+      lab={lab}
+      running={records.running}
+      action={m.records_patient_register()}
+      onAction={(event) => dialog.openFrom(event)}
+      filter={filter}
+      filterText={(name) => m.records_patient_filter({ name })}
+      clearFilter={
+        <Link to="/student/patients">
+          <ClearIcon />
+          {m.records_show_all_patients()}
+        </Link>
       }
     >
-      <RecordsContext lab={lab.labName} simulation={lab.simulationName} running={records.running} />
-      {chosen ? (
-        <RecordsFilter text={m.records_patient_filter({ name: chosen.name })}>
-          <AllPatientsLink />
-        </RecordsFilter>
-      ) : null}
-      <TableContext value={context}>
-        <ListTable
-          columns={columns}
-          data={shown}
-          rowId={(row) => row.id}
-          caption={m.records_patients_caption({ lab: lab.labName })}
-          busy={isFetching}
-          empty={<PatientsEmpty />}
-        />
-      </TableContext>
+      {filter.kind === "unknown" ? null : (
+        <TableContext value={context}>
+          <ListTable
+            columns={columns}
+            data={shown}
+            rowId={(row) => row.id}
+            caption={m.records_patients_caption({ lab: lab.labName })}
+            busy={isFetching}
+            empty={<PatientsEmpty />}
+          />
+        </TableContext>
+      )}
       <PatientDialog
         key={dialog.key}
         control={dialog.control}
         labId={records.labId}
         patient={dialog.row}
       />
-    </PageFrame>
+    </RecordsPage>
   );
 }
