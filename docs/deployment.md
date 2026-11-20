@@ -886,6 +886,18 @@ the first provider and the first administrator with the tools image:
    `admin_grant_override`. A user who never signed in has no account yet, so
    the override cannot reach them; that case needs the app role.
 
+4. Check the test catalogue. The tools image's `migrate`, which runs on
+   every start, adds a starter set to an empty catalogue: one active Afinion 2
+   test per analyte the analyser reports (CRP, HbA1c, the ACR and Lipid Panel
+   analytes), each with the unit its documentation shows as a UCUM code, and
+   no correct value. Its output ends with `catalogue: 11 starter tests added`
+   on the first start and `catalogue: not empty, kept` after that, so a
+   starter test an administrator retired or renamed never comes back. If your
+   analyser is set to another unit for HbA1c, ACR or the Lipid Panel, change
+   the unit of those tests in Admin → Test catalogue before the first
+   simulation; then add the Epoch 2 tests there. `pnpm db:seed` adds the same
+   set on a development database.
+
 After that, administrators manage the providers in the Admin screen.
 Developers run the same commands with `pnpm idp:add`, `pnpm idp:list`,
 `pnpm admin:grant <email>` (with `--user-id <id>` for the override) and so on

@@ -19,6 +19,8 @@ export const TEST_ACTION_ERRORS = [
   "in_use",
   "in_running_simulation",
   "analyte_taken",
+  "unit_unsupported",
+  "unit_fixed_by_analyte",
 ] as const;
 export type TestActionError = (typeof TEST_ACTION_ERRORS)[number];
 

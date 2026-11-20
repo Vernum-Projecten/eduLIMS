@@ -46,6 +46,8 @@ describe("test catalogue labels (D9, #266)", () => {
       "in_use",
       "in_running_simulation",
       "analyte_taken",
+      "unit_unsupported",
+      "unit_fixed_by_analyte",
     ]) {
       expect(catalogueErrorMessage(code)).not.toBe(catalogueErrorMessage("failed"));
     }

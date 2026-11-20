@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The reads of the test catalogue (D9, #266): one page of the table with server-side search,
-// facets on status and source, sorting and pagination, and the facet counts. The catalogue is
-// shared by every teacher, so no row is filtered by its creator; it holds no correct value.
+// facets on status and source, sorting and pagination, and the facet counts. Every simulation
+// uses the one catalogue, so no row is filtered by its creator; it holds no correct value.
 import "@tanstack/react-start/server-only";
 import { type Expression, type ExpressionBuilder, type Kysely, type SqlBool, sql } from "kysely";
 import {
@@ -18,11 +18,12 @@ import {
   type TestStatus,
   type TestUsage,
 } from "../../lib/catalogue.ts";
+import { unitCodesMatching } from "../../lib/i18n/unit-labels.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { containsPattern } from "../users/queries.ts";
 import { DEFAULT_TEST_PAGE_SIZE, type ListTestsInput, type TestSortField } from "./schemas.ts";
 
-/** One row of the catalogue as the Teacher portal shows it. */
+/** One row of the catalogue as the Admin portal shows it. */
 export interface CatalogueTestRow {
   id: CatalogueTestId;
   name: string;
@@ -75,6 +76,12 @@ function statusCondition(eb: TestExpressions, status: TestStatus): Expression<Sq
     : eb("catalogue_tests.retired_at", "is", null);
 }
 
+/** The unit condition of a search: the units whose symbol, code or name hold the text (#404). */
+function unitMatches(eb: TestExpressions, search: string): Expression<SqlBool>[] {
+  const codes = unitCodesMatching(search);
+  return codes.length === 0 ? [] : [eb("catalogue_tests.unit", "in", codes)];
+}
+
 /** The conditions of the search and every facet in `input`, all but the facet `except`. */
 function filterConditions(
   eb: TestExpressions,
@@ -88,9 +95,9 @@ function filterConditions(
     conditions.push(
       eb.or([
         eb("catalogue_tests.name", "ilike", pattern),
-        eb("catalogue_tests.unit", "ilike", pattern),
         eb("catalogue_tests.material", "ilike", pattern),
         eb("catalogue_tests.afinion_analyte", "ilike", pattern),
+        ...unitMatches(eb, search),
       ]),
     );
   }
@@ -238,4 +245,22 @@ export async function testFacets(
       manual: read("source:manual"),
     },
   };
+}
+
+/** The longest list of material suggestions the form offers. */
+export const MATERIAL_SUGGESTIONS_MAX = 50;
+
+/**
+ * Returns the materials the catalogue's tests use, each once, in alphabetical order: the form's
+ * suggestions for a new material (#393).
+ */
+export async function listMaterials(db: Kysely<DB>): Promise<string[]> {
+  const rows = await db
+    .selectFrom("catalogue_tests")
+    .select("material")
+    .distinct()
+    .orderBy("material")
+    .limit(MATERIAL_SUGGESTIONS_MAX)
+    .execute();
+  return rows.map((row) => row.material);
 }

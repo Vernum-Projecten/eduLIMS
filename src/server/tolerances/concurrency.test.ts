@@ -9,6 +9,7 @@ import type { Kysely } from "kysely";
 import type { Pool, PoolClient } from "pg";
 import { afterEach, describe, expect, it } from "vitest";
 import { retireTest } from "../catalogue/actions.ts";
+import { asAdmin } from "../catalogue/test-helpers.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { type CommittedTestDb, createCommittedTestDb } from "../db/test-committed-db.ts";
 import type { SimulationResult } from "../simulations/access.ts";
@@ -113,7 +114,7 @@ describe("a tolerance set against a finish and a retirement", () => {
 
   it("is refused with test_retired when its test is retired meanwhile (D9)", async () => {
     const outcome = await race((db, w, testId) =>
-      retireTest({ db: db, actor: w.coTeacher, now: NOW }, { testId }),
+      retireTest({ db: db, actor: asAdmin(w.coTeacher), now: NOW }, { testId }),
     );
     expect(outcome.set).toEqual({ ok: false, error: "test_retired" });
     expect(outcome.rows).toBe(0);

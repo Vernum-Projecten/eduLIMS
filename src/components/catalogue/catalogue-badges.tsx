@@ -51,8 +51,9 @@ export const TEST_USAGE_ICONS: Record<Exclude<TestUsage, "unused">, LucideIcon> 
 };
 
 /**
- * How simulations use a test, as an icon and text below its status (D9, #267), so a teacher sees
- * which settings are fixed before opening the edit dialog. An unused test shows nothing.
+ * How simulations use a test, as an icon and text below its status (D9, #267), so an
+ * administrator sees which settings are fixed before opening the edit dialog. An unused test
+ * shows nothing.
  */
 export function TestUsageText({ usage }: Readonly<{ usage: TestUsage }>) {
   const label = testUsageLabel(usage);

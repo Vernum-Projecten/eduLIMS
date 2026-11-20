@@ -5,9 +5,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArchiveIcon, ArchiveRestoreIcon, PencilIcon } from "lucide-react";
 import { useRef, useState } from "react";
+import { TestFormDialog } from "@/components/catalogue/test-form-dialog";
+import { useCatalogueMutation } from "@/components/catalogue/use-catalogue-mutation";
 import { DataTableRowActions } from "@/components/data-table/data-table-row-actions";
-import { TestFormDialog } from "@/components/teacher-catalogue/test-form-dialog";
-import { useCatalogueMutation } from "@/components/teacher-catalogue/use-catalogue-mutation";
 import {
   AlertDialog,
   AlertDialogAction,

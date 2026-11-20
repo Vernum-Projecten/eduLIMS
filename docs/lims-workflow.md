@@ -211,7 +211,7 @@ sequenceDiagram
 
 - The team links wells to samples, because the export holds no sample
   number (S4; owner, 2026-11-19, O5).
-- Per test, the teacher chooses in the test catalogue who calculates the
+- Per test, the administrator chooses in the test catalogue who calculates the
   concentration (D9; owner, 2026-11-19). When the team calculates, it works
   by its own procedure and enters the result; eduLIMS keeps the wells the
   result came from beside it. When eduLIMS calculates, the team marks the
@@ -245,13 +245,14 @@ control log of the team (S16).
 
 ## The teacher's side
 
-Before a simulation a teacher manages the test catalogue (D9), where the
-teacher also chooses per test who calculates the concentration from an
-Epoch 2 plate. A test has a name, a unit (none for a dimensionless result
-such as a ratio), a material the teacher types, and a source: the Afinion 2
-with the analyte name the analyser sends in OBX-3, the Epoch 2 upload with
-who calculates, or entry by hand. Every teacher uses and changes the same
-catalogue, and each test records who created it. The names of active tests
+An administrator manages the test catalogue (D9; owner, 2026-11-20,
+#393), where the administrator also chooses per test who calculates the
+concentration from an Epoch 2 plate. A test has a name, a unit as a UCUM code
+from the supported list (none for a dimensionless result such as a ratio), a
+material, and a source: the Afinion 2 with one of the analytes the analyser
+sends in OBX-3, the Epoch 2 upload with who calculates, or entry by hand.
+Every simulation uses the same catalogue; teachers choose its active tests,
+and each test records who created it. The names of active tests
 are unique regardless of case, and so are the analyte names of active
 Afinion 2 tests; matching a result to a test compares the exact text the
 analyser sends. The Afinion matcher never resolves an analyte across the
@@ -262,8 +263,8 @@ what the matching relies on. An analyte name is printable ASCII without the
 HL7 delimiters, and no catalogue text holds a control or format character. A
 test that a simulation uses keeps its unit, its source and
 its analyte name and cannot be deleted; while a running simulation uses it,
-its material and who calculates are fixed too. A teacher retires a test so
-new simulations no longer offer it, and can restore it.
+its material and who calculates are fixed too. An administrator retires a
+test so new simulations no longer offer it, and can restore it.
 The teacher then prepares the simulation (D10): gives it a
 name, creates its labs, each with the name and the logo the team made up,
 and adds the members of a lab by pasting their email addresses. The teacher

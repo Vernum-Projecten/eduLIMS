@@ -11,6 +11,7 @@ import { type CommittedTestDb, createCommittedTestDb } from "../db/test-committe
 import { person } from "../simulations/test-helpers.ts";
 import { createTest, restoreTest, retireTest, type TestActionContext } from "./actions.ts";
 import type { TestDefinition } from "./schemas.ts";
+import { STARTER_TESTS, seedStarterCatalogue } from "./starter-set.ts";
 
 let committed: CommittedTestDb | undefined;
 
@@ -24,7 +25,7 @@ const NOW = new Date("2026-11-19T09:00:00Z");
 async function open(): Promise<{ db: Kysely<DB>; ctx: TestActionContext }> {
   committed = await createCommittedTestDb(12);
   const { db } = committed;
-  const actor = await person(db, "racing-teacher", ["teacher"]);
+  const actor = await person(db, "racing-admin", ["admin"]);
   return { db, ctx: { db, actor, now: NOW } };
 }
 
@@ -105,5 +106,23 @@ describe("parallel writes (D9, #266)", () => {
     expect([restored, created].filter((result) => !result.ok)).toEqual([
       { ok: false, error: "analyte_taken" },
     ]);
+  });
+});
+
+describe("the starter set on two connections at once (#393; #404 review, F3)", () => {
+  it("is added once: one set of tests and one log row each", async () => {
+    committed = await createCommittedTestDb(4);
+    const { db } = committed;
+    const added = await Promise.all([seedStarterCatalogue(db), seedStarterCatalogue(db)]);
+    expect([...added].sort((a, b) => a - b)).toEqual([0, STARTER_TESTS.length]);
+    expect(await db.selectFrom("catalogue_tests").select("id").execute()).toHaveLength(
+      STARTER_TESTS.length,
+    );
+    const log = await db
+      .selectFrom("audit_event")
+      .select("actor_type")
+      .where("action", "=", "test_created")
+      .execute();
+    expect(log).toEqual(STARTER_TESTS.map(() => ({ actor_type: "system" })));
   });
 });
