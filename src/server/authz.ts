@@ -88,23 +88,3 @@ export function portalPathFor(
   const portal = landingPortal(user);
   return portal ? portalPath(portal) : null;
 }
-
-/** Who owns a set of measurement results and which teacher supervises the practical. */
-export interface ResultScope {
-  ownerId: string;
-  teacherId: string;
-}
-
-/**
- * Students only see their own results; teachers only see results from their own practicals.
- * Admins manage users, not grades, so they get no access to results.
- */
-export function canViewResultsOf(
-  viewer: SessionUser | null | undefined,
-  scope: ResultScope,
-): boolean {
-  if (!viewer) return false;
-  if (hasRole(viewer, "student") && scope.ownerId === viewer.id) return true;
-  if (hasRole(viewer, "teacher") && scope.teacherId === viewer.id) return true;
-  return false;
-}

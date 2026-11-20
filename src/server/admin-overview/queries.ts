@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The reads of the Admin portal's overview (#36, B1, B4): the account counts, counted in SQL,
-// and the latest activity-log events. No grades, results or submissions (R-01).
+// and the latest activity-log events. Nothing of a lab's work and no correct value (R-01, B5).
 import "@tanstack/react-start/server-only";
 import type { Kysely } from "kysely";
 import type { AuditAction, AuditOutcome } from "../audit/events.ts";

@@ -1,0 +1,1 @@
+The Student portal now lists the sections of a lab's work in the simulation (patients and requests, tolerances, measurements and results, the upload) and the Teacher portal lists the dashboard beside the simulations and the test catalogue. The practicals, samples, submissions, grades, grading and KPI dashboard sections are gone (S10, W6).

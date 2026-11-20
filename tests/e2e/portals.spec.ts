@@ -179,7 +179,7 @@ test("a teacher-admin may open both portals, a pure admin not the teacher portal
 test("a pure administrator is sent away from the teacher portal", async ({ page }) => {
   await devLogin(page, "admin@example.test");
   await expect(page).toHaveURL(/\/admin$/);
-  await page.goto("/teacher/grading");
+  await page.goto("/teacher/dashboard");
   await expect(page).toHaveURL(/\/admin$/);
 });
 

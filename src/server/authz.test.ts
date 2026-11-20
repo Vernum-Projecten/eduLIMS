@@ -4,7 +4,6 @@
 import { describe, expect, it } from "vitest";
 import type { Role } from "../lib/roles.ts";
 import {
-  canViewResultsOf,
   hasAnyRole,
   hasRole,
   landingPortal,
@@ -112,37 +111,5 @@ describe("parseLastPortal", () => {
     [42, null],
   ])("reads %j as %j", (value, expected) => {
     expect(parseLastPortal(value)).toBe(expected);
-  });
-});
-
-describe("roles are a set, not a ranking (ADR 0012)", () => {
-  it("gives a teacher-admin no access to results of practicals they do not teach", () => {
-    const coordinator = user("c1", "teacher", "admin");
-    expect(canViewResultsOf(coordinator, { ownerId: "s1", teacherId: "t1" })).toBe(false);
-    expect(canViewResultsOf(coordinator, { ownerId: "s1", teacherId: "c1" })).toBe(true);
-  });
-});
-
-describe("canViewResultsOf", () => {
-  const scope = { ownerId: "s1", teacherId: "t1" };
-
-  it("lets a student see only their own results", () => {
-    expect(canViewResultsOf(user("s1", "student"), scope)).toBe(true);
-    expect(canViewResultsOf(user("s2", "student"), scope)).toBe(false);
-  });
-
-  it("lets a teacher see results of their own practicals only", () => {
-    expect(canViewResultsOf(user("t1", "teacher"), scope)).toBe(true);
-    expect(canViewResultsOf(user("t2", "teacher"), scope)).toBe(false);
-  });
-
-  it("does not let a student id match the teacher slot", () => {
-    expect(canViewResultsOf(user("t1", "student"), scope)).toBe(false);
-  });
-
-  it("denies admins, users without roles and anonymous visitors", () => {
-    expect(canViewResultsOf(user("a1", "admin"), { ownerId: "a1", teacherId: "a1" })).toBe(false);
-    expect(canViewResultsOf(user("s1"), scope)).toBe(false);
-    expect(canViewResultsOf(null, scope)).toBe(false);
   });
 });

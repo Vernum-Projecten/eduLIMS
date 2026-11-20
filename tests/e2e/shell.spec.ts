@@ -13,18 +13,11 @@ const nl: Readonly<Record<string, string>> = JSON.parse(
 const PORTALS = {
   student: {
     heading: "Student portal",
-    sections: ["Practicals", "Samples", "Results", "Submissions", "Grades"],
+    sections: ["Patients and requests", "Tolerances", "Measurements and results", "Upload"],
   },
   teacher: {
     heading: "Teacher portal",
-    sections: [
-      "Simulations",
-      "Practicals",
-      "Results",
-      "Grading",
-      "KPI dashboard",
-      "Test catalogue",
-    ],
+    sections: ["Simulations", "Dashboard", "Test catalogue"],
   },
   admin: {
     heading: "Admin portal",
@@ -110,13 +103,16 @@ test("a section shows its coming-soon state, and the breadcrumb and title follow
 }) => {
   await signInAs(page, "student");
   const nav = page.getByRole("navigation", { name: "Main menu" });
-  await nav.getByRole("link", { name: "Samples" }).click();
+  await nav.getByRole("link", { name: "Tolerances" }).click();
 
-  await expect(page).toHaveURL(/\/student\/samples$/);
-  await expect(page).toHaveTitle("Samples | Student portal | eduLIMS");
-  await expect(page.getByRole("heading", { level: 1, name: "Samples" })).toBeVisible();
+  await expect(page).toHaveURL(/\/student\/tolerances$/);
+  await expect(page).toHaveTitle("Tolerances | Student portal | eduLIMS");
+  await expect(page.getByRole("heading", { level: 1, name: "Tolerances" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Coming soon" })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "Samples" })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "Tolerances" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   await expect(nav.getByRole("link", { name: "Overview" })).not.toHaveAttribute(
     "aria-current",
     "page",
@@ -124,7 +120,7 @@ test("a section shows its coming-soon state, and the breadcrumb and title follow
 
   const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
   await expect(breadcrumb.getByRole("link", { name: "Student portal" })).toBeVisible();
-  await expect(breadcrumb).toContainText("Samples");
+  await expect(breadcrumb).toContainText("Tolerances");
   await expectNoA11yViolations(page);
 
   await breadcrumb.getByRole("link", { name: "Student portal" }).click();
@@ -216,11 +212,11 @@ test.describe("on a phone (390 CSS px)", () => {
     await page
       .getByRole("dialog")
       .getByRole("navigation", { name: "Main menu" })
-      .getByRole("link", { name: "Grades" })
+      .getByRole("link", { name: "Upload" })
       .click();
-    await expect(page).toHaveURL(/\/student\/grades$/);
+    await expect(page).toHaveURL(/\/student\/upload$/);
     await expect(page.getByRole("dialog")).toBeHidden();
-    await expect(page.getByRole("heading", { level: 1, name: "Grades" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Upload" })).toBeVisible();
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(scrollWidth).toBeLessThanOrEqual(390);
   });
@@ -229,7 +225,7 @@ test.describe("on a phone (390 CSS px)", () => {
 test.describe("at 320 CSS px wide (WCAG 1.4.10)", () => {
   test.use({ viewport: { width: 320, height: 640 } });
 
-  for (const path of ["/", "/login", "/teacher", "/teacher/kpi-dashboard"]) {
+  for (const path of ["/", "/login", "/teacher", "/teacher/dashboard"]) {
     test(`${path} reflows without horizontal scrolling`, async ({ page }) => {
       if (path.startsWith("/teacher")) await signInAs(page, "teacher");
       await page.goto(path);
@@ -359,7 +355,7 @@ test.describe("axe in both themes", () => {
     test(`an empty section page is clean in the ${theme} theme`, async ({ page, context }) => {
       await setThemeCookie(context, theme);
       await signInAs(page, "teacher");
-      await page.goto("/teacher/kpi-dashboard");
+      await page.goto("/teacher/dashboard");
       await expect(page.getByRole("heading", { level: 2, name: "Coming soon" })).toBeVisible();
       await expectNoA11yViolations(page);
     });

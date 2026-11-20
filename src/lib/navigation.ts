@@ -7,20 +7,18 @@ import {
   ActivityIcon,
   BackpackIcon,
   CableIcon,
-  ChartColumnIcon,
-  ClipboardCheckIcon,
   ClipboardListIcon,
-  FlaskConicalIcon,
+  ContactRoundIcon,
   FlaskRoundIcon,
-  GraduationCapIcon,
+  GaugeIcon,
   LayoutDashboardIcon,
   type LucideIcon,
   MicroscopeIcon,
   PresentationIcon,
-  SendIcon,
   Settings2Icon,
   ShieldCheckIcon,
-  TestTubesIcon,
+  SlidersHorizontalIcon,
+  UploadIcon,
   UsersIcon,
 } from "lucide-react";
 import { m } from "@/i18n/messages";
@@ -65,39 +63,32 @@ const STUDENT = {
   },
   sections: [
     {
-      id: "practicals",
-      to: "/student/practicals",
-      icon: FlaskConicalIcon,
-      label: m.nav_practicals,
-      description: m.section_student_practicals,
+      id: "patients",
+      to: "/student/patients",
+      icon: ContactRoundIcon,
+      label: m.nav_patients_requests,
+      description: m.section_student_patients,
     },
     {
-      id: "samples",
-      to: "/student/samples",
-      icon: TestTubesIcon,
-      label: m.nav_samples,
-      description: m.section_student_samples,
+      id: "tolerances",
+      to: "/student/tolerances",
+      icon: SlidersHorizontalIcon,
+      label: m.nav_tolerances,
+      description: m.section_student_tolerances,
     },
     {
       id: "results",
       to: "/student/results",
       icon: MicroscopeIcon,
-      label: m.nav_results,
+      label: m.nav_measurements_results,
       description: m.section_student_results,
     },
     {
-      id: "submissions",
-      to: "/student/submissions",
-      icon: SendIcon,
-      label: m.nav_submissions,
-      description: m.section_student_submissions,
-    },
-    {
-      id: "grades",
-      to: "/student/grades",
-      icon: GraduationCapIcon,
-      label: m.nav_grades,
-      description: m.section_student_grades,
+      id: "upload",
+      to: "/student/upload",
+      icon: UploadIcon,
+      label: m.nav_upload,
+      description: m.section_student_upload,
     },
   ],
 } as const satisfies PortalNavigation;
@@ -122,32 +113,11 @@ const TEACHER = {
       description: m.section_teacher_simulations,
     },
     {
-      id: "practicals",
-      to: "/teacher/practicals",
-      icon: FlaskConicalIcon,
-      label: m.nav_practicals,
-      description: m.section_teacher_practicals,
-    },
-    {
-      id: "results",
-      to: "/teacher/results",
-      icon: MicroscopeIcon,
-      label: m.nav_results,
-      description: m.section_teacher_results,
-    },
-    {
-      id: "grading",
-      to: "/teacher/grading",
-      icon: ClipboardCheckIcon,
-      label: m.nav_grading,
-      description: m.section_teacher_grading,
-    },
-    {
-      id: "kpi-dashboard",
-      to: "/teacher/kpi-dashboard",
-      icon: ChartColumnIcon,
-      label: m.nav_kpi_dashboard,
-      description: m.section_teacher_kpi_dashboard,
+      id: "dashboard",
+      to: "/teacher/dashboard",
+      icon: GaugeIcon,
+      label: m.nav_dashboard,
+      description: m.section_teacher_dashboard,
     },
     {
       id: "catalogue",
@@ -246,7 +216,7 @@ export function normalizePath(pathname: string): string {
 }
 
 /**
- * Returns the portal `pathname` lies in (`/teacher/grading` is in the teacher portal), or
+ * Returns the portal `pathname` lies in (`/teacher/dashboard` is in the teacher portal), or
  * `null` outside the portals. The URL is the only source of the current portal (ADR 0012).
  */
 export function portalOfPath(pathname: string): PortalNavigation | null {

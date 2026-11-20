@@ -58,7 +58,7 @@ test("session-dependent responses are never cached, built assets are (#41)", asy
   const serverFn = page.waitForResponse((response) => response.url().includes("/_serverFn/"));
   await page
     .getByRole("navigation", { name: "Main menu" })
-    .getByRole("link", { name: "Practicals" })
+    .getByRole("link", { name: "Dashboard" })
     .click();
   expect((await serverFn).headers()["cache-control"]).toBe("no-store");
 
