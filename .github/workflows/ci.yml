@@ -140,6 +140,7 @@ jobs:
       contents: read
     outputs:
       e2e: ${{ steps.scripts.outputs.e2e }}
+      postgres-password: ${{ steps.postgres.outputs.password }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -154,6 +155,10 @@ jobs:
             echo "e2e=false" >> "$GITHUB_OUTPUT"
             echo "::notice::package.json has no test:e2e or db:migrate script yet; the e2e lane is skipped"
           fi
+      # The bootstrap superuser's password of the test and e2e service containers, new for each
+      # run. A service starts before its job's steps, so it can only come from a job before it.
+      - id: postgres
+        run: echo "password=$(openssl rand -hex 24)" >> "$GITHUB_OUTPUT"
 
   typecheck:
     name: typecheck
@@ -203,7 +208,7 @@ jobs:
         # The image's default bootstrap superuser `postgres`; the tests never
         # connect as it.
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: ${{ needs.install.outputs.postgres-password }}
         ports:
           - 5432:5432
         # Over TCP, so the probe stays red while the entrypoint's socket-only
@@ -213,8 +218,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-    env:
-      TEST_DATABASE_URL: postgres://edulims:edulims@localhost:5432/edulims_test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -230,8 +233,13 @@ jobs:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           set -euo pipefail
+          # The edulims role's password, new for each run and masked in the log.
+          EDULIMS_DB_PASSWORD="$(openssl rand -hex 24)"
+          export EDULIMS_DB_PASSWORD
+          echo "::add-mask::${EDULIMS_DB_PASSWORD}"
+          echo "TEST_DATABASE_URL=postgres://edulims:${EDULIMS_DB_PASSWORD}@localhost:5432/edulims_test" >> "$GITHUB_ENV"
           for script in docker/postgres/init/20-edulims.sh docker/postgres/init/30-edulims-test-databases.sh; do
-            docker exec -i -e EDULIMS_DB_PASSWORD=edulims "$POSTGRES_CONTAINER" bash < "$script"
+            docker exec -i -e EDULIMS_DB_PASSWORD "$POSTGRES_CONTAINER" bash < "$script"
           done
           super="$(docker exec "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 --no-psqlrc -U postgres -d postgres -tAc \
             "SELECT rolsuper FROM pg_roles WHERE rolname = 'edulims'")"
@@ -284,7 +292,7 @@ jobs:
         # The image's default bootstrap superuser `postgres`; the tests never
         # connect as it.
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: ${{ needs.install.outputs.postgres-password }}
         ports:
           - 5432:5432
         # Over TCP, so the probe stays red while the entrypoint's socket-only
@@ -295,7 +303,6 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      E2E_DATABASE_URL: postgres://edulims:edulims@localhost:5432/edulims_e2e
       BETTER_AUTH_URL: http://localhost:3000
       EDULIMS_DEV_LOGIN: "1"
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.cache/ms-playwright
@@ -309,8 +316,13 @@ jobs:
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |
           set -euo pipefail
+          # The edulims role's password, new for each run and masked in the log.
+          EDULIMS_DB_PASSWORD="$(openssl rand -hex 24)"
+          export EDULIMS_DB_PASSWORD
+          echo "::add-mask::${EDULIMS_DB_PASSWORD}"
+          echo "E2E_DATABASE_URL=postgres://edulims:${EDULIMS_DB_PASSWORD}@localhost:5432/edulims_e2e" >> "$GITHUB_ENV"
           for script in docker/postgres/init/20-edulims.sh docker/postgres/init/30-edulims-test-databases.sh; do
-            docker exec -i -e EDULIMS_DB_PASSWORD=edulims "$POSTGRES_CONTAINER" bash < "$script"
+            docker exec -i -e EDULIMS_DB_PASSWORD "$POSTGRES_CONTAINER" bash < "$script"
           done
           super="$(docker exec "$POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 --no-psqlrc -U postgres -d postgres -tAc \
             "SELECT rolsuper FROM pg_roles WHERE rolname = 'edulims'")"

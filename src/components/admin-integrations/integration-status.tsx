@@ -269,7 +269,7 @@ function summary(page: IntegrationStatusPage): string {
 /** Returns the newest check of the page, or `null` before the first one. */
 function newestCheck(page: IntegrationStatusPage): string | null {
   const instants = page.integrations.flatMap((status) => status.checkedAt ?? []);
-  return instants.toSorted().at(-1) ?? null;
+  return instants.toSorted((a, b) => Date.parse(a) - Date.parse(b)).at(-1) ?? null;
 }
 
 /**

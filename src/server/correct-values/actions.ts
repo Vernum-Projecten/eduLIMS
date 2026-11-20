@@ -47,7 +47,7 @@ async function runningWithoutLimits(
     .where("test_id", "in", testIds)
     .execute();
   const has = new Set(limited.map((row) => row.test_id));
-  return testIds.filter((id) => !has.has(id)).sort();
+  return testIds.filter((id) => !has.has(id)).sort((a, b) => a.localeCompare(b));
 }
 
 /** A stored correct value, keyed by the database's own lower case of its sample number. */

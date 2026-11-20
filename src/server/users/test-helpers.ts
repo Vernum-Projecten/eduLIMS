@@ -3,6 +3,7 @@
 
 // Shared setup of the Users screen's database tests: a better-auth instance on the rolled-back
 // test database and signed-in sessions of fictional @example.test people.
+import { randomBytes } from "node:crypto";
 import type { Kysely } from "kysely";
 import { formatRoles, type Role } from "../../lib/roles.ts";
 import type { Auth } from "../auth.ts";
@@ -15,7 +16,8 @@ import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
 import type { ActionContext } from "./actions.ts";
 
-export const TEST_PASSWORD = "correct-horse-battery";
+/** The password of every user these helpers create, new for each test run. */
+export const TEST_PASSWORD = randomBytes(18).toString("base64url");
 
 /** A test database and a better-auth instance on it. */
 export async function authOnTestDb(): Promise<{ auth: Auth; db: Kysely<DB> }> {
