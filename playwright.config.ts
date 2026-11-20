@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineConfig, devices } from "@playwright/test";
-import { E2E_SECRETS, runDatabaseUrl, runPort } from "./tests/e2e/run-env.ts";
+import { E2E_SECRETS, runDatabaseUrl, runOutputDir, runPort } from "./tests/e2e/run-env.ts";
 import { setupThenServe, webServerTimeout } from "./tests/e2e/web-server-command.ts";
 
 // E2E runs the production build (`pnpm build` first) against a database of its own on a port
@@ -18,6 +18,7 @@ const baseDatabaseUrl =
   "postgres://edulims:edulims@127.0.0.1:5432/edulims_e2e";
 const databaseUrl = runDatabaseUrl(baseDatabaseUrl);
 const INTEGRATION_STATUS_SPEC = /admin-integrations\.spec\.ts$/;
+const SCIM_SPEC = /admin-scim\.spec\.ts$/;
 
 // The web server's setup, each step with its own bound (#248). Measured on CI and on a loaded
 // developer machine (load average 10 on 18 cores): the run database 1 to 1.5 s, `pnpm db:reset`
@@ -61,24 +62,35 @@ const appEnv = {
 
 export default defineConfig({
   testDir: "tests/e2e",
-  outputDir: "test-results",
+  // Playwright empties its output folder at the start, so each run writes to its own (#321).
+  outputDir: runOutputDir(),
   fullyParallel: true,
   forbidOnly: Boolean(process.env["CI"]),
   retries: process.env["CI"] ? 2 : 0,
   reporter: process.env["CI"] ? [["github"], ["html", { open: "never" }]] : "list",
-  use: { baseURL, locale: "en-US", trace: "retain-on-failure" },
+  // A trace of every test made the longest journeys 3 to 4 times slower on a loaded host (5.0 s
+  // untraced, 22.7 s traced) and left their context teardown, which writes the trace, past the
+  // 30 s budget (#321). The first retry records one; locally, run with `--trace on`.
+  use: { baseURL, locale: "en-US", trace: "on-first-retry" },
   // The integration status journeys own this run's integration port and the global check rows,
   // so one worker runs them: a retry or a repeat of the file never overlaps another (#227).
+  // The SCIM journey owns the one token of the keycloak provider in the same way (#321).
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
-      testIgnore: INTEGRATION_STATUS_SPEC,
+      testIgnore: [INTEGRATION_STATUS_SPEC, SCIM_SPEC],
     },
     {
       name: "chromium-integration-status",
       use: { ...devices["Desktop Chrome"] },
       testMatch: INTEGRATION_STATUS_SPEC,
+      workers: 1,
+    },
+    {
+      name: "chromium-scim",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: SCIM_SPEC,
       workers: 1,
     },
   ],

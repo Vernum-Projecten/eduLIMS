@@ -12,6 +12,10 @@ import { appUrl } from "./run-env";
 const PROVIDER_PAGE = "/admin/system/identity-providers/keycloak";
 
 async function axe(page: Page): Promise<void> {
+  // The token buttons stay disabled at half opacity while a token write is pending and fade back
+  // once it settles; a scan before the fade measured the faded text (3.69:1, #321).
+  const tokenButtons = page.getByRole("button", { name: /^(Create|Replace|Revoke) token$/ });
+  await expect(tokenButtons.and(page.locator(":disabled"))).toHaveCount(0);
   await page.evaluate(() =>
     Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
   );
@@ -39,6 +43,7 @@ test("an administrator issues a SCIM token once, the directory provisions a user
   // A token left by an earlier run is revoked first, so the journey starts from none.
   const leftover = page.getByRole("button", { name: "Revoke token" });
   if (await leftover.isVisible()) {
+    await expectHydrated(leftover);
     await leftover.click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Revoke token" }).click();
   }
@@ -83,7 +88,9 @@ test("an administrator issues a SCIM token once, the directory provisions a user
   await axe(page);
 
   await openScim(page);
-  await page.getByRole("button", { name: "Replace token" }).click();
+  const replaceToken = page.getByRole("button", { name: "Replace token" });
+  await expectHydrated(replaceToken);
+  await replaceToken.click();
   const replace = page.getByRole("alertdialog", { name: "Replace the SCIM token?" });
   await expect(replace).toBeVisible();
   await axe(page);
