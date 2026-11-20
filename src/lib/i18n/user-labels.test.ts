@@ -46,6 +46,7 @@ describe("user labels (#34)", () => {
     expect(auditActionLabel("lab_join_code_regenerated")).toBe("Lab code replaced");
     expect(auditActionLabel("lab_join_code_disabled")).toBe("Lab code turned off");
     expect(auditActionLabel("lab_join_failed")).toBe("Joining a lab with a code failed");
+    expect(auditActionLabel("lab_logo_changed")).toBe("Lab logo changed");
     expect(auditActionLabel("sample_registered")).toBe("Other activity");
     expect(auditActionLabel("toString")).toBe("Other activity");
     expect(auditOutcomeLabel("success")).toBe("succeeded");

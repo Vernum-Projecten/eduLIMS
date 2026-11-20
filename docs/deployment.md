@@ -982,7 +982,7 @@ its cause by error class and code (a SQLSTATE such as `42P01`, or
 | `idp_role_conflict` | the identity provider sent a role set eduLIMS does not allow |
 | `admin_action_failed` | an Admin portal action failed in the sign-in library |
 | `audit_write_failed` | an activity-log row could not be written |
-| `input_validation_fail` | a server function refused a request body before reading it: `json_length_missing` (411) or `json_too_large` (413); see "Keeping the log on the host bounded" for a flood of them |
+| `input_validation_fail` | a server function refused a request body before reading it: `json_length_missing` (411) or `json_too_large` (413) for JSON, `form_length_missing` (411) or `form_too_large` (413) for a form; see "Keeping the log on the host bounded" for a flood of them |
 
 The activity log in the database stays the record. A line written in a
 transaction that later rolls back can still reach the stream, so read a
