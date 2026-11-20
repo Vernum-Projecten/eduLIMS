@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { Auth } from "../auth.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { RefusalDeduper } from "../scim/audit.ts";
+import { withAppOrigin } from "../test-auth.ts";
 import { CLOSED_AUTH_PATHS, HTTP_CLOSED_AUTH_PATHS } from "./admin-endpoint-lock.ts";
 import { authOnTestDb, createUser, signIn } from "./test-helpers.ts";
 
@@ -42,7 +43,7 @@ async function userCount(database: Kysely<DB>, userId: string): Promise<number> 
 function request(path: string, method: "GET" | "POST", headers: Headers, body?: unknown) {
   return new Request(`http://localhost:3000/api/auth${path}`, {
     method,
-    headers: { ...Object.fromEntries(headers), "content-type": "application/json" },
+    headers: withAppOrigin({ ...Object.fromEntries(headers), "content-type": "application/json" }),
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }

@@ -4,8 +4,19 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page, type Response } from "@playwright/test";
 
+import { appUrl } from "./run-env";
+
 /** Seeded by `pnpm db:seed` (src/server/db/seed.ts). */
 export const DEV_PASSWORD = "eduLIMS-dev-only";
+
+/**
+ * Returns `headers` plus the app's `Origin`, as a browser sends it on a same-origin write.
+ * better-auth refuses a non-safe request with a session cookie and no trusted origin (ASVS
+ * V3.5.1, #371), so every API request a spec sends with a cookie to `/api/auth/*` uses this.
+ */
+export function withAppOrigin(headers: Record<string, string> = {}): Record<string, string> {
+  return { ...headers, origin: new URL(appUrl()).origin };
+}
 
 /**
  * Waits until React has hydrated `element`, so its handlers are attached.
