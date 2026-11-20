@@ -25,7 +25,7 @@ const DEV_CLIENT = {
   tokenUrl: new URL(`${KEYCLOAK}/realms/edulims/protocol/openid-connect/token`),
   clientId: "edulims-ferroehr",
   clientSecret: "edulims-dev-ferroehr-secret",
-  scope: "system/template-*.r",
+  scope: "system/template-*.r system/composition-*.cr",
 } as const;
 
 /** Returns a client of the dev stack over the global `fetch`, with `secret` when given. */

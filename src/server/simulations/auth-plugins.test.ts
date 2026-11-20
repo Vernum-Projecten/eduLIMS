@@ -132,6 +132,7 @@ describe("labSignInLink (S10: in the lab at sign-in)", () => {
       .select(["actor_id", "reason_code", "target_id"])
       .where("action", "=", "lab_member_joined")
       .where("outcome", "=", "refused")
+      .orderBy("id")
       .execute();
     expect(refusals).toEqual([
       { actor_id: studentId, reason_code: "removed", target_id: other.value.labId },

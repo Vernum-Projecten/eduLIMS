@@ -17,6 +17,7 @@ export const AUTH_AUDIT_ACTIONS = [
   "authn_login_fail",
   "authn_logout",
   "authz_role_change",
+  "authz_endpoint_closed",
   "session_revoked",
   "session_expired",
   "user_created",
@@ -272,7 +273,10 @@ export const auditMetadataSchema = z.strictObject({
   auth_reason: z.string().regex(AUTH_REASON_PATTERN).optional(),
   /** When the SCIM token a `scim_token_created` or `scim_token_rotated` issued expires (#45). */
   token_expires_at: z.iso.datetime({ offset: true }).optional(),
-  /** How many refused SCIM requests one `scim_token_refused` row stands for (#45). */
+  /**
+   * How many refused requests one `scim_token_refused` row (#45), or one anonymous
+   * `authz_endpoint_closed` row (#356), stands for.
+   */
   refused_count: z.number().int().min(1).optional(),
   /** Until when the token a `scim_token_rotated` replaced keeps working (#45). */
   previous_token_valid_until: z.iso.datetime({ offset: true }).optional(),

@@ -205,12 +205,13 @@ is an EHR subject (Q-PRIV-1).
 
 | Database | Holds | Read with |
 |---|---|---|
-| FerroEHR (openEHR CDR) | the fictional patients of a simulation as EHR subjects, with the details the team registers (S11); each result as an openEHR composition (template `eduLIMS-lab`, existing CKM archetypes) in the EHR of its patient, with the sample number, the analyte, the value, the device and the time | openEHR REST, AQL |
+| FerroEHR (openEHR CDR) | one EHR per patient a team registers, its subject the patient's eduLIMS id (S11); each result as an openEHR composition (template `eduLIMS-lab`, existing CKM archetypes) in the EHR of its patient, with the sample number, the analyte, the value, the device and the time | openEHR REST, AQL |
 | eduLIMS database | users and roles; simulations and their labs, each with its name, its logo and its members; the test catalogue; correct values; tolerances; patients, requests and samples with their lab numbers; the times of entry and release; upload log and audit log; better-auth's sessions and accounts | SQL through Kysely ([ADR 0006](adr/0006-kysely-for-app-data.md)) |
 
-The EHR subject is the fictional patient, under the name and the date of
-birth the team registers; a fictional patient gets no pseudonym (owner,
-2026-11-19, O9). A result released to the patient's record is final: nobody
+The EHR subject is the fictional patient, named by its eduLIMS id; a
+fictional patient gets no pseudonym (owner, 2026-11-19, O9). The details the
+team registers stay in the eduLIMS database for now
+([The EHR of a patient](#the-ehr-of-a-patient)). A result released to the patient's record is final: nobody
 can change it or release another measurement for that requested test (S15;
 owner, 2026-11-19, O7). Where a measurement lives before its release is a
 design matter for the maintainer; the proposal is under
@@ -229,6 +230,58 @@ correct value.
 
 Each database has its own database user. One server keeps monitoring and
 backup simple: one backup routine covers both.
+
+### The EHR of a patient
+
+Every patient a team registers gets its own EHR in FerroEHR (S11, #147).
+The subject of the EHR is the patient's eduLIMS id, never the patient ID
+printed on the form: the teams of a simulation work the same forms, and two
+teams that register the same patient must get two EHRs, or one would read the
+other's results (S10). The first `EHR_STATUS` names the subject as a
+`PARTY_SELF` whose `external_ref` is a `PARTY_REF` of type `PERSON`, with the
+namespace `edulims-patient` and the patient id as its `HIER_OBJECT_ID` (RM
+common 1.1.0, "Referring to the Patient"). It carries no name, no lab, no
+simulation and nothing about a student or a teacher (Q-PRIV-1). The namespace
+is a constant in `src/server/openehr/ehr.ts`; no openEHR specification
+governs its value.
+
+The form's details (name, date of birth, sex and patient ID) are not written
+to FerroEHR yet. `PARTY_SELF` carries no details, and the openEHR model puts
+them in a demographic service the `external_ref` points at, which in FerroEHR
+is the DEMOGRAPHIC API (a `PERSON`, open to a client only through
+`[auth.smart] demographic_clients`). Storing the details as such a
+`PERSON` is a sub-issue of #147 (maintainer, 2026-11-20).
+
+eduLIMS finds the EHR with `GET /ehr?subject_id=…&subject_namespace=…` and,
+on `404`, creates it with `POST /ehr` and that `EHR_STATUS` (ITS-REST 1.1.0,
+EHR API, "Get EHR by subject id" and "Create EHR"). When two calls race,
+FerroEHR answers the second `409`, and eduLIMS reads the EHR by its subject
+again, so a patient has one EHR whatever the order. FerroEHR gives the EHR
+its id, and `patients.ehr_id` stores it, unique across patients. A null
+`ehr_id` means the EHR is pending: FerroEHR did not answer at the
+registration. The registration still commits, the team's confirmation says
+the record is not created yet, and the server logs `ferroehr_ehr_pending`
+with the patient's id and the error's kind and status. The registration
+waits at most 5 seconds for FerroEHR in all (token, lookup and create); past
+that, the EHR is pending too. An unexpected error in this step, after the
+commit, is logged as `ferroehr_ehr_failed` and also answers pending, so the
+team never registers the patient twice. The next call that needs the EHR
+tries again: the release of a result (#148) calls the same function, refuses
+while the EHR is pending, and takes the EHR id as the branded type `EhrId`,
+which only a resolved EHR yields. No job retries in the background.
+
+The EHR is created once. A later correction of the patient's details in
+eduLIMS does not rewrite the `EHR_STATUS`: the eduLIMS record is the source of
+the patient's details, and FerroEHR holds the results (maintainer, #147).
+FerroEHR writes the committer of every version itself, from the client that
+signed in: `PARTY_IDENTIFIED` named by the client `edulims-ferroehr`, a
+system client, never a person (FerroEHR book v5.7.0, `security/committer.md`).
+eduLIMS sends no committer; FerroEHR refuses a stated committer with another
+name. The maintainer accepted the client id as the committer on #364: it
+carries no person, which is what Q-PRIV-1 protects. Finding and creating an EHR needs the scope
+`system/composition-*.cr`, because an EHR operation names no template and
+FerroEHR covers it only with the bare wildcard (`smart-app-launch.md`, "What
+each route requires").
 
 ### Simulations and labs
 
@@ -366,14 +419,46 @@ student's place and a waiting address point at their lab through the pair
   the last administrator, runs the deferred last-teacher check before it
   writes the activity-log rows, and deletes the sessions, the accounts and
   the user with those rows, so a refusal changes nothing. Better-auth's
-  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404. A
+  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404,
+  and so do `admin/set-role`, `admin/update-user` and the core `update-user`
+  (`src/server/users/admin-endpoint-lock.ts`, #345, #356): eduLIMS writes
+  roles only through its own paths, and names come from the identity
+  provider. Each call to one of them is a refused `authz_endpoint_closed`
+  row. `admin/create-user` and `admin/ban-user` answer 404 over HTTP only,
+  since the seed and the tests call `create-user` on the server. A
   `BEFORE DELETE` trigger on `user` and a deferred constraint trigger, which
   refuses any commit that leaves an existing simulation without a teacher
-  row, stay as the last line.
+  row, stay as the last line. The other paths that take the admin role away
+  or block an administrator, `pnpm admin:revoke` and the local role edit and
+  the block of the Users screen, lock the administrators first, the same way
+  and in the same order, before they read the target and count
+  (`src/server/users/administrators.ts`, #345, #356). A blocked administrator
+  does not count, so two of them, or one and a deletion, never leave eduLIMS
+  without an administrator who can sign in; a deprovisioned administrator
+  does not count either (maintainer, second review of #356). Under the same
+  locks each of them checks that the acting administrator still holds the
+  role and is neither blocked nor deprovisioned, and refuses with 403 when
+  not. The global lock order is simulations, administrators, other users:
+  `removeTeacher` takes the administrator locks after the simulation lock
+  and before the teachers' rows. The session read ends a session of a
+  blocked user, so a sign-in that raced a block keeps none. The local role edit
+  and `admin revoke` end the sessions of a user who loses a role, each with
+  a `session_revoked` row, so their next request signs in with the new set.
+  The rule binds eduLIMS's own paths only: an identity provider stays
+  authoritative over the roles it owns, by a claim or over SCIM, and may
+  take the admin role from the last administrator (maintainer, #345); the
+  host command `admin grant` is the way back. A SCIM role change keeps the
+  user's sessions: eduLIMS reads the roles on every request, so the next one
+  carries the new set. An administrator cannot give their own account
+  teacher access without the identity provider, but one who mints a SCIM
+  token holds the same trust as configuring that provider and can change the
+  roles it owns through SCIM; the maintainer accepts this (#356 review, S4).
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it and it holds no patient or request
   (`has_records`, maintainer, 2026-11-20), and a simulation only while no student is in
-  one of its labs; the teacher moves or removes the students first.
+  one of its labs and none of its labs holds a patient, a request, a
+  tolerance or a measurement (`has_records`, maintainer on #370); the
+  teacher moves or removes the students first.
 - **The administrator** reads each simulation with its teachers' names and
   its labs with their member counts, and nothing else (B5). The list in
   Admin → Simulations is paged and searched by name on the server, newest
@@ -433,6 +518,21 @@ The lab logo is an upload, held to the upload rules of the security baseline
   like every other response (#41). Everyone else, an administrator and a
   signed-out caller included, gets the same empty 404 as a lab without a
   logo.
+- **Where it shows (#293):** on the teacher's lab page, with the form that
+  uploads, replaces and removes it; beside the lab's name on the teacher's
+  simulation page; and on the student's overview of their labs. The reads
+  of those pages carry a `logoVersion` (the start of the logo's SHA-256, or
+  `null`), and the screens ask for `…/logo?v=<version>`, so a replaced logo
+  is a new address and a lab without a logo asks for no image. Beside the
+  lab's name the image is decorative (empty alt); on the lab page its alt is
+  "Logo of {name}" (a lab's name often starts with "Lab"). The browser
+  checks the declared type and the size before it sends a file
+  (`src/components/simulations/logo-form-schema.ts`; a file the browser
+  gives no type passes to the server); the server ignores both, its content
+  check stays the authority, and each refusal code shows at the file field.
+  The preview of a chosen file is a `data:` address, which is why the CSP
+  allows `img-src data:`. The administrator's view
+  (B5) reads no logo and renders no logo address.
 
 ### Patients, requests and samples
 
@@ -480,7 +580,8 @@ A team's records from the paper request form live in the eduLIMS database
   the request or patient `FOR UPDATE` (a patient correction also reads the
   patient's requests `FOR SHARE`), and the release locks the request
   `FOR UPDATE` too, so the two serialise. A correction never removes a
-  sample and never changes the patient or the kind of a request; a new
+  sample or a requested test (`test_removed`, maintainer on #268) and never
+  changes the patient or the kind of a request; a new
   sample gets a fresh lab number. Each correction writes a
   `record_corrections` row and an activity-log row with ids only.
 - **The catalogue.** A request reads its tests `FOR SHARE` in id order, so a
@@ -495,9 +596,11 @@ A team's records from the paper request form live in the eduLIMS database
   shown in the reader's locale and sent as `YYYY-MM-DD`. The correction log
   is a section of the teacher's simulation page; it names a patient by its
   fictional name and a request by its samples' lab numbers.
-- **FerroEHR.** Registering a patient returns the subject of its EHR (the
-  form's details and the patient's id, nothing about the lab or a student);
-  #147 creates the EHR from it after the transaction commits.
+- **FerroEHR.** After the registering transaction commits, eduLIMS finds or
+  creates the patient's EHR and stores its id in `patients.ehr_id`
+  ([The EHR of a patient](#the-ehr-of-a-patient)). When FerroEHR does not
+  answer, the patient stays registered with its EHR pending, and the team
+  reads that in the confirmation.
 
 ### Measurements and the release of a result
 
@@ -510,10 +613,10 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
 | `request_tests` | the release, on the requested test itself: one row per requested test, so at most one released measurement |
 
 - **Kept as they arrived.** A trigger refuses any change to a measurement and
-  any direct delete; only its lab's cascade removes one. A correction that
-  would drop a requested test with a measurement is refused
-  (`test_measured`), and the foreign key from a measurement to its requested
-  test holds the same rule.
+  any direct delete; only its lab's cascade removes one. A correction never
+  removes a requested test (`test_removed`, maintainer on #268), and the
+  foreign key from a measurement to its requested test holds the same rule
+  in the database.
 - **The release.** A member of the lab picks a measurement and confirms. In
   one transaction the service checks the lab (`findWorkingStudentLab`),
   takes the lab row `FOR SHARE` (a tolerance change takes it `FOR NO KEY
@@ -533,12 +636,17 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
   sample and the measurement to the lab in the same query. An analyser
   result is matched by the lab number alone (maintainer on #270), lands on
   that sample, and only the lab whose sample it is can release it.
-- **The seam for the analysers.** `insertMeasurement` parses and bounds the
-  value (`value_invalid`) and writes the activity-log row; the Afinion 2
-  route (#158) and the Epoch 2 upload (#152) call it after they have matched
-  the sample, checked that its simulation runs and locked the request
-  `FOR SHARE`. Entry by hand is allowed only for a test whose source is
-  entry by hand (D9).
+- **The seam for the analysers.** The Afinion 2 route (#158) and the Epoch 2
+  upload (#152) call `insertMeasurement` once they have matched the sample by
+  its lab number. In the caller's transaction it checks that the lab's
+  simulation runs (its row `FOR SHARE`), locks the request `FOR SHARE`,
+  checks that the measurement comes from the test's own source (entry by
+  hand only for a test entered by hand, D9), refuses entry by hand once the
+  test is released, checks the sample, and parses and bounds the value
+  (`value_invalid`). An analyser result that arrives after the release still
+  lands and shows, and the release stays final (maintainer on #370). Every
+  refusal writes an activity-log row; an analyser's measurement has no
+  student (a CHECK), and its time is the database clock (a trigger).
 - **FerroEHR.** The release returns what goes to the patient's record (the
   patient, the released measurement, the sample number, the test, the value
   and the time), and #148 writes it as Final after the transaction commits,
@@ -692,6 +800,11 @@ than the limit for a caller who is not signed in (ASVS 5.0 V5.2.1, V15.2.2).
 | JSON body to a server function | 1 MiB, declared and as it streams | 411 without a `Content-Length`, 413 over the limit |
 | Form body to a server function (multipart or URL-encoded) | the largest lab logo (512 KiB) plus 16 KiB for its fields, declared (#292) | 411 without a `Content-Length`, 413 over the limit |
 | GET payload of a server function (the `payload` query parameter) | Node's 16 KiB limit on the request line and headers | 431 from Node's HTTP parser, before eduLIMS runs |
+| Body to a better-auth endpoint under `/api/auth/*` (sign-in, sign-out) | 64 KiB, declared and as it streams (#350) | 411 for a malformed `Content-Length`, 413 over the limit |
+| SAML form post (`/api/auth/sso/saml2/*`: the ACS and single logout) | 128 KiB, declared and as it streams (#350) | as above |
+| SCIM request (`/api/auth/scim/v2/*`) | 1 MiB, declared in the middleware, as it streams in the SCIM gate after its token check and rate limit (#45, #350) | as above, as a SCIM error (RFC 7644 §3.12) |
+| Body to any other server route or page (`/api/health`, `/api/ready`, the lab logo, every page) | none: 0 bytes, a chunked body refused at once (#350) | as above |
+| A chunked GET or HEAD, to any route | refused at once (#350) | 413 |
 
 **The JSON limit** comes from the largest input any server function takes:
 the pasted list of a lab's member addresses, 500 lines of 320 characters
@@ -716,13 +829,80 @@ another path.
 
 The JSON and the form refusals are empty responses with `Connection: close`, so Node closes
 the socket instead of reading and discarding the refused body to keep the
-connection alive. Each refusal writes an `input_validation_fail` line to the
-security log; [deployment.md](deployment.md#keeping-the-log-on-the-host-bounded)
+connection alive. A refusal writes an `input_validation_fail` line to the
+security log, one per client and reason in a minute (below); [deployment.md](deployment.md#keeping-the-log-on-the-host-bounded)
 says how to keep a flood of them from filling the host.
 
 A GET payload never reaches Start above 16 KiB: Node answers 431 first. An
 e2e test (`tests/e2e/json-body-limit.spec.ts`) sends a 20 KiB payload, so a
 raised header limit (`--max-http-header-size`) fails CI.
+
+**The server route limits** (`src/server/route-body-limit.ts`, #350) run in
+the same request middleware for every request that is not a server function
+call, before the route reads a byte. Each family's limit comes from the
+largest body it legitimately takes:
+
+- **better-auth, 64 KiB:** the browser sends `/sign-in/sso`, `/sign-in/email`
+  (development only) and `/sign-out`. Their largest fields are callback URLs,
+  and a URL longer than Node's 16 KiB header limit could never be opened
+  anyway, so three of them and the other fields stay under 64 KiB. The admin
+  endpoints are called in-process by server functions, never over HTTP.
+- **SAML, 128 KiB:** a signed response from the development Keycloak, with
+  the role, e-mail and name attributes, posts as at most 10,161 bytes
+  (measured for every development user). The limit leaves room for an
+  encrypted assertion, which base64-encodes the XML a second time, and for an
+  IdP that sends more attributes. The 128 KiB is our own margin over the
+  measured 10 KB (maintainer decision on #350); no fixture holds a larger
+  response. An operator whose IdP sends more raises it; today that is
+  `SAML_BODY_MAX` in `src/server/route-body-limit.ts` and a new image, since
+  no setting holds it.
+- **SCIM, 1 MiB:** the cap of #45. The scim plugin offers no bulk endpoint
+  (its ServiceProviderConfig says `bulk.supported: false`), and its largest
+  body is a Group of its 1,000-member maximum: 418 KB with a `$ref` and a
+  256-character `display` per member. A PATCH that adds 1,000 members is
+  49 KB. The middleware checks only the declared length of a SCIM request;
+  the SCIM gate counts the body, after the token check and the rate limit,
+  so a caller without a token is limited before a byte of its body is read
+  (maintainer decision on #350).
+- **Every other route, 0 bytes:** the health and ready checks and the logo
+  are GET routes, and no page takes a body. A chunked body to one of them is
+  refused at once, unread.
+
+The family comes from the raw path of the request URL, still
+percent-encoded, which is the path the better-auth router and the SCIM gate
+match. A prefix spelled with escapes (`/api/auth/s%73o/saml2/…`) falls to the
+64 KiB family, so a body only ever meets the smaller limit. A GET or HEAD
+with `Transfer-Encoding` is refused on every route.
+
+A body without a `Content-Length` to the better-auth and SAML endpoints is
+counted to the limit, not refused with 411 as a server function's is:
+identity providers send these bodies, and their framing is not eduLIMS's to
+choose. The count is the same one the JSON check uses (`fitsIn`), and the
+SCIM gate's cap uses it too.
+Over the limit the count cancels its clone and the body without waiting for
+the source: the locale middleware (`src/server-entry.ts`) holds a clone that
+nobody reads, and the source stops only when every clone is cancelled, so a
+wait would hang the refusal. The socket closes after the 413 with the rest of
+the body unread, so a client that keeps sending may see a TCP reset before it
+reads the 413.
+Every refusal sends `Connection: close` and writes an `input_validation_fail`
+line with the family as `kind` and the proxy's `request_id`.
+
+The JSON, form and route refusals share one log
+(`src/server/body-refusal-log.ts`): one line per client and reason in a
+minute, with `refused_count` for the refusals it stands for. The client is
+the address behind `EDULIMS_TRUSTED_PROXIES`; without a trusted proxy every
+client shares one window. The window is the `RefusalDeduper` the SCIM log
+uses for refused tokens.
+
+**No server-wide `maxRequestBodySize`.** srvx 1.0.8 and Nitro
+3.0.261103-rc offer one, and srvx counts the streamed bytes, so it holds for a
+chunked body. Nitro reads it only from the default export of a Nitro server
+entry, though, not from the `nitro({...})` options, and a server entry adds a
+catch-all route in front of Start's renderer. Its refusal is an error thrown
+into whatever reads the body, which better-auth or Start turns into its own
+answer, without `Connection: close`. The middleware covers every route that
+reads a body, so it is the one limit.
 
 ## Deployment
 

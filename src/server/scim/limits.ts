@@ -6,6 +6,28 @@
 // (no token, an unknown, revoked or expired one) counts against its client IP, so guessing
 // with fresh random tokens gains nothing. Relative imports: `pnpm db:seed` loads auth.ts.
 import "@tanstack/react-start/server-only";
+import { fitsIn } from "../json-body-limit.ts";
+
+const SCIM_MEDIA_TYPE = "application/scim+json";
+const SCIM_ERROR_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:Error";
+
+/** Returns a SCIM error response (RFC 7644 §3.12) with only a status, a fixed detail and type. */
+export function scimErrorResponse(
+  status: number,
+  detail: string,
+  headers: Readonly<Record<string, string>> = {},
+  scimType?: string,
+): Response {
+  return new Response(
+    JSON.stringify({
+      schemas: [SCIM_ERROR_SCHEMA],
+      status: String(status),
+      ...(scimType ? { scimType } : {}),
+      detail,
+    }),
+    { status, headers: { "content-type": SCIM_MEDIA_TYPE, ...headers } },
+  );
+}
 
 /** The limits of the SCIM endpoint. */
 export interface ScimLimits {
@@ -23,6 +45,8 @@ export const SCIM_LIMITS: ScimLimits = {
   maxRequests: 600,
   windowMs: 60_000,
   maxKeys: 10_000,
+  // NOTE: #350; the largest body the plugin accepts, a Group of its 1,000 members with a `$ref`
+  // and a 256-character `display` each, is 418 KB, and it offers no bulk endpoint.
   maxBodyBytes: 1_048_576,
 };
 
@@ -99,23 +123,13 @@ export function rateKeyOf(providerId: string | null, clientIp: string | null): s
   return `ip:${clientIp ?? "unknown"}`;
 }
 
-/** Returns whether a request body is larger than `max` bytes, reading at most `max + 1`. */
+/**
+ * Returns whether a request body is larger than `max` bytes: its declared length, else the body
+ * counted on a clone by the shared counter of the body limits, which keeps none of it.
+ */
 export async function bodyTooLarge(request: Request, max: number): Promise<boolean> {
   const declared = Number(request.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > max) return true;
-  if (!request.body) return false;
-  const reader = request.clone().body?.getReader();
-  if (!reader) return false;
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) return false;
-    size += value.byteLength;
-    if (size > max) {
-      // NOTE: no requirement governs this: our own design; cancelling a tee'd clone waits for
-      // the other branch, so the clone is released and dropped instead.
-      reader.releaseLock();
-      return true;
-    }
-  }
+  if (request.body === null) return false;
+  return !(await fitsIn(request, request.clone(), max));
 }

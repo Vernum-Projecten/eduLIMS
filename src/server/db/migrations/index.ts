@@ -25,6 +25,7 @@ import * as m0018 from "./0018_simulation_state_and_correct_values.ts";
 import * as m0019 from "./0019_lab_logos.ts";
 import * as m0020 from "./0020_patients_requests_samples.ts";
 import * as m0021 from "./0021_lab_tolerances.ts";
+import * as m0022 from "./0022_patient_ehr.ts";
 import * as m0023 from "./0023_measurements_and_release.ts";
 
 export const migrations: Record<string, Migration> = {
@@ -49,6 +50,7 @@ export const migrations: Record<string, Migration> = {
   "0019_lab_logos": m0019,
   "0020_patients_requests_samples": m0020,
   "0021_lab_tolerances": m0021,
+  "0022_patient_ehr": m0022,
   "0023_measurements_and_release": m0023,
 };
 

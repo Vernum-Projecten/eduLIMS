@@ -5,6 +5,7 @@ import { createCsrfMiddleware, createMiddleware, createStart } from "@tanstack/r
 import { refuseFormBody } from "@/server/form-body-limit";
 import { refuseJsonBody } from "@/server/json-body-limit";
 import { inputRefusalLogMiddleware } from "@/server/middleware";
+import { refuseRouteBody } from "@/server/route-body-limit";
 import { createNonce, securityHeaders, withSecurityHeaders } from "@/server/security-headers";
 
 /** Rejects cross-site server function calls (same-origin RPC only). */
@@ -34,12 +35,21 @@ const formBodyLimitMiddleware = createMiddleware().server(({ next, request, hand
   return refuseFormBody(request) ?? next();
 });
 
+/** Refuses a body to a server route or page before the route reads it, when it is too large. */
+const routeBodyLimitMiddleware = createMiddleware().server(
+  async ({ next, request, handlerType }) => {
+    if (handlerType === "serverFn") return next();
+    return (await refuseRouteBody(request)) ?? next();
+  },
+);
+
 export const startInstance = createStart(() => ({
   requestMiddleware: [
     securityHeadersMiddleware,
     csrfMiddleware,
     jsonBodyLimitMiddleware,
     formBodyLimitMiddleware,
+    routeBodyLimitMiddleware,
   ],
   // Global function middleware runs first in every server function's chain, around its validator.
   functionMiddleware: [inputRefusalLogMiddleware],

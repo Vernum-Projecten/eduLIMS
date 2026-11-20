@@ -10,6 +10,21 @@
 import "@tanstack/react-start/server";
 import { type AuthDatabase, createAuth } from "./auth.ts";
 import type { Env } from "./env.ts";
+import { VALID_ENV } from "./test-env.ts";
+
+/** The app's origin in tests: the origin of the test `BETTER_AUTH_URL`. */
+export const TEST_APP_ORIGIN = new URL(VALID_ENV.BETTER_AUTH_URL).origin;
+
+/**
+ * Returns `headers` plus the app's `Origin`, as a browser sends it on a same-origin write.
+ * better-auth refuses a non-safe request that carries a cookie without a trusted origin
+ * (ASVS V3.5.1, #371), so every test request with a session cookie goes through this.
+ */
+export function withAppOrigin(headers: HeadersInit = {}): Headers {
+  const merged = new Headers(headers);
+  merged.set("origin", TEST_APP_ORIGIN);
+  return merged;
+}
 
 /** Creates the auth instance of a test and waits for its schema check. */
 export async function createTestAuth(env: Env, database: AuthDatabase) {

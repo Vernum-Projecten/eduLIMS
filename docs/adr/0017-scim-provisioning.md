@@ -107,6 +107,9 @@ Option 3, with `@better-auth/scim` at exactly 1.7.20 like `better-auth` and
   `deprovisioned_at`, ends every session in the plugin's transaction, and a
   `databaseHooks.session` hook refuses every new session. Records stay;
   erasure is #47. Reactivation clears the mark.
+  Amended 2026-11-20 (#365): before this fix the route served only GET and
+  POST, so a PATCH or DELETE over HTTP never reached better-auth; the
+  behaviour above holds from this release on.
 - **Prerequisites, checked:** the plugin and `resolveUser` need native
   interactive transactions, database sessions and better-auth's async
   context. `createAuth` checks the first two before it adds the plugins, a

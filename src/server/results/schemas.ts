@@ -22,8 +22,14 @@ const measuredValue = z
     return parsed;
   });
 
+/**
+ * An id from the client in its canonical lower-case form, so an upper-case UUID reaches the same
+ * row and is not refused as unknown (security review of #370, N3).
+ */
+const id = () => z.uuid().toLowerCase();
+
 /** The measurements and results of one lab. */
-export const labResultsInput = z.object({ labId: z.uuid() });
+export const labResultsInput = z.object({ labId: id() });
 
 /** The form of a measurement entered by hand: the sample and the value, nothing filled in. */
 export const measurementFormSchema = z.object({
@@ -34,20 +40,20 @@ export type MeasurementForm = z.input<typeof measurementFormSchema>;
 
 /** Recording a measurement by hand in the student's own lab (S14). */
 export const recordMeasurementInput = z.object({
-  labId: z.uuid(),
-  requestId: z.uuid(),
-  testId: z.uuid(),
-  sampleId: z.uuid(),
+  labId: id(),
+  requestId: id(),
+  testId: id(),
+  sampleId: id(),
   value: measuredValue,
 });
 export type RecordMeasurementInput = z.output<typeof recordMeasurementInput>;
 
 /** Releasing one measurement as the result, with the tolerance the confirmation showed (S15). */
 export const releaseResultInput = z.object({
-  labId: z.uuid(),
-  requestId: z.uuid(),
-  testId: z.uuid(),
-  measurementId: z.uuid(),
-  toleranceId: z.uuid(),
+  labId: id(),
+  requestId: id(),
+  testId: id(),
+  measurementId: id(),
+  toleranceId: id(),
 });
 export type ReleaseResultInput = z.output<typeof releaseResultInput>;

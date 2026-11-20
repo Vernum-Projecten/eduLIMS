@@ -3,7 +3,8 @@
 
 // Measurements of a requested test (S14). Every measurement is a new row and none is changed or
 // removed, so a team that measures again keeps both. Entry by hand is one route; the Afinion 2
-// (#158) and the Epoch 2 upload (#152) write through the same `insertMeasurement`.
+// (#158) and the Epoch 2 upload (#152) write through the same `insertMeasurement`, which checks
+// every precondition itself in the caller's transaction.
 import "@tanstack/react-start/server-only";
 import type { Kysely, Transaction } from "kysely";
 import { parseDecimal } from "../../lib/decimal.ts";
@@ -13,14 +14,21 @@ import {
   type MeasurementSource,
   parseMeasurementId,
 } from "../../lib/results.ts";
+import type { AuditActor } from "../audit/events.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { logRecordsProbe } from "../lab-records/access.ts";
-import { done, type ResultsActor, type ResultsResult, refused, withResultsLab } from "./access.ts";
+import {
+  done,
+  type ResultsActionError,
+  type ResultsActor,
+  type ResultsResult,
+  refused,
+  withResultsLab,
+} from "./access.ts";
 
-/** One measurement to store, from any route. */
+/** One measurement to store, from any route: where it belongs, its value and its source. */
 export interface NewMeasurement {
-  simulationId: string;
   labId: string;
   requestId: string;
   testId: string;
@@ -28,7 +36,7 @@ export interface NewMeasurement {
   /** The value as the route read it: parsed and bounded here, never trusted. */
   value: string;
   source: MeasurementSource;
-  /** The student who entered it, or `null` for an analyser. */
+  /** The student who entered it by hand, or `null` for an analyser. */
   recordedBy: string | null;
 }
 
@@ -38,29 +46,126 @@ export interface StoredMeasurement {
   recordedAt: string;
 }
 
+/** The activity-log row of a measurement, done or refused, with ids only (E4). */
+function measurementEvent(measurement: NewMeasurement) {
+  const actor: AuditActor =
+    measurement.recordedBy === null
+      ? { type: "system" }
+      : { type: "user", id: measurement.recordedBy };
+  return {
+    action: "lab_measurement_recorded",
+    actor,
+    target: { type: "lab", id: measurement.labId },
+  } as const;
+}
+
+/** Writes a refused measurement's activity-log row and returns the refusal. */
+async function refuse<T>(
+  trx: Transaction<DB>,
+  measurement: NewMeasurement,
+  reason: ResultsActionError,
+): Promise<ResultsResult<T>> {
+  await recordAudit(trx, {
+    ...measurementEvent(measurement),
+    outcome: "refused",
+    reason,
+    metadata: { test_id: measurement.testId },
+  });
+  return refused(reason);
+}
+
 /**
- * Stores one measurement of a requested test and its activity-log row (ids only, never the
- * value). A value that is no decimal within the bounds (more than 9 digits before the point, more
- * than 6 after, exponent form) is refused with `value_invalid` and stores nothing.
+ * Stores one measurement of a requested test with its activity-log row (ids only, never the
+ * value), after checking in `trx`, in this order:
  *
- * The caller has already, in `trx`: matched the sample and the request to one lab, checked that
- * the lab's simulation runs, locked the request `FOR SHARE` (so a correction or a release
- * serialises with it), and refused a released requested test.
+ * 1. the lab's simulation runs, its row locked `FOR SHARE` (`not_running`), so a finish waits;
+ * 2. the request belongs to the lab, locked `FOR SHARE` (`request_not_found`), so a correction or
+ *    a release serialises with the insert;
+ * 3. the request names the test (`test_not_found`), and the measurement comes from the test's own
+ *    source (`not_manual_test` for entry by hand, `source_mismatch` for an analyser; D9);
+ * 4. entry by hand is refused once the requested test is released (`released`). An analyser
+ *    result still lands and shows; the release stays final (maintainer on #370, Q1);
+ * 5. the sample belongs to the request (`sample_not_found`);
+ * 6. the value is a decimal within the bounds, no exponent form (`value_invalid`).
+ *
+ * Every refusal writes a refused activity-log row and stores no measurement. The caller matches
+ * an analyser result to its sample by the lab number alone (maintainer on #270).
  */
 export async function insertMeasurement(
   trx: Transaction<DB>,
   measurement: NewMeasurement,
 ): Promise<ResultsResult<StoredMeasurement>> {
+  const lab = await trx
+    .selectFrom("labs")
+    .innerJoin("simulations", "simulations.id", "labs.simulation_id")
+    .select(["labs.id", "labs.simulation_id", "simulations.state"])
+    .where("labs.id", "=", measurement.labId)
+    .forShare("simulations")
+    .executeTakeFirst();
+  if (!lab) return refused("not_found");
+  if (lab.state !== "running") return refuse(trx, measurement, "not_running");
+  const requestId = parseRequestId(measurement.requestId);
+  const request =
+    requestId === null
+      ? undefined
+      : await trx
+          .selectFrom("requests")
+          .select("id")
+          .where("id", "=", requestId)
+          .where("lab_id", "=", lab.id)
+          .forShare()
+          .executeTakeFirst();
+  if (!request) {
+    if (measurement.recordedBy !== null) {
+      logRecordsProbe(measurement.recordedBy, "request", measurement.requestId);
+    }
+    return refused("request_not_found");
+  }
+  const requested = await trx
+    .selectFrom("request_tests")
+    .innerJoin("catalogue_tests", "catalogue_tests.id", "request_tests.test_id")
+    .select(["request_tests.released_at", "catalogue_tests.source"])
+    .where("request_tests.request_id", "=", request.id)
+    .where("request_tests.test_id", "=", measurement.testId)
+    .executeTakeFirst();
+  if (!requested) return refused("test_not_found");
+  if (requested.source !== measurement.source) {
+    return refuse(
+      trx,
+      measurement,
+      measurement.source === "manual" ? "not_manual_test" : "source_mismatch",
+    );
+  }
+  if (measurement.source === "manual" && requested.released_at !== null) {
+    return refuse(trx, measurement, "released");
+  }
+  const sampleId = parseSampleId(measurement.sampleId);
+  const sample =
+    sampleId === null
+      ? undefined
+      : await trx
+          .selectFrom("samples")
+          .select("id")
+          .where("id", "=", sampleId)
+          .where("request_id", "=", request.id)
+          .where("lab_id", "=", lab.id)
+          .executeTakeFirst();
+  if (!sample) {
+    if (measurement.recordedBy !== null) {
+      logRecordsProbe(measurement.recordedBy, "sample", measurement.sampleId);
+    }
+    return refused("sample_not_found");
+  }
   const value = parseDecimal(measurement.value);
-  if (value === null) return refused("value_invalid");
+  if (value === null) return refuse(trx, measurement, "value_invalid");
   const row = await trx
     .insertInto("measurements")
     .values({
-      simulation_id: measurement.simulationId,
-      lab_id: measurement.labId,
-      request_id: measurement.requestId,
+      simulation_id: lab.simulation_id,
+      lab_id: lab.id,
+      request_id: request.id,
       test_id: measurement.testId,
-      sample_id: measurement.sampleId,
+      sample_id: sample.id,
       value,
       source: measurement.source,
       recorded_by: measurement.recordedBy,
@@ -70,15 +175,10 @@ export async function insertMeasurement(
   const measurementId = parseMeasurementId(row.id);
   if (measurementId === null) throw new Error("the database returned a malformed measurement id");
   await recordAudit(trx, {
-    action: "lab_measurement_recorded",
-    actor:
-      measurement.recordedBy === null
-        ? { type: "system" }
-        : { type: "user", id: measurement.recordedBy },
-    target: { type: "lab", id: measurement.labId },
+    ...measurementEvent(measurement),
     outcome: "success",
     metadata: {
-      lab_request_id: measurement.requestId,
+      lab_request_id: request.id,
       test_id: measurement.testId,
       measurement_id: measurementId,
     },
@@ -96,48 +196,8 @@ export interface ManualMeasurementInput {
 }
 
 /**
- * Locks a request of the lab `FOR SHARE` and reads its requested test, or returns the refusal: an
- * unknown or another lab's request (`request_not_found`, logged), a test the request does not
- * name (`test_not_found`), and a released requested test (`released`).
- */
-async function openRequestedTest(
-  trx: Transaction<DB>,
-  actorId: string,
-  labId: string,
-  requestId: string,
-  testId: string,
-): Promise<ResultsResult<{ requestId: string; source: string }>> {
-  const id = parseRequestId(requestId);
-  const request =
-    id === null
-      ? undefined
-      : await trx
-          .selectFrom("requests")
-          .select("id")
-          .where("id", "=", id)
-          .where("lab_id", "=", labId)
-          .forShare()
-          .executeTakeFirst();
-  if (!request) {
-    logRecordsProbe(actorId, "request", requestId);
-    return refused("request_not_found");
-  }
-  const requested = await trx
-    .selectFrom("request_tests")
-    .innerJoin("catalogue_tests", "catalogue_tests.id", "request_tests.test_id")
-    .select(["request_tests.released_at", "catalogue_tests.source"])
-    .where("request_tests.request_id", "=", request.id)
-    .where("request_tests.test_id", "=", testId)
-    .executeTakeFirst();
-  if (!requested) return refused("test_not_found");
-  if (requested.released_at !== null) return refused("released");
-  return done({ requestId: request.id, source: requested.source });
-}
-
-/**
- * Records a measurement the team entered by hand (S14, D9): only for a test whose source is entry
- * by hand (`not_manual_test`), on a sample of the same request (`sample_not_found`, logged), and
- * not after the release (`released`). The server takes the time.
+ * Records a measurement the team entered by hand (S14, D9), through the student's own place in
+ * the lab of a running simulation, then {@link insertMeasurement}. The server takes the time.
  *
  * @throws AuthError 403 without the app role student.
  */
@@ -146,34 +206,14 @@ export function recordManualMeasurement(
   actor: ResultsActor,
   input: ManualMeasurementInput,
 ): Promise<ResultsResult<StoredMeasurement>> {
-  return withResultsLab(db, actor, input.labId, async (trx, lab) => {
-    const opened = await openRequestedTest(trx, actor.id, lab.labId, input.requestId, input.testId);
-    if (!opened.ok) return opened;
-    if (opened.value.source !== "manual") return refused("not_manual_test");
-    const sampleId = parseSampleId(input.sampleId);
-    const sample =
-      sampleId === null
-        ? undefined
-        : await trx
-            .selectFrom("samples")
-            .select("id")
-            .where("id", "=", sampleId)
-            .where("request_id", "=", opened.value.requestId)
-            .where("lab_id", "=", lab.labId)
-            .executeTakeFirst();
-    if (!sample) {
-      logRecordsProbe(actor.id, "sample", input.sampleId);
-      return refused("sample_not_found");
-    }
-    return insertMeasurement(trx, {
-      simulationId: lab.simulationId,
-      labId: lab.labId,
-      requestId: opened.value.requestId,
-      testId: input.testId,
-      sampleId: sample.id,
-      value: input.value,
-      source: "manual",
-      recordedBy: actor.id,
-    });
-  });
+  const measurement: NewMeasurement = { ...input, source: "manual", recordedBy: actor.id };
+  return withResultsLab(
+    db,
+    actor,
+    input.labId,
+    (trx, lab) => insertMeasurement(trx, { ...measurement, labId: lab.labId }),
+    async (trx) => {
+      await refuse(trx, measurement, "not_running");
+    },
+  );
 }

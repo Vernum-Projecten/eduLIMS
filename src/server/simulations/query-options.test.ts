@@ -16,6 +16,7 @@ import {
 import type { SimulationResult } from "./access.ts";
 import {
   deleteMutationOptions,
+  labLogoUploadMutationOptions,
   linkMyLabsMutationOptions,
   refusedTestIds,
   SimulationActionRefused,
@@ -77,6 +78,35 @@ describe("simulationsKeys", () => {
       ...simulationsKeys.lab(ONE, LAB),
       "join-code",
     ]);
+  });
+});
+
+describe("labLogoUploadMutationOptions (#293)", () => {
+  it("invalidates the simulation with its labs once a logo is stored, and nothing else", async () => {
+    const call = vi.fn(async () => ({
+      ok: true as const,
+      value: { mediaType: "image/png" as const, width: 4, height: 4, byteSize: 70 },
+    }));
+    const { data } = await runMutation(
+      queryClient,
+      labLogoUploadMutationOptions(queryClient, call, simulationInvalidation.logo(ONE)),
+      new FormData(),
+    );
+    expect(data?.ok).toBe(true);
+    expect(invalidatedKeys(queryClient)).toEqual(
+      keys(simulationsKeys.detail(ONE), simulationsKeys.lab(ONE, LAB)),
+    );
+  });
+
+  it("returns a refused file to the form and invalidates nothing", async () => {
+    const call = vi.fn(async () => ({ ok: false as const, error: "logo_too_large" as const }));
+    const { data } = await runMutation(
+      queryClient,
+      labLogoUploadMutationOptions(queryClient, call, simulationInvalidation.logo(ONE)),
+      new FormData(),
+    );
+    expect(data).toEqual({ ok: false, error: "logo_too_large" });
+    expect(invalidatedKeys(queryClient)).toEqual([]);
   });
 });
 

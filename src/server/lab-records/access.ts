@@ -30,7 +30,7 @@ export const RECORDS_ACTION_ERRORS = [
   "test_not_found",
   "test_retired",
   "released",
-  "test_measured",
+  "test_removed",
   "birth_in_future",
   "requester_required",
 ] as const;

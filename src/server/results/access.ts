@@ -27,6 +27,7 @@ export const RESULTS_ACTION_ERRORS = [
   "sample_not_found",
   "measurement_not_found",
   "not_manual_test",
+  "source_mismatch",
   "value_invalid",
   "released",
   "no_tolerance",
@@ -69,7 +70,8 @@ export function logMeasurementProbe(actorId: string, id: string): void {
 /**
  * Runs `action` in one transaction after the lab check: the app role student (403), then the
  * actor's place in the lab of a running simulation, as the first statement. A member of a lab
- * whose simulation does not run gets `not_running`; anyone else `not_found`, logged.
+ * whose simulation does not run gets `not_running`, after `onNotRunning` writes its activity-log
+ * row in the same transaction; anyone else `not_found`, logged.
  *
  * @throws AuthError 403 without the app role student.
  */
@@ -78,6 +80,7 @@ export async function withResultsLab<T>(
   actor: ResultsActor,
   labId: string,
   action: (trx: Transaction<DB>, lab: StudentLab) => Promise<ResultsResult<T>>,
+  onNotRunning: (trx: Transaction<DB>) => Promise<void>,
 ): Promise<ResultsResult<T>> {
   assertStudent(actor);
   if (parseLabId(labId) === null) {
@@ -87,7 +90,10 @@ export async function withResultsLab<T>(
   return db.transaction().execute(async (trx) => {
     const lab = await findWorkingStudentLab(trx, actor.id, labId);
     if (lab !== null) return action(trx, lab);
-    if ((await findStudentLab(trx, actor.id, labId)) !== null) return refused<T>("not_running");
+    if ((await findStudentLab(trx, actor.id, labId)) !== null) {
+      await onNotRunning(trx);
+      return refused<T>("not_running");
+    }
     logRecordsProbe(actor.id, "lab", labId);
     return refused<T>("not_found");
   });

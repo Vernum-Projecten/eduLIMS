@@ -1,0 +1,1 @@
+- A teacher uploads, replaces and removes a lab's logo on the lab page, with a preview, the accepted types and limits, and the reason of a refused file at the field; the logo shows beside the lab's name on the simulation page and on the student's overview (#293).

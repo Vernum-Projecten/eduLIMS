@@ -126,6 +126,7 @@ describe("the test sign-in", () => {
     const logged = await db
       .selectFrom("audit_event")
       .select(["action", "actor_id", "metadata"])
+      .orderBy("id")
       .execute();
     expect(logged).toEqual([
       {

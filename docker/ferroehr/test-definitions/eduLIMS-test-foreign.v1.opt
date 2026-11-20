@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template xmlns="http://schemas.openehr.org/v1" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <language>
+    <terminology_id>
+      <value>ISO_639-1</value>
+    </terminology_id>
+    <code_string>en</code_string>
+  </language>
+  <description>
+    <original_author id="organisation">eduLIMS</original_author>
+    <lifecycle_state>unmanaged</lifecycle_state>
+    <details>
+      <language>
+        <terminology_id>
+          <value>ISO_639-1</value>
+        </terminology_id>
+        <code_string>en</code_string>
+      </language>
+      <purpose>Test only: a template the eduLIMS FerroEHR client does not list in its writes, so the integration test proves FerroEHR refuses a commit of it (#364).</purpose>
+      <use>Loaded by the development and CI stack only (compose.dev.yaml), never in production. An empty composition with no clinical content.</use>
+      <misuse>Not for any record. Never holds a name, student number or e-mail address.</misuse>
+    </details>
+  </description>
+  <uid>
+    <value>6f1d2c4e-8a3b-4e5f-9c07-2b1a3d4e5f60</value>
+  </uid>
+  <template_id>
+    <value>eduLIMS-test-foreign.v1</value>
+  </template_id>
+  <concept>eduLIMS test foreign template</concept>
+  <definition>
+    <rm_type_name>COMPOSITION</rm_type_name>
+    <occurrences>
+      <lower_included>true</lower_included>
+      <upper_included>true</upper_included>
+      <lower_unbounded>false</lower_unbounded>
+      <upper_unbounded>false</upper_unbounded>
+      <lower>1</lower>
+      <upper>1</upper>
+    </occurrences>
+    <node_id>at0000</node_id>
+    <archetype_id>
+      <value>openEHR-EHR-COMPOSITION.edulims_test_foreign.v1</value>
+    </archetype_id>
+    <template_id>
+      <value>eduLIMS-test-foreign.v1</value>
+    </template_id>
+    <term_definitions code="at0000">
+      <items id="description">An empty test composition.</items>
+      <items id="text">Test foreign</items>
+    </term_definitions>
+  </definition>
+</template>

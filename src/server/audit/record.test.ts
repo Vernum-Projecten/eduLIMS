@@ -66,7 +66,7 @@ describe("recordAudit (B4)", () => {
       occurredAt,
       metadata: { roles: "student" },
     });
-    const rows = await database.selectFrom("audit_event").selectAll().execute();
+    const rows = await database.selectFrom("audit_event").selectAll().orderBy("id").execute();
     expect(rows).toEqual([
       expect.objectContaining({
         action: "authn_login_success",

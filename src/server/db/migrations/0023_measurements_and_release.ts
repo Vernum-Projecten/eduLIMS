@@ -38,12 +38,14 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       ["id", "simulation_id"],
       (c) => c.onDelete("cascade"),
     )
+    // NOTE: S14 (security review of #370, S4); NO ACTION on the request and the sample too, so
+    // only the cascade of the lab, in one statement, removes a measurement.
     .addForeignKeyConstraint(
       "measurements_request_fkey",
       ["request_id", "lab_id"],
       "requests",
       ["id", "lab_id"],
-      (c) => c.onDelete("cascade"),
+      (c) => c.onDelete("no action"),
     )
     // NOTE: S14; NO ACTION checks at the end of the statement, so a lab's cascade removes both,
     // and a correction cannot drop a requested test that has a measurement.
@@ -59,7 +61,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       ["sample_id", "request_id"],
       "samples",
       ["id", "request_id"],
-      (c) => c.onDelete("cascade"),
+      (c) => c.onDelete("no action"),
     )
     .addUniqueConstraint("measurements_id_request_test_key", ["id", "request_id", "test_id"])
     .addCheckConstraint(
@@ -67,6 +69,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       sql`abs(value) < ${sql.lit(INTEGER_BOUND)}::numeric and scale(value) <= ${sql.lit(FRACTION_DIGITS)}`,
     )
     .addCheckConstraint("measurements_source", sql`source in ('afinion', 'epoch_upload', 'manual')`)
+    // NOTE: S14 (security review of #370, S3); an analyser's measurement has no student.
+    .addCheckConstraint("measurements_recorded_by", sql`source = 'manual' or recorded_by is null`)
     .execute();
   await db.schema
     .createIndex("measurements_request_test_idx")
@@ -104,6 +108,16 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`
     create trigger measurements_fixed before update or delete on measurements
     for each row execute function measurements_fixed()`.execute(db);
+  // NOTE: Q-SIM-2 (security review of #370, S1); the server's clock, whatever the insert carries.
+  await sql`
+    create function measurements_recorded_at() returns trigger language plpgsql as $$
+    begin
+      new.recorded_at := clock_timestamp();
+      return new;
+    end $$`.execute(db);
+  await sql`
+    create trigger measurements_recorded_at before insert on measurements
+    for each row execute function measurements_recorded_at()`.execute(db);
 
   await db.schema
     .alterTable("request_tests")
@@ -119,7 +133,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       references measurements (id, request_id, test_id) on delete no action,
     add constraint request_tests_release check (
       (released_at is null) = (released_measurement_id is null)
-      and (released_at is null) = (released_tolerance_id is null))`.execute(db);
+      and (released_at is null) = (released_tolerance_id is null)
+      and (released_at is not null or released_by is null))`.execute(db);
   await db.schema
     .createIndex("request_tests_released_tolerance_idx")
     .on("request_tests")
@@ -188,5 +203,6 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   await sql`update request_tests set released_at = null`.execute(db);
   await db.schema.dropTable("measurements").execute();
   await sql`drop function measurements_fixed()`.execute(db);
+  await sql`drop function measurements_recorded_at()`.execute(db);
   await sql`alter table samples drop constraint samples_id_request_id_key`.execute(db);
 }

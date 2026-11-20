@@ -11,8 +11,9 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { correctRequest, recordRequest } from "../lab-records/requests.ts";
 import { AuthError } from "../middleware.ts";
-import { finishSimulation } from "../simulations/state.ts";
-import { auditRows, NOW, securityLines } from "../simulations/test-helpers.ts";
+import { deleteSimulation } from "../simulations/simulations.ts";
+import { finishSimulation, startSimulation } from "../simulations/state.ts";
+import { auditRows, NOW, person, place, securityLines } from "../simulations/test-helpers.ts";
 import { insertMeasurement } from "./measurements.ts";
 import { type ReleaseInput, releaseResult } from "./release.ts";
 import { measure, type ResultsWorld, resultsWorld, toleranceFor } from "./test-helpers.ts";
@@ -216,7 +217,7 @@ describe("a released result is final (S15)", () => {
       testIds: [w.hba1c],
       samples: [],
     });
-    expect(corrected).toEqual({ ok: false, error: "test_measured" });
+    expect(corrected).toEqual({ ok: false, error: "test_removed" });
   });
 });
 
@@ -287,9 +288,13 @@ describe("what a release needs (S13, S15)", () => {
 describe("who releases (S10, R-11; maintainer on #270)", () => {
   it("lets only the lab whose sample it is release a result another team's analyser sent", async () => {
     const { database, w } = await open();
+    await database
+      .updateTable("catalogue_tests")
+      .set({ source: "afinion", afinion_analyte: "HbA1c" })
+      .where("id", "=", w.hba1c)
+      .execute();
     const landed = await database.transaction().execute((trx) =>
       insertMeasurement(trx, {
-        simulationId: w.simulationId,
         labId: w.labId,
         requestId: w.requestId,
         testId: w.hba1c,
@@ -329,5 +334,74 @@ describe("who releases (S10, R-11; maintainer on #270)", () => {
       await expect(releaseResult(database, actor, input(w, chosen))).rejects.toThrow(AuthError);
     }
     expect((await releaseRow(database, w)).released_at).toBeNull();
+  });
+});
+
+describe("more cases of the release (security review of #370)", () => {
+  it("counts a value exactly on the lower limit as inside, and 4.000000 as 4 (N5)", async () => {
+    const { database, w } = await open();
+    const exact = await toleranceFor(database, w.student, w.labId, w.crp, "4", "6");
+    const onLower = await measure(database, w, "4.000000", { testId: w.crp });
+    expect(
+      await releaseResult(database, w.student, {
+        ...input(w, onLower, exact),
+        testId: w.crp,
+      }),
+    ).toMatchObject({ ok: true, value: { check: "inside" } });
+    const lowest = await measure(database, w, "4.0");
+    expect(await releaseResult(database, w.student, input(w, lowest))).toMatchObject({
+      ok: true,
+      value: { check: "inside" },
+    });
+  });
+
+  it("refuses a student in two simulations who mixes the ids of both", async () => {
+    const { database, w } = await open();
+    const chosen = await measure(database, w, "5.1");
+    await startSimulation(
+      database,
+      w.outsiderTeacher,
+      { simulationId: w.outsideSimulationId },
+      NOW,
+    );
+    await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
+    expect(
+      await releaseResult(database, w.student, { ...input(w, chosen), labId: w.outsideLabId }),
+    ).toEqual({ ok: false, error: "request_not_found" });
+    expect((await releaseRow(database, w)).released_at).toBeNull();
+  });
+
+  it("refuses an account with the roles teacher and admin that teaches nothing, with a 403", async () => {
+    const { database, w } = await open();
+    const chosen = await measure(database, w, "5.1");
+    const both = await person(database, "teacher-admin", ["teacher", "admin"]);
+    await expect(releaseResult(database, both, input(w, chosen))).rejects.toThrow(AuthError);
+  });
+
+  it("logs a release refused because the simulation does not run (N1)", async () => {
+    const { database, w } = await open();
+    const chosen = await measure(database, w, "5.1");
+    await finishSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    await releaseResult(database, w.student, input(w, chosen));
+    const rows = await auditRows(database, "lab_result_released");
+    expect(rows.map((row) => [row.outcome, row.reason_code])).toEqual([["refused", "not_running"]]);
+  });
+});
+
+describe("deleting a simulation with records (maintainer on #370, Q2)", () => {
+  it("refuses a finished simulation with a released result, logged, and keeps its rows", async () => {
+    const { database, w } = await open();
+    const chosen = await measure(database, w, "5.1");
+    await releaseResult(database, w.student, input(w, chosen));
+    await finishSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    // Test set-up: every student leaves, so only the records stand in the way.
+    await database.deleteFrom("lab_members").where("simulation_id", "=", w.simulationId).execute();
+    expect(await deleteSimulation(database, w.teacher, { simulationId: w.simulationId })).toEqual({
+      ok: false,
+      error: "has_records",
+    });
+    const rows = await auditRows(database, "simulation_deleted");
+    expect(rows.map((row) => [row.outcome, row.reason_code])).toEqual([["refused", "has_records"]]);
+    expect((await releaseRow(database, w)).released_measurement_id).toBe(chosen);
   });
 });

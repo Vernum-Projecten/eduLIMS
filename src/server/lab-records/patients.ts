@@ -21,7 +21,6 @@ import {
   withWorkingLab,
 } from "./access.ts";
 import { type CorrectionChange, plainChanges, recordCorrection } from "./corrections.ts";
-import { type PatientEhrSubject, patientEhrSubject } from "./ehr-seam.ts";
 
 /** The details of a patient as the form gives them (S11). */
 export interface PatientDetails {
@@ -33,10 +32,9 @@ export interface PatientDetails {
   identifier: string;
 }
 
-/** A registered patient: its id, and what #147 needs to create its EHR. */
+/** A registered patient, by its id. */
 export interface RegisteredPatient {
   patientId: PatientId;
-  ehr: PatientEhrSubject;
 }
 
 /**
@@ -87,7 +85,7 @@ export function registerPatient(
       outcome: "success",
       metadata: { patient_id: patientId },
     });
-    return done({ patientId, ehr: patientEhrSubject(patientId, input) });
+    return done({ patientId });
   });
 }
 

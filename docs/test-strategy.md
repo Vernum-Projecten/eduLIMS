@@ -33,6 +33,13 @@ repeat, so they cover the most important flows only.
 | User test | The teacher dashboard with 3 to 5 teachers, the student portal with 2 to 3 students | think-aloud test with fixed tasks on an invented simulation, such as "which team released a result that is red?" | after every design iteration | at least 4 of 5 tasks completed without help |
 | Acceptance | The Must requirements | demo to the product owner in the milestone review | every milestone | the product owner accepts the acceptance criterion |
 
+Every server-route contract (a `server.handlers` route, such as the better-auth
+handler under `/api/auth/*`, the SCIM endpoint or a file download) has at least
+one test over HTTP against the built server, for each method it serves. A test
+that calls `auth.handler` or the handler function directly cannot see the
+routing in front of it: SCIM `PUT`, `PATCH` and `DELETE` passed every such test
+while the route served only `GET` and `POST` (#365).
+
 ### Tools
 
 | Level | Tool |
