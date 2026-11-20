@@ -10,8 +10,8 @@ import { createTestDb } from "./db/test-db.ts";
 import { parseEnv } from "./env.ts";
 import { createTestAuth } from "./test-auth.ts";
 import { VALID_ENV } from "./test-env.ts";
+import { TEST_PASSWORD } from "./users/test-helpers.ts";
 
-const PASSWORD = "correct-horse-battery";
 let db: Kysely<DB> | undefined;
 
 afterEach(async () => {
@@ -29,7 +29,7 @@ describe("auth", () => {
   it("gives new users the student role by default", async () => {
     const auth = await setup(true);
     const { user } = await auth.api.createUser({
-      body: { email: "new@example.test", name: "New User", password: PASSWORD },
+      body: { email: "new@example.test", name: "New User", password: TEST_PASSWORD },
     });
     expect(parseRoles(user.role)).toEqual(["student"]);
   });
@@ -40,12 +40,12 @@ describe("auth", () => {
       body: {
         email: "teacher@example.test",
         name: "Test Teacher",
-        password: PASSWORD,
+        password: TEST_PASSWORD,
         role: "teacher",
       },
     });
     const response = await auth.api.signInEmail({
-      body: { email: "teacher@example.test", password: PASSWORD },
+      body: { email: "teacher@example.test", password: TEST_PASSWORD },
       asResponse: true,
     });
     expect(response.status).toBe(200);
@@ -60,17 +60,19 @@ describe("auth", () => {
   it("does not allow self sign-up, even with dev login on", async () => {
     const auth = await setup(true);
     await expect(
-      auth.api.signUpEmail({ body: { email: "x@example.test", name: "X", password: PASSWORD } }),
+      auth.api.signUpEmail({
+        body: { email: "x@example.test", name: "X", password: TEST_PASSWORD },
+      }),
     ).rejects.toThrow();
   });
 
   it("disables email/password sign-in when dev login is off", async () => {
     const auth = await setup(false);
     await auth.api.createUser({
-      body: { email: "student@example.test", name: "Test Student", password: PASSWORD },
+      body: { email: "student@example.test", name: "Test Student", password: TEST_PASSWORD },
     });
     await expect(
-      auth.api.signInEmail({ body: { email: "student@example.test", password: PASSWORD } }),
+      auth.api.signInEmail({ body: { email: "student@example.test", password: TEST_PASSWORD } }),
     ).rejects.toThrow();
   });
 });
@@ -84,12 +86,12 @@ async function signedIn(auth: Auth, role: string): Promise<string> {
     body: {
       email,
       name: "SSO Test",
-      password: PASSWORD,
+      password: TEST_PASSWORD,
       role: role === "admin" ? "admin" : "teacher",
     },
   });
   const response = await auth.api.signInEmail({
-    body: { email, password: PASSWORD },
+    body: { email, password: TEST_PASSWORD },
     asResponse: true,
   });
   return response.headers
