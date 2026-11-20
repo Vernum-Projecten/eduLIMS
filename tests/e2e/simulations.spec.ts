@@ -457,7 +457,7 @@ test("the administrator's simulations entry opens its page, axe-clean (B5, #291)
   await axe(page);
 });
 
-test("a pasted line that is too long is refused at the field, naming the line (#328)", async ({
+test("a pasted address that is too long is refused at the field, naming its place (#328, #357)", async ({
   page,
 }) => {
   await signInAsTeacher(page);
@@ -473,7 +473,7 @@ test("a pasted line that is too long is refused at the field, naming the line (#
   await field.press("Enter");
   await page.getByRole("button", { name: "Check the list" }).click();
   await expect(field).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByText("Line 1 is longer than 320 characters.")).toBeVisible();
+  await expect(page.getByText("Address 1 is longer than 320 characters.")).toBeVisible();
   await expect(page.getByRole("table", { name: "Outcome per line" })).toHaveCount(0);
 });
 

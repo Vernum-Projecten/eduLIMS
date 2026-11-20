@@ -95,12 +95,12 @@ describe("the form schemas share the server's rules, with messages in words (ADR
     const long = emailListFormSchema.safeParse({
       emails: ["ok@example.test", `${"x".repeat(EMAIL_LINE_MAX)}@example.test`],
     });
-    // The issue belongs to the list, so the list field shows it (WCAG 3.3.1), and names the line
-    // by its number without quoting it (#357).
+    // The issue belongs to the list, so the list field shows it (WCAG 3.3.1), and names the
+    // address by its place without quoting it (#357).
     expect(long.error?.issues).toEqual([
       expect.objectContaining({
         path: ["emails"],
-        message: `Line 2 is longer than ${EMAIL_LINE_MAX} characters.`,
+        message: `Address 2 is longer than ${EMAIL_LINE_MAX} characters.`,
       }),
     ]);
     expect(JSON.stringify(long.error?.issues)).not.toContain("xxx");

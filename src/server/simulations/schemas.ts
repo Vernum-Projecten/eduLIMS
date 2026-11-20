@@ -103,14 +103,14 @@ export const emailListInput = z.object({
       error: () => m.form_email_list_too_many({ max: String(EMAIL_LIST_MAX) }),
     })
     .superRefine((lines, ctx) => {
-      // NOTE: WCAG 3.3.1, #357; each issue belongs to the list, which shows it, and names its line
-      // by number, never by its text, which can hold an address and goes back in the refusal.
+      // NOTE: WCAG 3.3.1, #357; each issue belongs to the list, which shows it, and names the
+      // address by its place, never by its text, which goes back to the caller in the refusal.
       lines.forEach((line, index) => {
         if (line.length > EMAIL_LINE_MAX) {
           ctx.addIssue({
             code: "custom",
             message: m.labs_paste_line_too_long({
-              line: formatNumber(index + 1),
+              n: formatNumber(index + 1),
               max: String(EMAIL_LINE_MAX),
             }),
           });

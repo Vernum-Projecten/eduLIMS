@@ -71,6 +71,9 @@ export function issueCodes(issues: readonly RefusedIssue[]): string[] {
     .map((issue) => `${issue.path.join(".")}:${issue.code}`);
 }
 
+/** The refusals already logged: a server function called from another rethrows the same one. */
+const logged = new WeakSet<Error>();
+
 /** The user each request's session middleware resolved, keyed by the request's headers. */
 const actors = new WeakMap<Headers, string>();
 
@@ -100,4 +103,16 @@ export function logInputRefusal(
     refused_count: issues.length,
     request_id: toRequestId(headers.get("x-request-id")),
   });
+}
+
+/**
+ * Logs `error` with {@link logInputRefusal} when it is a validator refusal
+ * ({@link validationIssues}) not logged before, and does nothing otherwise. A refusal that
+ * passes through the chain of an outer server function is logged once, by the innermost.
+ */
+export function logValidationRefusal(error: unknown, headers: Headers, serverFn: string): void {
+  const issues = validationIssues(error);
+  if (issues === null || !(error instanceof Error) || logged.has(error)) return;
+  logged.add(error);
+  logInputRefusal(headers, serverFn, issues);
 }

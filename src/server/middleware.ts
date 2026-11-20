@@ -9,7 +9,7 @@ import { createMiddleware } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { Role } from "../lib/roles.ts";
 import { hasAnyRole } from "./authz.ts";
-import { logInputRefusal, noteRequestActor, validationIssues } from "./input-refusal-log.ts";
+import { logValidationRefusal, noteRequestActor } from "./input-refusal-log.ts";
 import { logAuthzFailure } from "./security-log.ts";
 import { getSessionUser } from "./session.ts";
 
@@ -48,7 +48,7 @@ export function requireRole(...roles: Role[]) {
 /**
  * The global function middleware (`functionMiddleware` in src/start.ts) that logs a validator
  * refusal of any server function as `input_validation_fail` and rethrows it unchanged, so the
- * caller's answer stays the same (ASVS 5.0 V16.3.3, #304). Start runs a function's validator
+ * caller's answer stays the same, also when the log write fails (ASVS 5.0 V16.3.3, #304). Start runs a function's validator
  * after the function's own middleware, inside this middleware's `next()`.
  */
 export const inputRefusalLogMiddleware = createMiddleware({ type: "function" }).server(
@@ -56,9 +56,11 @@ export const inputRefusalLogMiddleware = createMiddleware({ type: "function" }).
     try {
       return await next();
     } catch (error) {
-      const issues = validationIssues(error);
-      if (issues !== null) {
-        logInputRefusal(getRequestHeaders(), serverFnMeta.name || serverFnMeta.id, issues);
+      try {
+        logValidationRefusal(error, getRequestHeaders(), serverFnMeta.name || serverFnMeta.id);
+      } catch {
+        // NOTE: ASVS V16.5.1, #357; a failed log write must not turn the caller's refusal into a
+        // 500, so the original error is rethrown below either way.
       }
       throw error;
     }
