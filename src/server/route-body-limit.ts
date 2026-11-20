@@ -18,8 +18,8 @@ export type RouteBodyFamily = "auth" | "saml" | "scim" | "none";
 /** The most bytes a JSON body to a better-auth endpoint other than SAML and SCIM may carry. */
 export const AUTH_BODY_MAX = 64 * 1024;
 
-// NOTE: #350; the dev Keycloak's signed response is at most 10,161 bytes as a form; the rest is
-// room for an encrypted assertion and a larger IdP's attributes, which no fixture holds.
+// NOTE: maintainer decision on #350; our own margin over the dev Keycloak's measured 10 KB form,
+// which an operator raises if their IdP sends more.
 /** The most bytes a SAML form post (the ACS and single logout) may carry. */
 export const SAML_BODY_MAX = 128 * 1024;
 

@@ -84,4 +84,20 @@ describe("formBodyRefusal (V5.2.1)", () => {
     ]);
     expect(refuseFormBody(post({ "content-type": "application/json" }))).toBeNull();
   });
+
+  it("logs the request id the reverse proxy set, and leaves out a malformed one (#357)", () => {
+    const lines: string[] = [];
+    const restore = setSecurityLogWriter((line) => lines.push(line));
+    try {
+      refuseFormBody(post({ "content-type": MULTIPART, "x-request-id": "req-357" }));
+      refuseFormBody(post({ "content-type": MULTIPART, "x-request-id": "not an id" }));
+    } finally {
+      restore();
+    }
+    const parsed: unknown[] = lines.map((line): unknown => JSON.parse(line));
+    expect(parsed).toEqual([
+      expect.objectContaining({ reason: "form_length_missing", request_id: "req-357" }),
+      expect.not.objectContaining({ request_id: expect.anything() as unknown }),
+    ]);
+  });
 });

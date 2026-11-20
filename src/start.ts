@@ -4,6 +4,7 @@
 import { createCsrfMiddleware, createMiddleware, createStart } from "@tanstack/react-start";
 import { refuseFormBody } from "@/server/form-body-limit";
 import { refuseJsonBody } from "@/server/json-body-limit";
+import { inputRefusalLogMiddleware } from "@/server/middleware";
 import { refuseRouteBody } from "@/server/route-body-limit";
 import { createNonce, securityHeaders, withSecurityHeaders } from "@/server/security-headers";
 
@@ -50,4 +51,6 @@ export const startInstance = createStart(() => ({
     formBodyLimitMiddleware,
     routeBodyLimitMiddleware,
   ],
+  // Global function middleware runs first in every server function's chain, around its validator.
+  functionMiddleware: [inputRefusalLogMiddleware],
 }));
