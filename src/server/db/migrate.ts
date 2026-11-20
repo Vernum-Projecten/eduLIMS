@@ -1,17 +1,19 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// `migrate` of the host CLI (src/server/cli.ts): `migrate` (latest) or `migrate down` (revert
-// one step). Only needs DATABASE_URL; runs on plain Node (type stripping), also in the tools
-// image. A failure goes to the security log stream as `migration_failed`, with error classes and
+// `migrate` of the host CLI (src/server/cli.ts): `migrate` (latest, then the catalogue's starter
+// set on an empty catalogue) or `migrate down` (revert one step). Only needs DATABASE_URL; runs
+// on plain Node (type stripping), also in the tools image. A failure goes to the security log stream as `migration_failed`, with error classes and
 // SQLSTATE codes, never a message.
 import { Kysely, PostgresDialect } from "kysely";
 import type { MigrationResultSet } from "kysely/migration";
 import { Pool } from "pg";
 import { z } from "zod";
+import { seedStarterCatalogue } from "../catalogue/starter-set.ts";
 import { databaseTlsProblem, envFields, parseWith } from "../env.ts";
 import { logFailure, logSecurityEvent } from "../security-log.ts";
 import { createMigrator } from "./index.ts";
+import type { DB } from "./schema.gen.ts";
 
 /** Prints one line of the CLI's output. */
 export type Out = (line: string) => void;
@@ -72,7 +74,7 @@ export async function migrateCommand(args: readonly string[], out: Out): Promise
     out(`Invalid environment configuration: DATABASE_URL ${tlsProblem}`);
     return 1;
   }
-  const db = new Kysely<unknown>({
+  const db = new Kysely<DB>({
     dialect: new PostgresDialect({ pool: new Pool({ connectionString: DATABASE_URL, max: 1 }) }),
   });
   try {
@@ -80,7 +82,13 @@ export async function migrateCommand(args: readonly string[], out: Out): Promise
     const direction: Direction = parsed.data[0] ?? "up";
     const result =
       direction === "down" ? await migrator.migrateDown() : await migrator.migrateToLatest();
-    return report(result, direction, out);
+    const code = report(result, direction, out);
+    if (code !== 0 || direction === "down") return code;
+    // NOTE: owner 2026-11-20 (#393); a fresh installation carries the Afinion 2 starter set, and
+    // `migrate` is the tools image's first-start command. An empty catalogue only.
+    const added = await seedStarterCatalogue(db);
+    out(added > 0 ? `catalogue: ${added} starter tests added` : "catalogue: not empty, kept");
+    return 0;
   } finally {
     await db.destroy();
   }

@@ -3,7 +3,8 @@
 
 // The changes to the test catalogue (D9, S4, #266): create, edit, retire and restore. Each runs
 // in one transaction with its activity-log row (B4), which carries ids and the names of the
-// changed settings, never a value. The catalogue is shared: every teacher changes every test.
+// changed settings, never a value. Administrators manage the one catalogue every simulation uses
+// (owner, 2026-11-20, #393).
 import "@tanstack/react-start/server-only";
 import type { Kysely, Transaction } from "kysely";
 import {
@@ -15,7 +16,7 @@ import {
 import { recordAudit } from "../audit/record.ts";
 import type { SessionUser } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
-import { assertTeacher } from "../simulations/access.ts";
+import { assertCatalogueAdmin } from "./access.ts";
 import { usageOf } from "./in-use.ts";
 import { STORED_TEST_COLUMNS, type StoredTest, storedSource } from "./queries.ts";
 import { Refusal, refusedChange, type TestActionResult } from "./refusals.ts";
@@ -29,7 +30,7 @@ export {
   type TestActionResult,
 } from "./refusals.ts";
 
-/** What every change runs with: the database, the teacher and the server's time (Q-SIM-2). */
+/** What every change runs with: the database, the administrator and the server's time (Q-SIM-2). */
 export interface TestActionContext {
   db: Kysely<DB>;
   actor: Pick<SessionUser, "id" | "roles">;
@@ -156,13 +157,13 @@ function changedFields(before: StoredTest, after: TestDefinition): string[] {
 /**
  * Adds a test to the catalogue and logs `test_created`.
  *
- * @throws AuthError 403 without the app role teacher.
+ * @throws AuthError 403 without the app role admin.
  */
 export async function createTest(
   ctx: TestActionContext,
   input: TestDefinition,
 ): Promise<TestActionResult> {
-  assertTeacher(ctx.actor);
+  assertCatalogueAdmin(ctx.actor);
   try {
     return await ctx.db.transaction().execute(async (trx) => {
       await assertNameFree(trx, input.name, null);
@@ -197,13 +198,13 @@ export async function createTest(
  * a simulation uses keeps its unit and its source (D9); while a running simulation uses it, its
  * material and who calculates are fixed as well.
  *
- * @throws AuthError 403 without the app role teacher.
+ * @throws AuthError 403 without the app role admin.
  */
 export async function updateTest(
   ctx: TestActionContext,
   input: { testId: string; test: TestDefinition },
 ): Promise<TestActionResult> {
-  assertTeacher(ctx.actor);
+  assertCatalogueAdmin(ctx.actor);
   try {
     return await ctx.db.transaction().execute(async (trx) => {
       const current = await lockTest(trx, input.testId);
@@ -241,13 +242,13 @@ export async function updateTest(
  * Retires a test, so new simulations do not offer it, and logs `test_retired`. The row stays for
  * the simulations that use it.
  *
- * @throws AuthError 403 without the app role teacher.
+ * @throws AuthError 403 without the app role admin.
  */
 export async function retireTest(
   ctx: TestActionContext,
   input: { testId: string },
 ): Promise<TestActionResult> {
-  assertTeacher(ctx.actor);
+  assertCatalogueAdmin(ctx.actor);
   try {
     return await ctx.db.transaction().execute(async (trx) => {
       const current = await lockTest(trx, input.testId);
@@ -278,13 +279,13 @@ export async function retireTest(
 /**
  * Restores a retired test, unless an active test holds its name now, and logs `test_restored`.
  *
- * @throws AuthError 403 without the app role teacher.
+ * @throws AuthError 403 without the app role admin.
  */
 export async function restoreTest(
   ctx: TestActionContext,
   input: { testId: string },
 ): Promise<TestActionResult> {
-  assertTeacher(ctx.actor);
+  assertCatalogueAdmin(ctx.actor);
   try {
     return await ctx.db.transaction().execute(async (trx) => {
       const current = await lockTest(trx, input.testId);

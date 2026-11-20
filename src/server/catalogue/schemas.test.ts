@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The form and the inputs of the test catalogue (D9, S4, #266): the client and the server refuse
-// the same input, and a setting of another source never reaches the service.
+// The form and the inputs of the test catalogue (D9, S4, #266, #393): the client and the server
+// refuse the same input, and a setting of another source never reaches the service.
 import { describe, expect, it } from "vitest";
 import {
+  activeTestsInput,
   createTestInput,
   listTestsInput,
   type TestForm,
@@ -40,7 +41,35 @@ describe("testFormSchema (D9)", () => {
   });
 
   it("takes an empty unit for a dimensionless result (maintainer 2026-11-19)", () => {
-    expect(issuePaths({ ...FORM, unit: "   " })).toEqual([]);
+    expect(issuePaths({ ...FORM, source: "manual", unit: "   " })).toEqual([]);
+  });
+
+  it("takes a unit from the supported UCUM list only, case-sensitively (#393)", () => {
+    expect(issuePaths({ ...FORM, source: "manual", unit: "umol/L" })).toEqual([]);
+    for (const unit of ["mmol/l", "MMOL/L", "µmol/L", "furlong", "mmol/L "]) {
+      const paths = issuePaths({ ...FORM, source: "manual", unit });
+      expect(paths, unit).toEqual(unit === "mmol/L " ? [] : ["unit"]);
+    }
+  });
+
+  it("takes an analyte the Afinion 2 reports only (#393)", () => {
+    expect(issuePaths({ ...FORM, analyte: "Glucose" })).toEqual(["analyte"]);
+    expect(issuePaths({ ...FORM, analyte: "hba1c" })).toEqual(["analyte"]);
+    expect(issuePaths({ ...FORM, source: "manual", analyte: "Glucose" })).toEqual([]);
+  });
+
+  it("holds an analyte with one unit to that unit (#393)", () => {
+    expect(issuePaths({ ...FORM, analyte: "CRP", unit: "mg/L" })).toEqual([]);
+    expect(issuePaths({ ...FORM, analyte: "CRP", unit: "mg/dL" })).toEqual(["unit"]);
+    expect(issuePaths({ ...FORM, analyte: "CRP", unit: "" })).toEqual(["unit"]);
+    expect(issuePaths({ ...FORM, analyte: "Chol/HDL", unit: "" })).toEqual([]);
+    expect(issuePaths({ ...FORM, analyte: "Chol/HDL", unit: "%" })).toEqual(["unit"]);
+  });
+
+  it("lets an analyte whose unit the analyser sets take any supported unit, never none (#393)", () => {
+    expect(issuePaths({ ...FORM, analyte: "HbA1c", unit: "mmol/mol" })).toEqual([]);
+    expect(issuePaths({ ...FORM, analyte: "ACR", unit: "mg/g" })).toEqual([]);
+    expect(issuePaths({ ...FORM, analyte: "HbA1c", unit: "" })).toEqual(["unit"]);
   });
 
   it("requires the analyte of an Afinion 2 test only", () => {
@@ -87,7 +116,7 @@ describe("testFormSchema (D9)", () => {
     expect(issuePaths({ ...FORM, analyte: "x".repeat(41) })).toEqual(["analyte"]);
   });
 
-  it("takes any material the teacher types (D9)", () => {
+  it("takes any material the administrator types (D9)", () => {
     expect(issuePaths({ ...FORM, material: "cerebrospinal fluid" })).toEqual([]);
   });
 });
@@ -109,7 +138,7 @@ describe("createTestInput and updateTestInput (D9)", () => {
   });
 
   it("reads an empty unit as no unit, never an empty string", () => {
-    expect(createTestInput.parse({ ...FORM, unit: "  " }).unit).toBeNull();
+    expect(createTestInput.parse({ ...FORM, source: "manual", unit: "  " }).unit).toBeNull();
     expect(createTestInput.parse(FORM).unit).toBe("%");
   });
 
@@ -165,5 +194,10 @@ describe("the list's search params", () => {
     expect(listTestsInput.safeParse({ status: ["gone"] }).success).toBe(false);
     expect(listTestsInput.safeParse({ extra: 1 }).success).toBe(false);
     expect(listTestsInput.parse({ q: "glu", size: 10 })).toEqual({ q: "glu", size: 10 });
+  });
+
+  it("takes nothing for the teachers' read of the active tests (#393)", () => {
+    expect(activeTestsInput.parse({})).toEqual({});
+    expect(activeTestsInput.safeParse({ status: ["retired"] }).success).toBe(false);
   });
 });

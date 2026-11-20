@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The reads of the test catalogue (D9, #266): one page of the table with server-side search,
-// facets on status and source, sorting and pagination, and the facet counts. The catalogue is
-// shared by every teacher, so no row is filtered by its creator; it holds no correct value.
+// facets on status and source, sorting and pagination, and the facet counts. Every simulation
+// uses the one catalogue, so no row is filtered by its creator; it holds no correct value.
 import "@tanstack/react-start/server-only";
 import { type Expression, type ExpressionBuilder, type Kysely, type SqlBool, sql } from "kysely";
 import {
@@ -22,7 +22,7 @@ import type { DB } from "../db/schema.gen.ts";
 import { containsPattern } from "../users/queries.ts";
 import { DEFAULT_TEST_PAGE_SIZE, type ListTestsInput, type TestSortField } from "./schemas.ts";
 
-/** One row of the catalogue as the Teacher portal shows it. */
+/** One row of the catalogue as the Admin portal shows it. */
 export interface CatalogueTestRow {
   id: CatalogueTestId;
   name: string;
@@ -238,4 +238,52 @@ export async function testFacets(
       manual: read("source:manual"),
     },
   };
+}
+
+/** The longest list of material suggestions the form offers. */
+export const MATERIAL_SUGGESTIONS_MAX = 50;
+
+/**
+ * Returns the materials the catalogue's tests use, each once, in alphabetical order: the form's
+ * suggestions for a new material (#393).
+ */
+export async function listMaterials(db: Kysely<DB>): Promise<string[]> {
+  const rows = await db
+    .selectFrom("catalogue_tests")
+    .select("material")
+    .distinct()
+    .orderBy("material")
+    .limit(MATERIAL_SUGGESTIONS_MAX)
+    .execute();
+  return rows.map((row) => row.material);
+}
+
+/** One active test as a teacher chooses it for a simulation (D9, #393). */
+export interface ActiveCatalogueTest {
+  id: CatalogueTestId;
+  name: string;
+  /** A UCUM code, or `null` for a dimensionless result. */
+  unit: string | null;
+  material: string;
+  source: TestSourceKind;
+}
+
+/**
+ * Returns every active test of the catalogue, ordered by name and then id, for the screens that
+ * prepare a simulation. The catalogue holds no correct value, so the list holds none either.
+ *
+ * @throws CatalogueTestRowInvalidError on a value the CHECKs should refuse.
+ */
+export async function listActiveTests(db: Kysely<DB>): Promise<ActiveCatalogueTest[]> {
+  const rows = await db
+    .selectFrom("catalogue_tests")
+    .select(STORED_TEST_COLUMNS)
+    .where("catalogue_tests.retired_at", "is", null)
+    .orderBy("catalogue_tests.name")
+    .orderBy("catalogue_tests.id")
+    .execute();
+  return rows.map((row) => {
+    const { id, name, unit, material, source } = toCatalogueTestRow(row, "unused");
+    return { id, name, unit, material, source: source.kind };
+  });
 }

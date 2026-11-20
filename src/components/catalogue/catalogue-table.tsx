@@ -3,20 +3,16 @@
 
 import { Link, useNavigate } from "@tanstack/react-router";
 import { functionalUpdate, useTable } from "@tanstack/react-table";
-import { ClipboardListIcon, PlusIcon } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { ClipboardListIcon } from "lucide-react";
+import { useMemo, useState } from "react";
+import { TEST_SOURCE_ICONS, TEST_STATUS_ICONS } from "@/components/catalogue/catalogue-badges";
+import { catalogueColumns } from "@/components/catalogue/catalogue-columns";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { dataTableFeatures } from "@/components/data-table/features";
 import { useUrlTable } from "@/components/data-table/use-url-table";
-import {
-  TEST_SOURCE_ICONS,
-  TEST_STATUS_ICONS,
-} from "@/components/teacher-catalogue/catalogue-badges";
-import { catalogueColumns } from "@/components/teacher-catalogue/catalogue-columns";
-import { TestFormDialog } from "@/components/teacher-catalogue/test-form-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -51,7 +47,7 @@ import {
 } from "@/server/catalogue/table-state";
 
 /** The id of the catalogue's hidden-columns preference cookie. */
-const TABLE_ID = "teacher-catalogue";
+const TABLE_ID = "admin-catalogue";
 
 const SORT_LABELS = {
   name: () => m.catalogue_col_name(),
@@ -86,7 +82,7 @@ function CatalogueEmpty({ filtered }: Readonly<{ filtered: boolean }>) {
       {filtered && (
         <EmptyContent>
           <Button variant="outline" asChild>
-            <Link to="/teacher/catalogue" search={{}}>
+            <Link to="/admin/catalogue" search={{}}>
               {m.common_clear_filters()}
             </Link>
           </Button>
@@ -96,47 +92,22 @@ function CatalogueEmpty({ filtered }: Readonly<{ filtered: boolean }>) {
   );
 }
 
-/** The "Add test" button and its form dialog, which returns focus to the button. */
-function AddTest() {
-  const [open, setOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  return (
-    <>
-      <Button ref={buttonRef} onClick={() => setOpen(true)}>
-        <PlusIcon aria-hidden="true" data-icon="inline-start" />
-        {m.catalogue_add()}
-      </Button>
-      <TestFormDialog
-        control={{
-          open,
-          onOpenChange: setOpen,
-          onCloseAutoFocus: (event) => {
-            event.preventDefault();
-            buttonRef.current?.focus();
-          },
-        }}
-      />
-    </>
-  );
-}
-
 /**
- * The test catalogue (D9, #266) on the reusable data table: search, the status and source
+ * The test catalogue (D9, #266, #393) on the reusable data table: search, the status and source
  * facets, sorting and pagination, all processed on the server and controlled by the route's
- * search params; hidden columns live in a preference cookie.
+ * search params; hidden columns live in a preference cookie. The page frame above it holds the
+ * one primary action, "Add test" (#384).
  */
 export function CatalogueTable({
   page,
   search,
   fetching,
-  headingId,
 }: Readonly<{
   page: CatalogueTestsPage;
   search: TestListSearch;
   fetching: boolean;
-  headingId: string;
 }>) {
-  const navigate = useNavigate({ from: "/teacher/catalogue" });
+  const navigate = useNavigate({ from: "/admin/catalogue" });
   const state = useMemo(() => testsTableState(search), [search]);
   const [hidden, setHidden] = useState(() => readHiddenColumns(TABLE_ID));
   const columnVisibility = useMemo(() => visibilityFromHidden(hidden), [hidden]);
@@ -180,16 +151,7 @@ export function CatalogueTable({
   const pages = Math.max(1, table.getPageCount());
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h2 id={headingId} className="text-lg font-semibold">
-            {m.catalogue_heading()}
-          </h2>
-          <p className="text-muted-foreground">{m.catalogue_description()}</p>
-        </div>
-        <AddTest />
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <DataTableToolbar
         table={table}
         search={{
@@ -231,6 +193,7 @@ export function CatalogueTable({
         table={table}
         caption={caption(search, state.pagination.pageIndex + 1, pages)}
         busy={fetching}
+        fill
         empty={<CatalogueEmpty filtered={hasTestFilters(search)} />}
       />
       <DataTablePagination

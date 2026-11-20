@@ -24,7 +24,7 @@ const NOW = new Date("2026-11-19T09:00:00Z");
 async function open(): Promise<{ db: Kysely<DB>; ctx: TestActionContext }> {
   committed = await createCommittedTestDb(12);
   const { db } = committed;
-  const actor = await person(db, "racing-teacher", ["teacher"]);
+  const actor = await person(db, "racing-admin", ["admin"]);
   return { db, ctx: { db, actor, now: NOW } };
 }
 

@@ -1,16 +1,17 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { createDataTableColumnHelper } from "@/components/data-table/features";
 import {
   TestSourceText,
   TestStatusBadge,
   TestUsageText,
-} from "@/components/teacher-catalogue/catalogue-badges";
-import { TestRowActions } from "@/components/teacher-catalogue/test-row-actions";
+} from "@/components/catalogue/catalogue-badges";
+import { TestRowActions } from "@/components/catalogue/test-row-actions";
+import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { m } from "@/i18n/messages";
 import { formatDateTime } from "@/lib/i18n/format";
+import { unitLabel } from "@/lib/i18n/unit-labels";
 import type { CatalogueTestRow } from "@/server/catalogue/queries";
 
 const helper = createDataTableColumnHelper<CatalogueTestRow>();
@@ -30,7 +31,11 @@ export const catalogueColumns = helper.columns([
     enableColumnFilter: false,
     header: ({ column }) => <DataTableColumnHeader column={column} />,
     cell: ({ row }) =>
-      row.original.unit ?? <span className="text-muted-foreground">{m.catalogue_no_unit()}</span>,
+      row.original.unit === null ? (
+        <span className="text-muted-foreground">{m.catalogue_no_unit()}</span>
+      ) : (
+        unitLabel(row.original.unit)
+      ),
   }),
   helper.accessor("material", {
     id: "material",

@@ -9,7 +9,7 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { patientIn, recordsWorld, requestFor } from "../lab-records/test-helpers.ts";
 import { finishSimulation, startSimulation } from "../simulations/state.ts";
-import { NOW, world } from "../simulations/test-helpers.ts";
+import { NOW, person, world } from "../simulations/test-helpers.ts";
 import { runningWorld, studentSets } from "../tolerances/test-helpers.ts";
 import { updateTest } from "./actions.ts";
 import { testUsage, usageOf } from "./in-use.ts";
@@ -69,7 +69,11 @@ describe("a test a simulation's correct values name (D9, D10, #267)", () => {
 
   it("refuses a unit change once used, and a material change while running (D9)", async () => {
     const { database, w, testId } = await used();
-    const ctx = { db: database, actor: w.teacher, now: NOW };
+    const ctx = {
+      db: database,
+      actor: await person(database, "catalogue-admin", ["admin"]),
+      now: NOW,
+    };
     const test = {
       name: "Glucose (invented)",
       unit: "mmol/L",
@@ -92,8 +96,9 @@ describe("a test a simulation's correct values name (D9, D10, #267)", () => {
   });
 
   it("is listed with its usage in the catalogue", async () => {
-    const { database, w, testId } = await used();
-    const page = await readTestPage({ db: database, actor: w.teacher }, {});
+    const { database, testId } = await used();
+    const actor = await person(database, "catalogue-admin", ["admin"]);
+    const page = await readTestPage({ db: database, actor }, {});
     expect(page.rows.find((row) => row.id === testId)?.usage).toBe("used");
   });
 });
@@ -139,7 +144,11 @@ describe("a test a lab has a tolerance for (D9, S13; review of #352, S4)", () =>
     expect(await usageOf(database, testId)).toBe("unused");
     await studentSets(database, w, testId, "4", "6");
     expect(await usageOf(database, testId)).toBe("running");
-    const ctx = { db: database, actor: w.teacher, now: NOW };
+    const ctx = {
+      db: database,
+      actor: await person(database, "catalogue-admin", ["admin"]),
+      now: NOW,
+    };
     const test = {
       name: "Creatinine (invented)",
       unit: "mg/dL",

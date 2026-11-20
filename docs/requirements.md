@@ -59,8 +59,8 @@ keeps its row with the status "Dropped".
 | Role | May | Sees |
 |---|---|---|
 | Student | with the team: register patients, record requests and samples, set tolerances, upload the Epoch export, measure again, release results | the work of their own team only; never a correct value or another team's work |
-| Teacher | manage the test catalogue, prepare a simulation with its labs and its correct values, follow the teams | every team of their own simulations: times, measurements, released results and accuracy |
-| Administrator | manage users and roles; manage analysers and integrations | logs, integration status, analyser usage |
+| Teacher | choose tests from the test catalogue, prepare a simulation with its labs and its correct values, follow the teams | every team of their own simulations: times, measurements, released results and accuracy |
+| Administrator | manage users and roles; manage the test catalogue; manage analysers and integrations | logs, integration status, analyser usage |
 
 ## Functional requirements
 
@@ -89,7 +89,7 @@ keeps its row with the status "Dropped".
 
 | ID | Requirement | Priority | Acceptance criterion | Risk |
 |---|---|---|---|---|
-| D9 | Manage the test catalogue, so a test can be added without a change to the code. Per test the teacher sets where a measurement comes from (the Afinion 2, the Epoch 2 upload, or entry by hand) and who calculates the concentration from an Epoch 2 plate: the team or eduLIMS. | Must | *(proposed)* A teacher adds a test with its name, unit and material, and teams can request it in the next simulation. A teacher switches a test between "the team calculates" and "eduLIMS calculates", and the upload follows that choice (S4). A test whose result is calculated from other results is a test with entry by hand, with a correct value like any other. | |
+| D9 | Manage the test catalogue, so a test can be added without a change to the code. An administrator manages the catalogue in the Admin portal; teachers choose its tests when they prepare a simulation (owner, 2026-11-20, #393). Per test the administrator sets where a measurement comes from (the Afinion 2, the Epoch 2 upload, or entry by hand), the unit as a UCUM code, and who calculates the concentration from an Epoch 2 plate: the team or eduLIMS. | Must | *(proposed)* An administrator adds a test with its name, unit and material, and teams can request it in the next simulation. An administrator switches a test between "the team calculates" and "eduLIMS calculates", and the upload follows that choice (S4). A test whose result is calculated from other results is a test with entry by hand, with a correct value like any other. A fresh installation carries the standard Afinion 2 tests, with no correct value. | |
 | D10 | Prepare a simulation: its name, its labs (each with the name and logo the team made up, and the email addresses of its members) and the correct value per test and sample. The correct values are entered once per simulation and hold for every lab, so adding or removing a lab is no extra work. | Must | *(proposed)* A teacher creates a simulation with its labs and adds the members of a lab by pasting their email addresses. A teacher enters the correct value for each test of each sample number once; a lab added afterwards is judged against the same values without any new entry. A teacher can change a correct value before, during and after the simulation; the change is logged and the dashboard follows the current value. A teacher can add other teachers to a simulation, with the same rights. No student account can read a correct value. | R-01 |
 | D11 | Follow every team live on a dashboard: per request the time of entry, the time of release and the time between them; every measurement of a requested test, with the released one marked as the one that counts; and per released result the accuracy as green, yellow or red. | Must | *(proposed)* A released result shows on the dashboard without a manual reload, with its times and its accuracy status as a colour with an icon and text. The teacher sees the earlier measurements beside the released one. A teacher sees only their own simulations. | R-01, R-09 |
 | D12 | Mark a request as urgent and set a time target for it; the dashboard shows whether a team met it. | Won't in this iteration | Owner, 2026-11-19: not built yet, and what counts as urgent is not defined yet. eduLIMS only logs the time of entry and the time of release (G-01). Open: O1. | |
@@ -106,6 +106,8 @@ keeps its row with the status "Dropped".
 | D8 | Reuse a rubric between practicals. | Dropped | Dropped 2026-11-19: no rubric. | |
 
 ### Admin portal
+
+The administrator also manages the test catalogue of D9 (owner, 2026-11-20, #393): every simulation uses the same catalogue, and teachers choose its tests.
 
 | ID | Requirement | Priority | Acceptance criterion | Risk |
 |---|---|---|---|---|

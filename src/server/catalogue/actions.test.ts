@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The changes to the test catalogue (D9, S4, #266) on a real database: the rules of a test, the
-// activity-log rows with ids only (B4), and the refusal of every role but teacher (A01).
+// activity-log rows with ids only (B4), and the refusal of every role but admin (A01, #393).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TestUsage } from "../../lib/catalogue.ts";
 import { AuthError } from "../middleware.ts";
@@ -43,7 +43,7 @@ vi.mock("./in-use.ts", () => ({
 }));
 
 const setup = catalogueTestDb();
-const teacher = setup.teacher;
+const admin = setup.admin;
 
 beforeEach(() => usages.clear());
 
@@ -51,7 +51,7 @@ afterEach(() => setup.destroy());
 
 describe("createTest (D9)", () => {
   it("adds a test with its name, unit and material and logs test_created with ids only", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     expect(await stored(ctx.db, id)).toEqual({
       name: "CRP",
@@ -78,7 +78,7 @@ describe("createTest (D9)", () => {
   });
 
   it("stores who calculates an Epoch 2 concentration, and nothing of an analyte (D9, S4)", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, GLUCOSE);
     expect(await stored(ctx.db, id)).toMatchObject({
       source: "epoch_upload",
@@ -88,7 +88,7 @@ describe("createTest (D9)", () => {
   });
 
   it("stores a test entered by hand without a setting (O8)", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, {
       name: "LDL (calculated)",
       unit: "mmol/L",
@@ -103,7 +103,7 @@ describe("createTest (D9)", () => {
   });
 
   it("refuses a name an active test holds, compared case-insensitively", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     await created(ctx);
     expect(await createTest(ctx, { ...CRP, name: "crp" })).toEqual({
       ok: false,
@@ -122,7 +122,7 @@ describe("createTest (D9)", () => {
   });
 
   it("accepts the name of a retired test", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const old = await created(ctx);
     await retireTest(ctx, { testId: old });
     expect((await createTest(ctx, CRP)).ok).toBe(true);
@@ -130,10 +130,10 @@ describe("createTest (D9)", () => {
 });
 
 describe("updateTest (D9)", () => {
-  it("lets any teacher change any test, and logs the names of the changed settings", async () => {
-    const owner = await teacher();
+  it("lets any administrator change any test, and logs the names of the changed settings", async () => {
+    const owner = await admin();
     const id = await created(owner, GLUCOSE);
-    const other = await teacher("other-teacher", ["teacher"], LATER);
+    const other = await admin("other-admin", ["admin"], LATER);
     const result = await updateTest(other, {
       testId: id,
       test: {
@@ -161,7 +161,7 @@ describe("updateTest (D9)", () => {
   });
 
   it("drops the setting of the old source when the source changes", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, GLUCOSE);
     await updateTest(ctx, { testId: id, test: { ...GLUCOSE, source: { kind: "manual" } } });
     expect(await stored(ctx.db, id)).toMatchObject({
@@ -171,20 +171,20 @@ describe("updateTest (D9)", () => {
   });
 
   it("writes nothing and logs nothing when nothing changed", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     expect(await updateTest(ctx, { testId: id, test: CRP })).toEqual({ ok: true, testId: id });
     expect(await events(ctx.db)).toHaveLength(1);
   });
 
   it("keeps a test's own name free for itself, in another case too", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     expect((await updateTest(ctx, { testId: id, test: { ...CRP, name: "crp" } })).ok).toBe(true);
   });
 
   it("refuses a name another active test holds", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     await created(ctx);
     const id = await created(ctx, GLUCOSE);
     expect(await updateTest(ctx, { testId: id, test: { ...GLUCOSE, name: "Crp" } })).toEqual({
@@ -194,7 +194,7 @@ describe("updateTest (D9)", () => {
   });
 
   it("refuses an unknown or malformed test with not_found", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     expect(await updateTest(ctx, { testId: UNKNOWN, test: CRP })).toEqual({
       ok: false,
       error: "not_found",
@@ -206,7 +206,7 @@ describe("updateTest (D9)", () => {
   });
 
   it("refuses to change a retired test", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     await retireTest(ctx, { testId: id });
     expect(await updateTest(ctx, { testId: id, test: { ...CRP, material: "serum" } })).toEqual({
@@ -218,7 +218,7 @@ describe("updateTest (D9)", () => {
 
 describe("retireTest and restoreTest (D9)", () => {
   it("retires a test, keeps the row and logs test_retired", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     expect(await retireTest(ctx, { testId: id })).toEqual({ ok: true, testId: id });
     expect((await stored(ctx.db, id)).retired_at).toEqual(NOW);
@@ -230,7 +230,7 @@ describe("retireTest and restoreTest (D9)", () => {
   });
 
   it("refuses to retire twice and to retire an unknown test", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     await retireTest(ctx, { testId: id });
     expect(await retireTest(ctx, { testId: id })).toEqual({ ok: false, error: "retired" });
@@ -241,7 +241,7 @@ describe("retireTest and restoreTest (D9)", () => {
   });
 
   it("restores a retired test and logs test_restored", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     await retireTest(ctx, { testId: id });
     expect(await restoreTest(ctx, { testId: id })).toEqual({ ok: true, testId: id });
@@ -250,7 +250,7 @@ describe("retireTest and restoreTest (D9)", () => {
   });
 
   it("refuses to restore an active test and an unknown test", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     expect(await restoreTest(ctx, { testId: id })).toEqual({ ok: false, error: "not_retired" });
     expect(await restoreTest(ctx, { testId: UNKNOWN })).toEqual({
@@ -260,7 +260,7 @@ describe("retireTest and restoreTest (D9)", () => {
   });
 
   it("refuses to restore a test whose name an active test took meanwhile", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const old = await created(ctx);
     await retireTest(ctx, { testId: old });
     await created(ctx, { ...CRP, name: "crp" });
@@ -268,15 +268,15 @@ describe("retireTest and restoreTest (D9)", () => {
   });
 });
 
-describe("only teachers read or change the catalogue (D9, A01)", () => {
+describe("only administrators read or change the whole catalogue (D9, A01, #393)", () => {
   it.each([
     ["a student", ["student"]],
-    ["an administrator", ["admin"]],
+    ["a teacher", ["teacher"]],
     ["a user without a role", []],
   ] as const)("%s is refused with 403 by every function", async (_name, roles) => {
-    const owner = await teacher();
+    const owner = await admin();
     const id = await created(owner);
-    const ctx = await teacher("caller", roles);
+    const ctx = await admin("caller", roles);
     const refusals = [
       () => createTest(ctx, GLUCOSE),
       () => updateTest(ctx, { testId: id, test: { ...CRP, unit: "mg/dL" } }),
@@ -293,8 +293,8 @@ describe("only teachers read or change the catalogue (D9, A01)", () => {
     expect(await events(owner.db)).toHaveLength(1);
   });
 
-  it("a teacher-admin may change the catalogue as a teacher", async () => {
-    const ctx = await teacher("teacher-admin", ["teacher", "admin"]);
+  it("a teacher-admin may change the catalogue as an administrator", async () => {
+    const ctx = await admin("teacher-admin", ["teacher", "admin"]);
     expect((await createTest(ctx, CRP)).ok).toBe(true);
   });
 });

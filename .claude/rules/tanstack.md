@@ -136,7 +136,7 @@ a new domain adds its row here and there.
 | Integration status (`integrationsKeys.status`) | 0, refetched every 30 s | The scheduled check writes a new result every minute; an open screen shows a failure within the 5 minutes of B3. |
 | Simulations and labs (`simulationsKeys`) | 30 s | Co-teachers change a simulation, rarely within a minute; every write names its invalidation keys, and a lab's keys nest under its simulation (ADR 0021). |
 | A lab's tolerances (`tolerancesKeys`) | 15 s | Every member of the lab may change one, and its teachers read the changes; every change invalidates the lab's entry anyway (S13). |
-| Test catalogue page (`catalogueKeys.list`) | 30 s | Teachers change it rarely; every create, edit, retire and restore invalidates it anyway (D9). |
+| Test catalogue page and active tests (`catalogueKeys.list`, `.active`) | 30 s | Administrators change it rarely; every create, edit, retire and restore invalidates both anyway (D9, #393). |
 | A lab's records and the correction log (`labRecordsKeys`) | 10 s | Six students of one lab write the same patients and requests at once; every write invalidates its lab anyway (S11, S12). |
 | A lab's measurements and results (`resultsKeys`) | 10 s | Analysers and six students add measurements; every measurement and release invalidates the lab's entry anyway (S14, S15). |
 | A provider's SCIM section (`scimKeys.detail`) | 15 s | Its token's last use moves with every directory sync. |

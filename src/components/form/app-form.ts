@@ -9,6 +9,7 @@ import {
   SelectField,
   SwitchField,
 } from "@/components/form/choice-fields";
+import { ComboboxField } from "@/components/form/combobox-field";
 import { DateField } from "@/components/form/date-field";
 import { EmailListField } from "@/components/form/email-list-field";
 import { FieldErrors } from "@/components/form/field-errors";
@@ -26,6 +27,7 @@ const formHook = createFormHook({
     TextareaField,
     NumberField,
     SelectField,
+    ComboboxField,
     CheckboxField,
     CheckboxGroupField,
     RadioGroupField,
