@@ -11,8 +11,10 @@
 #
 # The format is deliberately flat so the sync reads it with awk: each label is
 # a `- name:` line followed by `color:` (six hex digits, quoted) and
-# `description:` (at most 100 characters, the GitHub limit). `retired:` lists
-# names the sync deletes when the repository still carries them.
+# `description:` (at most 100 characters, the GitHub limit). `renamed:` lists
+# `old: new` pairs the sync renames in place, so every issue keeps the label.
+# `retired:` lists names the sync deletes when the repository still carries
+# them.
 
 labels:
   # Work kind: a Task carries exactly one, and it picks the branch prefix and
@@ -40,13 +42,13 @@ labels:
   # Area: the part of eduLIMS the change touches. An issue may carry several.
   - name: portal:student
     color: "1d76db"
-    description: "Student portal: samples, measurements, lab reports, grades (S1 to S7)."
+    description: "Student portal: patients, requests, samples, measurements, tolerances, release (S1 to S16)."
   - name: portal:teacher
     color: "0e8a16"
-    description: "Teacher portal: practicals, results, rubric grading (D1 to D5)."
+    description: "Teacher portal: test catalogue, simulations, labs, correct values, limits (D9 to D15)."
   - name: portal:admin
     color: "5319e7"
-    description: "Admin portal: users, roles, analysers, integrations (B1 to B4)."
+    description: "Admin portal: users, roles, analysers, integrations, the log, simulations (B1, B3 to B5)."
   - name: auth
     color: "b60205"
     description: "Sign-in through the identity providers (OIDC, SAML), SCIM, sessions, and role checks."
@@ -62,9 +64,9 @@ labels:
   - name: upload
     color: "d4c5f9"
     description: "The Gen5 Excel upload and its validation (S4)."
-  - name: kpi-dashboard
+  - name: dashboard
     color: "f9d0c4"
-    description: "The KPI dashboard of the Teacher portal (D5)."
+    description: "The teacher dashboard of the simulations (D11 to D14)."
   - name: ui
     color: "e6c3a5"
     description: "Shared interface components, layout, and styling."
@@ -133,6 +135,10 @@ labels:
   - name: help wanted
     color: "008672"
     description: "Extra attention is needed."
+
+# Old names the sync renames in place, so the labelled issues keep them (#275).
+renamed:
+  - kpi-dashboard: dashboard
 
 # GitHub's default `bug` and `enhancement` labels repeat the native issue type.
 retired:

@@ -19,7 +19,7 @@
       },
       {
         "name": "edulims-teacher",
-        "description": "Teacher: manages and assesses the practicals they own"
+        "description": "Teacher: prepares their own simulations and follows every lab on the dashboard"
       },
       {
         "name": "edulims-admin",

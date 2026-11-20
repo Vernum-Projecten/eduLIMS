@@ -19,12 +19,7 @@ import type { ChartTableColumn } from "@/lib/charts/table";
 import { getDevPagesEnabled } from "@/lib/dev-tools.functions";
 import { formatNumber } from "@/lib/i18n/format";
 import { getLocale } from "@/lib/i18n/locale";
-import {
-  ACADEMIC_YEARS,
-  type AcademicYear,
-  DEMO_PRACTICALS,
-  type DemoPractical,
-} from "./-practicals-demo";
+import { DEMO_LABS, type DemoLab, type DemoSimulation, SIMULATIONS } from "./-labs-demo";
 
 export const Route = createFileRoute("/dev/charts")({
   // Development pages are refused in production: the server answers, so a 404 is real.
@@ -35,44 +30,52 @@ export const Route = createFileRoute("/dev/charts")({
   component: DevCharts,
 });
 
-/** Each academic year differs by shape as well as by colour (WCAG 2.1 SC 1.4.1). */
-const YEAR_SHAPE = { 1: "circle", 2: "hexagon", 3: "ring" } as const satisfies Record<
-  AcademicYear,
+/** Each simulation differs by shape as well as by colour (WCAG 2.1 SC 1.4.1). */
+const SIMULATION_SHAPE = { 1: "circle", 2: "hexagon", 3: "ring" } as const satisfies Record<
+  DemoSimulation,
   ChartSeriesShape
 >;
 
-/** Point radius in CSS pixels for the smallest and the largest class. */
+/** Point radius in CSS pixels for the lab with the fewest and the most requests. */
 const RADIUS_RANGE = [4, 16] as const;
 
-const yearLabel = (year: AcademicYear) => m.dev_charts_year({ year: String(year) });
-const grade = (value: number) =>
+const simulationLabel = (simulation: DemoSimulation) =>
+  m.dev_charts_simulation_value({ simulation: String(simulation) });
+const minutes = (value: number) =>
   formatNumber(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const whole = (value: number) => formatNumber(value, { maximumFractionDigits: 0 });
 
-function inYear(year: AcademicYear) {
-  return DEMO_PRACTICALS.filter((practical) => practical.academicYear === year);
+function inSimulation(simulation: DemoSimulation) {
+  return DEMO_LABS.filter((lab) => lab.simulation === simulation);
 }
 
 function scatterDefinition() {
-  const radius = sqrtRadiusScale(
-    maxOf(DEMO_PRACTICALS.map((practical) => practical.classSize)) ?? 1,
-    RADIUS_RANGE,
-  );
+  const radius = sqrtRadiusScale(maxOf(DEMO_LABS.map((lab) => lab.requests)) ?? 1, RADIUS_RANGE);
   const shared = {
-    x: "submissions",
-    y: "averageGrade",
-    r: "classSize",
+    x: "released",
+    y: "turnaround",
+    r: "requests",
     rScale: radius,
-    color: "academicYear",
+    color: "simulation",
     key: "id",
   } as const;
   return defineChart({
     marks: [
-      dot(inYear(1), { ...shared, id: "year-1", stroke: "var(--background)", strokeWidth: 1 }),
-      hexagon(inYear(2), { ...shared, id: "year-2", stroke: "var(--background)", strokeWidth: 1 }),
-      dot(inYear(3), {
+      dot(inSimulation(1), {
         ...shared,
-        id: "year-3",
+        id: "simulation-1",
+        stroke: "var(--background)",
+        strokeWidth: 1,
+      }),
+      hexagon(inSimulation(2), {
+        ...shared,
+        id: "simulation-2",
+        stroke: "var(--background)",
+        strokeWidth: 1,
+      }),
+      dot(inSimulation(3), {
+        ...shared,
+        id: "simulation-3",
         fillOpacity: 0.2,
         stroke: chartSeriesColor(2),
         strokeWidth: 2.5,
@@ -83,19 +86,19 @@ function scatterDefinition() {
         scale: scaleLinear,
         nice: true,
         grid: true,
-        axis: { label: m.dev_charts_submissions(), ticks: { format: whole } },
+        axis: { label: m.dev_charts_released(), ticks: { format: whole } },
       },
       y: {
         scale: scaleLinear,
         nice: true,
         grid: true,
-        axis: { label: m.dev_charts_average_grade(), ticks: { format: grade } },
+        axis: { label: m.dev_charts_turnaround(), ticks: { format: minutes } },
       },
     },
     color: {
       scale: scaleOrdinal<number, string>(
-        ACADEMIC_YEARS,
-        ACADEMIC_YEARS.map((_, index) => chartSeriesColor(index)),
+        SIMULATIONS,
+        SIMULATIONS.map((_, index) => chartSeriesColor(index)),
       ),
     },
     // Keeps the largest points inside the plot.
@@ -103,16 +106,16 @@ function scatterDefinition() {
     tooltip: {
       use: tooltip,
       anchor: "point",
-      content: (points: readonly ChartPoint<DemoPractical, number, number>[]) => {
-        const practical = points[0]?.datum;
-        if (!practical) return { rows: [] };
+      content: (points: readonly ChartPoint<DemoLab, number, number>[]) => {
+        const lab = points[0]?.datum;
+        if (!lab) return { rows: [] };
         return {
-          title: practical.title,
+          title: lab.name,
           rows: [
-            { label: m.dev_charts_submissions(), value: whole(practical.submissions) },
-            { label: m.dev_charts_average_grade(), value: grade(practical.averageGrade) },
-            { label: m.dev_charts_class_size(), value: whole(practical.classSize) },
-            { label: m.dev_charts_academic_year(), value: yearLabel(practical.academicYear) },
+            { label: m.dev_charts_released(), value: whole(lab.released) },
+            { label: m.dev_charts_turnaround(), value: minutes(lab.turnaround) },
+            { label: m.dev_charts_requests(), value: whole(lab.requests) },
+            { label: m.dev_charts_simulation(), value: simulationLabel(lab.simulation) },
           ],
         };
       },
@@ -120,43 +123,43 @@ function scatterDefinition() {
   });
 }
 
-function tableColumns(): ChartTableColumn<DemoPractical>[] {
+function tableColumns(): ChartTableColumn<DemoLab>[] {
   return [
-    { id: "title", header: m.dev_charts_practical(), cell: (row) => row.title },
+    { id: "name", header: m.dev_charts_lab(), cell: (row) => row.name },
     {
-      id: "submissions",
-      header: m.dev_charts_submissions(),
-      cell: (row) => whole(row.submissions),
+      id: "released",
+      header: m.dev_charts_released(),
+      cell: (row) => whole(row.released),
       numeric: true,
     },
     {
-      id: "averageGrade",
-      header: m.dev_charts_average_grade(),
-      cell: (row) => grade(row.averageGrade),
+      id: "turnaround",
+      header: m.dev_charts_turnaround(),
+      cell: (row) => minutes(row.turnaround),
       numeric: true,
     },
     {
-      id: "classSize",
-      header: m.dev_charts_class_size(),
-      cell: (row) => whole(row.classSize),
+      id: "requests",
+      header: m.dev_charts_requests(),
+      cell: (row) => whole(row.requests),
       numeric: true,
     },
     {
-      id: "academicYear",
-      header: m.dev_charts_academic_year(),
-      cell: (row) => yearLabel(row.academicYear),
+      id: "simulation",
+      header: m.dev_charts_simulation(),
+      cell: (row) => simulationLabel(row.simulation),
     },
   ];
 }
 
-function focusText(practical: DemoPractical | undefined): string {
-  if (!practical) return m.dev_charts_focused_none();
+function focusText(lab: DemoLab | undefined): string {
+  if (!lab) return m.dev_charts_focused_none();
   return m.dev_charts_focused({
-    practical: practical.title,
-    submissions: whole(practical.submissions),
-    grade: grade(practical.averageGrade),
-    size: whole(practical.classSize),
-    year: String(practical.academicYear),
+    lab: lab.name,
+    released: whole(lab.released),
+    turnaround: minutes(lab.turnaround),
+    requests: whole(lab.requests),
+    simulation: String(lab.simulation),
   });
 }
 
@@ -168,13 +171,13 @@ function DevCharts() {
   const definition = useMemo(() => scatterDefinition(), [locale]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: the locale is what the labels read.
   const columns = useMemo(() => tableColumns(), [locale]);
-  const legend: ChartLegendItem[] = ACADEMIC_YEARS.map((year, index) => ({
-    id: `year-${year}`,
-    label: yearLabel(year),
+  const legend: ChartLegendItem[] = SIMULATIONS.map((simulation, index) => ({
+    id: `simulation-${simulation}`,
+    label: simulationLabel(simulation),
     colorIndex: index,
-    shape: YEAR_SHAPE[year],
+    shape: SIMULATION_SHAPE[simulation],
   }));
-  const [focused, setFocused] = useState<DemoPractical | undefined>();
+  const [focused, setFocused] = useState<DemoLab | undefined>();
 
   return (
     <PublicLayout signedIn={user !== null}>
@@ -185,13 +188,13 @@ function DevCharts() {
           </h2>
           <EduChart
             definition={definition}
-            ariaLabel={m.dev_charts_scatter_label({ count: String(DEMO_PRACTICALS.length) })}
+            ariaLabel={m.dev_charts_scatter_label({ count: String(DEMO_LABS.length) })}
             description={m.dev_charts_scatter_description()}
             legend={legend}
             height={420}
             table={{
               caption: m.dev_charts_table_caption(),
-              rows: DEMO_PRACTICALS,
+              rows: DEMO_LABS,
               columns,
               rowKey: (row) => row.id,
             }}

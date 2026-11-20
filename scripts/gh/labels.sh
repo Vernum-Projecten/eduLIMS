@@ -4,6 +4,7 @@
 # scripts/gh/labels.sh: sync the repository's labels to .github/labels.yml.
 #
 # .github/labels.yml is the single source of the taxonomy. This program
+# renames a label the file renames (so every issue and pull request keeps it),
 # creates a label it lists and the repository lacks, updates one whose colour
 # or description differs, deletes a name the file retires, and leaves every
 # other label alone. Running it twice changes nothing the second time.
@@ -19,9 +20,10 @@
 #       Prints what a sync would do and changes nothing.
 #   scripts/gh/labels.sh --self-test
 #       Validates .github/labels.yml, then drives this program against a stub
-#       gh on PATH: a missing label is created, a drifted one updated, a
-#       matching one left alone, a retired one deleted, a dry run writes
-#       nothing, and a refused gh call fails the run.
+#       gh on PATH: a renamed label is renamed in place, a missing label is
+#       created, a drifted one updated, a matching one left alone, a retired
+#       one deleted, a dry run writes nothing, a rename whose new name exists
+#       already stops the run, and a refused gh call fails the run.
 #   Any other argument, --help included, prints this usage and exits 2
 #   before any gh call.
 
@@ -53,7 +55,7 @@ parse_labels() {
       name = ""; color = ""; desc = ""
     }
     /^labels:/  { section = "labels"; next }
-    /^retired:/ { flush(); section = "retired"; next }
+    /^[a-z]+:/  { flush(); section = ""; next }
     section == "labels" && /^  - name:/ { flush(); line = $0; sub(/^  - name:/, "", line); name = unquote(line); next }
     section == "labels" && /^    color:/ { line = $0; sub(/^    color:/, "", line); color = unquote(line); next }
     section == "labels" && /^    description:/ { line = $0; sub(/^    description:/, "", line); desc = unquote(line); next }
@@ -66,6 +68,18 @@ parse_retired() {
   awk '
     /^[a-z]+:/ { section = $1; next }
     section == "retired:" && /^  - / { line = $0; sub(/^  - /, "", line); gsub(/"/, "", line); print line }
+  ' "$LABELS_FILE"
+}
+
+# The renamed labels of the file as "old<TAB>new" lines.
+parse_renamed() {
+  awk '
+    /^[a-z]+:/ { section = $1; next }
+    section == "renamed:" && /^  - / {
+      line = $0; sub(/^  - /, "", line); gsub(/"/, "", line)
+      split(line, pair, /:[ \t]+/)
+      print pair[1] "\t" pair[2]
+    }
   ' "$LABELS_FILE"
 }
 
@@ -91,6 +105,18 @@ validate() {
     echo "gh-labels: listed twice: $dupes" >&2
     bad=1
   fi
+  local old new
+  while IFS=$'\t' read -r old new; do
+    [[ -n "$old" ]] || continue
+    if [[ -z "$new" ]] || ! cut -f1 <<<"$rows" | grep -qxF -- "$new"; then
+      echo "gh-labels: '$old' is renamed to '$new', which the file does not list" >&2
+      bad=1
+    fi
+    if cut -f1 <<<"$rows" | grep -qxF -- "$old"; then
+      echo "gh-labels: '$old' is renamed but still listed" >&2
+      bad=1
+    fi
+  done < <(parse_renamed)
   [[ "$bad" -eq 0 ]] || die "$LABELS_FILE is not valid"
 }
 
@@ -105,6 +131,20 @@ sync() {
   existing="$(gh label list --limit 500 --json name,color,description \
     --jq '.[] | "\(.name)\t\(.color | ascii_downcase)\t\(.description)"')"
   rows="$(parse_labels)"
+
+  # Renames first, in place, so the labelled issues keep the label; the
+  # update below then brings its colour and description in line.
+  local old new
+  while IFS=$'\t' read -r old new; do
+    [[ -n "$old" ]] || continue
+    cut -f1 <<<"$existing" | grep -qxF -- "$old" || continue
+    if cut -f1 <<<"$existing" | grep -qxF -- "$new"; then
+      die "both '$old' and '$new' exist: move the issues to '$new' and delete '$old' by hand"
+    fi
+    echo "rename: $old -> $new"
+    [[ "$dry" -eq 1 ]] || gh label edit "$old" --name "$new" </dev/null >/dev/null
+    existing="$(awk -F'\t' -v OFS='\t' -v o="$old" -v n="$new" '$1 == o { $1 = n } { print }' <<<"$existing")"
+  done < <(parse_renamed)
 
   while IFS=$'\t' read -r name color desc; do
     color="$(tr '[:upper:]' '[:lower:]' <<<"$color")"
@@ -185,6 +225,11 @@ labels:
   - name: no-changelog
     color: "bfdadc"
     description: "PR escape hatch."
+  - name: new-area
+    color: "f9d0c4"
+    description: "The area."
+renamed:
+  - old-area: new-area
 retired:
   - bug
   - enhancement
@@ -221,7 +266,7 @@ YAML
     fi
   }
 
-  labels='[{"name":"ci","color":"EDEDED","description":"CI, build, and tooling."},{"name":"portal:student","color":"000000","description":"Old."},{"name":"bug","color":"d73a4a","description":"x"},{"name":"keep-me","color":"000000","description":"Not ours."}]'
+  labels='[{"name":"ci","color":"EDEDED","description":"CI, build, and tooling."},{"name":"portal:student","color":"000000","description":"Old."},{"name":"bug","color":"d73a4a","description":"x"},{"name":"keep-me","color":"000000","description":"Not ours."},{"name":"old-area","color":"f9d0c4","description":"Old."}]'
   write=ok
   local sync_case="a sync over a drifted repository"
   run "$sync_case" 0
@@ -229,6 +274,11 @@ YAML
   said "$sync_case" "$out" "update: portal:student"
   said "$sync_case" "$out" "create: no-changelog"
   said "$sync_case" "$out" "retire: bug"
+  said "$sync_case" "$out" "rename: old-area -> new-area"
+  said "$sync_case" "$out" "update: new-area"
+  said "$sync_case" "$calls" "label edit old-area --name new-area"
+  said "$sync_case" "$calls" "label edit new-area --color f9d0c4 --description The area."
+  never "$sync_case" "$calls" "label create new-area"
   said "$sync_case" "$calls" "label edit portal:student --color 1d76db --description Student portal."
   said "$sync_case" "$calls" "label create no-changelog --color bfdadc"
   said "$sync_case" "$calls" "label delete bug --yes"
@@ -243,6 +293,14 @@ YAML
   never "$dry_case" "$calls" "label create"
   never "$dry_case" "$calls" "label edit"
   never "$dry_case" "$calls" "label delete"
+  said "$dry_case" "$out" "rename: old-area -> new-area"
+
+  local both_case="a rename whose new name exists already"
+  labels='[{"name":"old-area","color":"f9d0c4","description":"Old."},{"name":"new-area","color":"f9d0c4","description":"The area."}]'
+  run "$both_case" 1
+  said "$both_case" "$work/err" "both 'old-area' and 'new-area' exist"
+  never "$both_case" "$calls" "label edit"
+  never "$both_case" "$calls" "label create"
 
   write=fail
   run "a refused gh write" 1

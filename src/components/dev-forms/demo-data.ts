@@ -3,35 +3,35 @@
 
 // Fictional starting values of the `/dev/forms` page. Fixed ids keep the server render and
 // the hydrated page identical.
-import type { DemoRubricForm, DemoSessionForm } from "@/server/dev-forms/schemas";
+import type { DemoRequestForm, DemoSessionForm } from "@/server/dev-forms/schemas";
 
-/** A fictional rubric: three criteria, each with its levels and points. */
-export const DEMO_RUBRIC: DemoRubricForm = {
-  title: "Pipetting technique",
-  criteria: [
+/** A fictional request: three tests, each with its measurements. */
+export const DEMO_REQUEST: DemoRequestForm = {
+  sampleNumber: "DEMO-103",
+  tests: [
     {
-      id: "accuracy",
-      name: "Accuracy",
-      levels: [
-        { id: "accuracy-1", label: "Insufficient", points: 0 },
-        { id: "accuracy-2", label: "Sufficient", points: 2 },
-        { id: "accuracy-3", label: "Good", points: 4 },
+      id: "hba1c",
+      name: "HbA1c",
+      measurements: [
+        { id: "hba1c-1", label: "Run 1", value: 48 },
+        { id: "hba1c-2", label: "Run 2", value: 52 },
+        { id: "hba1c-3", label: "Run 3", value: 50 },
       ],
     },
     {
-      id: "journal",
-      name: "Lab journal",
-      levels: [
-        { id: "journal-1", label: "Incomplete", points: 0 },
-        { id: "journal-2", label: "Complete", points: 2 },
+      id: "crp",
+      name: "CRP",
+      measurements: [
+        { id: "crp-1", label: "Run 1", value: 12 },
+        { id: "crp-2", label: "Run 2", value: 14 },
       ],
     },
     {
-      id: "safety",
-      name: "Safe working",
-      levels: [
-        { id: "safety-1", label: "Not observed", points: 0 },
-        { id: "safety-2", label: "Observed", points: 1 },
+      id: "glucose",
+      name: "Glucose",
+      measurements: [
+        { id: "glucose-1", label: "Run 1", value: 5.2 },
+        { id: "glucose-2", label: "Repeat", value: 5.4 },
       ],
     },
   ],

@@ -4,9 +4,9 @@
 /** The analytes the demo rows cycle through (Afinion 2 HbA1c and CRP, Epoch 2 absorbance). */
 export const DEMO_ANALYTES = ["hba1c", "crp", "absorbance"] as const;
 
-/** One fictional measurement row of the `/dev/virtual` demo; no person, only a sample ID. */
+/** One fictional measurement row of the `/dev/virtual` demo; no person, only a sample number. */
 export interface DemoRow {
-  /** Stable key and visible sample ID, `VD-00001` upward. */
+  /** Stable key and visible sample number, `VD-00001` upward. */
   id: string;
   analyte: (typeof DEMO_ANALYTES)[number];
   /** Value in the analyte's unit, two decimals. */
@@ -65,7 +65,7 @@ function compareBy(column: DemoSortColumn, a: DemoRow, b: DemoRow): number {
 
 /**
  * Returns the rows sorted by the first entry of `sorting` (TanStack Table's `SortingState`
- * shape), ties broken by sample ID so the order is the same on every visit. An empty sort or
+ * shape), ties broken by sample number so the order is the same on every visit. An empty sort or
  * an unknown column keeps the input order. The input array is not changed.
  */
 export function sortDemoRows(
