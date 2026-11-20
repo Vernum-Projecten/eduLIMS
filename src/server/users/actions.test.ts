@@ -3,7 +3,7 @@
 
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { dayIn } from "../../lib/app-day.ts";
+import { dayIn, endOfDayIn } from "../../lib/app-day.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { AuthError } from "../middleware.ts";
 import {
@@ -117,6 +117,7 @@ describe("blockUser (owner decision on #32)", () => {
       .executeTakeFirstOrThrow();
     expect(row.banned).toBe(true);
     expect(row.banReason).toBe("Shared account");
+    expect(row.banExpires?.getTime()).toBe(endOfDayIn(until).getTime());
     expect(dayIn(new Date((row.banExpires?.getTime() ?? 0) - 1000))).toBe(until);
     expect(await sessionsOf(database, target)).toEqual([]);
     expect(await events(database, "user_banned")).toEqual([
