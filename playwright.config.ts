@@ -3,6 +3,7 @@
 
 import { defineConfig, devices } from "@playwright/test";
 import {
+  DEFAULT_E2E_DATABASE_URL,
   E2E_SECRETS,
   keycloakOrigin,
   runDatabaseUrl,
@@ -19,9 +20,7 @@ import { setupThenServe, webServerTimeout } from "./tests/e2e/web-server-command
 const PORT = await runPort("EDULIMS_E2E_PORT");
 const baseURL = `http://localhost:${PORT}`;
 const INTEGRATIONS = `http://127.0.0.1:${await runPort("EDULIMS_E2E_INTEGRATIONS_PORT")}`;
-const baseDatabaseUrl =
-  process.env["E2E_DATABASE_URL"]?.trim() ||
-  "postgres://edulims:edulims@127.0.0.1:5432/edulims_e2e";
+const baseDatabaseUrl = process.env["E2E_DATABASE_URL"]?.trim() || DEFAULT_E2E_DATABASE_URL;
 const databaseUrl = runDatabaseUrl(baseDatabaseUrl);
 const INTEGRATION_STATUS_SPEC = /admin-integrations\.spec\.ts$/;
 const SCIM_SPEC = /admin-scim\.spec\.ts$/;

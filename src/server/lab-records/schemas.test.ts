@@ -101,7 +101,7 @@ describe("a new request (S12, S16)", () => {
 });
 
 /** NUL, VT, ESC, RIGHT-TO-LEFT OVERRIDE and ZERO WIDTH SPACE (security review of #351, S1). */
-const HIDDEN = ["\u0000", "\u000b", "\u001b", "‮", "​"];
+const HIDDEN = ["\u0000", "\u000b", "\u001b", "\u202e", "\u200b"];
 
 describe("control and format characters (review of #351, S1)", () => {
   it.each(HIDDEN.map((char) => [JSON.stringify(char), char]))(

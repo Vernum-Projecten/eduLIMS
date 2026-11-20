@@ -10,7 +10,7 @@ import type { DB } from "../db/schema.gen.ts";
 import { RefusalDeduper } from "../scim/audit.ts";
 import { withAppOrigin } from "../test-auth.ts";
 import { CLOSED_AUTH_PATHS, HTTP_CLOSED_AUTH_PATHS } from "./admin-endpoint-lock.ts";
-import { authOnTestDb, createUser, signIn } from "./test-helpers.ts";
+import { authOnTestDb, createUser, signIn, TEST_PASSWORD } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -228,7 +228,7 @@ describe("the endpoints closed over HTTP only (#356 review, S2, S3)", () => {
       request("/admin/create-user", "POST", headers, {
         email: "new-admin@example.test",
         name: "New",
-        password: "correct-horse-battery",
+        password: TEST_PASSWORD,
         role: "admin",
       }),
     );

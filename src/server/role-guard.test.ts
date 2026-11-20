@@ -11,8 +11,8 @@ import { guardRoleValue } from "./role-guard.ts";
 import { setSecurityLogWriter } from "./security-log.ts";
 import { createTestAuth } from "./test-auth.ts";
 import { VALID_ENV } from "./test-env.ts";
+import { TEST_PASSWORD } from "./users/test-helpers.ts";
 
-const PASSWORD = "correct-horse-battery";
 let db: Kysely<DB> | undefined;
 let logLines: string[] = [];
 let restoreLog: (() => void) | undefined;
@@ -54,12 +54,12 @@ async function adminHeaders(auth: Auth): Promise<Headers> {
     body: {
       email: "admin@example.test",
       name: "Test Administrator",
-      password: PASSWORD,
+      password: TEST_PASSWORD,
       role: "admin",
     },
   });
   const response = await auth.api.signInEmail({
-    body: { email: "admin@example.test", password: PASSWORD },
+    body: { email: "admin@example.test", password: TEST_PASSWORD },
     asResponse: true,
   });
   const cookie = response.headers.getSetCookie().map((c) => c.split(";")[0]);
@@ -160,7 +160,7 @@ describe("role writes through better-auth (ADR 0012)", () => {
       body: {
         email: "teacher-admin@example.test",
         name: "Test Coordinator",
-        password: PASSWORD,
+        password: TEST_PASSWORD,
         role: ["admin", "teacher"],
       },
     });
@@ -173,7 +173,7 @@ describe("role writes through better-auth (ADR 0012)", () => {
       const { auth, database } = await setup();
       await expect(
         auth.api.createUser({
-          body: { email: "x@example.test", name: "X", password: PASSWORD, role: [...role] },
+          body: { email: "x@example.test", name: "X", password: TEST_PASSWORD, role: [...role] },
         }),
       ).rejects.toThrow();
       expect(await storedRole(database, "x@example.test")).toBeUndefined();
@@ -183,7 +183,7 @@ describe("role writes through better-auth (ADR 0012)", () => {
   // The IdP sign-in gate and SCIM write roles through the internal adapter, which runs the hooks.
   async function teacher(auth: Auth) {
     const { user } = await auth.api.createUser({
-      body: { email: "t@example.test", name: "T", password: PASSWORD, role: "teacher" },
+      body: { email: "t@example.test", name: "T", password: TEST_PASSWORD, role: "teacher" },
     });
     return { id: user.id, adapter: (await auth.$context).internalAdapter };
   }
