@@ -51,6 +51,8 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.labs_error_in_other_lab();
     case "in_other_simulation":
       return m.labs_error_in_other_simulation();
+    case "simulation_finished":
+      return m.labs_error_simulation_finished();
     case "not_prepared":
       return m.simulations_error_not_prepared();
     case "not_running":

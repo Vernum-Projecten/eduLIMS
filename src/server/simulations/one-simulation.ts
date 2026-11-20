@@ -14,19 +14,23 @@ import type { DB } from "../db/schema.gen.ts";
  * `simulationId`. Locks the student's user row first (`FOR NO KEY UPDATE`), the lock the trigger
  * of migration 0026 takes, so two places for one student into two simulations are decided one
  * after the other: the second reads the first's committed place in its next statement. Call it
- * after the simulation row is locked (simulations before users).
+ * after the simulation row is locked (simulations before users). With `lock: false` it reads
+ * without a lock: a pre-check only, which a locked read must confirm before it decides.
  */
 export async function inOtherActiveSimulation(
   trx: Kysely<DB>,
   userId: string,
   simulationId: string,
+  options: { lock?: boolean } = {},
 ): Promise<boolean> {
-  await trx
-    .selectFrom("user")
-    .select("id")
-    .where("id", "=", userId)
-    .forNoKeyUpdate()
-    .executeTakeFirst();
+  if (options.lock ?? true) {
+    await trx
+      .selectFrom("user")
+      .select("id")
+      .where("id", "=", userId)
+      .forNoKeyUpdate()
+      .executeTakeFirst();
+  }
   const row = await trx
     .selectFrom("lab_members")
     .innerJoin("simulations", "simulations.id", "lab_members.simulation_id")

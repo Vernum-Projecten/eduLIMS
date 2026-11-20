@@ -19,22 +19,29 @@ import {
 } from "./access.ts";
 import { inOtherActiveSimulation } from "./one-simulation.ts";
 import { recordRemoval } from "./removals.ts";
+import { stateOf } from "./state.ts";
 import { dropWaitingAddressesOf } from "./waiting.ts";
 
-async function placeOf(trx: Kysely<DB>, simulationId: string, userId: string) {
-  return trx
+async function placeOf(
+  trx: Kysely<DB>,
+  simulationId: string,
+  userId: string,
+  options: { lock?: boolean } = {},
+) {
+  const query = trx
     .selectFrom("lab_members")
     .select("lab_id")
     .where("simulation_id", "=", simulationId)
-    .where("user_id", "=", userId)
-    .executeTakeFirst();
+    .where("user_id", "=", userId);
+  return (options.lock ? query.forNoKeyUpdate() : query).executeTakeFirst();
 }
 
 /**
  * Moves a student of a simulation the actor teaches to another of its labs. A lab of another
  * simulation answers `not_found`, as an unknown or malformed one does, and the probe is logged
- * (ASVS V16.3.2). A student in a lab of another prepared or running simulation is
- * `in_other_simulation`, logged (#379).
+ * (ASVS V16.3.2). A finished simulation is `not_running`, and a student in a lab of another
+ * prepared or running simulation is `in_other_simulation`, both logged (#379, review of #392).
+ * The locks go simulation, then the student's place, then the student's user row.
  */
 export function moveMember(
   db: Kysely<DB>,
@@ -56,47 +63,56 @@ export function moveMember(
       logNotFound(actor.id, "lab", input.labId);
       return refused("not_found");
     }
-    const place = await placeOf(trx, simulationId, input.userId);
+    const event = {
+      action: "lab_member_moved",
+      actor: { type: "user", id: actor.id },
+      target: { type: "lab", id: target.id },
+    } as const;
+    // NOTE: maintainer on the review of #392 (N1); a finished simulation is history, so no move.
+    if ((await stateOf(trx, simulationId)) === "finished") {
+      await recordAudit(trx, {
+        ...event,
+        outcome: "refused",
+        reason: "not_running",
+        metadata: { simulation_id: simulationId, user_id: input.userId },
+      });
+      return refused("not_running");
+    }
+    // NOTE: security review of #392 (S1); the place before the user row, as a deletion takes them.
+    const place = await placeOf(trx, simulationId, input.userId, { lock: true });
     if (!place) return refused("member_not_found");
     if (place.lab_id === target.id) return refused("same_lab");
+    const metadata = {
+      simulation_id: simulationId,
+      user_id: input.userId,
+      previous_lab_id: place.lab_id,
+    };
     // NOTE: #379 (owner, 2026-11-20); a move puts the student in a lab too, so it keeps the rule.
     if (await inOtherActiveSimulation(trx, input.userId, simulationId)) {
       await recordAudit(trx, {
-        action: "lab_member_moved",
-        actor: { type: "user", id: actor.id },
+        ...event,
         outcome: "refused",
         reason: "in_other_simulation",
-        target: { type: "lab", id: target.id },
-        metadata: {
-          simulation_id: simulationId,
-          user_id: input.userId,
-          previous_lab_id: place.lab_id,
-        },
+        metadata,
       });
       return refused("in_other_simulation");
     }
-    await trx
+    const moved = await trx
       .updateTable("lab_members")
       .set({ lab_id: target.id })
       .where("simulation_id", "=", simulationId)
       .where("user_id", "=", input.userId)
-      .execute();
+      .executeTakeFirst();
+    if (Number(moved.numUpdatedRows) === 0) return refused("member_not_found");
     // NOTE: #323, #330 (maintainer, 2026-11-20); an address waiting in another lab goes with the
     // move, for a verified email only: an unverified one may be a classmate's.
     const dropped = await dropWaitingAddressesOf(trx, simulationId, input.userId, {
       exceptLabId: target.id,
     });
     await recordAudit(trx, {
-      action: "lab_member_moved",
-      actor: { type: "user", id: actor.id },
+      ...event,
       outcome: "success",
-      target: { type: "lab", id: target.id },
-      metadata: {
-        simulation_id: simulationId,
-        user_id: input.userId,
-        previous_lab_id: place.lab_id,
-        count: dropped,
-      },
+      metadata: { ...metadata, count: dropped },
     });
     return done(null);
   });

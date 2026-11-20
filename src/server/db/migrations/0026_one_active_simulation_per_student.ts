@@ -8,6 +8,23 @@
 import { type Kysely, sql } from "kysely";
 
 export async function up(db: Kysely<unknown>): Promise<void> {
+  // NOTE: security review of #392 (S3); a trigger checks new rows only, so rows that already break
+  // the rule stop the migration instead of living on beside it.
+  await sql`
+    do $$
+    begin
+      if exists (
+        select 1
+          from lab_members m
+          join simulations s on s.id = m.simulation_id
+          where s.state <> 'finished'
+          group by m.user_id
+          having count(*) > 1
+      ) then
+        raise exception 'a student is in more than one simulation that is not finished'
+          using errcode = '23514', constraint = 'lab_members_one_active_simulation';
+      end if;
+    end $$`.execute(db);
   // NOTE: #379; the student's user row is locked first, so two writes for one student into two
   // simulations run one after the other and the second sees the first's committed place.
   await sql`

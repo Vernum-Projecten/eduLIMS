@@ -160,7 +160,12 @@ A pasted address of such a student is refused at its line without naming the
 other simulation. When one address waits in two unfinished simulations, the
 link tries them in the order of their ids: the lower id links, and the other
 keeps waiting until the first is finished. The overview hides the join form
-while the student is in an unfinished simulation and says why. Once that simulation is finished, the student may join
+while the student is in an unfinished simulation and says why. A finished
+simulation is history: a teacher's move in it is refused with `not_running`,
+a join or a link into it with `simulation_finished`, and finishing it deletes
+its labs' join codes. A move takes the simulation row, then the student's
+place, then the student's user row, the order an account deletion takes the
+place and the user in. Once that simulation is finished, the student may join
 another. The Student portal shows the student's one current lab, which the
 server picks: the lab of their prepared or running simulation, or else the
 lab of their most recently finished one, read-only, until they join a new

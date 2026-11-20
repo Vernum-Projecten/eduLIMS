@@ -7,7 +7,7 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { addEmails } from "./emails.ts";
 import { hasWaitingLabAddress, linkWaitingAddresses } from "./linking.ts";
-import { auditRows, NOW, person, setState, type World, world } from "./test-helpers.ts";
+import { auditRows, NOW, person, type World, world } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -33,10 +33,10 @@ async function placesOf(database: Kysely<DB>, userId: string) {
 }
 
 describe("linkWaitingAddresses (S10: in the lab without doing anything)", () => {
-  it("links a verified student to every lab that waits for their address, logged with ids", async () => {
+  it("links a verified student to the lab that waits for their address, logged with ids", async () => {
     const { database, w } = await open();
-    // NOTE: #379; one unfinished simulation at a time, so the first simulation is finished here.
-    await setState(database, w.simulationId, "finished");
+    // NOTE: #379 and the review of #392; one unfinished simulation at a time, and a finished one
+    // links no one, so one address links here (one-simulation.test.ts holds the other cases).
     const newcomer = await person(database, "newcomer", ["student"]);
     await addEmails(
       database,
@@ -44,20 +44,11 @@ describe("linkWaitingAddresses (S10: in the lab without doing anything)", () => 
       { labId: w.otherLabId, emails: ["NEWCOMER@example.test"] },
       NOW,
     );
-    await addEmails(
-      database,
-      w.outsiderTeacher,
-      { labId: w.outsideLabId, emails: [newcomer.email] },
-      NOW,
-    );
     const outcome = await linkWaitingAddresses(database, newcomer.id, NOW);
-    expect(outcome).toEqual({ linked: 2, refused: 0, failed: 0 });
-    expect(await placesOf(database, newcomer.id)).toEqual(
-      [
-        { lab_id: w.otherLabId, joined_via: "email" },
-        { lab_id: w.outsideLabId, joined_via: "email" },
-      ].sort((a, b) => a.lab_id.localeCompare(b.lab_id)),
-    );
+    expect(outcome).toEqual({ linked: 1, refused: 0, failed: 0 });
+    expect(await placesOf(database, newcomer.id)).toEqual([
+      { lab_id: w.otherLabId, joined_via: "email" },
+    ]);
     const left = await database
       .selectFrom("lab_member_emails")
       .select("email")
@@ -65,7 +56,7 @@ describe("linkWaitingAddresses (S10: in the lab without doing anything)", () => 
       .execute();
     expect(left).toEqual([]);
     const rows = await auditRows(database, "lab_member_joined");
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(1);
     expect(rows).toEqual(
       expect.arrayContaining([
         {
