@@ -228,6 +228,51 @@ correct value.
 Each database has its own database user. One server keeps monitoring and
 backup simple: one backup routine covers both.
 
+### The EHR of a patient
+
+Every patient a team registers gets its own EHR in FerroEHR (S11, #147).
+The subject of the EHR is the patient's eduLIMS id, never the patient ID
+printed on the form: the teams of a simulation work the same forms, and two
+teams that register the same patient must get two EHRs, or one would read the
+other's results (S10). The first `EHR_STATUS` names the subject as a
+`PARTY_SELF` whose `external_ref` is a `PARTY_REF` of type `PERSON`, with the
+namespace `edulims-patient` and the patient id as its `HIER_OBJECT_ID` (RM
+common 1.1.0, "Referring to the Patient"). It carries no name, no lab, no
+simulation and nothing about a student or a teacher (Q-PRIV-1). The namespace
+is a constant in `src/server/openehr/ehr.ts`; no openEHR specification
+governs its value.
+
+The form's details (name, date of birth, sex and patient ID) are not written
+to FerroEHR yet. `PARTY_SELF` carries no details, and the openEHR model puts
+them in a demographic service the `external_ref` points at, which in FerroEHR
+is the DEMOGRAPHIC API (a `PERSON`, open to a client only through
+`[auth.smart] demographic_clients`). Whether eduLIMS writes such a `PERSON`
+is an open question for the owner on #147.
+
+eduLIMS finds the EHR with `GET /ehr?subject_id=…&subject_namespace=…` and,
+on `404`, creates it with `POST /ehr` and that `EHR_STATUS` (ITS-REST 1.1.0,
+EHR API, "Get EHR by subject id" and "Create EHR"). When two calls race,
+FerroEHR answers the second `409`, and eduLIMS reads the EHR by its subject
+again, so a patient has one EHR whatever the order. FerroEHR gives the EHR
+its id, and `patients.ehr_id` stores it, unique across patients. A null
+`ehr_id` means the EHR is pending: FerroEHR did not answer at the
+registration. The registration still commits, the team's confirmation says
+the record is not created yet, and the server logs `ferroehr_ehr_pending`
+with the patient's id and the error's kind and status. The next call that
+needs the EHR tries again: the release of a result (#148) calls the same
+function before it writes a composition. No job retries in the background.
+
+The EHR is created once. A later correction of the patient's details in
+eduLIMS does not rewrite the `EHR_STATUS`: the eduLIMS record is the source of
+the patient's details, and FerroEHR holds the results (maintainer, #147).
+FerroEHR writes the committer of every version itself, from the client that
+signed in: `PARTY_IDENTIFIED` named by the client `edulims-ferroehr`, a
+system client, never a person (FerroEHR book v5.7.0, `security/committer.md`).
+eduLIMS sends no committer. Finding and creating an EHR needs the scope
+`system/composition-*.cr`, because an EHR operation names no template and
+FerroEHR covers it only with the bare wildcard (`smart-app-launch.md`, "What
+each route requires").
+
 ### Simulations and labs
 
 A simulation and its labs live in eduLIMS's own tables
@@ -475,9 +520,11 @@ A team's records from the paper request form live in the eduLIMS database
   shown in the reader's locale and sent as `YYYY-MM-DD`. The correction log
   is a section of the teacher's simulation page; it names a patient by its
   fictional name and a request by its samples' lab numbers.
-- **FerroEHR.** Registering a patient returns the subject of its EHR (the
-  form's details and the patient's id, nothing about the lab or a student);
-  #147 creates the EHR from it after the transaction commits.
+- **FerroEHR.** After the registering transaction commits, eduLIMS finds or
+  creates the patient's EHR and stores its id in `patients.ehr_id`
+  ([The EHR of a patient](#the-ehr-of-a-patient)). When FerroEHR does not
+  answer, the patient stays registered with its EHR pending, and the team
+  reads that in the confirmation.
 
 ### Template `eduLIMS-lab`
 

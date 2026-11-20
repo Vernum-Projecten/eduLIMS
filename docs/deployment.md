@@ -1139,16 +1139,21 @@ profile reads a token as app-only by its `sub`, so the realm file fixes the id
 of the client's service account and FerroEHR lists it in `app_only`. eduLIMS takes
 a token with the client credentials grant at
 `http://localhost:8180/realms/edulims/protocol/openid-connect/token`, client
-`edulims-ferroehr`, secret `edulims-dev-ferroehr-secret`, and scope
-`system/template-*.r`, the one optional client scope the client has: it lists
-and reads operational templates and nothing else (FerroEHR book,
-`smart-app-launch.md`, "What each route requires"). The template reaches
+`edulims-ferroehr`, secret `edulims-dev-ferroehr-secret`, and the two
+optional client scopes the client has: `system/template-*.r` lists and reads
+operational templates, and `system/composition-*.cr` finds and creates the
+EHR of a registered patient (#147). An EHR operation names no template, so
+FerroEHR covers it only with the bare wildcard (FerroEHR book,
+`smart-app-launch.md`, "What each route requires"); the system client's
+`writes` still limits its compositions to `eduLIMS-lab.v1`. The template reaches
 FerroEHR through `ferroehr definitions load` before FerroEHR starts, never
 over REST: the `ferroehr-definitions` one-shot loads `eduLIMS-lab.v1` on
 every `pnpm dev:db`, and the system client lists it in `writes` (above,
-"FerroEHR's templates"). The client's token still carries no
-`system/composition-` scope, so it commits nothing until the composition
-write path adds one (#148).
+"FerroEHR's templates"). The client's token carries
+`system/composition-*.cr`, but eduLIMS commits no composition until the
+composition write path (#148). A realm imported before #147 lacks the new
+scope: add it to the client in the Keycloak admin console, or remove the
+Keycloak container so the next `pnpm dev:db` imports the realm again.
 
 Every token carries the issuer `http://localhost:8180/realms/edulims`
 (`KC_HOSTNAME`), whichever host asks. FerroEHR accepts a plain-HTTP issuer on

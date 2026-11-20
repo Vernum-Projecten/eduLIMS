@@ -178,8 +178,8 @@ services:
       # person commits into an EHR (config-auth.md, [[authz.system_client]]),
       # as config/ferroehr.toml.example declares it: origin `device`, one
       # facility, the `eduLIMS-lab.v1` template; the composer is the analyser,
-      # named by its serial number (#146). Its one scope still lists and reads
-      # templates only (docker/keycloak/edulims-realm.json).
+      # named by its serial number (#146). Its scopes read the templates and
+      # find or create a patient's EHR (docker/keycloak/edulims-realm.json, #147).
       FERROEHR__AUTHZ__SYSTEM_CLIENT__0__ISSUER: http://localhost:${EDULIMS_DEV_KEYCLOAK_PORT:-8180}/realms/edulims
       FERROEHR__AUTHZ__SYSTEM_CLIENT__0__CLIENT_ID: edulims-ferroehr
       FERROEHR__AUTHZ__SYSTEM_CLIENT__0__PROVIDER__ISSUER: urn:example:edulims-dev-provider

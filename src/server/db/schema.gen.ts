@@ -199,6 +199,7 @@ export interface Patients {
   created_at: Generated<Timestamp>;
   created_by: string | null;
   date_of_birth: Timestamp;
+  ehr_id: string | null;
   id: Generated<string>;
   identifier: string;
   lab_id: string;

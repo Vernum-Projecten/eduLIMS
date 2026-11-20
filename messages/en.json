@@ -1250,6 +1250,7 @@
   "records_patient_register_body": "Type the patient's details as they stand on the request form.",
   "records_patient_register_title": "Register a patient",
   "records_patient_registered": "Patient registered.",
+  "records_patient_registered_ehr_pending": "Patient registered. Its record in FerroEHR is not created yet, because FerroEHR did not answer; eduLIMS tries again before a result is released.",
   "records_patient_required": "Choose the patient of the request.",
   "records_patient_sex": "Sex",
   "records_patient_sex_required": "Choose the sex as it stands on the form.",

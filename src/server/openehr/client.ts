@@ -7,6 +7,7 @@
 import "@tanstack/react-start/server-only";
 import type { ZodType } from "zod";
 import { readCapped } from "../read-capped.ts";
+import type { EhrStatus, EhrSubjectRef } from "./ehr.ts";
 import {
   bearerChallengeError,
   failure,
@@ -18,6 +19,8 @@ import {
 import {
   type ConformanceManifest,
   conformanceManifest,
+  type EhrSummary,
+  ehrSummary,
   type TemplateMetadata,
   templateList,
   type WebTemplate,
@@ -51,6 +54,12 @@ export type TemplateDocument =
   | { format: "opt"; xml: string }
   | { format: "web_template"; webTemplate: WebTemplate };
 
+/**
+ * The outcome of creating an EHR: the new EHR, or `conflict` when an EHR already names the
+ * subject (ITS-REST 1.1.0, EHR API, "Create EHR", `409`).
+ */
+export type CreateEhrOutcome = { outcome: "created"; ehr: EhrSummary } | { outcome: "conflict" };
+
 /** The operations of FerroEHR that eduLIMS uses. */
 export interface OpenEhrClient {
   /**
@@ -68,6 +77,16 @@ export interface OpenEhrClient {
    * @throws RangeError when `templateId` is empty.
    */
   getTemplate(templateId: string, format: TemplateFormat): Promise<OpenEhrResult<TemplateDocument>>;
+  /**
+   * Returns the EHR whose `EHR_STATUS.subject.external_ref` names `subject`, or `null` when none
+   * does (EHR API, "Get EHR by subject id": `GET /ehr?subject_id=…&subject_namespace=…`, `404`).
+   */
+  getEhrBySubject(subject: EhrSubjectRef): Promise<OpenEhrResult<EhrSummary | null>>;
+  /**
+   * Creates an EHR with `status` as its first `EHR_STATUS` (EHR API, "Create EHR": `POST /ehr`).
+   * A `409` is the outcome `conflict`, never an error: the caller reads the existing EHR.
+   */
+  createEhr(status: EhrStatus): Promise<OpenEhrResult<CreateEhrOutcome>>;
 }
 
 // NOTE: no openEHR spec governs this: our own design. Ten seconds per request bounds a hanging
@@ -79,13 +98,21 @@ export const DEFAULT_TIMEOUT_MS = 10_000;
 export const OPTIONS_BODY_LIMIT_BYTES = 64 * 1024;
 export const LIST_BODY_LIMIT_BYTES = 1024 * 1024;
 export const TEMPLATE_BODY_LIMIT_BYTES = 16 * 1024 * 1024;
+// NOTE: no openEHR spec governs this limit: our own design; an EHR summary is under 1 KiB.
+export const EHR_BODY_LIMIT_BYTES = 64 * 1024;
 
 const ADL14_TEMPLATES = "definition/template/adl1.4";
 
 interface Call {
-  method: "GET" | "OPTIONS";
+  method: "GET" | "OPTIONS" | "POST";
   /** Relative to the base path; `""` is the base path itself. */
   path: string;
+  /** The query parameters, encoded by `URLSearchParams`. */
+  query?: Record<string, string>;
+  /** A JSON request body, sent as `application/json`. */
+  json?: unknown;
+  /** The `Prefer` header (ITS-REST 1.1.0, `return=representation`). */
+  prefer?: string;
   accept: string;
   authenticated: boolean;
   bodyLimit: number;
@@ -119,12 +146,19 @@ export function createOpenEhrClient(
 
   async function attempt(call: Call, token: string | undefined): Promise<OpenEhrResult<Answer>> {
     const url = call.path === "" ? new URL(config.baseUrl.href) : new URL(call.path, base);
+    for (const [name, value] of Object.entries(call.query ?? {})) {
+      url.searchParams.set(name, value);
+    }
     const headers: Record<string, string> = { Accept: call.accept };
     if (token !== undefined) headers["Authorization"] = `Bearer ${token}`;
+    if (call.prefer !== undefined) headers["Prefer"] = call.prefer;
+    const payload = call.json === undefined ? undefined : JSON.stringify(call.json);
+    if (payload !== undefined) headers["Content-Type"] = "application/json";
     try {
       const response = await deps.fetch(url, {
         method: call.method,
         headers,
+        ...(payload === undefined ? {} : { body: payload }),
         redirect: "manual",
         signal: AbortSignal.timeout(call.timeoutMs ?? timeoutMs),
       });
@@ -213,7 +247,63 @@ export function createOpenEhrClient(
       }
       return success({ format, xml });
     },
+
+    async getEhrBySubject(subject) {
+      const sent = await send({
+        method: "GET",
+        path: "ehr",
+        query: { subject_id: subject.id, subject_namespace: subject.namespace },
+        accept: "application/json",
+        authenticated: true,
+        bodyLimit: EHR_BODY_LIMIT_BYTES,
+      });
+      if (!sent.ok) {
+        const { error } = sent;
+        // NOTE: ITS-REST 1.1.0, EHR API, "Get EHR by subject id": 404 means no EHR names it.
+        return error.kind === "refused" && error.status === 404 ? success(null) : sent;
+      }
+      return parseEhr(sent.value);
+    },
+
+    async createEhr(status) {
+      const sent = await send({
+        method: "POST",
+        path: "ehr",
+        json: status,
+        prefer: "return=representation",
+        accept: "application/json",
+        authenticated: true,
+        bodyLimit: EHR_BODY_LIMIT_BYTES,
+      });
+      if (!sent.ok) {
+        const { error } = sent;
+        // NOTE: ITS-REST 1.1.0, EHR API, "Create EHR": 409 when an EHR has the same subject id
+        // and namespace pair.
+        return error.kind === "refused" && error.status === 409
+          ? success({ outcome: "conflict" })
+          : sent;
+      }
+      if (sent.value.status !== 201) return unexpectedStatus(sent.value.status);
+      const ehr = parseEhr(sent.value);
+      return ehr.ok ? success({ outcome: "created", ehr: ehr.value }) : ehr;
+    },
   };
+}
+
+/** Parses an EHR summary (ITS-REST 1.1.0, `schemas/ehr/EHR.yaml`) from a `200` or `201`. */
+function parseEhr(answer: Answer): OpenEhrResult<EhrSummary> {
+  if (answer.status !== 200 && answer.status !== 201) return unexpectedStatus(answer.status);
+  return parseBody(answer, ehrSummary);
+}
+
+/** A success status the operation does not define, such as a `204` where a body was asked for. */
+function unexpectedStatus<T>(status: number): OpenEhrResult<T> {
+  return failure({
+    kind: "invalid_response",
+    target: "ferroehr",
+    status,
+    problem: "unexpected_shape",
+  });
 }
 
 /** Maps a non-success answer to its typed error; a success goes on. */

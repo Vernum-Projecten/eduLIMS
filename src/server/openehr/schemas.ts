@@ -44,3 +44,12 @@ export const webTemplate = z.looseObject({
   tree: z.looseObject({}),
 });
 export type WebTemplate = z.infer<typeof webTemplate>;
+
+/**
+ * The EHR summary of the EHR API (ITS-REST 1.1.0, `schemas/ehr/EHR.yaml`): eduLIMS reads the
+ * `ehr_id` and keeps the rest as it came.
+ */
+export const ehrSummary = z.looseObject({
+  ehr_id: z.looseObject({ value: z.uuid() }),
+});
+export type EhrSummary = z.infer<typeof ehrSummary>;
