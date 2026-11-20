@@ -122,7 +122,7 @@ describe("a stored row the CHECKs should have refused", () => {
   const row: StoredTest = {
     id: "01960000-0000-7000-8000-000000000001",
     name: "X",
-    unit: "U",
+    unit: "U/L",
     material: "M",
     source: "afinion",
     afinion_analyte: null,

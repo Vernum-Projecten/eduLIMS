@@ -3,11 +3,11 @@
 
 // The state of a simulation and its correct values (D10, D13, #267, #381): a teacher enters one
 // value, pastes more, changes one with the keyboard, sets a test's limits on the correct-values
-// page, starts and finishes the simulation from the overview behind a confirmation, and sees the
-// catalogue lock the test; a student reaches none of it. Axe in light, dark and Dutch. Every
-// test, value and limit is invented (Q-PRIV-4).
+// page, starts and finishes the simulation from the overview behind a confirmation, and an
+// administrator sees the catalogue lock the test (#393); a student reaches none of it. Axe in
+// light, dark and Dutch. Every test, value and limit is invented (Q-PRIV-4).
 import { randomBytes } from "node:crypto";
-import { expect, type Page, test } from "@playwright/test";
+import { type Browser, expect, type Page, test } from "@playwright/test";
 import { copyAccount } from "./accounts";
 import { axe, dutch } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
@@ -16,6 +16,7 @@ import { inEachLook, OTHER_LOOKS } from "./looks";
 import { appUrl } from "./run-env";
 
 const TEACHER = "teacher@example.test";
+const ADMIN = "admin@example.test";
 
 function suffix(): string {
   return randomBytes(3).toString("hex").toUpperCase();
@@ -28,19 +29,45 @@ async function settle(page: Page): Promise<void> {
   );
 }
 
-async function addCatalogueTest(page: Page, name: string): Promise<void> {
-  await page.goto("/teacher/catalogue");
-  const add = page.getByRole("button", { name: "Add test" });
-  await expectHydrated(add);
-  await add.click();
-  const dialog = page.getByRole("dialog", { name: "Add a test" });
-  await dialog.getByLabel("Name").fill(name);
-  await dialog.getByLabel("Unit").fill("mmol/L");
-  await dialog.getByLabel("Material").fill("plasma");
-  await dialog.getByRole("combobox", { name: "Source of the measurements" }).click();
-  await page.getByRole("option", { name: "Entry by hand" }).click();
-  await dialog.getByRole("button", { name: "Add test" }).click();
-  await expect(dialog).toHaveCount(0);
+/** Adds a test to the catalogue as an administrator, who manages it (#393). */
+async function addCatalogueTest(browser: Browser, name: string): Promise<void> {
+  await asAdmin(browser, async (page) => {
+    await page.goto("/admin/catalogue");
+    const add = page.getByRole("button", { name: "Add test" });
+    await expectHydrated(add);
+    await add.click();
+    const dialog = page.getByRole("dialog", { name: "Add a test" });
+    await dialog.getByLabel("Name").fill(name);
+    await dialog.getByLabel("Material").fill("plasma");
+    await dialog.getByRole("combobox", { name: "Source of the measurements" }).click();
+    await page.getByRole("option", { name: "Entry by hand" }).click();
+    // The select hands focus back to its trigger after its close animation; a field used before
+    // then loses focus to it (#321).
+    await expect(
+      dialog.getByRole("combobox", { name: "Source of the measurements" }),
+    ).toBeFocused();
+    // The unit list filters as you type; the first match is the one (#393).
+    const unit = dialog.getByRole("combobox", { name: "Unit" });
+    await unit.fill("mmol/L");
+    await expect(page.getByRole("option", { name: "mmol/L (millimole per litre)" })).toBeVisible();
+    await unit.press("ArrowDown");
+    await unit.press("Enter");
+    await expect(unit).toHaveValue("mmol/L (millimole per litre)");
+    await dialog.getByRole("button", { name: "Add test" }).click();
+    await expect(dialog).toHaveCount(0);
+  });
+}
+
+/** Runs `work` in a page of its own, signed in as the administrator. */
+async function asAdmin(browser: Browser, work: (page: Page) => Promise<void>): Promise<void> {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    await devLogin(page, ADMIN);
+    await work(page);
+  } finally {
+    await context.close();
+  }
 }
 
 async function createSimulation(page: Page, name: string): Promise<string> {
@@ -87,7 +114,7 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   const simulation = `Values journey ${id}`;
   await devLogin(page, TEACHER);
   await expect(page).toHaveURL(/\/teacher$/);
-  await addCatalogueTest(page, testName);
+  await addCatalogueTest(browser, testName);
   const simulationId = await createSimulation(page, simulation);
 
   // A new simulation is prepared. Start stays focusable while a step blocks it, says why, and
@@ -285,10 +312,12 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
 
   // The catalogue shows the lock with an icon and text (D9).
-  await page.goto(`/teacher/catalogue?q=${encodeURIComponent(testName)}`);
-  await expect(
-    page.getByRole("table").getByRole("row").filter({ hasText: testName }),
-  ).toContainText("In a running simulation");
+  await asAdmin(browser, async (admin) => {
+    await admin.goto(`/admin/catalogue?q=${encodeURIComponent(testName)}`);
+    await expect(
+      admin.getByRole("table").getByRole("row").filter({ hasText: testName }),
+    ).toContainText("In a running simulation");
+  });
 
   // A student reaches neither the page nor its values (Q-SIM-1).
   const context = await browser.newContext();

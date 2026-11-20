@@ -31,6 +31,7 @@ import * as m0024 from "./0024_result_ehr_writes.ts";
 import * as m0025 from "./0025_result_ehr_write_lease.ts";
 import * as m0026 from "./0026_one_active_simulation_per_student.ts";
 import * as m0027 from "./0027_gen5_uploads.ts";
+import * as m0028 from "./0028_catalogue_unit_ucum.ts";
 import * as m0029 from "./0029_request_tests_not_offered.ts";
 
 export const migrations: Record<string, Migration> = {
@@ -61,6 +62,7 @@ export const migrations: Record<string, Migration> = {
   "0025_result_ehr_write_lease": m0025,
   "0026_one_active_simulation_per_student": m0026,
   "0027_gen5_uploads": m0027,
+  "0028_catalogue_unit_ucum": m0028,
   "0029_request_tests_not_offered": m0029,
 };
 

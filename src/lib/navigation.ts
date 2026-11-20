@@ -127,13 +127,6 @@ const TEACHER = {
       label: m.nav_dashboard,
       description: m.section_teacher_dashboard,
     },
-    {
-      id: "catalogue",
-      to: "/teacher/catalogue",
-      icon: ClipboardListIcon,
-      label: m.nav_test_catalogue,
-      description: m.section_teacher_catalogue,
-    },
   ],
 } as const satisfies PortalNavigation;
 
@@ -155,6 +148,13 @@ const ADMIN = {
       icon: UsersIcon,
       label: m.nav_users_roles,
       description: m.section_admin_users,
+    },
+    {
+      id: "catalogue",
+      to: "/admin/catalogue",
+      icon: ClipboardListIcon,
+      label: m.nav_test_catalogue,
+      description: m.section_admin_catalogue,
     },
     {
       id: "simulations",

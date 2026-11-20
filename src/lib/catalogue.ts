@@ -71,6 +71,12 @@ export function lockedTestFields(usage: TestUsage): ReadonlySet<LockableTestFiel
   }
 }
 
+/**
+ * The unit field's explicit choice of no unit, for a dimensionless result such as a ratio (#404).
+ * The empty field is no choice yet, so clearing it never means "no unit". Stored as `null`.
+ */
+export const NO_UNIT = "none";
+
 /** Whether a test is offered to new simulations, or retired from them. */
 export const TEST_STATUSES = ["active", "retired"] as const;
 export type TestStatus = (typeof TEST_STATUSES)[number];

@@ -16,6 +16,8 @@ export interface CommittedTestDb {
   db: Kysely<DB>;
   /** The pool's own connections, for a test that holds a lock by hand. */
   pool: Pool;
+  /** The database's connection URL, for a command that opens its own connection. */
+  url: string;
   destroy(): Promise<void>;
 }
 
@@ -74,5 +76,5 @@ export async function createCommittedTestDb(max = 10): Promise<CommittedTestDb> 
     await destroy();
     throw error;
   }
-  return { db, pool, destroy };
+  return { db, pool, url, destroy };
 }

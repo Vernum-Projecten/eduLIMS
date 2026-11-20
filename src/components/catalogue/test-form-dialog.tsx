@@ -5,8 +5,10 @@ import { revalidateLogic } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { SaveIcon } from "lucide-react";
+import { useMemo } from "react";
+import { useCatalogueMaterials } from "@/components/catalogue/materials-context";
+import { useCatalogueMutation } from "@/components/catalogue/use-catalogue-mutation";
 import { useAppForm } from "@/components/form/app-form";
-import { useCatalogueMutation } from "@/components/teacher-catalogue/use-catalogue-mutation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,15 +21,15 @@ import {
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import { m } from "@/i18n/messages";
+import { AFINION_ANALYTES, afinionAnalyte } from "@/lib/afinion";
 import {
   EPOCH_CALCULATORS,
   type LockableTestField,
   lockedTestFields,
-  TEST_ANALYTE_MAX,
+  NO_UNIT,
   TEST_MATERIAL_MAX,
   TEST_NAME_MAX,
   TEST_SOURCES,
-  TEST_UNIT_MAX,
   type TestSourceKind,
   type TestUsage,
 } from "@/lib/catalogue";
@@ -37,6 +39,7 @@ import {
   epochCalculatorLabel,
   testSourceLabel,
 } from "@/lib/i18n/catalogue-labels";
+import { unitOptions } from "@/lib/i18n/unit-labels";
 import { createCatalogueTest, updateCatalogueTest } from "@/server/catalogue/functions";
 import type { CatalogueTestRow } from "@/server/catalogue/queries";
 import {
@@ -58,7 +61,7 @@ const EMPTY: TestForm = {
 
 function valuesOf(row: CatalogueTestRow | undefined): TestForm {
   if (!row) return EMPTY;
-  const base = { ...EMPTY, name: row.name, unit: row.unit ?? "", material: row.material };
+  const base = { ...EMPTY, name: row.name, unit: row.unit ?? NO_UNIT, material: row.material };
   switch (row.source.kind) {
     case "afinion":
       return { ...base, source: "afinion", analyte: row.source.analyte };
@@ -81,6 +84,9 @@ function refusalFor(code: CatalogueErrorCode): ServerRefusal<TestForm> {
       return { fields: { name: message } };
     case "analyte_taken":
       return { fields: { analyte: message } };
+    case "unit_unsupported":
+    case "unit_fixed_by_analyte":
+      return { fields: { unit: message } };
     default:
       return { form: message };
   }
@@ -119,6 +125,36 @@ function lockReason(usage: TestUsage): string {
   return usage === "running" ? m.catalogue_locked_running() : m.catalogue_locked_used();
 }
 
+/** The unit field's help: why it is fixed, what the analyte filled in, or how to choose. */
+function unitHelp(usage: TestUsage, locked: boolean, source: string, analyte: string): string {
+  if (locked) return lockReason(usage);
+  const entry = source === "afinion" ? afinionAnalyte(analyte) : undefined;
+  if (entry === undefined) return m.catalogue_unit_help();
+  return entry.unitConfigurable
+    ? m.catalogue_unit_analyte_help()
+    : m.catalogue_unit_analyte_fixed_help();
+}
+
+/** Whether the chosen Afinion 2 analyte fixes the unit: the analyser sends it in one unit only. */
+function unitFixedByAnalyte(source: string, analyte: string): boolean {
+  if (source !== "afinion") return false;
+  const entry = afinionAnalyte(analyte);
+  return entry !== undefined && !entry.unitConfigurable;
+}
+
+/** Whether a key event comes from a combobox whose list is open: Escape then closes the list only. */
+function fromOpenList(event: KeyboardEvent): boolean {
+  return (
+    event.target instanceof Element &&
+    event.target.closest('[role="combobox"][aria-expanded="true"]') !== null
+  );
+}
+
+const ANALYTE_OPTIONS = AFINION_ANALYTES.map((entry) => ({
+  value: entry.analyte,
+  label: entry.analyte,
+}));
+
 /** Where the dialog opens from: the parent controls it and gets focus back on close. */
 export interface TestDialogControl {
   open: boolean;
@@ -127,9 +163,13 @@ export interface TestDialogControl {
 }
 
 /**
- * The create and edit form of a test (D9, #266) in a dialog, on `useAppForm` with the schema the
- * server function validates with. The analyte shows for an Afinion 2 test and the calculator for
- * an Epoch 2 test, the only sources they belong to. A setting the test's usage fixes is
+ * The create and edit form of a test (D9, #266, #393) in a dialog, on `useAppForm` with the
+ * schema the server function validates with. The unit is a searchable list of UCUM units with
+ * "No unit" first, a choice of its own: an empty unit is no choice yet, and the form refuses it.
+ * The material suggests the materials in use. The analyte shows for an Afinion
+ * 2 test, as a choice of the analytes the analyser reports, and fills in its unit, which stays
+ * editable only where the analyser allows more than one; the calculator shows for an Epoch 2
+ * test. Escape in an open list closes the list only. A setting the test's usage fixes is
  * read-only, still focusable, with its reason as its description; the server refuses the same
  * change. A taken name or analyte shows at its field; any other refusal at the top of the form,
  * focused (WCAG 3.3.1).
@@ -139,6 +179,8 @@ export function TestFormDialog({
   control,
 }: Readonly<{ test?: CatalogueTestRow; control: TestDialogControl }>) {
   const queryClient = useQueryClient();
+  const materials = useCatalogueMaterials();
+  const units = useMemo(() => unitOptions(), []);
   const callCreate = useServerFn(createCatalogueTest);
   const callUpdate = useServerFn(updateCatalogueTest);
   const create = useCatalogueMutation(
@@ -186,6 +228,9 @@ export function TestFormDialog({
       <DialogContent
         className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg"
         onCloseAutoFocus={control.onCloseAutoFocus}
+        onEscapeKeyDown={(event) => {
+          if (fromOpenList(event)) event.preventDefault();
+        }}
       >
         <form
           noValidate
@@ -212,18 +257,6 @@ export function TestFormDialog({
                   />
                 )}
               </form.AppField>
-              <form.AppField name="unit">
-                {(field) => (
-                  <field.TextField
-                    label={m.catalogue_unit_optional()}
-                    description={help("unit", m.catalogue_unit_help())}
-                    readOnly={locked.has("unit")}
-                    maxLength={TEST_UNIT_MAX}
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                )}
-              </form.AppField>
               <form.AppField name="material">
                 {(field) => (
                   <field.TextField
@@ -232,10 +265,20 @@ export function TestFormDialog({
                     readOnly={locked.has("material")}
                     maxLength={TEST_MATERIAL_MAX}
                     autoComplete="off"
+                    suggestions={materials}
                   />
                 )}
               </form.AppField>
-              <form.AppField name="source">
+              <form.AppField
+                name="source"
+                listeners={{
+                  // NOTE: UI review of #404; an analyte belongs to the Afinion 2 only, so leaving
+                  // it clears the analyte, and the unit it fixed is no longer held to it.
+                  onChange: ({ value }) => {
+                    if (value !== "afinion") form.setFieldValue("analyte", "");
+                  },
+                }}
+              >
                 {(field) => (
                   <field.SelectField
                     label={m.catalogue_source()}
@@ -252,19 +295,53 @@ export function TestFormDialog({
               <form.Subscribe selector={(state) => state.values.source}>
                 {(source) =>
                   source === "afinion" ? (
-                    <form.AppField name="analyte">
+                    <form.AppField
+                      name="analyte"
+                      listeners={{
+                        onChange: ({ value }) => {
+                          const entry = afinionAnalyte(value);
+                          if (entry) form.setFieldValue("unit", entry.unit ?? NO_UNIT);
+                        },
+                      }}
+                    >
                       {(field) => (
-                        <field.TextField
+                        <field.SelectField
                           label={m.catalogue_analyte()}
                           description={help("analyte", m.catalogue_analyte_help())}
                           readOnly={locked.has("analyte")}
-                          maxLength={TEST_ANALYTE_MAX}
-                          autoComplete="off"
-                          spellCheck={false}
+                          placeholder={m.catalogue_analyte_placeholder()}
+                          options={ANALYTE_OPTIONS}
                         />
                       )}
                     </form.AppField>
-                  ) : source === "epoch_upload" ? (
+                  ) : null
+                }
+              </form.Subscribe>
+              <form.Subscribe
+                selector={(state) => `${state.values.source}\u0000${state.values.analyte}`}
+              >
+                {(key) => {
+                  const [source = "", analyte = ""] = key.split("\u0000");
+                  const fixed = locked.has("unit") || unitFixedByAnalyte(source, analyte);
+                  return (
+                    <form.AppField name="unit">
+                      {(field) => (
+                        <field.ComboboxField
+                          label={m.catalogue_unit()}
+                          description={unitHelp(usage, locked.has("unit"), source, analyte)}
+                          readOnly={fixed}
+                          placeholder={m.catalogue_unit_placeholder()}
+                          emptyText={m.catalogue_unit_empty()}
+                          options={units}
+                        />
+                      )}
+                    </form.AppField>
+                  );
+                }}
+              </form.Subscribe>
+              <form.Subscribe selector={(state) => state.values.source}>
+                {(source) =>
+                  source === "epoch_upload" ? (
                     <form.AppField name="calculatedBy">
                       {(field) => (
                         <field.RadioGroupField

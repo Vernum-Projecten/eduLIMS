@@ -9,6 +9,7 @@ import type { Pool, PoolClient } from "pg";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseCatalogueTestId } from "../../lib/catalogue.ts";
 import { retireTest, updateTest } from "../catalogue/actions.ts";
+import { asAdmin } from "../catalogue/test-helpers.ts";
 import { type CommittedTestDb, createCommittedTestDb } from "../db/test-committed-db.ts";
 import { removeMember } from "../simulations/members.ts";
 import { NOW } from "../simulations/test-helpers.ts";
@@ -78,7 +79,7 @@ describe("a request and a catalogue edit at once (D9, S12)", () => {
     });
     await waitForLockWaiters(pool, 1);
     const edit = updateTest(
-      { db, actor: w.teacher, now: NOW },
+      { db, actor: asAdmin(w.teacher), now: NOW },
       {
         testId,
         test: {
@@ -105,7 +106,7 @@ describe("a request and a retirement at once (D9, S12)", () => {
     const testId = parseCatalogueTestId(w.crp);
     if (testId === null) throw new Error("catalogue_tests.id is not a UUID");
     holder = await holdAuditLog(pool);
-    const retire = retireTest({ db, actor: w.teacher, now: NOW }, { testId });
+    const retire = retireTest({ db, actor: asAdmin(w.teacher), now: NOW }, { testId });
     await waitForLockWaiters(pool, 1);
     const request = recordRequest(db, w.student, {
       kind: "patient",
