@@ -4,6 +4,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
+import { LabResultsSection } from "@/components/results/lab-results-section";
 import { Page } from "@/components/shell/page-header";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { JoinCodePanel } from "@/components/simulations/join-code-panel";
@@ -15,6 +16,7 @@ import { WaitingSection } from "@/components/simulations/waiting-section";
 import { LabTolerancesSection } from "@/components/tolerances/lab-tolerances-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/i18n/messages";
+import { labResultsQueryOptions } from "@/server/results/query-options";
 import { joinCodeQueryOptions, labPageQueryOptions } from "@/server/simulations/query-options";
 import { labTolerancesQueryOptions } from "@/server/tolerances/query-options";
 import { labPageSearch } from "@/server/tolerances/schemas";
@@ -33,6 +35,9 @@ export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId
     if (page.simulation.id !== params.simulationId) throw notFound();
     await Promise.all([
       context.queryClient.ensureQueryData(joinCodeQueryOptions(params.simulationId, params.labId)),
+      context.queryClient.ensureQueryData(
+        labResultsQueryOptions(params.simulationId, params.labId),
+      ),
       cause === "stay" ? undefined : context.queryClient.ensureQueryData(tolerances),
     ]);
     return { crumb: page.name, simulation: page.simulation.name };
@@ -84,6 +89,7 @@ function LabPage() {
         labName={page.name}
         changesPage={changes ?? 1}
       />
+      <LabResultsSection simulationId={page.simulation.id} labId={page.id} />
     </Page>
   );
 }

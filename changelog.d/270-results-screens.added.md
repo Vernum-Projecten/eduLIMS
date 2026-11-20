@@ -1,0 +1,1 @@
+- The Student portal's Measurements and results page lets a team enter a measurement, see every measurement of a requested test, and release one after a confirmation that warns, with an icon and text, when the value is outside the team's own tolerance; the teacher's lab page shows every measurement with the released one marked (S14, S15, #270).
