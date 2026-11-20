@@ -9,7 +9,7 @@ import { formatRoles, type Role } from "../../lib/roles.ts";
 import { newId } from "../db/ids.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { setSecurityLogWriter } from "../security-log.ts";
-import type { SimulationActor } from "./access.ts";
+import type { ProbeTarget, SimulationActor } from "./access.ts";
 import { createLab } from "./labs.ts";
 import { createSimulation } from "./simulations.ts";
 
@@ -148,7 +148,7 @@ export async function securityLines(
 }
 
 /** The `authz_fail` line `logNotFound` writes for `actorId` asking for a simulation or lab. */
-export function notFoundLine(actorId: string, type: "simulation" | "lab", id: string) {
+export function notFoundLine(actorId: string, type: ProbeTarget, id: string) {
   return expect.objectContaining({
     event: "authz_fail",
     level: "warn",

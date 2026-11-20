@@ -74,6 +74,19 @@ export function formatRelativeTime(
 }
 
 /**
+ * Shows a decimal kept as text (a correct value, a limit; `src/lib/decimal.ts`) with the decimal
+ * separator of the locale and every digit as stored: no rounding, no grouping, never through a
+ * binary float.
+ */
+export function formatDecimal(value: string, options: FormatOptions = {}): string {
+  const separator =
+    new Intl.NumberFormat(options.locale ?? getLocale())
+      .formatToParts(1.5)
+      .find((part) => part.type === "decimal")?.value ?? ".";
+  return value.replace(".", separator);
+}
+
+/**
  * Formats a number with the decimal and grouping separators of the locale, with at most two
  * decimals unless `maximumFractionDigits` says otherwise; `minimumFractionDigits` pads (a grade
  * of 7 reads "7.0").

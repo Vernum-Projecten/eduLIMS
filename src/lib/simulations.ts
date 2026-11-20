@@ -36,6 +36,18 @@ export const EMAIL_LIST_MAX = 500;
 /** The most characters one line of a pasted list takes (RFC 5321 §4.5.3.1 path limit plus room). */
 export const EMAIL_LINE_MAX = 320;
 
+/**
+ * The state of a simulation (D10, #267): prepared until a teacher starts it, running until a
+ * teacher finishes it. Labs work only while it runs; it never goes back.
+ */
+export const SIMULATION_STATES = ["prepared", "running", "finished"] as const;
+export type SimulationState = (typeof SIMULATION_STATES)[number];
+
+/** Returns `value` when it names a {@link SimulationState}, else `undefined`. */
+export function parseSimulationState(value: unknown): SimulationState | undefined {
+  return SIMULATION_STATES.find((state) => state === value);
+}
+
 /** How a student came into a lab: their address was on its list, or they used its code. */
 export const JOIN_VIA = ["email", "code"] as const;
 export type JoinVia = (typeof JOIN_VIA)[number];

@@ -54,3 +54,33 @@ export async function findStudentLab(
   const simulationId = row ? parseSimulationId(row.simulation_id) : null;
   return simulationId === null ? null : { labId: id, simulationId };
 }
+
+/**
+ * Returns the lab `labId` when `userId` is a member of it and its simulation is running, or
+ * `null` otherwise (D10, #267: labs work only in a running simulation). The state is read in the
+ * same query as the membership, and the simulation row is locked `FOR SHARE`: finishing takes
+ * the row `FOR UPDATE`, so it waits until the caller's transaction ends, and no work commits in
+ * a simulation that finished after this check.
+ *
+ * Call it with the transaction that writes the lab's work, as the first statement of every
+ * write; outside a transaction the lock ends with the statement and protects nothing.
+ */
+export async function findWorkingStudentLab(
+  db: Kysely<DB>,
+  userId: string,
+  labId: string,
+): Promise<StudentLab | null> {
+  const id = parseLabId(labId);
+  if (id === null) return null;
+  const row = await studentLabsQuery(db, userId)
+    .innerJoin("simulations", "simulations.id", "labs.simulation_id")
+    .select(["labs.id", "labs.simulation_id"])
+    .where("labs.id", "=", id)
+    .where("simulations.state", "=", "running")
+    // NOTE: security review of #341 (S2); FOR SHARE, never FOR KEY SHARE, which the finish's
+    // UPDATE (FOR NO KEY UPDATE) would not wait for.
+    .forShare("simulations")
+    .executeTakeFirst();
+  const simulationId = row ? parseSimulationId(row.simulation_id) : null;
+  return simulationId === null ? null : { labId: id, simulationId };
+}

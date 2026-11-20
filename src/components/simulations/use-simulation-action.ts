@@ -12,6 +12,8 @@ export interface ActionFeedback<TData, TVariables> {
   success: ((data: TData, variables: TVariables) => string) | null;
   /** Off when a form shows the refusal at its field instead of a toast. */
   toastErrors?: boolean;
+  /** The toast of a refusal, when it says more than the code's message (the tests it names). */
+  errorMessage?: ((error: Error) => string) | undefined;
   /**
    * Runs once it is done, before the invalidated lists refetch, while the row it acted on is
    * still on screen: the place to close a confirmation (WCAG 2.4.3).
@@ -28,7 +30,13 @@ export interface ActionFeedback<TData, TVariables> {
  */
 export function useSimulationAction<TData, TVariables, TContext>(
   options: UseMutationOptions<TData, Error, TVariables, TContext>,
-  { success, toastErrors = true, onDone, onFailed }: ActionFeedback<TData, TVariables>,
+  {
+    success,
+    toastErrors = true,
+    errorMessage,
+    onDone,
+    onFailed,
+  }: ActionFeedback<TData, TVariables>,
 ) {
   return useMutation({
     ...options,
@@ -40,7 +48,11 @@ export function useSimulationAction<TData, TVariables, TContext>(
     onError: async (...args) => {
       await options.onError?.(...args);
       onFailed?.();
-      if (toastErrors) toast.error(simulationErrorMessage(simulationErrorCode(args[0])));
+      if (toastErrors) {
+        toast.error(
+          errorMessage?.(args[0]) ?? simulationErrorMessage(simulationErrorCode(args[0])),
+        );
+      }
     },
   });
 }
