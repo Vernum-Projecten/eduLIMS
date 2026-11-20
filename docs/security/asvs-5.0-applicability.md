@@ -218,7 +218,7 @@ Text: [vendor/asvs/en/0x12-V3-Web-Frontend-Security.md](vendor/asvs/en/0x12-V3-W
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V3.5.1 | 1 | yes | `createCsrfMiddleware` on every server function (`src/start.ts`); better-auth checks the origin on `/api/auth/*` | review; no dedicated test yet | met |
+| V3.5.1 | 1 | yes | `createCsrfMiddleware` on every server function (`src/start.ts`); better-auth checks the origin of every non-safe request with a cookie on `/api/auth/*`, in every environment: `createAuth` sets `advanced.disableOriginCheck: false`, because better-auth skips the check when `NODE_ENV` is `test` (`src/server/auth.ts`, #371); every test request with a session cookie sends the app's origin through one helper (`withAppOrigin` in `src/server/test-auth.ts` and `tests/e2e/fixtures.ts`) | e2e `tests/e2e/auth-origin-check.spec.ts` (a cookie-bearing sign-out from another origin, or with no origin, answers 403 and keeps the session; from the app's origin it signs out) | met |
 | V3.5.2 | 1 | no | eduLIMS does not rely on CORS preflight; V3.5.1 applies | none | n-a |
 | V3.5.3 | 1 | yes | every state-changing server function is `POST` (`src/server/preferences/functions.ts`); `GET` functions only read; SCIM writes use `PUT`, `PATCH` and `DELETE` with a bearer token (#365), and better-auth's origin check covers every non-safe method on `/api/auth/*` when a cookie is present (better-auth 1.7.20 turns it off when `NODE_ENV` is `test`, so the e2e build does not run it) | review | met |
 | V3.5.4 | 2 | yes | eduLIMS, Keycloak and the docs site run on separate hostnames (`docs/deployment.md`) | review | met |

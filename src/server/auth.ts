@@ -94,6 +94,9 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
   return betterAuth({
     advanced: {
       ...authCookieOptions(env.BETTER_AUTH_URL),
+      // NOTE: ASVS V3.5.1 (#371); better-auth skips its origin check when NODE_ENV is `test`,
+      // so this keeps it on in every environment, the tests included.
+      disableOriginCheck: false,
       // NOTE: owner decision on #28; every better-auth id is a UUIDv7.
       database: { generateId: () => newId() },
       // NOTE: #45 (second review, finding 2); X-Forwarded-For is read only through the proxies
