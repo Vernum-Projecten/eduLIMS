@@ -106,6 +106,7 @@
   "admin_activity_reason_rate_limited_user": "te veel verkeerde codes van deze student",
   "admin_activity_reason_removed": "een docent heeft de student uit de simulatie verwijderd",
   "admin_activity_reason_role_conflict": "de rollen gaan niet samen",
+  "admin_activity_reason_roles_changed": "de gebruiker is een rol kwijtgeraakt",
   "admin_activity_reason_roles_not_local": "de rollen komen van de identiteitsprovider",
   "admin_activity_reason_sign_in_refused": "de aanmelding is geweigerd",
   "admin_activity_reason_state_not_found": "de aanmelding duurde te lang of is ergens anders gestart",

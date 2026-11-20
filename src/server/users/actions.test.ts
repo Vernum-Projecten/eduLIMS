@@ -375,6 +375,53 @@ describe("setLocalRoles (hybrid role ownership, owner decision on #32)", () => {
     expect(row.role).toBe("teacher");
   });
 
+  it("ends the sessions of a user who loses a role, each with a session_revoked row (#345)", async () => {
+    const { auth, db: database, admin } = await setup();
+    const target = await createUser(auth, "target@example.test", ["teacher", "admin"]);
+    await signIn(auth, "target@example.test");
+    await signIn(auth, "target@example.test");
+    const before = await sessionsOf(database, target);
+    expect(before).toHaveLength(2);
+    expect(await setLocalRoles(admin, { userId: target, roles: ["teacher"] })).toEqual({
+      ok: true,
+    });
+    expect(await sessionsOf(database, target)).toEqual([]);
+    const revoked = await events(database, "session_revoked");
+    expect(revoked.map((row) => row.target_id).toSorted()).toEqual(
+      before.map((row) => row.id).toSorted(),
+    );
+    for (const row of revoked) {
+      expect(row).toMatchObject({
+        actor_id: admin.actor.id,
+        target_type: "session",
+        outcome: "success",
+        reason_code: "roles_changed",
+      });
+    }
+    expect(await sessionsOf(database, admin.actor.id)).toHaveLength(1);
+  });
+
+  it("keeps the sessions of a user who only gains a role (#345)", async () => {
+    const { auth, db: database, admin } = await setup();
+    const target = await createUser(auth, "target@example.test", ["teacher"]);
+    await signIn(auth, "target@example.test");
+    expect(await setLocalRoles(admin, { userId: target, roles: ["teacher", "admin"] })).toEqual({
+      ok: true,
+    });
+    expect(await sessionsOf(database, target)).toHaveLength(1);
+    expect(await events(database, "session_revoked")).toEqual([]);
+  });
+
+  it("ends the sessions when a role is swapped for another (#345)", async () => {
+    const { auth, db: database, admin } = await setup();
+    const target = await createUser(auth, "target@example.test", ["teacher"]);
+    await signIn(auth, "target@example.test");
+    expect(await setLocalRoles(admin, { userId: target, roles: ["student"] })).toEqual({
+      ok: true,
+    });
+    expect(await sessionsOf(database, target)).toEqual([]);
+  });
+
   it("answers not_found for an unknown user", async () => {
     const { admin } = await setup();
     expect(await setLocalRoles(admin, { userId: "nobody", roles: ["teacher"] })).toEqual({

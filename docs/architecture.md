@@ -353,7 +353,12 @@ student's place and a waiting address point at their lab through the pair
   `pnpm admin:revoke` and the local role edit of the Users screen, lock the
   administrators the same way and in the same order before they count them
   (`src/server/users/administrators.ts`, #345), so two of them, or one and a
-  deletion, never leave eduLIMS without an administrator.
+  deletion, never leave eduLIMS without an administrator. The local role edit
+  also ends the sessions of a user who loses a role, so their next request
+  signs in with the new set. The rule binds eduLIMS's own paths only: an
+  identity provider stays authoritative over the roles it owns, by a claim
+  or over SCIM, and may take the admin role from the last administrator
+  (maintainer, #345); the host command `admin grant` is the way back.
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it, and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.

@@ -246,11 +246,33 @@ export async function endAllSessions(
   return DONE;
 }
 
+/** The reason code of a session ended because its user lost a role. */
+export const ROLES_CHANGED = "roles_changed" as const;
+
+/** Deletes every session of `userId` with a `session_revoked` row each, in id order (B4). */
+async function revokeSessionsOf(trx: Kysely<DB>, userId: string, actorId: string): Promise<void> {
+  const sessions = await trx
+    .deleteFrom("session")
+    .where("userId", "=", userId)
+    .returning("id")
+    .execute();
+  for (const session of sessions.toSorted((a, b) => a.id.localeCompare(b.id))) {
+    await recordAudit(trx, {
+      action: "session_revoked",
+      actor: { type: "user", id: actorId },
+      outcome: "success",
+      target: { type: "session", id: session.id },
+      reason: ROLES_CHANGED,
+    });
+  }
+}
+
 /**
  * Sets the role set of a user whose roles are local (hybrid ownership, owner decision on #32):
  * an allowed set (ADR 0012), never the administrator's own, never a set the identity provider
  * owns, and never one that takes the admin role from the last administrator (`last_admin`). The
- * update and its `authz_role_change` row commit together.
+ * update and its `authz_role_change` row commit together; when a role goes, the user's sessions
+ * end in the same transaction, each with a `session_revoked` row (`roles_changed`).
  */
 export async function setLocalRoles(
   ctx: ActionContext,
@@ -296,6 +318,11 @@ export async function setLocalRoles(
         ...(previous.ok ? { previous_roles: formatRoles(previous.roles) } : {}),
       },
     });
+    // NOTE: maintainer decision on #345; a removed role ends the live sessions, as `admin revoke`
+    // does, so the next request signs in with the new set.
+    if (previous.ok && previous.roles.some((held) => !validated.roles.includes(held))) {
+      await revokeSessionsOf(trx, input.userId, ctx.actor.id);
+    }
     return DONE;
   });
   if (!outcome.ok && (outcome.error === "roles_not_local" || outcome.error === LAST_ADMIN)) {

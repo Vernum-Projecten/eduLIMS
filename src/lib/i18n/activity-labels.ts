@@ -120,6 +120,7 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   no_edulims_role: m.admin_activity_reason_no_role,
   not_a_teacher: m.admin_activity_reason_not_a_teacher,
   role_conflict: m.admin_activity_reason_role_conflict,
+  roles_changed: m.admin_activity_reason_roles_changed,
   roles_not_local: m.admin_activity_reason_roles_not_local,
   sign_in_refused: m.admin_activity_reason_sign_in_refused,
   state_not_found: m.admin_activity_reason_state_not_found,
