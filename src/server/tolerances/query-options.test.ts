@@ -41,7 +41,7 @@ beforeEach(() => {
     [tolerancesKeys.mine(LAB), { tests: [] }],
     [tolerancesKeys.mine(OTHER_LAB), { tests: [] }],
     [simulationsKeys.student(), []],
-    [tolerancesKeys.teacher(SIM, LAB), []],
+    [tolerancesKeys.teacherPage(SIM, LAB, 1), { current: [] }],
   ]);
 });
 
@@ -51,7 +51,11 @@ describe("the tolerance keys", () => {
     expect(labTolerancesQueryOptions(SIM, LAB).queryKey).toEqual([
       ...simulationsKeys.lab(SIM, LAB),
       "tolerances",
+      1,
     ]);
+    expect(labTolerancesQueryOptions(SIM, LAB, 3).queryKey).toEqual(
+      tolerancesKeys.teacherPage(SIM, LAB, 3),
+    );
   });
 
   it("let a write to the simulation reach the teacher's view", async () => {
@@ -65,7 +69,7 @@ describe("the tolerance keys", () => {
       {},
     );
     expect(invalidatedKeys(queryClient)).toContain(
-      JSON.stringify(tolerancesKeys.teacher(SIM, LAB)),
+      JSON.stringify(tolerancesKeys.teacherPage(SIM, LAB, 1)),
     );
   });
 });

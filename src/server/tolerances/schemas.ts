@@ -49,3 +49,16 @@ export type SetToleranceInput = z.output<typeof setToleranceInput>;
 
 /** The tolerances of one lab. */
 export const labTolerancesInput = z.object({ labId: z.uuid() });
+
+/** The most pages of changes a request may ask for; far beyond what a simulation writes. */
+const CHANGES_PAGE_MAX = 10_000;
+
+/** A lab's tolerances for its teachers, with the page of changes (from 1). */
+export const teacherTolerancesInput = labTolerancesInput.extend({
+  page: z.number().int().min(1).max(CHANGES_PAGE_MAX).default(1),
+});
+
+/** The search of the teacher's lab page: the page of tolerance changes it shows. */
+export const labPageSearch = z.object({
+  changes: z.number().int().min(1).max(CHANGES_PAGE_MAX).optional().catch(undefined),
+});

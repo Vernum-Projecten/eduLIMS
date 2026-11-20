@@ -12,7 +12,8 @@ import type { DB } from "../db/schema.gen.ts";
 /**
  * Returns how simulations use each test of `ids`: `running` when a running simulation uses it,
  * `used` when only other simulations do, `unused` otherwise. A simulation uses a test when one of
- * its correct values names it (D10, #267). A test missing from the map is unused. Runs inside the
+ * its correct values names it (D10, #267) or one of its labs has a tolerance for it (S13, #269).
+ * A test missing from the map is unused. Runs inside the
  * caller's transaction when given one; starting a simulation locks its tests `FOR SHARE`, so a
  * caller that holds a test `FOR UPDATE` reads the state that start committed.
  */
@@ -23,14 +24,22 @@ export async function testUsage(
   if (ids.length === 0) return new Map();
   // TODO(#268): count a test a request names as used, and as running in a running simulation.
   const rows = await db
-    .selectFrom("correct_values")
-    .innerJoin("simulations", "simulations.id", "correct_values.simulation_id")
-    .select([
-      "correct_values.test_id",
-      sql<boolean>`bool_or(simulations.state = 'running')`.as("running"),
-    ])
-    .where("correct_values.test_id", "in", ids)
-    .groupBy("correct_values.test_id")
+    .selectFrom((eb) =>
+      eb
+        .selectFrom("correct_values")
+        .select(["test_id", "simulation_id"])
+        .where("test_id", "in", ids)
+        .union(
+          eb
+            .selectFrom("lab_tolerances")
+            .select(["test_id", "simulation_id"])
+            .where("test_id", "in", ids),
+        )
+        .as("uses"),
+    )
+    .innerJoin("simulations", "simulations.id", "uses.simulation_id")
+    .select(["uses.test_id", sql<boolean>`bool_or(simulations.state = 'running')`.as("running")])
+    .groupBy("uses.test_id")
     .execute();
   const usage = new Map<CatalogueTestId, TestUsage>();
   for (const row of rows) {

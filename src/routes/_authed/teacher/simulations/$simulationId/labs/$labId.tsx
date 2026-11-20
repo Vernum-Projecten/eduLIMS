@@ -17,9 +17,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/i18n/messages";
 import { joinCodeQueryOptions, labPageQueryOptions } from "@/server/simulations/query-options";
 import { labTolerancesQueryOptions } from "@/server/tolerances/query-options";
+import { labPageSearch } from "@/server/tolerances/schemas";
 
 export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId/labs/$labId")({
-  loader: async ({ context, params }) => {
+  validateSearch: labPageSearch,
+  loaderDeps: ({ search }) => ({ changes: search.changes ?? 1 }),
+  loader: async ({ context, params, deps, cause }) => {
+    const tolerances = labTolerancesQueryOptions(params.simulationId, params.labId, deps.changes);
+    // Another page of changes keeps the page on screen while it loads (TanStack rule, lists).
+    if (cause === "stay") void context.queryClient.prefetchQuery(tolerances);
     const page = await context.queryClient.ensureQueryData(
       labPageQueryOptions(params.simulationId, params.labId),
     );
@@ -27,9 +33,7 @@ export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId
     if (page.simulation.id !== params.simulationId) throw notFound();
     await Promise.all([
       context.queryClient.ensureQueryData(joinCodeQueryOptions(params.simulationId, params.labId)),
-      context.queryClient.ensureQueryData(
-        labTolerancesQueryOptions(params.simulationId, params.labId),
-      ),
+      cause === "stay" ? undefined : context.queryClient.ensureQueryData(tolerances),
     ]);
     return { crumb: page.name, simulation: page.simulation.name };
   },
@@ -62,6 +66,7 @@ function LabPending() {
 
 function LabPage() {
   const { simulationId, labId } = Route.useParams();
+  const { changes } = Route.useSearch();
   const { data: page, isFetching } = useSuspenseQuery(labPageQueryOptions(simulationId, labId));
   return (
     <Page
@@ -73,7 +78,12 @@ function LabPage() {
       <PastePanel simulationId={page.simulation.id} labId={page.id} labName={page.name} />
       <WaitingSection page={page} busy={isFetching} />
       <JoinCodePanel simulationId={page.simulation.id} labId={page.id} labName={page.name} />
-      <LabTolerancesSection simulationId={page.simulation.id} labId={page.id} labName={page.name} />
+      <LabTolerancesSection
+        simulationId={page.simulation.id}
+        labId={page.id}
+        labName={page.name}
+        changesPage={changes ?? 1}
+      />
     </Page>
   );
 }

@@ -15,7 +15,7 @@ import { readAdminSimulation, readAdminSimulationPage } from "../simulations/adm
 import { joinLabWithCode } from "../simulations/join.ts";
 import { linkWaitingAddresses } from "../simulations/linking.ts";
 import { listStudentLabs } from "../simulations/queries.ts";
-import { startSimulation } from "../simulations/state.ts";
+import { finishSimulation, startSimulation } from "../simulations/state.ts";
 import { findStudentLab, findWorkingStudentLab } from "../simulations/student-access.ts";
 import { NOW, person, world } from "../simulations/test-helpers.ts";
 import { codeOf, context } from "../simulations/test-join.ts";
@@ -226,6 +226,40 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
     );
     expect(secret).toEqual(other);
     expect(secret).toEqual(["lower", "name", "setAt", "testId", "unit", "upper"]);
+  });
+
+  it("gives the same refusals of a set whether or not the test has a correct value (review of #352)", async () => {
+    const { database, w, testId } = await open();
+    const plain = await catalogueTest(database, "Albumin (invented)");
+    const both = async (actor: typeof w.student, labId: string) => {
+      const answers = [];
+      for (const id of [testId, plain]) {
+        answers.push(
+          await setTolerance(database, actor, { labId, testId: id, lower: "1", upper: "2" }),
+        );
+      }
+      for (const answer of answers) expectClean(answer, testId);
+      expect(answers[0]).toEqual(answers[1]);
+      return answers[0];
+    };
+    expect(await both(w.otherLabStudent, w.labId)).toEqual({ ok: false, error: "not_found" });
+    const unknown = await setTolerance(database, w.student, {
+      labId: w.labId,
+      testId: "01960000-0000-7000-8000-00000000dead",
+      lower: "1",
+      upper: "2",
+    });
+    expect(unknown).toEqual({ ok: false, error: "test_not_found" });
+    expectClean(unknown, testId);
+    // Test set-up: both tests retired, neither with a tolerance in the lab yet.
+    await database
+      .updateTable("catalogue_tests")
+      .set({ retired_at: NOW })
+      .where("id", "in", [testId, plain])
+      .execute();
+    expect(await both(w.student, w.labId)).toEqual({ ok: false, error: "test_retired" });
+    await finishSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    expect(await both(w.student, w.labId)).toEqual({ ok: false, error: "not_running" });
   });
 
   it("carries no secret in the administrator's read-only view either (B5)", async () => {

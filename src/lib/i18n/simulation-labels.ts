@@ -60,6 +60,8 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.simulations_error_missing_limits();
     case "running":
       return m.simulations_error_running();
+    case "has_records":
+      return m.labs_error_has_records();
     case null:
       return m.simulations_error_failed();
     default: {

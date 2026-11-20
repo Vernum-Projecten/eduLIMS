@@ -112,7 +112,14 @@ test("a student of another lab sees none of it and cannot open the lab (S13, S10
 test("the teacher sees the lab's tolerances and their changes (S13)", async ({ page }) => {
   await devLogin(page, "teacher@example.test");
   await page.goto(`/teacher/simulations/${world.simulationId}/labs/${world.labId}`);
-  const table = page.getByRole("table", { name: `Tolerances of ${world.lab} and their changes` });
+  const current = page.getByRole("table", {
+    name: `Tolerances of ${world.lab} in force, per test`,
+  });
+  await expect(current.getByRole("row")).toHaveCount(2);
+  await expect(current.getByRole("row").nth(1)).toContainText("4.5");
+  const table = page.getByRole("table", {
+    name: `Changes to the tolerances of ${world.lab}, newest first, page 1 of 1`,
+  });
   await expect(table.getByRole("row")).toHaveCount(3);
   await expect(table.getByRole("row").nth(1)).toContainText("4.5");
   await expect(table.getByRole("row").nth(1)).toContainText("In force");
@@ -121,7 +128,7 @@ test("the teacher sees the lab's tolerances and their changes (S13)", async ({ p
   await axe(page);
 
   await page.goto(`/teacher/simulations/${world.simulationId}/labs/${world.otherLabId}`);
-  await expect(page.getByText("This lab has not set a tolerance yet.")).toBeVisible();
+  await expect(page.getByText("This lab has not set a tolerance yet.").first()).toBeVisible();
 });
 
 test("the tolerance page shows its error state and the retry recovers", async ({ page }) => {

@@ -291,8 +291,14 @@ student's place and a waiting address point at their lab through the pair
   new row with an activity-log row of ids only (`lab_tolerance_set`, never a
   limit), and no function removes one, so the release (S15, #270) can name
   the row in force. The student's page lists the active catalogue with the
-  lab's own current tolerances; the teachers of the simulation see every row
-  of the lab on its page. The one check, `checkTolerance` in
+  lab's own current tolerances; the teachers of the simulation see the
+  tolerance in force per test and every change, newest first, 50 to a page.
+  `findWorkingStudentLab` locks the student's `lab_members` row as well, so a
+  write that waited behind a removal or a move of the student finds no place
+  in the lab. A test with a tolerance counts as used in the catalogue (its
+  unit is fixed), and a lab with a tolerance cannot be deleted
+  (`has_records`; maintainer on #352). No write rate limit applies, since the
+  draft names none. The one check, `checkTolerance` in
   `src/lib/tolerance.ts`, compares a value with the limits as decimals, and a
   value equal to a limit is inside (S13).
 - **The email list.** A teacher pastes the addresses of a lab's members. The

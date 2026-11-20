@@ -11,7 +11,7 @@ import { getDb } from "../db/index.ts";
 import { requireRole } from "../middleware.ts";
 import { setTolerance } from "./actions.ts";
 import { readStudentTolerances, readTeacherTolerances } from "./queries.ts";
-import { labTolerancesInput, setToleranceInput } from "./schemas.ts";
+import { labTolerancesInput, setToleranceInput, teacherTolerancesInput } from "./schemas.ts";
 
 const teacher = requireRole("teacher");
 const student = requireRole("student");
@@ -32,12 +32,12 @@ export const setToleranceFn = createServerFn({ method: "POST" })
   .validator(setToleranceInput)
   .handler(({ data, context }) => setTolerance(getDb(), context.user, data));
 
-/** Returns every tolerance of a lab the teacher teaches, with its changes; `notFound` otherwise. */
+/** Returns a lab's tolerances in force and a page of their changes; `notFound` unless taught. */
 export const getLabTolerancesFn = createServerFn({ method: "GET" })
   .middleware([teacher])
-  .validator(labTolerancesInput)
+  .validator(teacherTolerancesInput)
   .handler(async ({ data, context }) => {
-    const changes = await readTeacherTolerances(getDb(), context.user, data.labId);
-    if (!changes) throw notFound();
-    return changes;
+    const tolerances = await readTeacherTolerances(getDb(), context.user, data.labId, data.page);
+    if (!tolerances) throw notFound();
+    return tolerances;
   });

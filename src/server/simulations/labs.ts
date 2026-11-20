@@ -93,7 +93,8 @@ export function renameLab(
 /**
  * Deletes a lab of a simulation the actor teaches, with its waiting addresses and code, unless a
  * student is in it (`has_students`, logged): the teacher moves or removes the students first, so
- * deleting the labs never gets round the rule of `deleteSimulation`.
+ * deleting the labs never gets round the rule of `deleteSimulation`. A lab with work of its own,
+ * a tolerance (S13), is refused too (`has_records`, logged; maintainer on #352).
  */
 export function deleteLab(
   db: Kysely<DB>,
@@ -116,6 +117,17 @@ export function deleteLab(
     if (member) {
       await recordAudit(trx, { ...event, outcome: "refused", reason: "has_students" });
       return refused("has_students");
+    }
+    // TODO(#268): count the lab's patients and requests as its records too.
+    const record = await trx
+      .selectFrom("lab_tolerances")
+      .select("id")
+      .where("lab_id", "=", lab.labId)
+      .limit(1)
+      .executeTakeFirst();
+    if (record) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: "has_records" });
+      return refused("has_records");
     }
     await trx.deleteFrom("labs").where("id", "=", lab.labId).execute();
     await recordAudit(trx, { ...event, outcome: "success" });

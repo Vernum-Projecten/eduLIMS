@@ -137,10 +137,57 @@ export async function readStudentTolerances(
   };
 }
 
+/** How many changes one page of the teacher's history holds (maintainer on #352, S2). */
+export const TOLERANCE_CHANGES_PAGE_SIZE = 50;
+
+/** A lab's tolerances for its teachers: the one in force per test, and one page of changes. */
+export interface TeacherTolerances {
+  /** The tolerance in force of each test, by test name. */
+  current: ToleranceChange[];
+  /** Every change, newest first, one page at a time. */
+  changes: { rows: ToleranceChange[]; page: number; pages: number; total: number };
+}
+
+const changeColumns = [
+  "lt.id",
+  "lt.test_id",
+  "t.name",
+  "t.unit",
+  sql<string>`lt.lower_limit::text`.as("lower"),
+  sql<string>`lt.upper_limit::text`.as("upper"),
+  "lt.set_at",
+  sql<string>`row_number() over (partition by lt.test_id order by lt.set_at desc, lt.id desc)`.as(
+    "rank",
+  ),
+] as const;
+
+function toChange(row: {
+  id: string;
+  test_id: string;
+  name: string;
+  unit: string | null;
+  lower: string;
+  upper: string;
+  set_at: Date;
+  rank: string;
+}): ToleranceChange {
+  return {
+    id: row.id,
+    testId: row.test_id,
+    testName: row.name,
+    unit: row.unit,
+    lower: row.lower,
+    upper: row.upper,
+    setAt: row.set_at.toISOString(),
+    current: Number(row.rank) === 1,
+  };
+}
+
 /**
- * Returns every tolerance a lab of a simulation the actor teaches has set, by test name and then
- * newest first, each marked when it is in force (S13: the teacher sees the tolerances and their
- * changes); `null` for a malformed id, an unknown lab and another teacher's lab alike, logged.
+ * Returns a lab of a simulation the actor teaches with its tolerance in force per test and page
+ * `page` (from 1) of its changes, newest first, each marked when it is in force (S13: the teacher
+ * sees the tolerances and their changes); `null` for a malformed id, an unknown lab and another
+ * teacher's lab alike, logged.
  *
  * @throws AuthError 403 without the app role teacher.
  */
@@ -148,7 +195,8 @@ export async function readTeacherTolerances(
   db: Kysely<DB>,
   actor: SimulationActor,
   labId: string,
-): Promise<ToleranceChange[] | null> {
+  page = 1,
+): Promise<TeacherTolerances | null> {
   assertTeacher(actor);
   const id = parseLabId(labId);
   const lab =
@@ -169,35 +217,39 @@ export async function readTeacherTolerances(
     logNotFound(actor.id, "lab", labId);
     return null;
   }
-  const rows = await db
+  const ranked = db
     .selectFrom("lab_tolerances as lt")
     .innerJoin("catalogue_tests as t", "t.id", "lt.test_id")
-    .select([
-      "lt.id",
-      "lt.test_id",
-      "t.name",
-      "t.unit",
-      sql<string>`lt.lower_limit::text`.as("lower"),
-      sql<string>`lt.upper_limit::text`.as("upper"),
-      "lt.set_at",
-      sql<number>`row_number() over (partition by lt.test_id order by lt.set_at desc, lt.id desc)`.as(
-        "rank",
-      ),
-    ])
-    .where("lt.lab_id", "=", lab.id)
-    .orderBy(sql`lower(t.name)`)
-    .orderBy("t.id")
-    .orderBy("lt.set_at", "desc")
-    .orderBy("lt.id", "desc")
-    .execute();
-  return rows.map((row) => ({
-    id: row.id,
-    testId: row.test_id,
-    testName: row.name,
-    unit: row.unit,
-    lower: row.lower,
-    upper: row.upper,
-    setAt: row.set_at.toISOString(),
-    current: Number(row.rank) === 1,
-  }));
+    .select(changeColumns)
+    .where("lt.lab_id", "=", lab.id);
+  const [current, total, rows] = await Promise.all([
+    db
+      .selectFrom(ranked.as("r"))
+      .selectAll()
+      .where("r.rank", "=", "1")
+      .orderBy(sql`lower(r.name)`)
+      .orderBy("r.test_id")
+      .execute(),
+    db
+      .selectFrom("lab_tolerances")
+      .select((eb) => eb.fn.countAll<string>().as("n"))
+      .where("lab_id", "=", lab.id)
+      .executeTakeFirstOrThrow(),
+    ranked
+      .orderBy("lt.set_at", "desc")
+      .orderBy("lt.id", "desc")
+      .limit(TOLERANCE_CHANGES_PAGE_SIZE)
+      .offset((page - 1) * TOLERANCE_CHANGES_PAGE_SIZE)
+      .execute(),
+  ]);
+  const count = Number(total.n);
+  return {
+    current: current.map(toChange),
+    changes: {
+      rows: rows.map(toChange),
+      page,
+      pages: Math.max(1, Math.ceil(count / TOLERANCE_CHANGES_PAGE_SIZE)),
+      total: count,
+    },
+  };
 }

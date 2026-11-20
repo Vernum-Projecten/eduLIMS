@@ -44,6 +44,7 @@ export const SIMULATION_ACTION_ERRORS = [
   "value_not_found",
   "missing_limits",
   "running",
+  "has_records",
 ] as const;
 export type SimulationActionError = (typeof SIMULATION_ACTION_ERRORS)[number];
 

@@ -11,7 +11,7 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
 import { finishSimulation } from "../simulations/state.ts";
-import { NOW, notFoundLine, securityLines } from "../simulations/test-helpers.ts";
+import { NOW, notFoundLine, person, securityLines } from "../simulations/test-helpers.ts";
 import { setTolerance } from "./actions.ts";
 import { readStudentTolerances, readTeacherTolerances } from "./queries.ts";
 import { runningWorld, studentSets } from "./test-helpers.ts";
@@ -102,16 +102,44 @@ describe("the student's tolerance page (S13)", () => {
 });
 
 describe("the teacher's view of a lab's tolerances (S13)", () => {
-  it("lists every change by test, newest first, with the one in force marked", async () => {
+  it("gives the tolerance in force per test, and every change newest first, marked", async () => {
     const { database, w, testId } = await open();
+    const albumin = await catalogueTest(database, "Albumin (invented)");
     await studentSets(database, w, testId, "4", "6");
+    await studentSets(database, w, albumin, "30", "50");
     await studentSets(database, w, testId, "4.5", "6.5");
-    const changes = await readTeacherTolerances(database, w.coTeacher, w.labId);
-    expect(changes?.map((c) => [c.testId, c.lower, c.upper, c.current])).toEqual([
-      [testId, "4.5", "6.5", true],
-      [testId, "4", "6", false],
+    const read = await readTeacherTolerances(database, w.coTeacher, w.labId);
+    expect(read?.current.map((c) => [c.testName, c.lower, c.upper, c.current])).toEqual([
+      ["Albumin (invented)", "30", "50", true],
+      ["Creatinine (invented)", "4.5", "6.5", true],
     ]);
-    expect(changes?.[0]?.testName).toBe("Creatinine (invented)");
+    expect(read?.changes.rows.map((c) => [c.testId, c.lower, c.current])).toEqual([
+      [testId, "4.5", true],
+      [albumin, "30", true],
+      [testId, "4", false],
+    ]);
+    expect(read?.changes).toMatchObject({ page: 1, pages: 1, total: 3 });
+  });
+
+  it("pages the changes at 50 rows, newest first (review of #352, S2)", async () => {
+    const { database, w, testId } = await open();
+    const rows = Array.from({ length: 53 }, (_, n) => ({
+      simulation_id: w.simulationId,
+      lab_id: w.labId,
+      test_id: testId,
+      lower_limit: String(n),
+      upper_limit: "100",
+      set_at: new Date(NOW.getTime() + n * 1000),
+    }));
+    await database.insertInto("lab_tolerances").values(rows).execute();
+    const first = await readTeacherTolerances(database, w.teacher, w.labId);
+    expect(first?.changes.rows).toHaveLength(50);
+    expect(first?.changes).toMatchObject({ page: 1, pages: 2, total: 53 });
+    expect(first?.changes.rows[0]).toMatchObject({ lower: "52", current: true });
+    expect(first?.current.map((c) => c.lower)).toEqual(["52"]);
+    const second = await readTeacherTolerances(database, w.teacher, w.labId, 2);
+    expect(second?.changes.rows.map((c) => c.lower)).toEqual(["2", "1", "0"]);
+    expect(second?.changes.rows.every((c) => !c.current)).toBe(true);
   });
 
   it("holds only that lab's tolerances", async () => {
@@ -122,7 +150,30 @@ describe("the teacher's view of a lab's tolerances (S13)", () => {
       lower: "1",
       upper: "9",
     });
-    expect(await readTeacherTolerances(database, w.teacher, w.labId)).toEqual([]);
+    expect(await readTeacherTolerances(database, w.teacher, w.labId)).toEqual({
+      current: [],
+      changes: { rows: [], page: 1, pages: 1, total: 0 },
+    });
+  });
+
+  it("is read by a teacher-admin who teaches the simulation", async () => {
+    const { database, w } = await open();
+    const both = await person(database, "teacher-admin", ["teacher", "admin"]);
+    await database
+      .insertInto("simulation_teachers")
+      .values({ simulation_id: w.simulationId, user_id: both.id, added_by: w.teacher.id })
+      .execute();
+    expect(await readTeacherTolerances(database, both, w.labId)).not.toBeNull();
+  });
+
+  it("refuses a former teacher whose row stayed but whose app role is now student", async () => {
+    const { database, w } = await open();
+    const former = await person(database, "former-teacher", ["student"]);
+    await database
+      .insertInto("simulation_teachers")
+      .values({ simulation_id: w.simulationId, user_id: former.id, added_by: w.teacher.id })
+      .execute();
+    await expect(readTeacherTolerances(database, former, w.labId)).rejects.toThrow(AuthError);
   });
 
   it("reads nothing of another teacher's lab or a malformed id, logged (D11)", async () => {
