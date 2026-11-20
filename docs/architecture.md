@@ -205,12 +205,13 @@ is an EHR subject (Q-PRIV-1).
 
 | Database | Holds | Read with |
 |---|---|---|
-| FerroEHR (openEHR CDR) | the fictional patients of a simulation as EHR subjects, with the details the team registers (S11); each result as an openEHR composition (template `eduLIMS-lab`, existing CKM archetypes) in the EHR of its patient, with the sample number, the analyte, the value, the device and the time | openEHR REST, AQL |
+| FerroEHR (openEHR CDR) | one EHR per patient a team registers, its subject the patient's eduLIMS id (S11); each result as an openEHR composition (template `eduLIMS-lab`, existing CKM archetypes) in the EHR of its patient, with the sample number, the analyte, the value, the device and the time | openEHR REST, AQL |
 | eduLIMS database | users and roles; simulations and their labs, each with its name, its logo and its members; the test catalogue; correct values; tolerances; patients, requests and samples with their lab numbers; the times of entry and release; upload log and audit log; better-auth's sessions and accounts | SQL through Kysely ([ADR 0006](adr/0006-kysely-for-app-data.md)) |
 
-The EHR subject is the fictional patient, under the name and the date of
-birth the team registers; a fictional patient gets no pseudonym (owner,
-2026-11-19, O9). A result released to the patient's record is final: nobody
+The EHR subject is the fictional patient, named by its eduLIMS id; a
+fictional patient gets no pseudonym (owner, 2026-11-19, O9). The details the
+team registers stay in the eduLIMS database for now
+([The EHR of a patient](#the-ehr-of-a-patient)). A result released to the patient's record is final: nobody
 can change it or release another measurement for that requested test (S15;
 owner, 2026-11-19, O7). Where a measurement lives before its release is a
 design matter for the maintainer; the proposal is under
@@ -246,8 +247,8 @@ The form's details (name, date of birth, sex and patient ID) are not written
 to FerroEHR yet. `PARTY_SELF` carries no details, and the openEHR model puts
 them in a demographic service the `external_ref` points at, which in FerroEHR
 is the DEMOGRAPHIC API (a `PERSON`, open to a client only through
-`[auth.smart] demographic_clients`). Whether eduLIMS writes such a `PERSON`
-is an open question for the owner on #147.
+`[auth.smart] demographic_clients`). Storing the details as such a
+`PERSON` is a sub-issue of #147 (maintainer, 2026-11-20).
 
 eduLIMS finds the EHR with `GET /ehr?subject_id=…&subject_namespace=…` and,
 on `404`, creates it with `POST /ehr` and that `EHR_STATUS` (ITS-REST 1.1.0,
@@ -268,7 +269,9 @@ the patient's details, and FerroEHR holds the results (maintainer, #147).
 FerroEHR writes the committer of every version itself, from the client that
 signed in: `PARTY_IDENTIFIED` named by the client `edulims-ferroehr`, a
 system client, never a person (FerroEHR book v5.7.0, `security/committer.md`).
-eduLIMS sends no committer. Finding and creating an EHR needs the scope
+eduLIMS sends no committer; FerroEHR refuses a stated committer with another
+name. The maintainer accepted the client id as the committer on #364: it
+carries no person, which is what Q-PRIV-1 protects. Finding and creating an EHR needs the scope
 `system/composition-*.cr`, because an EHR operation names no template and
 FerroEHR covers it only with the bare wildcard (`smart-app-launch.md`, "What
 each route requires").

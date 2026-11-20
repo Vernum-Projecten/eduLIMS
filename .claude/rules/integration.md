@@ -83,9 +83,14 @@ specification governs a choice (retry timing, the client's caching), flag it:
   OAuth 2.0 client `edulims-ferroehr`, takes its token with the client
   credentials grant, and holds `system/` scopes only: no user token and no
   `user/` or `patient/` scope ever reaches FerroEHR. It asks for the narrowest
-  scopes that work (`system/composition-eduLIMS-lab.v1.cr`, one
-  `system/aql-<name>.s` per named stored query), never `system/aql-*`, so it
-  runs named stored queries, never ad-hoc AQL. eduLIMS checks session, role
+  scopes that work: `system/template-*.r` for the templates,
+  `system/composition-*.cr` for the EHR of a patient and its compositions,
+  and one `system/aql-<name>.s` per named stored query, never
+  `system/aql-*`, so it runs named stored queries, never ad-hoc AQL. The
+  composition scope is the bare wildcard because an EHR operation names no
+  template, and FerroEHR covers it only with `*` (FerroEHR book v5.7.0,
+  `smart-app-launch.md`, "What each route requires"); the system client's
+  `writes` still limits its compositions to `eduLIMS-lab.v1`. eduLIMS checks session, role
   and ownership before every call, because FerroEHR sees only the client.
 - **No real person crosses the boundary (Q-PRIV-1).** FerroEHR holds the
   fictional patients of a simulation: the EHR is the patient's, with the fictional
