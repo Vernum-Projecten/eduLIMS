@@ -50,7 +50,32 @@ export function toSimulationState(stored: string): SimulationState {
 }
 
 /**
- * Starts a prepared simulation the actor teaches. The catalogue tests its correct values name
+ * Returns the ids of the tests that have a correct value in the simulation but no accuracy
+ * limits there, ordered by id. Read under the simulation lock, which every write of a value or
+ * a limit takes too, so the answer holds until the caller commits.
+ */
+export async function testsWithoutLimits(
+  db: Kysely<DB>,
+  simulationId: SimulationId,
+): Promise<string[]> {
+  const rows = await db
+    .selectFrom("correct_values as cv")
+    .leftJoin("simulation_test_limits as l", (join) =>
+      join.onRef("l.test_id", "=", "cv.test_id").onRef("l.simulation_id", "=", "cv.simulation_id"),
+    )
+    .select("cv.test_id")
+    .distinct()
+    .where("cv.simulation_id", "=", simulationId)
+    .where("l.test_id", "is", null)
+    .orderBy("cv.test_id")
+    .execute();
+  return rows.map((row) => row.test_id);
+}
+
+/**
+ * Starts a prepared simulation the actor teaches. Every test with a correct value needs its
+ * accuracy limits first (`missing_limits`, with the ids of the tests without them; maintainer,
+ * 2026-11-20 on #267). The catalogue tests its correct values name
  * are locked `FOR SHARE` until the start commits, so a catalogue edit that a running simulation
  * forbids waits for the start and is then refused (D9). Another state is refused with
  * `not_prepared`, logged.
@@ -70,6 +95,12 @@ export function startSimulation(
     if ((await stateOf(trx, simulationId)) !== "prepared") {
       await recordAudit(trx, { ...event, outcome: "refused", reason: "not_prepared" });
       return refused("not_prepared");
+    }
+    // NOTE: maintainer 2026-11-20 on #267; every test with a correct value has its limits first.
+    const missing = await testsWithoutLimits(trx, simulationId);
+    if (missing.length > 0) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: "missing_limits" });
+      return refused("missing_limits", missing);
     }
     // NOTE: security note on #268; ordered by id, so two starts that share tests lock them alike.
     await trx

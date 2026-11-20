@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   CircleCheckBigIcon,
@@ -10,7 +10,9 @@ import {
   FlagIcon,
   type LucideIcon,
   PlayIcon,
+  TriangleAlertIcon,
 } from "lucide-react";
+import { useMemo } from "react";
 import { ConfirmDialog, useConfirmation } from "@/components/simulations/confirm-dialog";
 import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
@@ -18,12 +20,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { formatDateTime } from "@/lib/i18n/format";
-import { simulationStateLabel } from "@/lib/i18n/simulation-labels";
+import {
+  missingLimitsMessage,
+  simulationErrorMessage,
+  simulationStateLabel,
+} from "@/lib/i18n/simulation-labels";
 import type { SimulationState } from "@/lib/simulations";
-import { correctValuesInvalidation } from "@/server/correct-values/query-options";
+import {
+  correctValuesInvalidation,
+  correctValuesQueryOptions,
+} from "@/server/correct-values/query-options";
 import { finishSimulationFn, startSimulationFn } from "@/server/simulations/functions";
 import type { TeacherSimulationPage } from "@/server/simulations/queries";
-import { simulationMutationOptions } from "@/server/simulations/query-options";
+import {
+  refusedTestIds,
+  simulationErrorCode,
+  simulationMutationOptions,
+} from "@/server/simulations/query-options";
 
 const STATE_HEADING = "state-heading";
 
@@ -65,6 +78,12 @@ function stateDescription(state: SimulationState): string {
  * and the one step that comes next, behind a confirmation because no step goes back.
  */
 export function SimulationStateSection({ page }: Readonly<{ page: TeacherSimulationPage }>) {
+  const { data: values } = useSuspenseQuery(correctValuesQueryOptions(page.id));
+  const names = useMemo(
+    () => new Map(values.tests.map((test) => [test.id, test.name])),
+    [values.tests],
+  );
+  const missing = values.tests.filter((test) => test.values > 0 && test.limits === null);
   return (
     <section aria-labelledby={STATE_HEADING} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -94,7 +113,13 @@ export function SimulationStateSection({ page }: Readonly<{ page: TeacherSimulat
           )}
         </dl>
       )}
-      <StateStep simulationId={page.id} name={page.name} state={page.state} />
+      {page.state === "prepared" && missing.length > 0 && (
+        <p className="inline-flex items-start gap-1.5">
+          <TriangleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          {m.simulations_missing_limits({ tests: missing.map((test) => test.name).join(", ") })}
+        </p>
+      )}
+      <StateStep simulationId={page.id} name={page.name} state={page.state} names={names} />
     </section>
   );
 }
@@ -103,7 +128,13 @@ function StateStep({
   simulationId,
   name,
   state,
-}: Readonly<{ simulationId: string; name: string; state: SimulationState }>) {
+  names,
+}: Readonly<{
+  simulationId: string;
+  name: string;
+  state: SimulationState;
+  names: ReadonlyMap<string, string>;
+}>) {
   const confirmation = useConfirmation(STATE_HEADING);
   const queryClient = useQueryClient();
   const callStart = useServerFn(startSimulationFn);
@@ -113,6 +144,10 @@ function StateStep({
   const start = useSimulationAction(simulationMutationOptions(queryClient, callStart, keys), {
     ...feedback,
     success: () => m.simulations_started({ name }),
+    errorMessage: (error) =>
+      simulationErrorCode(error) === "missing_limits"
+        ? missingLimitsMessage(refusedTestIds(error), names)
+        : simulationErrorMessage(simulationErrorCode(error)),
   });
   const finish = useSimulationAction(simulationMutationOptions(queryClient, callFinish, keys), {
     ...feedback,

@@ -263,8 +263,11 @@ student's place and a waiting address point at their lab through the pair
   The lab's work goes through `findWorkingStudentLab`, which also requires
   a running simulation: a prepared or finished simulation takes no work.
 - **State.** A teacher of the simulation starts a prepared simulation and
-  finishes a running one, behind a confirmation; no step goes back. The
-  correct values and the limits stay changeable in every state (D10).
+  finishes a running one, behind a confirmation; no step goes back. A start
+  is refused while a test with a correct value has no limits, and the
+  refusal names those tests; a running simulation is never deleted
+  (maintainer, 2026-11-20 on #267). The correct values and the limits stay
+  changeable in every state (D10).
   Starting locks the catalogue tests the simulation's correct values name
   `FOR SHARE`, so a catalogue edit that a running simulation forbids (D9)
   waits for the start and is then refused.

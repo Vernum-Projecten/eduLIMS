@@ -12,6 +12,7 @@ import {
   joinViaLabel,
   limitKindLabel,
   linkedMessage,
+  missingLimitsMessage,
   simulationErrorMessage,
   simulationStateLabel,
 } from "./simulation-labels";
@@ -42,6 +43,24 @@ describe("simulationErrorMessage (D10)", () => {
     expect(simulationErrorMessage("teacher_not_found")).toBe(
       "This person does not teach this simulation.",
     );
+  });
+});
+
+describe("missingLimitsMessage (maintainer 2026-11-20 on #267)", () => {
+  const names = new Map([
+    ["a", "Albumin"],
+    ["u", "Urea"],
+  ]);
+
+  it("names the tests without limits", () => {
+    expect(missingLimitsMessage(["a", "u"], names)).toBe(
+      "Set the accuracy limits of Albumin, Urea before you start the simulation.",
+    );
+  });
+
+  it("falls back to the general message when the screen cannot name a test", () => {
+    expect(missingLimitsMessage(["a", "x"], names)).toBe(simulationErrorMessage("missing_limits"));
+    expect(missingLimitsMessage([], names)).toBe(simulationErrorMessage("missing_limits"));
   });
 });
 

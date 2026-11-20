@@ -98,9 +98,21 @@ describe("setting correct values (D10)", () => {
   it("is changeable before, during and after the simulation (D10)", async () => {
     const { db: database, w, testId } = await open();
     await set(database, w, [{ sampleNumber: "S-001", testId, value: "1" }]);
-    await startSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    const limits = {
+      simulationId: w.simulationId,
+      testId,
+      kind: "percent",
+      yellow: "5",
+      red: "10",
+    };
+    await setLimits(database, w.teacher, { ...limits, kind: "percent" }, NOW);
+    expect(
+      await startSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW),
+    ).toEqual({ ok: true, value: null });
     expect((await set(database, w, [{ sampleNumber: "S-001", testId, value: "2" }])).ok).toBe(true);
-    await finishSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    expect(
+      await finishSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW),
+    ).toEqual({ ok: true, value: null });
     expect((await set(database, w, [{ sampleNumber: "S-001", testId, value: "3" }])).ok).toBe(true);
     expect((await values(database, w.simulationId)).map((row) => row.value)).toEqual(["3"]);
   });

@@ -56,6 +56,10 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.correct_values_error_test_retired();
     case "value_not_found":
       return m.correct_values_error_value_not_found();
+    case "missing_limits":
+      return m.simulations_error_missing_limits();
+    case "running":
+      return m.simulations_error_running();
     case null:
       return m.simulations_error_failed();
     default: {
@@ -85,6 +89,24 @@ export function emailLineLabel(line: EmailLine): string {
       return unknown;
     }
   }
+}
+
+/**
+ * Returns the refusal of a start that names the tests without limits by name (maintainer,
+ * 2026-11-20 on #267); an id the screen cannot name falls back to the general message.
+ */
+export function missingLimitsMessage(
+  testIds: readonly string[],
+  names: ReadonlyMap<string, string>,
+): string {
+  const named = testIds.flatMap((id) => {
+    const name = names.get(id);
+    return name === undefined ? [] : [name];
+  });
+  if (named.length === 0 || named.length !== testIds.length) {
+    return m.simulations_error_missing_limits();
+  }
+  return m.simulations_error_missing_limits_named({ tests: named.join(", ") });
 }
 
 /** Returns the name of a simulation's state (D10, #267). */

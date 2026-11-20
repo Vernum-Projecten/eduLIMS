@@ -131,6 +131,20 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
     "5.3 mmol/L",
   );
 
+  // Before the limits, the page names the test that blocks the start, and a start is refused
+  // with the test named (maintainer 2026-11-20).
+  const missing = page.getByText(`Before you can start, set the accuracy limits of: ${testName}.`);
+  await expect(missing).toBeVisible();
+  await page.getByRole("button", { name: "Start simulation" }).click();
+  await page
+    .getByRole("alertdialog", { name: `Start ${simulation}?` })
+    .getByRole("button", { name: "Start", exact: true })
+    .click();
+  await expect(
+    page.getByText(`Set the accuracy limits of ${testName} before you start the simulation.`),
+  ).toBeVisible();
+  await expect(page.getByText("Prepared", { exact: true }).first()).toBeVisible();
+
   // Limits: red closer than yellow is refused at its field, compared as decimals (D13).
   const testRow = limitsTable(page).getByRole("row").filter({ hasText: testName });
   await expect(testRow).toContainText("No limits yet");
@@ -147,6 +161,7 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await limits.getByRole("button", { name: "Save limits" }).click();
   await expect(limits).toHaveCount(0);
   await expect(testRow).toContainText("Yellow beyond 0.30%, red beyond 10%");
+  await expect(missing).toHaveCount(0);
 
   // Start behind a confirmation whose safe choice takes the first focus (WCAG 3.3.4).
   await page.getByRole("button", { name: "Start simulation" }).click();
@@ -156,6 +171,17 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await start.getByRole("button", { name: "Start", exact: true }).click();
   await expect(page.getByText(`Started ${simulation}.`)).toBeVisible();
   await expect(page.getByText("Running", { exact: true }).first()).toBeVisible();
+
+  // A running simulation is never deleted, whatever its members (maintainer 2026-11-20).
+  await page.getByRole("button", { name: "Delete simulation" }).click();
+  await page
+    .getByRole("alertdialog", { name: `Delete ${simulation}?` })
+    .getByRole("button", { name: "Delete simulation" })
+    .click();
+  await expect(
+    page.getByText("This simulation is running, so it cannot be deleted. Finish it first."),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: simulation })).toBeVisible();
 
   // The catalogue shows the lock with an icon and text (D9).
   await page.goto(`/teacher/catalogue?q=${encodeURIComponent(testName)}`);

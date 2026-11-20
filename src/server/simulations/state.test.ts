@@ -6,9 +6,12 @@
 // starts or finishes it.
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
+import { setCorrectValues, setLimits } from "../correct-values/actions.ts";
+import { catalogueTest, seedSecrets } from "../correct-values/test-helpers.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { getTeacherSimulation, listTeacherSimulations } from "./queries.ts";
+import { createSimulation, deleteSimulation } from "./simulations.ts";
 import { finishSimulation, startSimulation, toSimulationState } from "./state.ts";
 import { findWorkingStudentLab } from "./student-access.ts";
 import { teacherWriteRefusals } from "./test-access.ts";
@@ -115,6 +118,83 @@ describe("starting and finishing a simulation (D10, #267)", () => {
 
   it("fails loud on a state it does not know", () => {
     expect(() => toSimulationState("paused")).toThrow(/not a known state/);
+  });
+
+  it("refuses a start while a test with a correct value has no limits, naming it (maintainer 2026-11-20)", async () => {
+    const { db: database, w } = await open();
+    // The seeded test has its limits, so the refusal names only the two below.
+    await seedSecrets(database, w);
+    const without = await catalogueTest(database, "Albumin (invented)");
+    const second = await catalogueTest(database, "Urea (invented)");
+    const set = await setCorrectValues(
+      database,
+      w.teacher,
+      {
+        simulationId: w.simulationId,
+        rows: [
+          { sampleNumber: "S-001", testId: without, value: "1" },
+          { sampleNumber: "S-002", testId: without, value: "2" },
+          { sampleNumber: "S-001", testId: second, value: "3" },
+        ],
+      },
+      NOW,
+    );
+    expect(set.ok).toBe(true);
+    const input = { simulationId: w.simulationId };
+    expect(await startSimulation(database, w.teacher, input, NOW)).toEqual({
+      ok: false,
+      error: "missing_limits",
+      testIds: [without, second].sort(),
+    });
+    expect(await auditRows(database, "simulation_started")).toEqual([
+      expect.objectContaining({
+        outcome: "refused",
+        reason_code: "missing_limits",
+        metadata: null,
+      }),
+    ]);
+    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    expect(page?.state).toBe("prepared");
+    for (const testId of [without, second]) {
+      await setLimits(
+        database,
+        w.teacher,
+        { ...input, testId, kind: "absolute", yellow: "1", red: "2" },
+        NOW,
+      );
+    }
+    expect(await startSimulation(database, w.teacher, input, NOW)).toEqual({
+      ok: true,
+      value: null,
+    });
+  });
+
+  it("refuses to delete a running simulation, even without students, and logs it (maintainer 2026-11-20)", async () => {
+    const { db: database, w } = await open();
+    const created = await createSimulation(database, w.teacher, { name: "Empty run" }, NOW);
+    if (!created.ok) throw new Error(created.error);
+    const input = { simulationId: created.value.simulationId };
+    await startSimulation(database, w.teacher, input, NOW);
+    expect(await deleteSimulation(database, w.teacher, input)).toEqual({
+      ok: false,
+      error: "running",
+    });
+    expect(await auditRows(database, "simulation_deleted")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "running" }),
+    ]);
+    await finishSimulation(database, w.teacher, input, LATER);
+    expect(await deleteSimulation(database, w.teacher, input)).toEqual({ ok: true, value: null });
+  });
+
+  it("still refuses to delete a finished simulation with a student (has_students)", async () => {
+    const { db: database, w } = await open();
+    const input = { simulationId: w.simulationId };
+    await startSimulation(database, w.teacher, input, NOW);
+    await finishSimulation(database, w.teacher, input, LATER);
+    expect(await deleteSimulation(database, w.teacher, input)).toEqual({
+      ok: false,
+      error: "has_students",
+    });
   });
 
   describe("start", () => {

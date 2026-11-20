@@ -42,22 +42,32 @@ export const SIMULATION_ACTION_ERRORS = [
   "test_not_found",
   "test_retired",
   "value_not_found",
+  "missing_limits",
+  "running",
 ] as const;
 export type SimulationActionError = (typeof SIMULATION_ACTION_ERRORS)[number];
 
 /** The outcome of an action: done, with an optional value, or refused with a code. */
 export type SimulationResult<T = null> =
   | { ok: true; value: T }
-  | { ok: false; error: SimulationActionError };
+  | {
+      ok: false;
+      error: SimulationActionError;
+      /** The catalogue tests a `missing_limits` refusal is about: ids only (#267). */
+      testIds?: readonly string[];
+    };
 
 /** Returns a done result. */
 export function done<T>(value: T): SimulationResult<T> {
   return { ok: true, value };
 }
 
-/** Returns a refusal. */
-export function refused<T>(error: SimulationActionError): SimulationResult<T> {
-  return { ok: false, error };
+/** Returns a refusal; `testIds` names the tests a `missing_limits` refusal is about. */
+export function refused<T>(
+  error: SimulationActionError,
+  testIds?: readonly string[],
+): SimulationResult<T> {
+  return testIds === undefined ? { ok: false, error } : { ok: false, error, testIds };
 }
 
 /** Who acts: the session user, never an id from the request. */
