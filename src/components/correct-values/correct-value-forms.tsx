@@ -5,7 +5,7 @@ import { revalidateLogic } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ClipboardPasteIcon, PlusIcon, SaveIcon } from "lucide-react";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import { useAppForm } from "@/components/form/app-form";
 import type { DialogControl } from "@/components/simulations/name-dialog";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
@@ -70,6 +70,14 @@ function formRefusalOf(error: unknown) {
   return { form: simulationErrorMessage(simulationErrorCode(error)) };
 }
 
+/** The refusal of the paste form: about a test at the pasted rows, else at the top. */
+function pasteRefusal(error: unknown) {
+  const code = simulationErrorCode(error);
+  const message = simulationErrorMessage(code);
+  const aboutTest = code === "test_not_found" || code === "test_retired";
+  return aboutTest ? { fields: { text: message } } : { form: message };
+}
+
 function testOptions(options: Options) {
   return options.map((test) => ({
     value: test.id,
@@ -79,11 +87,15 @@ function testOptions(options: Options) {
   }));
 }
 
-/** One correct value at a time: the sample number, the test and the value (D10). */
-export function AddCorrectValueForm({
+/**
+ * One correct value at a time, in a dialog (D10): the sample number, the test and the value. The
+ * dialog stays open after a save, empty for the next value, so a teacher enters a series.
+ */
+export function AddCorrectValueDialog({
+  control,
   simulationId,
   options,
-}: Readonly<{ simulationId: string; options: Options }>) {
+}: Readonly<{ control: DialogControl; simulationId: string; options: Options }>) {
   const save = useSetValues(simulationId);
   const choices = useMemo(() => testOptions(options), [options]);
   const form = useAppForm({
@@ -101,68 +113,80 @@ export function AddCorrectValueForm({
     },
   });
   return (
-    <form
-      noValidate
-      aria-label={m.correct_values_add_form()}
-      className="flex flex-col gap-4 rounded-lg border p-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void form.handleSubmit();
-      }}
+    <FormDialog
+      control={control}
+      title={m.correct_values_add_heading()}
+      description={m.correct_values_add_description()}
+      onClose={() => form.reset()}
     >
-      <form.AppForm>
-        <h3 className="font-medium">{m.correct_values_add_heading()}</h3>
-        <form.FormErrors />
-        <FieldGroup>
-          <form.AppField name="sampleNumber">
-            {(field) => (
-              <field.TextField
-                label={m.correct_values_sample()}
-                maxLength={SAMPLE_NUMBER_MAX}
-                autoComplete="off"
-                spellCheck={false}
-              />
-            )}
-          </form.AppField>
-          <form.AppField name="testId">
-            {(field) => (
-              <field.SelectField
-                label={m.correct_values_test()}
-                placeholder={m.correct_values_test_placeholder()}
-                options={choices}
-              />
-            )}
-          </form.AppField>
-          <form.AppField name="value">
-            {(field) => (
-              <field.TextField
-                label={m.correct_values_value()}
-                description={m.correct_values_value_help()}
-                inputMode="decimal"
-                autoComplete="off"
-              />
-            )}
-          </form.AppField>
-        </FieldGroup>
-        <div>
-          <form.SubmitButton icon={<PlusIcon aria-hidden="true" data-icon="inline-start" />}>
-            {m.correct_values_add()}
-          </form.SubmitButton>
-        </div>
-      </form.AppForm>
-    </form>
+      <form
+        noValidate
+        aria-label={m.correct_values_add_form()}
+        className="flex flex-col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void form.handleSubmit();
+        }}
+      >
+        <form.AppForm>
+          <form.FormErrors />
+          <FieldGroup>
+            <form.AppField name="sampleNumber">
+              {(field) => (
+                <field.TextField
+                  label={m.correct_values_sample()}
+                  maxLength={SAMPLE_NUMBER_MAX}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              )}
+            </form.AppField>
+            <form.AppField name="testId">
+              {(field) => (
+                <field.SelectField
+                  label={m.correct_values_test()}
+                  placeholder={m.correct_values_test_placeholder()}
+                  options={choices}
+                />
+              )}
+            </form.AppField>
+            <form.AppField name="value">
+              {(field) => (
+                <field.TextField
+                  label={m.correct_values_value()}
+                  description={m.correct_values_value_help()}
+                  inputMode="decimal"
+                  autoComplete="off"
+                />
+              )}
+            </form.AppField>
+          </FieldGroup>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                {m.correct_values_close()}
+              </Button>
+            </DialogClose>
+            <form.SubmitButton icon={<PlusIcon aria-hidden="true" data-icon="inline-start" />}>
+              {m.correct_values_add()}
+            </form.SubmitButton>
+          </DialogFooter>
+        </form.AppForm>
+      </form>
+    </FormDialog>
   );
 }
 
 /**
- * Many correct values at once (D10): lines copied from a spreadsheet, each a sample number, a
- * test name and a value. A line that does not read is named at the field; nothing is stored
- * until every line reads.
+ * Many correct values at once, in a dialog (D10): lines copied from a spreadsheet, each a sample
+ * number, a test name and a value. A line that does not read is named at the field; nothing is
+ * stored until every line reads, and a saved paste closes the dialog.
  */
-export function PasteCorrectValuesForm({
+export function PasteCorrectValuesDialog({
+  control,
   simulationId,
   options,
-}: Readonly<{ simulationId: string; options: Options }>) {
+}: Readonly<{ control: DialogControl; simulationId: string; options: Options }>) {
   const save = useSetValues(simulationId);
   const schema = useMemo(() => pasteFormSchema(options), [options]);
   const form = useAppForm({
@@ -174,45 +198,93 @@ export function PasteCorrectValuesForm({
       try {
         await save.mutateAsync({ simulationId, rows });
       } catch (error) {
-        applyServerRefusal(formApi, formRefusalOf(error));
+        applyServerRefusal(formApi, pasteRefusal(error));
         return;
       }
       formApi.reset();
+      control.onOpenChange(false);
     },
   });
   return (
-    <form
-      noValidate
-      aria-label={m.correct_values_paste_form()}
-      className="flex flex-col gap-4 rounded-lg border p-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void form.handleSubmit();
+    <FormDialog
+      control={control}
+      title={m.correct_values_paste_heading()}
+      description={m.correct_values_paste_description()}
+      onClose={() => form.reset()}
+    >
+      <form
+        noValidate
+        aria-label={m.correct_values_paste_form()}
+        className="flex flex-col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void form.handleSubmit();
+        }}
+      >
+        <form.AppForm>
+          <form.FormErrors />
+          <FieldGroup>
+            <form.AppField name="text">
+              {(field) => (
+                <field.TextareaField
+                  label={m.correct_values_paste()}
+                  description={m.correct_values_paste_help()}
+                  rows={6}
+                />
+              )}
+            </form.AppField>
+          </FieldGroup>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                {m.simulations_cancel()}
+              </Button>
+            </DialogClose>
+            <form.SubmitButton
+              icon={<ClipboardPasteIcon aria-hidden="true" data-icon="inline-start" />}
+            >
+              {m.correct_values_paste_submit()}
+            </form.SubmitButton>
+          </DialogFooter>
+        </form.AppForm>
+      </form>
+    </FormDialog>
+  );
+}
+
+/** A dialog around a form: its title and description, focus back to the opener on close. */
+function FormDialog({
+  control,
+  title,
+  description,
+  onClose,
+  children,
+}: Readonly<{
+  control: DialogControl;
+  title: string;
+  description: string;
+  onClose: () => void;
+  children: ReactNode;
+}>) {
+  return (
+    <Dialog
+      open={control.open}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+        control.onOpenChange(open);
       }}
     >
-      <form.AppForm>
-        <h3 className="font-medium">{m.correct_values_paste_heading()}</h3>
-        <form.FormErrors />
-        <FieldGroup>
-          <form.AppField name="text">
-            {(field) => (
-              <field.TextareaField
-                label={m.correct_values_paste()}
-                description={m.correct_values_paste_help()}
-                rows={6}
-              />
-            )}
-          </form.AppField>
-        </FieldGroup>
-        <div>
-          <form.SubmitButton
-            icon={<ClipboardPasteIcon aria-hidden="true" data-icon="inline-start" />}
-          >
-            {m.correct_values_paste_submit()}
-          </form.SubmitButton>
-        </div>
-      </form.AppForm>
-    </form>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg"
+        onCloseAutoFocus={control.onCloseAutoFocus}
+      >
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        {children}
+      </DialogContent>
+    </Dialog>
   );
 }
 

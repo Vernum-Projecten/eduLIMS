@@ -10,7 +10,7 @@ import { createTestDb } from "../db/test-db.ts";
 import { joinLabWithCode } from "./join.ts";
 import { joinCodeKey, regenerateJoinCode } from "./join-code.ts";
 import { deleteLab } from "./labs.ts";
-import { auditRows, NOW, person, securityLines } from "./test-helpers.ts";
+import { auditRows, NOW, person, securityLines, setState } from "./test-helpers.ts";
 import {
   CLIENT_IP,
   codeOf,
@@ -82,9 +82,10 @@ describe("joinLabWithCode: joining (S10, #288)", () => {
     expect(places).toEqual([{ lab_id: w.labId }]);
   });
 
-  it("lets a student of another simulation join this one too (S10: one lab per simulation)", async () => {
+  it("lets a student whose other simulation is finished join this one too (S10, #379)", async () => {
     const database = await open();
     const w = await worldWithCode(database);
+    await setState(database, w.outsideSimulationId, "finished");
     const result = await joinLabWithCode(database, w.outsideStudent, { code: w.code }, context());
     expect(result.ok).toBe(true);
     expect(await labOf(database, w.simulationId, w.outsideStudent.id)).toEqual(

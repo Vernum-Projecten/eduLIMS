@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { DEMO_PRACTICALS, type DemoPractical } from "../../src/routes/dev/-practicals-demo";
+import { DEMO_LABS, type DemoLab } from "../../src/routes/dev/-labs-demo";
 import { expectHydrated, expectNoA11yViolations } from "./fixtures";
 
 // The chart foundation (#59), shown with fictional data on the development page /dev/charts.
@@ -29,7 +29,7 @@ function watchHydration(page: Page): string[] {
 }
 
 function chart(page: Page): Locator {
-  return page.getByRole("img", { name: /^Scatter plot of 14 fictional practicals/ });
+  return page.getByRole("img", { name: /^Scatter plot of 14 fictional labs/ });
 }
 
 /** The chart's tooltip: the polite status region the chart host shows beside a focused point. */
@@ -37,9 +37,9 @@ function tooltip(page: Page): Locator {
   return page.locator(".ts-chart-host").getByRole("status");
 }
 
-function practical(id: string): DemoPractical {
-  const found = DEMO_PRACTICALS.find((row) => row.id === id);
-  if (!found) throw new Error(`no demo practical ${id}`);
+function lab(id: string): DemoLab {
+  const found = DEMO_LABS.find((row) => row.id === id);
+  if (!found) throw new Error(`no demo lab ${id}`);
   return found;
 }
 
@@ -81,10 +81,14 @@ test("the example scatter plot renders server-side and hydrates without warnings
 
   await open(page);
   await expect(page).toHaveTitle("Chart examples · eduLIMS");
-  await expect(chart(page)).toHaveAccessibleDescription(/Each point is one practical/);
+  await expect(chart(page)).toHaveAccessibleDescription(/Each point is one lab/);
   const legend = page.getByRole("list", { name: "Legend" });
-  await expect(legend.getByRole("listitem")).toHaveText(["Year 1", "Year 2", "Year 3"]);
-  // One point per practical: circles for years 1 and 3, hexagons for year 2.
+  await expect(legend.getByRole("listitem")).toHaveText([
+    "Simulation 1",
+    "Simulation 2",
+    "Simulation 3",
+  ]);
+  // One point per lab: circles for simulations 1 and 3, hexagons for simulation 2.
   await expect(page.locator(".ts-chart__dot circle")).toHaveCount(9);
   await expect(page.locator(".ts-chart__hexagon path")).toHaveCount(5);
   await page.waitForTimeout(500);
@@ -96,7 +100,7 @@ test("hovering a point shows its typed row in the tooltip and the focus status (
   page,
 }) => {
   await open(page);
-  const row = practical("p04");
+  const row = lab("l04");
   // The chart's own hit layer sits above the painted point, so move the pointer to its centre.
   const point = await page.locator(`[data-ts-key$=":${row.id}"]`).boundingBox();
   if (!point) throw new Error(`point ${row.id} is not painted`);
@@ -104,13 +108,13 @@ test("hovering a point shows its typed row in the tooltip and the focus status (
 
   const tip = tooltip(page);
   await expect(tip).toBeVisible();
-  await expect(tip).toContainText(row.title);
+  await expect(tip).toContainText(row.name);
   await expect(tip).toContainText("35");
-  await expect(tip).toContainText("7.1");
+  await expect(tip).toContainText("41.7");
   await expect(tip).toContainText("38");
-  await expect(tip).toContainText("Year 1");
+  await expect(tip).toContainText("Simulation 1");
   await expect(page.getByRole("status").filter({ hasText: "Focused:" })).toHaveText(
-    "Focused: Protein assay on the Epoch 2, 35 submissions, average grade 7.1, class size 38, year 1.",
+    "Focused: Lab Dune, 35 released results, mean turnaround time 41.7 minutes, 38 requests, simulation 1.",
   );
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/tooltip.png`, fullPage: true });
 });
@@ -127,9 +131,9 @@ test("keyboard focus on the chart moves between points and shows the same toolti
   const status = page.getByRole("status").filter({ hasText: "Focused:" });
   await expect(status).toBeVisible();
   const text = (await status.textContent()) ?? "";
-  const focused = DEMO_PRACTICALS.find((row) => text.startsWith(`Focused: ${row.title},`));
+  const focused = DEMO_LABS.find((row) => text.startsWith(`Focused: ${row.name},`));
   expect(focused, text).toBeDefined();
-  await expect(tooltip(page)).toContainText(focused?.title ?? "");
+  await expect(tooltip(page)).toContainText(focused?.name ?? "");
 
   await page.keyboard.press("ArrowRight");
   await expect(status).not.toHaveText(text);
@@ -142,26 +146,26 @@ test("View as table shows the same values as the chart (#59)", async ({ page }) 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
 
-  const table = page.getByRole("table", { name: /Fictional practicals/ });
+  const table = page.getByRole("table", { name: /Fictional labs/ });
   await expect(table).toBeVisible();
   await expect(chart(page)).toBeHidden();
   await expect(table.getByRole("columnheader")).toHaveText([
-    "Practical",
-    "Submissions",
-    "Average grade",
-    "Class size",
-    "Academic year",
+    "Lab",
+    "Released results",
+    "Mean turnaround time (min)",
+    "Requests",
+    "Simulation",
   ]);
   const rows = table.getByRole("row");
-  await expect(rows).toHaveCount(DEMO_PRACTICALS.length + 1);
-  for (const [index, row] of DEMO_PRACTICALS.entries()) {
+  await expect(rows).toHaveCount(DEMO_LABS.length + 1);
+  for (const [index, row] of DEMO_LABS.entries()) {
     const line = rows.nth(index + 1);
-    await expect(line.getByRole("rowheader")).toHaveText(row.title);
+    await expect(line.getByRole("rowheader")).toHaveText(row.name);
     await expect(line.getByRole("cell")).toHaveText([
-      String(row.submissions),
-      row.averageGrade.toFixed(1),
-      String(row.classSize),
-      `Year ${row.academicYear}`,
+      String(row.released),
+      row.turnaround.toFixed(1),
+      String(row.requests),
+      `Simulation ${row.simulation}`,
     ]);
   }
   await expectNoA11yViolations(page);
@@ -212,7 +216,7 @@ test("the chart page reads in Dutch with Dutch number formats and stays axe-clea
   const toggle = page.getByRole("button", { name: dutch("chart_view_as_table") });
   await expectHydrated(toggle);
   await toggle.click();
-  const row = page.getByRole("row").filter({ hasText: practical("p04").title });
-  await expect(row.getByRole("cell").nth(1)).toHaveText("7,1");
+  const row = page.getByRole("row").filter({ hasText: lab("l04").name });
+  await expect(row.getByRole("cell").nth(1)).toHaveText("41,7");
   await expectNoA11yViolations(page);
 });

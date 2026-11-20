@@ -90,7 +90,7 @@ describe("formatSecurityLine (ASVS V16.2.4, V16.4.1)", () => {
 
 describe("logAuditEvent (B4, ASVS V16.2.5)", () => {
   it("logs an audit event with ids and codes only, never personal data", () => {
-    // A clock whose timestamp contains "7.5", the smuggled grade, as it did in a CI run.
+    // A clock whose timestamp contains "7.5", the smuggled correct value, as it did in a CI run.
     vi.useFakeTimers({ now: new Date("2026-11-11T22:32:37.550Z") });
     const lines = capture();
     // A crafted event that smuggles personal data beside the typed fields.
@@ -104,7 +104,7 @@ describe("logAuditEvent (B4, ASVS V16.2.5)", () => {
       name: "Test Student",
       email: "student@example.test",
       token: "secret-token",
-      grade: 7.5,
+      correctValue: 7.5,
     };
     const event: AuditEvent = {
       action: "authz_role_change",
@@ -132,7 +132,7 @@ describe("logAuditEvent (B4, ASVS V16.2.5)", () => {
     // The timestamp is left out: a time such as 22:32:37.550Z contains "7.5" by chance.
     const { time: _time, ...withoutTime } = line;
     expect(JSON.stringify(withoutTime)).not.toMatch(
-      /example\.test|Test (Admin|Student)|secret-token|7\.5|name|email/,
+      /example\.test|Test (Admin|Student)|secret-token|7\.5|correctValue|name|email/,
     );
   });
 

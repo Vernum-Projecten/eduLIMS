@@ -5,7 +5,8 @@
 // feeds their claims through the role mapping eduLIMS runs on every sign-in (ADR 0012, 0015);
 // tests/integration/sso-sign-in.test.ts signs the same users in for real.
 // The tokens come from the realm's test-only `edulims-test` client (password grant), never from
-// the app client. Skipped when that Keycloak or its test client is not reachable, as in CI;
+// the app client. Skipped when that Keycloak or its test client is not reachable, except with
+// EDULIMS_IT_REQUIRE_STACK=1 (the CI integration lane), where that fails the test.
 // EDULIMS_IT_KEYCLOAK_ISSUER points it at another realm URL than the dev stack's.
 import { beforeAll, describe, expect, it } from "vitest";
 import { type IdpRoles, parseRoleMap, resolveIdpRoles } from "../../src/server/idp-roles.ts";
@@ -13,6 +14,7 @@ import { type IdpRoles, parseRoleMap, resolveIdpRoles } from "../../src/server/i
 const ISSUER =
   process.env["EDULIMS_IT_KEYCLOAK_ISSUER"]?.trim() || "http://localhost:8180/realms/edulims";
 const CLIENT = { id: "edulims-test", secret: "edulims-test-secret" };
+const REQUIRED = process.env["EDULIMS_IT_REQUIRE_STACK"] === "1";
 
 /** The role map `pnpm db:seed` gives the dev Keycloak, and the group-path alternative. */
 const ROLE_MAP = parseRoleMap(
@@ -56,7 +58,7 @@ async function keycloakReady(): Promise<boolean> {
 }
 
 const ready = await keycloakReady();
-if (!ready) {
+if (!ready && !REQUIRED) {
   console.warn(
     `Keycloak role-mapping test skipped: no edulims-test client at ${ISSUER}. ` +
       "Recreate the Keycloak container to import the realm (pnpm dev:db:stop && pnpm dev:db).",
@@ -100,10 +102,12 @@ const CASES = [
   { user: "norole", via: "no eduLIMS role", realm: { kind: "none" }, groups: { kind: "none" } },
 ] as const satisfies readonly { user: string; via: string; realm: IdpRoles; groups: IdpRoles }[];
 
-describe.skipIf(!ready)("development Keycloak realm roles (ADR 0012)", () => {
+describe.skipIf(!ready && !REQUIRED)("development Keycloak realm roles (ADR 0012)", () => {
   const claims = new Map<string, Record<string, unknown>>();
 
   beforeAll(async () => {
+    if (!ready)
+      throw new Error(`EDULIMS_IT_REQUIRE_STACK=1 but no edulims-test client at ${ISSUER}`);
     for (const { user } of CASES) {
       const payload = await idTokenClaims(user);
       if (!payload) throw new Error(`Keycloak refused the password grant for ${user}`);

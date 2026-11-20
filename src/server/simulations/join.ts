@@ -24,6 +24,7 @@ import {
   overLimit,
   refundAttempt,
 } from "./join-limits.ts";
+import { inOtherActiveSimulation } from "./one-simulation.ts";
 import { wasRemoved } from "./removals.ts";
 import { dropWaitingAddressesOf } from "./waiting.ts";
 
@@ -38,7 +39,8 @@ export interface JoinOutcome {
 
 /**
  * Why a code did not work, for the activity log only: the student sees `invalid_code` for every
- * one but `in_other_lab`, which only a working code reaches.
+ * one but `in_other_lab`, `in_other_simulation` and `simulation_finished`, which only a working
+ * code reaches.
  */
 export type JoinFailure =
   | "malformed_code"
@@ -47,7 +49,9 @@ export type JoinFailure =
   | "code_used_up"
   | "lab_deleted"
   | "removed"
-  | "in_other_lab";
+  | "in_other_lab"
+  | "in_other_simulation"
+  | "simulation_finished";
 
 /** What a join needs besides the code: the clock, the client IP, the key and the limits. */
 export interface JoinContext {
@@ -125,7 +129,12 @@ async function lockedAttempt(
     const lab = await trx
       .selectFrom("labs")
       .innerJoin("simulations", "simulations.id", "labs.simulation_id")
-      .select(["labs.name", "simulations.id as simulation_id", "simulations.name as simulation"])
+      .select([
+        "labs.name",
+        "simulations.id as simulation_id",
+        "simulations.name as simulation",
+        "simulations.state",
+      ])
       .where("labs.id", "=", labId)
       .forShare("simulations")
       .executeTakeFirst();
@@ -154,6 +163,8 @@ async function lockedAttempt(
     }
     if (row.code_hash !== codeHash) return fail("unknown_code");
     if (row.expires_at <= ctx.now) return fail("code_expired");
+    // NOTE: maintainer on the review of #392 (N2); a finished simulation takes no new student.
+    if (lab.state === "finished") return fail("simulation_finished");
     if (await wasRemoved(trx, lab.simulation_id, actor.id)) return fail("removed");
     const outcome = {
       labId,
@@ -175,6 +186,10 @@ async function lockedAttempt(
     const place = await placeOf();
     // NOTE: #49; an existing member costs no use and is told so, even after the uses ran out.
     if (place) return settled(place);
+    // NOTE: #379 (owner, 2026-11-20); one simulation at a time, decided under the student's lock.
+    if (await inOtherActiveSimulation(trx, actor.id, lab.simulation_id)) {
+      return fail("in_other_simulation");
+    }
     if (row.uses >= row.max_uses) return fail("code_used_up");
     const inserted = await trx
       .insertInto("lab_members")
@@ -285,8 +300,11 @@ function onlyStudent(actor: SimulationActor): boolean {
  * exactly {student} is `not_a_student`. Every attempt is charged first: a student over their
  * limit is `rate_limited` without a lookup; an address over its limit still joins with a valid
  * code (owner decision on the review of #119) and is `rate_limited` otherwise. A student in
- * another lab of the simulation is `in_other_lab`. Every other code that does not work is
- * `invalid_code`, logged with its real reason. A join and `in_other_lab` refund the charge.
+ * another lab of the simulation is `in_other_lab`, and a student in a lab of another prepared or
+ * running simulation is `in_other_simulation` (#379); a lab of a finished simulation is
+ * `simulation_finished` (review of #392). Every other code that does not work is
+ * `invalid_code`, logged with its real reason. A join and these three refusals refund the
+ * charge.
  */
 export async function joinLabWithCode(
   db: Kysely<DB>,
@@ -316,13 +334,18 @@ export async function joinLabWithCode(
     await refund(db, charges, ctx);
     return done(result.value);
   }
-  if (result.reason === "in_other_lab") {
-    // NOTE: S10 (#288); the code worked, so the attempt is no guess and costs nothing.
+  if (
+    result.reason === "in_other_lab" ||
+    result.reason === "in_other_simulation" ||
+    result.reason === "simulation_finished"
+  ) {
+    // NOTE: S10 (#288, #379); the code worked, so the attempt is no guess and costs nothing.
     await refund(db, charges, ctx);
-    if (await firstInWindow(db, `in_other_lab:${actor.id}:${result.labId ?? ""}`, ctx)) {
+    const seen = `${result.reason}:${actor.id}:${result.labId ?? ""}`;
+    if (await firstInWindow(db, seen, ctx)) {
       await recordAudit(db, failedJoin(actor, "refused", result.reason, result));
     }
-    return refused("in_other_lab");
+    return refused(result.reason);
   }
   await recordAudit(db, failedJoin(actor, "failure", result.reason, result));
   await logLimitReached(db, actor, charges, ctx.limits);

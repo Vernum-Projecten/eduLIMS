@@ -4,7 +4,8 @@
 // A real OIDC sign-in through the development Keycloak lands on the user SCIM provisioned
 // (#45, ADR 0017): the sso plugin's `resolveUser` links on the directory externalId (here the
 // Keycloak subject, the account key), never on email, and a user the directory deactivated is
-// refused with `account_deprovisioned`. Skipped when that Keycloak is not reachable (CI).
+// refused with `account_deprovisioned`. Skipped when that Keycloak is not reachable, except with
+// EDULIMS_IT_REQUIRE_STACK=1 (the CI integration lane), where that fails the test.
 import type { Kysely } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Auth } from "../../src/server/auth.ts";
@@ -20,14 +21,16 @@ import { CookieJar, keycloakLogin, keycloakReachable } from "./sso-flow.ts";
 
 const BASE = "http://localhost:3000";
 const REALM = process.env["EDULIMS_IT_KEYCLOAK_REALM"]?.trim() || devKeycloakRealm();
+const REQUIRED = process.env["EDULIMS_IT_REQUIRE_STACK"] === "1";
 const ready = await keycloakReachable(REALM);
 
-describe.skipIf(!ready)("SSO sign-in of a SCIM-provisioned user (#45)", () => {
+describe.skipIf(!ready && !REQUIRED)("SSO sign-in of a SCIM-provisioned user (#45)", () => {
   let db: Kysely<DB>;
   let auth: Auth;
   let token: string;
 
   beforeAll(async () => {
+    if (!ready) throw new Error(`EDULIMS_IT_REQUIRE_STACK=1 but no Keycloak realm at ${REALM}`);
     db = await createTestDb();
     const env = parseEnv({
       ...VALID_ENV,

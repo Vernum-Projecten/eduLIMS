@@ -782,8 +782,10 @@ jobs:
   # ── 7. The integration lane ─────────────────────────────────────────────────
 
   # Whether a change touches what the integration lane proves: the openEHR
-  # client, the integration check, the upload, the Compose stack and its
-  # configuration, or the lane itself (#150). A pull request and a merge group
+  # client, the integration check, the upload, the write of a released result,
+  # the identity providers, SCIM and the better-auth setup the Keycloak tests
+  # sign in through, the Compose stack and its configuration, or the lane
+  # itself (#150). A pull request and a merge group
   # compare with their base; a push to main and a manual run always run it.
   # integration.yml also runs nightly on main.
   integration-paths:
@@ -821,7 +823,7 @@ jobs:
             exit 1
           fi
           changed="$(git diff --name-only "$base" HEAD)"
-          pattern='^(src/server/openehr/|src/server/integrations/|src/server/upload/|compose[^/]*\.yaml$|docker/|config/|tests/integration/(ferro-stack|patient-ehr)\.test\.ts$|src/server/lab-records/patient-ehr\.ts$|scripts/dev/ferroehr-auth-check\.sh$|\.github/workflows/(ci|integration)\.yml$)'
+          pattern='^(src/server/openehr/|src/server/integrations/|src/server/upload/|src/server/results/ehr-write[^/]*\.ts$|src/server/idp/|src/server/scim/|src/server/(auth|test-auth|env|idp-roles|idp-sync|role-guard|role-ownership|session-policy|cookie-security)\.ts$|src/server/db/seed-providers\.ts$|compose[^/]*\.yaml$|docker/|config/|tests/integration/(ferro-stack|patient-ehr|lab-result-composition|keycloak-roles|sso-sign-in|scim-sign-in)\.test\.ts$|tests/integration/sso-flow\.ts$|src/server/lab-records/patient-ehr\.ts$|scripts/dev/ferroehr-auth-check\.sh$|\.github/workflows/(ci|integration)\.yml$)'
           if grep -Eq "$pattern" <<<"$changed"; then
             echo "run=true" >> "$GITHUB_OUTPUT"
             echo "the change touches the integration lane's inputs:"

@@ -3,8 +3,9 @@
 
 // The email list of a lab (D10: "adds the members of a lab by pasting their email addresses").
 // A pasted list is classified per line before anything is stored; only `new` lines are stored,
-// as addresses that wait until the student signs in (S10). No line says whether an account
-// exists: an address outside the simulation is `new` whether or not someone uses it.
+// as addresses that wait until the student signs in (S10). An address outside the simulation is
+// `new` whether or not someone uses it, except the verified address of a student in another
+// prepared or running simulation, which is `in_other_simulation` (owner, 2026-11-20 on #379).
 import "@tanstack/react-start/server-only";
 import type { Kysely } from "kysely";
 import { z } from "zod";
@@ -21,6 +22,7 @@ export const EMAIL_LINE_STATUSES = [
   "repeated",
   "in_this_lab",
   "in_other_lab",
+  "in_other_simulation",
 ] as const;
 export type EmailLineStatus = (typeof EMAIL_LINE_STATUSES)[number];
 
@@ -44,7 +46,8 @@ const address = z.email();
 /**
  * Classifies the lines of a list against the simulation of `labId`, read inside the caller's
  * transaction: invalid, repeated, already in this lab (a member or waiting), in another lab of
- * the simulation (a member or waiting there), or new.
+ * the simulation (a member or waiting there), the verified address of a student in a lab of
+ * another prepared or running simulation (#379), or new.
  */
 export async function classifyEmails(
   trx: Kysely<DB>,
@@ -52,21 +55,19 @@ export async function classifyEmails(
   labId: string,
   lines: readonly string[],
 ): Promise<EmailLine[]> {
+  // NOTE: review of #392 (N3); better-auth stores every address in lower case (its internal
+  // adapter on create and update, SCIM included), so `user.email` compares as is, on its index.
   const normalized = lines.map(normalizeEmail);
   const valid = [...new Set(normalized.filter((email) => address.safeParse(email).success))];
-  const [members, waiting] = valid.length
+  const [members, waiting, active] = valid.length
     ? await Promise.all([
         trx
           .selectFrom("lab_members")
           .innerJoin("user", "user.id", "lab_members.user_id")
           .innerJoin("labs", "labs.id", "lab_members.lab_id")
-          .select((eb) => [
-            eb.fn<string>("lower", ["user.email"]).as("email"),
-            "labs.id as lab_id",
-            "labs.name as lab_name",
-          ])
+          .select(["user.email", "labs.id as lab_id", "labs.name as lab_name"])
           .where("lab_members.simulation_id", "=", simulationId)
-          .where((eb) => eb(eb.fn("lower", ["user.email"]), "in", valid))
+          .where("user.email", "in", valid)
           .execute(),
         trx
           .selectFrom("lab_member_emails")
@@ -75,19 +76,32 @@ export async function classifyEmails(
           .where("lab_member_emails.simulation_id", "=", simulationId)
           .where("lab_member_emails.email", "in", valid)
           .execute(),
+        // NOTE: #379 (owner, 2026-11-20); a verified address only, as only such an address links,
+        // and the line names no other simulation, lab or teacher.
+        trx
+          .selectFrom("lab_members")
+          .innerJoin("user", "user.id", "lab_members.user_id")
+          .innerJoin("simulations", "simulations.id", "lab_members.simulation_id")
+          .select("user.email")
+          .where("lab_members.simulation_id", "<>", simulationId)
+          .where("simulations.state", "<>", "finished")
+          .where("user.emailVerified", "=", true)
+          .where("user.email", "in", valid)
+          .execute(),
       ])
-    : [[], []];
+    : [[], [], []];
   const placeOf = new Map<string, { id: string; name: string }>();
   for (const row of [...members, ...waiting]) {
     placeOf.set(row.email, { id: row.lab_id, name: row.lab_name });
   }
+  const elsewhere = new Set(active.map((row) => row.email));
   const seen = new Set<string>();
   return normalized.map((email): EmailLine => {
     if (!address.safeParse(email).success) return { email, status: "invalid" };
     if (seen.has(email)) return { email, status: "repeated" };
     seen.add(email);
     const place = placeOf.get(email);
-    if (!place) return { email, status: "new" };
+    if (!place) return { email, status: elsewhere.has(email) ? "in_other_simulation" : "new" };
     if (place.id === labId) return { email, status: "in_this_lab" };
     return { email, status: "in_other_lab", otherLab: place };
   });
@@ -113,6 +127,7 @@ export function previewEmails(
  * Stores every `new` line of a list as an address waiting in a lab the actor teaches, in one
  * transaction with one `lab_emails_added` row that carries the count, never an address. A new
  * address clears the removal record of its account, so the teacher lets a removed student back.
+ * Lines refused as `in_other_simulation` get a second, refused row with their count (#379).
  */
 export function addEmails(
   db: Kysely<DB>,
@@ -145,6 +160,17 @@ export function addEmails(
       target: { type: "lab", id: lab.labId },
       metadata: { simulation_id: lab.simulationId, count: fresh.length },
     });
+    const elsewhere = lines.filter((line) => line.status === "in_other_simulation").length;
+    if (elsewhere > 0) {
+      await recordAudit(trx, {
+        action: "lab_emails_added",
+        actor: { type: "user", id: actor.id },
+        outcome: "refused",
+        reason: "in_other_simulation",
+        target: { type: "lab", id: lab.labId },
+        metadata: { simulation_id: lab.simulationId, count: elsewhere },
+      });
+    }
     return done({ added: fresh.length, lines });
   });
 }

@@ -13,7 +13,8 @@ import { keyringOf } from "../../src/server/idp/crypto.ts";
 // the admin service registers the development Keycloak (docker/keycloak/edulims-realm.json) as
 // `keycloak` (OIDC) and `keycloak-saml` (SAML), then each realm user signs in through eduLIMS's
 // own better-auth handler and the stored role set or the refusal is checked. Skipped when that
-// Keycloak is not reachable (CI); EDULIMS_IT_KEYCLOAK_REALM points it at another realm URL.
+// Keycloak is not reachable, except with EDULIMS_IT_REQUIRE_STACK=1 (the CI integration lane),
+// where that fails the test; EDULIMS_IT_KEYCLOAK_REALM points it at another realm URL.
 import { createTestAuth } from "../../src/server/test-auth.ts";
 import { VALID_ENV } from "../../src/server/test-env.ts";
 import {
@@ -26,9 +27,10 @@ import {
 
 const BASE = "http://localhost:3000";
 const REALM = process.env["EDULIMS_IT_KEYCLOAK_REALM"]?.trim() || devKeycloakRealm();
+const REQUIRED = process.env["EDULIMS_IT_REQUIRE_STACK"] === "1";
 
 const ready = await keycloakReachable(REALM);
-if (!ready) {
+if (!ready && !REQUIRED) {
   console.warn(
     `SSO sign-in test skipped: no Keycloak realm at ${REALM}. ` +
       "Start it with pnpm dev:db (recreate the container to import the realm).",
@@ -42,11 +44,12 @@ interface Outcome {
   signedIn: boolean;
 }
 
-describe.skipIf(!ready)("SSO sign-in through runtime providers (ADR 0015)", () => {
+describe.skipIf(!ready && !REQUIRED)("SSO sign-in through runtime providers (ADR 0015)", () => {
   let db: Kysely<DB>;
   let auth: Auth;
 
   beforeAll(async () => {
+    if (!ready) throw new Error(`EDULIMS_IT_REQUIRE_STACK=1 but no Keycloak realm at ${REALM}`);
     db = await createTestDb();
     // The realm may run on another port (EDULIMS_DEV_KEYCLOAK_PORT): allow exactly its origin.
     const env = parseEnv({

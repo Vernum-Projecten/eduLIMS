@@ -19,6 +19,7 @@ function serverFunctions(source: string): [string, string][] {
 const ROLE_OF: Record<string, "teacher" | "student" | "admin"> = {
   listMySimulations: "teacher",
   getSimulationPage: "teacher",
+  getSimulationReadinessFn: "teacher",
   getLabPage: "teacher",
   createSimulationFn: "teacher",
   renameSimulationFn: "teacher",
@@ -42,21 +43,22 @@ const ROLE_OF: Record<string, "teacher" | "student" | "admin"> = {
   uploadLabLogoFn: "teacher",
   removeLabLogoFn: "teacher",
   joinLabFn: "student",
-  getMyLabs: "student",
+  getMyLab: "student",
   linkMyLabsFn: "student",
   listAdminSimulationsFn: "admin",
   getAdminSimulationFn: "admin",
 };
 
 /** The functions that take no input: they read the session user's own rows only. */
-const NO_INPUT = new Set(["listMySimulations", "getMyLabs", "linkMyLabsFn"]);
+const NO_INPUT = new Set(["listMySimulations", "getMyLab", "linkMyLabsFn"]);
 
 const READS = new Set([
   "listMySimulations",
   "getSimulationPage",
+  "getSimulationReadinessFn",
   "getLabPage",
   "getJoinCodeFn",
-  "getMyLabs",
+  "getMyLab",
   "listAdminSimulationsFn",
   "getAdminSimulationFn",
 ]);

@@ -1,13 +1,15 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The lab code and the student's labs (S10, #290): a teacher turns a lab's code on and sees it
-// once, a student joins with it, a wrong code and a code of another lab of the simulation are
-// refused at the field, the rate limit stops a guesser, the use count and a new code, the code
-// turned off, and a student whose address waits lands in the lab from the overview. Axe in light,
-// dark and Dutch, and reflow at 320 px. One journey: each step uses the labs the first step made.
+// The lab code and the student's lab (S10, #290): a teacher turns a lab's code on and sees it
+// once, a student joins with it, a wrong code is refused at the field, the join form gives way to
+// one sentence while the student's simulation is unfinished (#379), the rate limit stops a
+// guesser, the use count and a new code, the code turned off, and a student whose address waits
+// lands in the lab from the overview. Axe in light, dark and Dutch, and reflow at 320 px. One
+// journey: each step uses the labs the first step made.
 import { randomBytes } from "node:crypto";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { copyAccount } from "./accounts";
 import { axe, dutch, failServerWrites } from "./admin-users-helpers";
 import { devLogin, expectHydrated } from "./fixtures";
 import { appUrl } from "./run-env";
@@ -25,11 +27,12 @@ const BETA = `Beta ${ID}`;
 const CODE = /^[2-9A-HJKMNP-Z]{5}-[2-9A-HJKMNP-Z]{5}$/;
 /** A code of the right shape that no lab has (the odds of a match are about 1 in 10^15). */
 const WRONG = "ZZZZZ-ZZZZ2";
+/** The sentence that stands in for the join form while the student's simulation is unfinished. */
+const UNAVAILABLE = "You can join another lab once your current simulation is finished.";
 
 let alphaUrl = "";
 let betaUrl = "";
 let alphaCode = "";
-let betaCode = "";
 
 async function preferences(context: BrowserContext, theme: "light" | "dark", locale: "en" | "nl") {
   await context.addCookies([
@@ -83,6 +86,15 @@ async function createLab(page: Page, name: string): Promise<string> {
   return href;
 }
 
+/** Opens the simulation's Labs page from its navigation (#381). */
+async function labsPage(page: Page): Promise<void> {
+  await page
+    .getByRole("navigation", { name: `Pages of ${SIMULATION}` })
+    .getByRole("link", { name: "Labs", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1, name: "Labs" })).toBeVisible();
+}
+
 async function openLab(page: Page, url: string, name: string): Promise<void> {
   await page.goto(url);
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
@@ -100,7 +112,8 @@ test("a teacher turns a lab's code on and sees it once (S10, #290)", async ({ pa
   const dialog = page.getByRole("dialog", { name: "Create a simulation" });
   await dialog.getByLabel("Name").fill(SIMULATION);
   await dialog.getByRole("button", { name: "Create simulation" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: SIMULATION })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+  await labsPage(page);
   alphaUrl = await createLab(page, ALPHA);
   betaUrl = await createLab(page, BETA);
 
@@ -144,8 +157,7 @@ test("a teacher turns a lab's code on and sees it once (S10, #290)", async ({ pa
   await axe(page);
 
   // Leaving the page within the app and coming back: the state shows, the code does not.
-  await page.getByRole("link", { name: `Back to ${SIMULATION}` }).click();
-  await expect(page.getByRole("heading", { level: 1, name: SIMULATION })).toBeVisible();
+  await labsPage(page);
   await page.getByRole("link", { name: ALPHA, exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: ALPHA })).toBeVisible();
   await expect(panel.getByText(/^On until /)).toBeVisible();
@@ -157,11 +169,6 @@ test("a teacher turns a lab's code on and sees it once (S10, #290)", async ({ pa
   await expect(panel.getByText(/^On until /)).toBeVisible();
   await expect(panel.getByText(CODE)).toHaveCount(0);
   await expect(panel.getByText(/showed the code once, when it was made/)).toBeVisible();
-
-  // Beta gets a code of its own, for the refusal of a second lab in one simulation.
-  await openLab(page, betaUrl, BETA);
-  betaCode = await turnOn(page);
-  expect(betaCode).toMatch(CODE);
 });
 
 test("a student joins with the code; a wrong code is refused at the field (S10)", async ({
@@ -169,7 +176,7 @@ test("a student joins with the code; a wrong code is refused at the field (S10)"
 }) => {
   expect(alphaCode).toMatch(CODE);
   const form = await joinForm(page, STUDENT);
-  const labs = page.getByRole("region", { name: "Your labs" });
+  const labs = page.getByRole("region", { name: "Your lab" });
   await expect(labs.getByText(ALPHA, { exact: true })).toHaveCount(0);
   await axe(page);
 
@@ -207,33 +214,30 @@ test("a student joins with the code; a wrong code is refused at the field (S10)"
   await expect(page.getByText(`You joined lab ${ALPHA} of ${SIMULATION}.`)).toBeVisible();
   await expect(labs.getByText(ALPHA, { exact: true })).toBeVisible();
   await expect(labs.getByText(`Simulation: ${SIMULATION}`, { exact: true })).toBeVisible();
-  await expect(field).toHaveValue("");
-
-  await field.fill(alphaCode);
-  await send(page, field);
-  await expect(page.getByText(`You are already in lab ${ALPHA} of ${SIMULATION}.`)).toBeVisible();
+  // In an unfinished simulation now, so the form gives way to one sentence (#379).
+  await expect(form).toHaveCount(0);
+  await expect(page.getByText(UNAVAILABLE, { exact: true })).toBeVisible();
 });
 
-test("a code of another lab of the same simulation is refused at the field (S10, #288)", async ({
+test("a student in an unfinished simulation gets no join form, and one sentence says why (S10, #379)", async ({
   page,
 }) => {
-  expect(betaCode).toMatch(CODE);
-  const form = await joinForm(page, STUDENT);
-  const field = form.getByLabel("Lab code");
-  await field.fill(betaCode);
-  await send(page, field);
-  await expect(form.getByText("You are already in another lab of this simulation.")).toBeVisible();
-  await expect(field).toHaveAttribute("aria-invalid", "true");
-  const labs = page.getByRole("region", { name: "Your labs" });
-  await expect(labs.getByText(BETA, { exact: true })).toHaveCount(0);
+  await devLogin(page, STUDENT);
+  await expect(page).toHaveURL(/\/student$/);
+  const labs = page.getByRole("region", { name: "Your lab" });
   await expect(labs.getByText(ALPHA, { exact: true })).toBeVisible();
+  const join = page.getByRole("region", { name: "Join a lab with a code" });
+  await expect(join.getByText(UNAVAILABLE, { exact: true })).toBeVisible();
+  await expect(page.getByRole("form", { name: "Join a lab with a code" })).toHaveCount(0);
+  await expect(page.getByLabel("Lab code")).toHaveCount(0);
+  await axe(page);
 });
 
 test("the rate limit stops a student who guesses (S10, ASVS V2.4.1)", async ({ page }) => {
   expect(alphaCode).toMatch(CODE);
   const form = await joinForm(page, GUESSER);
   // The guesser is in no lab: the empty state says how a student gets into one.
-  const labs = page.getByRole("region", { name: "Your labs" });
+  const labs = page.getByRole("region", { name: "Your lab" });
   await expect(labs.getByText("You are not in a lab yet", { exact: true })).toBeVisible();
   await expect(labs.getByText(/adds your email address to a lab/)).toBeVisible();
   await expect(labs.getByRole("listitem")).toHaveCount(0);
@@ -300,7 +304,8 @@ test("the teacher sees the join counted and makes a new code (S10, #290)", async
   const old = alphaCode;
   alphaCode = fresh;
   await context.clearCookies();
-  const form = await joinForm(page, STUDENT);
+  const newcomer = await copyAccount("student@example.test", "labcode-fresh");
+  const form = await joinForm(page, newcomer.email);
   const field = form.getByLabel("Lab code");
   await field.fill(old);
   await send(page, field);
@@ -335,6 +340,16 @@ for (const theme of ["light", "dark"] as const) {
         .getByRole("region", { name: dutch("student_labs_heading") })
         .getByText(ALPHA, { exact: true }),
     ).toBeVisible();
+    await expect(page.getByText(dutch("labs_join_unavailable"), { exact: true })).toBeVisible();
+    await axe(page);
+
+    // A student in no lab gets the form, in Dutch.
+    await context.clearCookies();
+    const fresh = await copyAccount("student@example.test", "labcode-fresh");
+    await devLogin(page, fresh.email);
+    await preferences(context, theme, "nl");
+    await page.goto("/student");
+    await expect(page.locator("html")).toHaveAttribute("lang", "nl");
     const form = page.getByRole("form", { name: dutch("labs_join_heading") });
     await expectHydrated(form.getByLabel(dutch("labs_join_field")));
     await form.getByRole("button", { name: dutch("labs_join_submit") }).click();
@@ -353,7 +368,7 @@ test("the overview and the lab page reflow at 320 px without horizontal scrollin
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
   await devLogin(page, STUDENT);
-  await expect(page.getByRole("region", { name: "Your labs" }).getByText(ALPHA)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Your lab" }).getByText(ALPHA)).toBeVisible();
   expect(await overflow()).toBeLessThanOrEqual(0);
   await context.clearCookies();
   await devLogin(page, TEACHER);
@@ -379,7 +394,8 @@ test("the teacher turns the code off and it stops working (S10)", async ({ page,
   await expect(panel.getByRole("form", { name: "Turn on the lab code" })).toBeVisible();
 
   await context.clearCookies();
-  const form = await joinForm(page, STUDENT);
+  const fresh = await copyAccount("student@example.test", "labcode-fresh");
+  const form = await joinForm(page, fresh.email);
   const field = form.getByLabel("Lab code");
   await field.fill(alphaCode);
   await send(page, field);
@@ -398,7 +414,7 @@ test("a signed-in student whose address a teacher adds lands in the lab from the
   await devLogin(student, WAITING);
   await expect(student).toHaveURL(/\/student$/);
   await expect(
-    student.getByRole("region", { name: "Your labs" }).getByText(BETA, { exact: true }),
+    student.getByRole("region", { name: "Your lab" }).getByText(BETA, { exact: true }),
   ).toHaveCount(0);
 
   // The teacher adds the address to Beta.
@@ -414,7 +430,7 @@ test("a signed-in student whose address a teacher adds lands in the lab from the
 
   // Opening the overview again links the address, with no second sign-in (S10).
   await student.goto("/student");
-  const labs = student.getByRole("region", { name: "Your labs" });
+  const labs = student.getByRole("region", { name: "Your lab" });
   await expect(labs.getByText(BETA, { exact: true })).toBeVisible();
   await expect(student.getByText(`You were added to lab ${BETA} of ${SIMULATION}.`)).toBeVisible();
   await studentContext.close();

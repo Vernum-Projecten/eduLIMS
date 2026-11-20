@@ -18,6 +18,7 @@ import {
   regenerateJoinCode,
 } from "./join-code.ts";
 import { deleteLab } from "./labs.ts";
+import { getTeacherSimulation } from "./queries.ts";
 import { teacherWriteRefusals } from "./test-access.ts";
 import { auditRows, NOW, notFoundLine, securityLines, type World, world } from "./test-helpers.ts";
 import { codeOf, DAY, key } from "./test-join.ts";
@@ -287,6 +288,7 @@ describe("getJoinCode (#288, D11)", () => {
     const { database, w } = await open();
     expect(await getJoinCode(database, w.teacher, w.labId, NOW, key.fingerprint)).toEqual({
       enabled: false,
+      finished: false,
     });
   });
 
@@ -358,5 +360,38 @@ describe("getJoinCode (#288, D11)", () => {
     await expect(
       getJoinCode(database, actorOf(w), w.labId, NOW, key.fingerprint),
     ).rejects.toBeInstanceOf(AuthError);
+  });
+});
+
+describe("the join code in the simulation's list of labs (#381)", () => {
+  async function stateAt(database: Kysely<DB>, w: World, now: Date) {
+    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId, now);
+    return page?.labs.find((lab) => lab.id === w.labId)?.joinCode;
+  }
+
+  it("is off without a code", async () => {
+    const { database, w } = await open();
+    expect(await stateAt(database, w, NOW)).toBe("off");
+  });
+
+  it("is on while the code works, and ended from the moment it expires", async () => {
+    const { database, w } = await open();
+    await codeOf(database, w.teacher, w.labId);
+    const expiresAt = (await storedCode(database, w.labId))?.expires_at;
+    if (!expiresAt) throw new Error("no code");
+    expect(await stateAt(database, w, NOW)).toBe("on");
+    expect(await stateAt(database, w, new Date(expiresAt.getTime() - 1))).toBe("on");
+    expect(await stateAt(database, w, expiresAt)).toBe("ended");
+  });
+
+  it("is ended once its joins are used up", async () => {
+    const { database, w } = await open();
+    await codeOf(database, w.teacher, w.labId);
+    await database
+      .updateTable("lab_join_codes")
+      .set((eb) => ({ uses: eb.ref("max_uses") }))
+      .where("lab_id", "=", w.labId)
+      .execute();
+    expect(await stateAt(database, w, NOW)).toBe("ended");
   });
 });

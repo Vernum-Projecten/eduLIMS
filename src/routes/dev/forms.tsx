@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { RubricEditor } from "@/components/dev-forms/rubric-editor";
+import { RequestEditor } from "@/components/dev-forms/request-editor";
 import { SessionForm } from "@/components/dev-forms/session-form";
 import { Page } from "@/components/shell/page-header";
 import { PublicLayout } from "@/components/shell/public-layout";
@@ -18,20 +18,20 @@ export const Route = createFileRoute("/dev/forms")({
   component: DevForms,
 });
 
-const RUBRIC_HEADING = "rubric-heading";
+const REQUEST_HEADING = "request-heading";
 const SESSION_HEADING = "session-heading";
 
-/** The form foundation (#61) on fictional data: the rubric editor and every field kind. */
+/** The form foundation (#61) on fictional data: the request editor and every field kind. */
 function DevForms() {
   const { user } = Route.useRouteContext();
   return (
     <PublicLayout signedIn={user !== null}>
       <Page title={m.dev_forms_title()} description={m.dev_forms_intro()}>
-        <section aria-labelledby={RUBRIC_HEADING} className="flex flex-col gap-4">
-          <h2 id={RUBRIC_HEADING} className="text-xl font-semibold tracking-tight">
-            {m.dev_forms_rubric_heading()}
+        <section aria-labelledby={REQUEST_HEADING} className="flex flex-col gap-4">
+          <h2 id={REQUEST_HEADING} className="text-xl font-semibold tracking-tight">
+            {m.dev_forms_request_heading()}
           </h2>
-          <RubricEditor headingId={RUBRIC_HEADING} />
+          <RequestEditor headingId={REQUEST_HEADING} />
         </section>
         <section aria-labelledby={SESSION_HEADING} className="flex flex-col gap-4">
           <h2 id={SESSION_HEADING} className="text-xl font-semibold tracking-tight">

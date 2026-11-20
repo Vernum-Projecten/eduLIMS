@@ -73,8 +73,8 @@ describe("previewEmails (D10: the pasted list, per line)", () => {
           status: "in_other_lab",
           otherLab: { id: w.otherLabId, name: "Blue Cuvettes" },
         },
-        // A student of another simulation is new here: nothing tells their account apart.
-        { email: "outside-student@example.test", status: "new" },
+        // A student of another unfinished simulation is refused, naming nothing of it (#379).
+        { email: "outside-student@example.test", status: "in_other_simulation" },
       ],
     });
     expect(await waiting(database, w.labId)).toEqual(["waits.here@example.test"]);

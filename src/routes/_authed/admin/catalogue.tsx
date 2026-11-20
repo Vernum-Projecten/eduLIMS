@@ -8,7 +8,7 @@ import { CatalogueTable } from "@/components/catalogue/catalogue-table";
 import { CatalogueMaterialsContext } from "@/components/catalogue/materials-context";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { portalPageTitle } from "@/components/portal/portal-pages";
-import { Page } from "@/components/shell/page-header";
+import { PageFrame } from "@/components/shell/page-frame";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { m } from "@/i18n/messages";
 import { portalNavigation, sectionOf } from "@/lib/navigation";
@@ -38,13 +38,12 @@ const NO_MATERIALS: readonly string[] = [];
 
 function CataloguePendingPage() {
   return (
-    <Page
+    <PageFrame
       title={sectionOf("admin", "catalogue").label()}
-      description={<p>{m.catalogue_page_description()}</p>}
-      fill
+      description={m.catalogue_page_description()}
     >
       <DataTableSkeleton rows={3} />
-    </Page>
+    </PageFrame>
   );
 }
 
@@ -58,11 +57,10 @@ function CataloguePage() {
 
   return (
     <CatalogueMaterialsContext value={tests.data?.materials ?? NO_MATERIALS}>
-      <Page
+      <PageFrame
         title={sectionOf("admin", "catalogue").label()}
-        description={<p>{m.catalogue_page_description()}</p>}
-        actions={<AddTest />}
-        fill
+        description={m.catalogue_page_description()}
+        action={<AddTest />}
       >
         {tests.data ? (
           <CatalogueTable
@@ -73,7 +71,7 @@ function CataloguePage() {
         ) : (
           <DataTableSkeleton rows={3} />
         )}
-      </Page>
+      </PageFrame>
     </CatalogueMaterialsContext>
   );
 }

@@ -15,11 +15,13 @@ message: "If you use this software, please cite it using the metadata from this 
 type: software
 title: "eduLIMS"
 abstract: >-
-  An open-source laboratory information management system (LIMS) for
-  practical laboratory education. Students register samples, upload and check
-  measurements and submit lab reports; teachers grade with a rubric and follow
-  a KPI dashboard. Measurement data is stored as openEHR compositions in
-  FerroEHR.
+  An open-source laboratory information management system (LIMS) for a
+  workplace simulation in laboratory education. Teams of students each run a
+  simulated clinical laboratory: they register patients and requests from
+  paper request forms, measure the samples on the analysers and release the
+  results, and the labs compete on turnaround time and accuracy. Teachers
+  prepare the simulations and follow every lab on a live dashboard. Released
+  results are stored as openEHR compositions in FerroEHR.
 authors:
   - family-names: Talstra
     given-names: Ruben
@@ -31,7 +33,7 @@ keywords:
   - LIMS
   - laboratory information management system
   - laboratory education
-  - practical education
+  - workplace simulation
   - sample management
   - openEHR
   - HL7 v2

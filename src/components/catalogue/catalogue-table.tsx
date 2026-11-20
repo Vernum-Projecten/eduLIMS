@@ -151,7 +151,7 @@ export function CatalogueTable({
   const pages = Math.max(1, table.getPageCount());
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <DataTableToolbar
         table={table}
         search={{
@@ -193,7 +193,6 @@ export function CatalogueTable({
         table={table}
         caption={caption(search, state.pagination.pageIndex + 1, pages)}
         busy={fetching}
-        fill
         empty={<CatalogueEmpty filtered={hasTestFilters(search)} />}
       />
       <DataTablePagination

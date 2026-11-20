@@ -8,11 +8,11 @@ import { RouteErrorState } from "@/components/shell/route-error";
 import { JoinLabForm } from "@/components/simulations/join-lab-form";
 import { StudentLabs } from "@/components/simulations/student-labs";
 import { portalNavigation } from "@/lib/navigation";
-import { myLabsQueryOptions } from "@/server/simulations/query-options";
+import { myLabQueryOptions } from "@/server/simulations/query-options";
 
 export const Route = createFileRoute("/_authed/student/")({
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(myLabsQueryOptions());
+    await context.queryClient.ensureQueryData(myLabQueryOptions());
   },
   head: () => {
     const portal = portalNavigation("student");

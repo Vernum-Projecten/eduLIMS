@@ -5,10 +5,10 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { LabResultsSection } from "@/components/results/lab-results-section";
-import { Page } from "@/components/shell/page-header";
+import { PageFrame } from "@/components/shell/page-frame";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { JoinCodePanel } from "@/components/simulations/join-code-panel";
-import { BackToSimulation, LabActions } from "@/components/simulations/lab-actions";
+import { LabActions } from "@/components/simulations/lab-actions";
 import { LabLogoSection } from "@/components/simulations/lab-logo-section";
 import { MembersSection } from "@/components/simulations/members-section";
 import { SimulationNotFound, simulationPageTitle } from "@/components/simulations/not-found";
@@ -60,25 +60,29 @@ export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId
 });
 
 function LabPending() {
-  const { simulationId } = Route.useParams();
   return (
-    <Page title={m.labs_page_title()} actions={<BackToSimulation simulationId={simulationId} />}>
+    <PageFrame title={m.labs_page_title()} description={m.labs_page_description_pending()}>
       <Skeleton className="h-6 w-40" />
       <DataTableSkeleton rows={3} />
       <Skeleton className="h-40 w-full" />
-    </Page>
+    </PageFrame>
   );
 }
 
 function LabPage() {
   const { simulationId, labId } = Route.useParams();
+  // One lab per mount: another lab's address starts with fresh forms and dialogs.
+  return <LabContent key={labId} simulationId={simulationId} labId={labId} />;
+}
+
+function LabContent({ simulationId, labId }: Readonly<{ simulationId: string; labId: string }>) {
   const { changes } = Route.useSearch();
   const { data: page, isFetching } = useSuspenseQuery(labPageQueryOptions(simulationId, labId));
   return (
-    <Page
+    <PageFrame
       title={page.name}
-      description={<p>{m.labs_page_description({ simulation: page.simulation.name })}</p>}
-      actions={<LabActions simulation={page.simulation} lab={page} />}
+      description={m.labs_page_description({ simulation: page.simulation.name })}
+      secondary={<LabActions simulation={page.simulation} lab={page} />}
     >
       <LabLogoSection
         key={page.id}
@@ -100,6 +104,6 @@ function LabPage() {
         changesPage={changes ?? 1}
       />
       <LabResultsSection simulationId={page.simulation.id} labId={page.id} />
-    </Page>
+    </PageFrame>
   );
 }

@@ -18,8 +18,9 @@ import {
   getAdminSimulationFn,
   getJoinCodeFn,
   getLabPage,
-  getMyLabs,
+  getMyLab,
   getSimulationPage,
+  getSimulationReadinessFn,
   listAdminSimulationsFn,
   listMySimulations,
 } from "./functions.ts";
@@ -38,6 +39,9 @@ export const simulationsKeys = {
   /** The correct values and limits of a simulation, teacher-scoped (D10, D13). */
   correctValues: (simulationId: string) =>
     [...simulationsKeys.detail(simulationId), "correct-values"] as const,
+  /** Which preparation steps of a simulation are done, teacher-scoped (D10, #381). */
+  readiness: (simulationId: string) =>
+    [...simulationsKeys.detail(simulationId), "readiness"] as const,
   student: () => [...simulationsKeys.all, "student"] as const,
   admin: () => [...simulationsKeys.all, "admin"] as const,
   adminList: () => [...simulationsKeys.admin(), "list"] as const,
@@ -89,6 +93,15 @@ export function simulationPageQueryOptions(simulationId: string) {
   });
 }
 
+/** The preparation of one simulation and the start's verdict, for its overview (#381). */
+export function simulationReadinessQueryOptions(simulationId: string) {
+  return queryOptions({
+    queryKey: simulationsKeys.readiness(simulationId),
+    queryFn: () => getSimulationReadinessFn({ data: { simulationId } }),
+    staleTime: STALE_TIME.simulations,
+  });
+}
+
 /** The teacher's page of one lab, keyed under its simulation. */
 export function labPageQueryOptions(simulationId: string, labId: string) {
   return queryOptions({
@@ -107,11 +120,11 @@ export function joinCodeQueryOptions(simulationId: string, labId: string) {
   });
 }
 
-/** The labs the student is in. */
-export function myLabsQueryOptions() {
+/** The student's current lab, or `null`; the server picks it (S10, #379). */
+export function myLabQueryOptions() {
   return queryOptions({
     queryKey: simulationsKeys.student(),
-    queryFn: () => getMyLabs(),
+    queryFn: () => getMyLab(),
     staleTime: STALE_TIME.simulations,
   });
 }
@@ -238,7 +251,7 @@ export function deleteMutationOptions<TInput>(
 }
 
 /**
- * The mutation options of linking the student's waiting addresses (S10): the student's labs are
+ * The mutation options of linking the student's waiting addresses (S10): the student's lab is
  * invalidated once it settles.
  */
 export function linkMyLabsMutationOptions<TValue>(

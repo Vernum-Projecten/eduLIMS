@@ -219,7 +219,7 @@ jobs:
       target: runtime
       from-tarball: true
       title: eduLIMS
-      description: An open-source laboratory information management system for practical laboratory education
+      description: An open-source laboratory information management system for a workplace simulation in laboratory education
 
   # ── migrate-image: the tools image (migrations and host CLI), from source ──
   migrate-image:

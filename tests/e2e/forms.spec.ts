@@ -26,7 +26,7 @@ function say(locale: Locale, key: string, english: string): string {
   return locale === "nl" ? dutch(key) : english;
 }
 
-function rubric(page: Page): Locator {
+function request(page: Page): Locator {
   // The first form on the page, in any locale.
   return page.getByRole("form").first();
 }
@@ -42,9 +42,9 @@ async function openForms(page: Page): Promise<void> {
   await expectHydrated(page.getByRole("form").last());
 }
 
-/** The legend-named group of the criterion at `position` (1-based). */
-function criterion(page: Page, position: number): Locator {
-  return rubric(page).getByRole("group", { name: `Criterion ${position}`, exact: true });
+/** The legend-named group of the test at `position` (1-based). */
+function testGroup(page: Page, position: number): Locator {
+  return request(page).getByRole("group", { name: `Test ${position}`, exact: true });
 }
 
 test("the forms page has its title, one h1 and two named forms (#61)", async ({ page }) => {
@@ -53,10 +53,10 @@ test("the forms page has its title, one h1 and two named forms (#61)", async ({ 
   await expect(page).toHaveTitle("Form foundation | eduLIMS");
   await expect(page.getByRole("heading", { level: 1, name: "Form foundation" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2 })).toHaveText([
-    "Rubric editor",
+    "Request editor",
     "Every field",
   ]);
-  await expect(page.getByRole("form", { name: "Rubric editor" })).toBeVisible();
+  await expect(page.getByRole("form", { name: "Request editor" })).toBeVisible();
   await expect(page.getByRole("form", { name: "Every field" })).toBeVisible();
 });
 
@@ -82,16 +82,18 @@ for (const locale of ["en", "nl"] as const) {
       ).toBeVisible();
       await axe(page);
 
-      // The async check of the rubric title, with its error at the field.
-      const title = rubric(page).getByLabel(say(locale, "dev_forms_title_label", "Rubric title"));
-      await title.fill("Titration basics");
-      await expect(title).toHaveAttribute("aria-invalid", "true");
+      // The async check of the sample number, with its error at the field.
+      const sampleNumber = request(page).getByLabel(
+        say(locale, "dev_forms_sample_number_label", "Sample number"),
+      );
+      await sampleNumber.fill("DEMO-101");
+      await expect(sampleNumber).toHaveAttribute("aria-invalid", "true");
       await axe(page);
       if (SHOTS && locale === "en") {
-        await rubric(page).screenshot({ path: `${SHOTS}/async-error-${theme}.png` });
-        await title.fill("Pipetting technique");
-        await expect(title).toHaveAttribute("aria-invalid", "false");
-        await rubric(page).screenshot({ path: `${SHOTS}/rubric-editor-${theme}.png` });
+        await request(page).screenshot({ path: `${SHOTS}/async-error-${theme}.png` });
+        await sampleNumber.fill("DEMO-103");
+        await expect(sampleNumber).toHaveAttribute("aria-invalid", "false");
+        await request(page).screenshot({ path: `${SHOTS}/request-editor-${theme}.png` });
       }
     });
   }
@@ -115,106 +117,102 @@ test("sync validation shows each error at its field by label (#61)", async ({ pa
   await expect(form.getByText("Enter a name for the session.")).toHaveCount(0);
 });
 
-test("the title check runs after typing stops and shows the refusal at the field (#61)", async ({
+test("the sample number check runs after typing stops and shows the refusal at the field (#61)", async ({
   page,
 }) => {
   await openForms(page);
   let checks = 0;
-  page.on("request", (request) => {
-    if (request.url().includes("_serverFn") && request.method() === "GET") checks += 1;
+  page.on("request", (sent) => {
+    if (sent.url().includes("_serverFn") && sent.method() === "GET") checks += 1;
   });
-  const title = rubric(page).getByLabel("Rubric title");
-  await title.fill("");
-  await title.pressSequentially("Titration basics", { delay: 20 });
+  const sampleNumber = request(page).getByLabel("Sample number");
+  await sampleNumber.fill("");
+  await sampleNumber.pressSequentially("DEMO-101", { delay: 20 });
 
-  await expect(rubric(page).getByRole("status").filter({ hasText: "Checking…" })).toBeVisible();
+  await expect(request(page).getByRole("status").filter({ hasText: "Checking…" })).toBeVisible();
   await expect(
-    rubric(page).getByText(
-      "A rubric called “Titration basics” already exists. Choose another title.",
+    request(page).getByText(
+      "Sample number “DEMO-101” already belongs to a request. Choose another sample number.",
     ),
   ).toBeVisible();
-  await expect(title).toHaveAttribute("aria-invalid", "true");
-  // One check for the whole word, not one per keystroke.
+  await expect(sampleNumber).toHaveAttribute("aria-invalid", "true");
+  // One check for the whole number, not one per keystroke.
   expect(checks).toBe(1);
 
-  await title.fill("Titration in practice");
-  await expect(title).toHaveAttribute("aria-invalid", "false");
+  await sampleNumber.fill("DEMO-104");
+  await expect(sampleNumber).toHaveAttribute("aria-invalid", "false");
 });
 
-test("criteria are reordered, added and removed with the keyboard alone, and announced (#61, D1)", async ({
+test("tests are reordered, added and removed with the keyboard alone, and announced (#61, S12)", async ({
   page,
 }) => {
   await openForms(page);
-  const announcer = rubric(page)
+  const announcer = request(page)
     .getByRole("status")
     .filter({ hasText: /moved|added|removed/ });
-  await expect(criterion(page, 1).getByLabel("Name of the criterion")).toHaveValue("Accuracy");
+  await expect(testGroup(page, 1).getByLabel("Name of the test")).toHaveValue("HbA1c");
 
-  const down = rubric(page).getByRole("button", { name: "Move Accuracy down" });
+  const down = request(page).getByRole("button", { name: "Move HbA1c down" });
   await down.focus();
   await page.keyboard.press("Enter");
-  await expect(announcer).toHaveText("Accuracy moved to position 2 of 3.");
-  await expect(criterion(page, 1).getByLabel("Name of the criterion")).toHaveValue("Lab journal");
-  await expect(criterion(page, 2).getByLabel("Name of the criterion")).toHaveValue("Accuracy");
+  await expect(announcer).toHaveText("HbA1c moved to position 2 of 3.");
+  await expect(testGroup(page, 1).getByLabel("Name of the test")).toHaveValue("CRP");
+  await expect(testGroup(page, 2).getByLabel("Name of the test")).toHaveValue("HbA1c");
   await expect(down).toBeFocused();
 
   await page.keyboard.press("Space");
-  await expect(announcer).toHaveText("Accuracy moved to position 3 of 3.");
-  await expect(criterion(page, 3).getByLabel("Name of the criterion")).toHaveValue("Accuracy");
+  await expect(announcer).toHaveText("HbA1c moved to position 3 of 3.");
+  await expect(testGroup(page, 3).getByLabel("Name of the test")).toHaveValue("HbA1c");
   // At the bottom "down" is disabled, so focus moves to "up" on the same row.
   await expect(down).toBeDisabled();
-  await expect(rubric(page).getByRole("button", { name: "Move Accuracy up" })).toBeFocused();
+  await expect(request(page).getByRole("button", { name: "Move HbA1c up" })).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(announcer).toHaveText("Accuracy moved to position 2 of 3.");
+  await expect(announcer).toHaveText("HbA1c moved to position 2 of 3.");
 
-  // Add a criterion: focus lands in its name; Shift+Tab and Tab reach its controls.
-  await rubric(page).getByRole("button", { name: "Add criterion" }).focus();
+  // Add a test: focus lands in its name; Shift+Tab and Tab reach its controls.
+  await request(page).getByRole("button", { name: "Add test" }).focus();
   await page.keyboard.press("Enter");
-  await expect(announcer).toHaveText("criterion 4 added.");
-  const newName = criterion(page, 4).getByLabel("Name of the criterion");
+  await expect(announcer).toHaveText("test 4 added.");
+  const newName = testGroup(page, 4).getByLabel("Name of the test");
   await expect(newName).toBeFocused();
-  await page.keyboard.type("Waste disposal");
+  await page.keyboard.type("Cholesterol");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
-  await expect(
-    rubric(page).getByRole("button", { name: "Move Waste disposal down" }),
-  ).toBeDisabled();
-  await expect(rubric(page).getByRole("button", { name: "Remove Waste disposal" })).toBeFocused();
+  await expect(request(page).getByRole("button", { name: "Move Cholesterol down" })).toBeDisabled();
+  await expect(request(page).getByRole("button", { name: "Remove Cholesterol" })).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(announcer).toHaveText("Waste disposal removed.");
-  await expect(criterion(page, 4)).toHaveCount(0);
+  await expect(announcer).toHaveText("Cholesterol removed.");
+  await expect(testGroup(page, 4)).toHaveCount(0);
 
-  // A nested level moves inside its criterion.
-  const accuracy = criterion(page, 2);
-  await accuracy.getByRole("button", { name: "Move Good up" }).focus();
+  // A nested measurement moves inside its test.
+  const hba1c = testGroup(page, 2);
+  await hba1c.getByRole("button", { name: "Move Run 3 up" }).focus();
   await page.keyboard.press("Enter");
-  await expect(announcer).toHaveText("Good moved to position 2 of 3.");
-  await expect(accuracy.getByLabel("Name of level 2")).toHaveValue("Good");
-  await expect(accuracy.getByLabel("Points for level 2")).toHaveValue("4");
-  await expect(accuracy.getByRole("button", { name: "Move Good up" })).toBeFocused();
+  await expect(announcer).toHaveText("Run 3 moved to position 2 of 3.");
+  await expect(hba1c.getByLabel("Name of measurement 2")).toHaveValue("Run 3");
+  await expect(hba1c.getByLabel("Value of measurement 2")).toHaveValue("50");
+  await expect(hba1c.getByRole("button", { name: "Move Run 3 up" })).toBeFocused();
   await axe(page);
 });
 
-test("a nested level's error shows at its field, and the rubric is accepted once fixed (#61, D4)", async ({
+test("a nested measurement's error shows at its field, and the request is accepted once fixed (#61, S14)", async ({
   page,
 }) => {
   await openForms(page);
-  const journal = criterion(page, 2);
-  await journal.getByRole("button", { name: "Add a level to Lab journal" }).click();
-  const label = journal.getByLabel("Name of level 3");
+  const crp = testGroup(page, 2);
+  await crp.getByRole("button", { name: "Add a measurement to CRP" }).click();
+  const label = crp.getByLabel("Name of measurement 3");
   await expect(label).toBeFocused();
-  await rubric(page).getByRole("button", { name: "Check rubric" }).click();
+  await request(page).getByRole("button", { name: "Check request" }).click();
   await expect(label).toHaveAttribute("aria-invalid", "true");
-  await expect(journal.getByText("Enter a name for the level.")).toBeVisible();
-  await expect(
-    journal.getByText("Enter the points as a whole number from 0 to 100."),
-  ).toBeVisible();
+  await expect(crp.getByText("Enter a name for the measurement.")).toBeVisible();
+  await expect(crp.getByText("Enter the value as a number from 0 to 1000.")).toBeVisible();
 
-  await label.fill("Exemplary");
-  await journal.getByLabel("Points for level 3").fill("3");
-  await rubric(page).getByRole("button", { name: "Check rubric" }).click();
+  await label.fill("Repeat");
+  await crp.getByLabel("Value of measurement 3").fill("13.5");
+  await request(page).getByRole("button", { name: "Check request" }).click();
   await expect(
-    rubric(page).getByText("The server accepted the rubric. Nothing was saved."),
+    request(page).getByText("The server accepted the request. Nothing was saved."),
   ).toBeVisible();
 });
 

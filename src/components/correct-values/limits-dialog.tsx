@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { revalidateLogic } from "@tanstack/react-form";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CircleAlertIcon, SaveIcon, SlidersHorizontalIcon } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
-import { LIMITS_HEADING } from "@/components/correct-values/ids";
-import { createDataTableColumnHelper } from "@/components/data-table/features";
+import { useRef, useState } from "react";
 import { useAppForm } from "@/components/form/app-form";
-import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
-import { ListTable } from "@/components/simulations/list-table";
 import type { DialogControl } from "@/components/simulations/name-dialog";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
 import { Button } from "@/components/ui/button";
@@ -31,15 +27,12 @@ import { formatDecimal } from "@/lib/i18n/format";
 import { limitKindLabel, simulationErrorMessage } from "@/lib/i18n/simulation-labels";
 import { setLimitsFn } from "@/server/correct-values/functions";
 import type { SimulationTestEntry } from "@/server/correct-values/queries";
-import {
-  correctValuesInvalidation,
-  correctValuesQueryOptions,
-} from "@/server/correct-values/query-options";
+import { correctValuesInvalidation } from "@/server/correct-values/query-options";
 import { type LimitsForm, limitsFormSchema } from "@/server/correct-values/schemas";
 import { simulationErrorCode, simulationMutationOptions } from "@/server/simulations/query-options";
 
-/** A test row with what its edit action needs. */
-interface TestRow extends SimulationTestEntry {
+/** A test with what its edit action needs. */
+export interface TestRow extends SimulationTestEntry {
   simulationId: string;
 }
 
@@ -50,33 +43,8 @@ function limitText(limits: AccuracyLimits, value: string, unit: string | null): 
   return unit ? m.correct_values_limit_absolute({ value: shown, unit }) : shown;
 }
 
-const helper = createDataTableColumnHelper<TestRow>();
-
-const columns = helper.columns([
-  helper.accessor("name", {
-    id: "name",
-    header: () => m.correct_values_col_test(),
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-  }),
-  helper.accessor("values", {
-    id: "values",
-    header: () => m.correct_values_col_count(),
-    cell: ({ row }) => <span className="tabular-nums">{row.original.values}</span>,
-  }),
-  helper.display({
-    id: "limits",
-    header: () => m.correct_values_col_limits(),
-    cell: ({ row }) => <LimitsText test={row.original} />,
-  }),
-  helper.display({
-    id: "actions",
-    meta: { className: "w-12" },
-    header: () => <span className="sr-only">{m.data_table_actions()}</span>,
-    cell: ({ row }) => <EditLimits test={row.original} />,
-  }),
-]);
-
-function LimitsText({ test }: Readonly<{ test: TestRow }>) {
+/** A test's accuracy limits in words, or "No limits yet" with an icon (D13, WCAG 1.4.1). */
+export function LimitsText({ test }: Readonly<{ test: TestRow }>) {
   const { limits } = test;
   if (limits === null) {
     return (
@@ -96,37 +64,8 @@ function LimitsText({ test }: Readonly<{ test: TestRow }>) {
   );
 }
 
-/**
- * The accuracy limits of each test the simulation uses (D13): how far a result may be from the
- * correct value before it turns yellow, and before it turns red. Teacher-scoped (Q-SIM-1).
- */
-export function LimitsSection({ simulationId }: Readonly<{ simulationId: string }>) {
-  const { data: page, isFetching } = useSuspenseQuery(correctValuesQueryOptions(simulationId));
-  const rows = useMemo(
-    () => page.tests.map((test) => ({ ...test, simulationId: page.simulationId })),
-    [page],
-  );
-  return (
-    <section aria-labelledby={LIMITS_HEADING} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 id={LIMITS_HEADING} tabIndex={-1} className={FOCUSABLE_HEADING}>
-          {m.correct_values_limits_heading()}
-        </h2>
-        <p className="text-muted-foreground">{m.correct_values_limits_description()}</p>
-      </div>
-      <ListTable
-        columns={columns}
-        data={rows}
-        rowId={(row) => row.id}
-        caption={m.correct_values_limits_caption()}
-        busy={isFetching}
-        empty={m.correct_values_limits_empty()}
-      />
-    </section>
-  );
-}
-
-function EditLimits({ test }: Readonly<{ test: TestRow }>) {
+/** Opens the dialog that sets a test's accuracy limits; focus returns to the button. */
+export function EditLimits({ test }: Readonly<{ test: TestRow }>) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const label = m.correct_values_limits_edit({ test: test.name });
@@ -135,13 +74,13 @@ function EditLimits({ test }: Readonly<{ test: TestRow }>) {
       <Button
         ref={triggerRef}
         type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={label}
-        title={label}
+        variant="outline"
+        size="sm"
+        className="h-auto min-h-8 whitespace-normal text-left"
         onClick={() => setOpen(true)}
       >
-        <SlidersHorizontalIcon aria-hidden="true" />
+        <SlidersHorizontalIcon aria-hidden="true" data-icon="inline-start" />
+        {label}
       </Button>
       <LimitsDialog
         control={{

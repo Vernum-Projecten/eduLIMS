@@ -8,8 +8,8 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { devPagesEnabled } from "../dev-tools.ts";
-import { isTakenDemoTitle, reviewDemoRubric, reviewDemoSession } from "./demo.ts";
-import { demoRubricSchema, demoSessionSchema, demoTitleInput } from "./schemas.ts";
+import { isTakenDemoSampleNumber, reviewDemoRequest, reviewDemoSession } from "./demo.ts";
+import { demoRequestSchema, demoSampleNumberInput, demoSessionSchema } from "./schemas.ts";
 
 // NOTE: no requirement governs this: our own design, so the "Checking…" state can be seen.
 const CHECK_DELAY_MS = 300;
@@ -18,21 +18,21 @@ function requireDevPages(): void {
   if (!devPagesEnabled(process.env)) throw notFound();
 }
 
-/** Returns whether a rubric title is still free among the fictional rubrics. */
-export const checkDemoRubricTitle = createServerFn({ method: "GET" })
-  .validator(demoTitleInput)
+/** Returns whether a sample number is still free among the fictional requests. */
+export const checkDemoSampleNumber = createServerFn({ method: "GET" })
+  .validator(demoSampleNumberInput)
   .handler(async ({ data }) => {
     requireDevPages();
     await new Promise((resolve) => setTimeout(resolve, CHECK_DELAY_MS));
-    return { available: !isTakenDemoTitle(data.title) };
+    return { available: !isTakenDemoSampleNumber(data.sampleNumber) };
   });
 
-/** Validates a rubric and refuses a taken title at its field; saves nothing. */
-export const submitDemoRubric = createServerFn({ method: "POST" })
-  .validator(demoRubricSchema)
+/** Validates a request and refuses a taken sample number at its field; saves nothing. */
+export const submitDemoRequest = createServerFn({ method: "POST" })
+  .validator(demoRequestSchema)
   .handler(({ data }) => {
     requireDevPages();
-    return reviewDemoRubric(data);
+    return reviewDemoRequest(data);
   });
 
 /** Validates a session form and refuses it as a whole when asked to; saves nothing. */

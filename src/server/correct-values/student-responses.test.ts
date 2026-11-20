@@ -21,7 +21,7 @@ import { releaseResult } from "../results/release.ts";
 import { readAdminSimulation, readAdminSimulationPage } from "../simulations/admin-queries.ts";
 import { joinLabWithCode } from "../simulations/join.ts";
 import { linkWaitingAddresses } from "../simulations/linking.ts";
-import { listStudentLabs } from "../simulations/queries.ts";
+import { getCurrentStudentLab } from "../simulations/queries.ts";
 import { finishSimulation, startSimulation } from "../simulations/state.ts";
 import { findStudentLab, findWorkingStudentLab } from "../simulations/student-access.ts";
 import { NOW, person, world } from "../simulations/test-helpers.ts";
@@ -96,8 +96,8 @@ const STUDENT_REACHABLE: Record<string, string> = {
   "src/lib/session.functions.ts#getLoginOptions": "the sign-in providers",
   "src/lib/session.functions.ts#getSession": "the session user's own account",
   "src/lib/session.functions.ts#routeInstitutionEmail": "a provider for an address",
-  "src/server/dev-forms/functions.ts#checkDemoRubricTitle": "fictional demo data",
-  "src/server/dev-forms/functions.ts#submitDemoRubric": "fictional demo data",
+  "src/server/dev-forms/functions.ts#checkDemoSampleNumber": "fictional demo data",
+  "src/server/dev-forms/functions.ts#submitDemoRequest": "fictional demo data",
   "src/server/dev-forms/functions.ts#submitDemoSession": "fictional demo data",
   "src/server/lab-records/functions.ts#correctPatientFn": "serialised below",
   "src/server/lab-records/functions.ts#correctRequestFn": "serialised below",
@@ -110,7 +110,7 @@ const STUDENT_REACHABLE: Record<string, string> = {
   "src/server/results/functions.ts#recordMeasurementFn": "serialised below",
   "src/server/results/functions.ts#releaseResultFn": "serialised below",
   "src/server/preferences/functions.ts#savePreferredLocale": "the user's own preference",
-  "src/server/simulations/functions.ts#getMyLabs": "serialised below",
+  "src/server/simulations/functions.ts#getMyLab": "serialised below",
   "src/server/simulations/functions.ts#joinLabFn": "serialised below",
   "src/server/simulations/functions.ts#linkMyLabsFn": "serialised below",
   "src/server/tolerances/functions.ts#getMyTolerancesFn": "serialised below",
@@ -193,11 +193,11 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
     for (const needle of [...NEEDLES, testId]) expect(text).not.toContain(needle);
   }
 
-  it("carries no secret in the student's labs (getMyLabs)", async () => {
+  it("carries no secret in the student's current lab (getMyLab)", async () => {
     const { database, w, testId } = await open();
-    const labs = await listStudentLabs(database, w.student.id);
-    expect(labs).toHaveLength(1);
-    expectClean(labs, testId);
+    const lab = await getCurrentStudentLab(database, w.student.id);
+    expect(lab?.labId).toBe(w.labId);
+    expectClean(lab, testId);
   });
 
   it("carries no secret in a join with the lab's code (joinLabFn)", async () => {

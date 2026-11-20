@@ -149,7 +149,27 @@ email address a teacher added to a lab is linked to that lab without doing
 anything; eduLIMS sends no email. A student who signs in with another address
 joins with the lab's code (S10; owner, 2026-11-19, O10). There are no roles
 inside a lab: every member may do everything, and eduLIMS records who did
-what. A student can be in several simulations, in one lab of each (S10).
+what. A student takes part in one simulation at a time (owner, 2026-11-20,
+#379): they are in at most one lab whose simulation is prepared or running.
+Every path that puts a student in a lab (the join code, a waiting address
+linked at sign-in or on the overview, a teacher's move) refuses a second one
+with `in_other_simulation`, after it locks the simulation row and then the
+student's user row, and the trigger `lab_members_one_active_simulation`
+(migration `0026_one_active_simulation_per_student`) holds the same rule.
+A pasted address of such a student is refused at its line without naming the
+other simulation. When one address waits in two unfinished simulations, the
+link tries them in the order of their ids: the lower id links, and the other
+keeps waiting until the first is finished. The overview hides the join form
+while the student is in an unfinished simulation and says why. A finished
+simulation is history: a teacher's move in it is refused with `not_running`,
+a join or a link into it with `simulation_finished`, and finishing it deletes
+its labs' join codes; the code panel then offers no code and says why. A move takes the simulation row, then the student's
+place, then the student's user row, the order an account deletion takes the
+place and the user in. Once that simulation is finished, the student may join
+another. The Student portal shows the student's one current lab, which the
+server picks: the lab of their prepared or running simulation, or else the
+lab of their most recently finished one, read-only, until they join a new
+one. No student page takes a lab in its URL.
 
 Only functions for the teacher role read a correct value or an accuracy
 status, and each has negative tests with a student account (Q-SIM-1).
@@ -175,6 +195,37 @@ A fresh installation carries a starter set: one active Afinion 2 test per
 analyte with its documented unit, and no correct value (Q-PRIV-4).
 `migrate` in the tools image and `pnpm db:seed` add it to an empty catalogue
 only, so a starter test an administrator retired or renamed never returns.
+
+### The teacher's simulation pages
+
+A simulation in the Teacher portal is a layout with its own pages, in the
+order a teacher works (#381). The layout shows the simulation's name, its
+state as a badge with an icon and text (the one place the state shows) and
+its dates, and a navigation whose current link carries
+`aria-current="page"`. Each page has the shared frame of #384
+(`src/components/shell/page-frame.tsx`): the top bar's breadcrumb, an `h1`
+that takes focus after a navigation inside the layout, one sentence of
+description and at most one primary action. A row of a list carries one
+`…` menu (`src/components/shell/row-actions.tsx`); short edits open in a
+dialog that returns focus to its opener.
+
+| Page | Address | What it holds | Primary action |
+|---|---|---|---|
+| Overview | `/teacher/simulations/$id` | the state and the checklist of the preparation: labs and students, correct values, accuracy limits, the start; each step done or missing, linked to its page | Start or Finish |
+| Labs | `…/labs` | the labs with their logos, students, waiting addresses and the state of their join code; a lab opens its page `…/labs/$labId` | Create lab |
+| Correct values | `…/values` | one table per test: its correct values per sample number, with the test's accuracy limits above it | Add correct value (Paste rows is secondary) |
+| Dashboard | `/teacher/dashboard` | the portal's one dashboard of the running simulation (#271, #386); the navigation links there | none |
+| Corrections | `…/corrections` | the correction log of every lab | none |
+| Settings | `…/settings` | the name, the co-teachers, deleting the simulation | none |
+
+The checklist reads `getSimulationReadinessFn`
+(`src/server/simulations/readiness.ts`): counts per step and the start's
+verdict from `startRefusal`, the one rule the start itself applies, so Start
+is enabled only when the server would accept it and the checklist names the
+same reason it would refuse with (`missing_limits`, `not_prepared`, and any
+reason the start gains later). Every page's loader reads through the
+teacher-scoped functions, so a teacher of another simulation gets not found
+on each of them (D11).
 
 ### Core process
 
@@ -542,8 +593,8 @@ The lab logo is an upload, held to the upload rules of the security baseline
   signed-out caller included, gets the same empty 404 as a lab without a
   logo.
 - **Where it shows (#293):** on the teacher's lab page, with the form that
-  uploads, replaces and removes it; beside the lab's name on the teacher's
-  simulation page; and on the student's overview of their labs. The reads
+  uploads, replaces and removes it; beside the lab's name on the simulation's
+  Labs page; and on the student's overview of their labs. The reads
   of those pages carry a `logoVersion` (the start of the logo's SHA-256, or
   `null`), and the screens ask for `…/logo?v=<version>`, so a replaced logo
   is a new address and a lab without a logo asks for no image. Beside the
@@ -610,14 +661,14 @@ A team's records from the paper request form live in the eduLIMS database
 - **The catalogue.** A request reads its tests `FOR SHARE` in id order, so a
   catalogue edit, which holds the test `FOR UPDATE`, serialises with it, and
   a test a request names counts as used (running while its simulation runs).
-- **Screens.** The Student portal's Patients and requests page shows one of
-  the student's labs at a time (`?lab=`, the newest by default), its
+- **Screens.** The Student portal's Patients and requests page shows the
+  student's current lab, which the server picks (#379), its
   patients and its requests with every sample's lab number in groups of
   three, three and four digits. The copy action copies the digits and says
   so in a status region (WCAG 4.1.3). Writing is open only while the
   simulation runs. The date of birth is the browser's native date input,
   shown in the reader's locale and sent as `YYYY-MM-DD`. The correction log
-  is a section of the teacher's simulation page; it names a patient by its
+  is the Corrections page of the teacher's simulation; it names a patient by its
   fictional name and a request by its samples' lab numbers.
 - **FerroEHR.** After the registering transaction commits, eduLIMS finds or
   creates the patient's EHR and stores its id in `patients.ehr_id`
@@ -728,8 +779,8 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
   tolerance; the teachers of the simulation read the same with the released
   measurement marked and the tolerance kept at the release (D11). Neither
   read holds a correct value, a limit or an accuracy status (Q-SIM-1).
-- **Screens.** The Student portal's Measurements and results page shows one
-  of the student's labs at a time (`?lab=`, the newest by default): per
+- **Screens.** The Student portal's Measurements and results page shows the
+  student's current lab, which the server picks (#379): per
   request every requested test with its state as a badge with an icon and
   text, the team's own tolerance, and its measurements in a named,
   keyboard-reachable scroll region. Entry by hand opens a form whose refusal

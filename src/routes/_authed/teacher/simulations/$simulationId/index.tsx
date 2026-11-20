@@ -3,30 +3,29 @@
 
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { CorrectValuesSection } from "@/components/correct-values/correct-values-section";
-import { LimitsSection } from "@/components/correct-values/limits-section";
-import { DataTableSkeleton } from "@/components/data-table/data-table";
-import { CorrectionLogSection } from "@/components/lab-records/correction-log-section";
-import { Page } from "@/components/shell/page-header";
+import { PageFrame } from "@/components/shell/page-frame";
 import { RouteErrorState } from "@/components/shell/route-error";
-import { LabsSection } from "@/components/simulations/labs-section";
-import { SimulationNotFound, simulationPageTitle } from "@/components/simulations/not-found";
-import { BackToSimulations, SimulationActions } from "@/components/simulations/simulation-actions";
-import { SimulationStateSection } from "@/components/simulations/simulation-state";
-import { TeachersSection } from "@/components/simulations/teachers-section";
+import { simulationPageTitle } from "@/components/simulations/not-found";
+import {
+  PreparationChecklist,
+  RunningOverview,
+} from "@/components/simulations/simulation-overview";
+import {
+  SimulationPrimaryAction,
+  stateDescription,
+} from "@/components/simulations/simulation-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/i18n/messages";
-import { formatDate } from "@/lib/i18n/format";
-import { correctValuesQueryOptions } from "@/server/correct-values/query-options";
-import { correctionLogQueryOptions } from "@/server/lab-records/query-options";
-import { simulationPageQueryOptions } from "@/server/simulations/query-options";
+import {
+  simulationPageQueryOptions,
+  simulationReadinessQueryOptions,
+} from "@/server/simulations/query-options";
 
 export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId/")({
   loader: async ({ context, params }) => {
     const [page] = await Promise.all([
       context.queryClient.ensureQueryData(simulationPageQueryOptions(params.simulationId)),
-      context.queryClient.ensureQueryData(correctValuesQueryOptions(params.simulationId)),
-      context.queryClient.ensureQueryData(correctionLogQueryOptions(params.simulationId)),
+      context.queryClient.ensureQueryData(simulationReadinessQueryOptions(params.simulationId)),
     ]);
     return { crumb: page.name };
   },
@@ -37,44 +36,35 @@ export const Route = createFileRoute("/_authed/teacher/simulations/$simulationId
       },
     ],
   }),
-  pendingComponent: SimulationPending,
+  pendingComponent: OverviewPending,
   errorComponent: RouteErrorState,
-  notFoundComponent: SimulationNotFound,
-  component: SimulationPage,
+  component: OverviewPage,
 });
 
-function SimulationPending() {
+function OverviewPending() {
   return (
-    <Page title={m.simulations_page_title()} actions={<BackToSimulations />}>
-      <Skeleton className="h-6 w-40" />
-      <DataTableSkeleton rows={3} />
-      <DataTableSkeleton rows={3} />
-      <DataTableSkeleton rows={2} />
-    </Page>
+    <PageFrame title={m.simulation_nav_overview()} description={m.simulation_overview_loading()}>
+      <Skeleton className="h-48 w-full" />
+    </PageFrame>
   );
 }
 
-function SimulationPage() {
+/** The overview (#381): the state, the one next step, and the start or the finish. */
+function OverviewPage() {
   const { simulationId } = Route.useParams();
-  const { user } = Route.useRouteContext();
-  const { data: page, isFetching } = useSuspenseQuery(simulationPageQueryOptions(simulationId));
+  const { data: page } = useSuspenseQuery(simulationPageQueryOptions(simulationId));
+  const { data: readiness } = useSuspenseQuery(simulationReadinessQueryOptions(simulationId));
   return (
-    <Page
-      title={page.name}
-      description={
-        <p>
-          {m.simulations_created_on({ date: formatDate(page.createdAt) })}{" "}
-          {m.simulations_page_description_detail()}
-        </p>
-      }
-      actions={<SimulationActions simulationId={page.id} name={page.name} />}
+    <PageFrame
+      title={m.simulation_nav_overview()}
+      description={stateDescription(readiness.state)}
+      action={<SimulationPrimaryAction name={page.name} readiness={readiness} />}
     >
-      <SimulationStateSection page={page} />
-      <CorrectValuesSection simulationId={page.id} />
-      <LimitsSection simulationId={page.id} />
-      <LabsSection page={page} busy={isFetching} />
-      <TeachersSection page={page} userId={user.id} busy={isFetching} />
-      <CorrectionLogSection simulationId={page.id} />
-    </Page>
+      {readiness.state === "prepared" ? (
+        <PreparationChecklist readiness={readiness} />
+      ) : (
+        <RunningOverview readiness={readiness} />
+      )}
+    </PageFrame>
   );
 }
