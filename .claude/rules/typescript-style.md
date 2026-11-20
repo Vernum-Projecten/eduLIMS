@@ -67,7 +67,10 @@ is a wish, so every rule below names what enforces it.
   3.1.2): the close label of `dialog.tsx` and `sheet.tsx`, the mobile sheet's
   title and description and the toggle labels in `sidebar.tsx`, the labels of
   `pagination.tsx` and `breadcrumb.tsx`, the label of `spinner.tsx`, the
-  default title and description of `command.tsx`, and the region label of
+  default title and description of `command.tsx`, the role descriptions and
+  button labels of `carousel.tsx`, the trigger, clear and chip-remove labels
+  of `combobox.tsx`, the viewport and button labels of
+  `message-scroller.tsx`, and the region label of
   `sonner.tsx`, which takes its theme from the app's `ThemeProvider` in place of
   `next-themes`. `calendar.tsx` defaults react-day-picker's locale to the active
   Paraglide locale and its `today` to today in the app's time zone. After an update,

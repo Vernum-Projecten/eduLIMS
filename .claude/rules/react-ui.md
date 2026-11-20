@@ -27,6 +27,23 @@ locale (`en` or `nl`).
   `pnpm exec shadcn add <name>` (or through the `shadcn` MCP server). The
   component lands in `src/components/ui/`. Read the docs page of the component
   first (<https://ui.shadcn.com/docs/components>).
+- **The installed set** (`src/components/ui/`, #385): accordion,
+  alert-dialog, alert, aspect-ratio, attachment, avatar, badge, breadcrumb,
+  bubble, button-group, button, calendar, card, carousel, checkbox,
+  collapsible, combobox, command, context-menu, dialog, direction, drawer,
+  dropdown-menu, empty, field, hover-card, input-group, input-otp, input,
+  item, kbd, label, marker, menubar, message-scroller, message,
+  native-select, navigation-menu, pagination, popover, progress,
+  radio-group, resizable, scroll-area, select, separator, sheet, sidebar,
+  skeleton, slider, sonner, spinner, switch, table, tabs, textarea,
+  toggle-group, toggle, tooltip. `chart` (recharts, replaced by TanStack
+  Charts, §4) and `form` (react-hook-form, replaced by TanStack Form, §2)
+  are never added.
+- **Blocks are composed per screen, never installed wholesale.** A shadcn
+  block (the sidebar, login and dashboard patterns) is a page template with
+  hard-coded English text. When a screen is built under #384, find the block
+  through the `shadcn` MCP server, add only what that screen uses, and move
+  its text into the i18n layer.
 - **Compose, do not fork.** Feature components in `src/components/<area>/`
   wrap the `ui/` primitives. Edit a file in `src/components/ui/` only for a
   defect or an accessibility fix, and say so in the PR.
