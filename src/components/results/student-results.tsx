@@ -5,6 +5,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { ClipboardListIcon, LockIcon } from "lucide-react";
 import { type MouseEvent, useRef, useState } from "react";
 import { UpdatingIndicator } from "@/components/shell/updating-indicator";
+import { focusById } from "@/components/simulations/focus";
 import type { DialogControl } from "@/components/simulations/name-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -15,90 +16,107 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { m } from "@/i18n/messages";
-import type {
-  LabResults,
-  MeasurementRow,
-  RequestedTestRow,
-  ResultsRequestRow,
-} from "@/server/results/queries";
+import type { LabResults } from "@/server/results/queries";
 import { myResultsQueryOptions } from "@/server/results/query-options";
 import { MeasurementDialog } from "./measurement-dialog";
 import { ReleaseDialog, type ReleaseTarget } from "./release-dialog";
 import { RequestResults } from "./request-results";
 
-/** The id of a requested test's heading, which takes the focus once its result is released. */
+/** The id of a requested test's heading, which takes the focus when its button is gone. */
 function testHeadingId(requestId: string, testId: string): string {
   return `result-${requestId}-${testId}`;
 }
 
+/** Which dialog is open, by ids only; the rows come from the query, so they are never stale. */
+interface DialogIds {
+  kind: "measure" | "release";
+  open: boolean;
+  requestId: string;
+  testId: string;
+  measurementId: string | null;
+}
+
+/** A refusal the page shows at a requested test after a dialog closed on it. */
+interface Notice {
+  requestId: string;
+  testId: string;
+  message: string;
+}
+
+/** Returns the release the dialog ids name in the current data, or `undefined` once it is gone. */
+function releaseTarget(results: LabResults, ids: DialogIds): ReleaseTarget | undefined {
+  const request = results.requests.find((row) => row.id === ids.requestId);
+  const test = request?.tests.find((row) => row.testId === ids.testId);
+  const measurement = test?.measurements.find((row) => row.id === ids.measurementId);
+  if (!request || !test || !measurement || !test.tolerance || test.release) return undefined;
+  return { request, test, measurement, tolerance: test.tolerance };
+}
+
 /**
- * The state of the two dialogs with their focus return (WCAG 2.4.3): the button that opened one
- * takes the focus back when it closes, and after a release, whose button goes, the heading of the
- * requested test takes it.
+ * The dialogs of the results page with their focus return (WCAG 2.4.3): the button that opened
+ * one takes the focus back when it closes and is still there; otherwise, after a release or a
+ * refusal that closed the dialog, the heading of the requested test takes it.
  */
 function useResultsDialogs() {
   const opener = useRef<HTMLButtonElement | null>(null);
-  const fallback = useRef<string | null>(null);
-  const [measureFor, setMeasureFor] = useState<{
-    open: boolean;
-    request: ResultsRequestRow;
-    test: RequestedTestRow;
-  } | null>(null);
-  const [releaseFor, setReleaseFor] = useState<{ open: boolean; target: ReleaseTarget } | null>(
-    null,
-  );
-  const returnFocus = (event: Event) => {
-    event.preventDefault();
-    const button = opener.current;
-    if (button?.isConnected && !button.disabled && fallback.current === null) {
-      button.focus();
-      return;
-    }
-    const heading = fallback.current === null ? null : document.getElementById(fallback.current);
-    heading?.focus();
-  };
-  const measureControl: DialogControl = {
-    open: measureFor?.open ?? false,
+  const [ids, setIds] = useState<DialogIds | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const toHeading = useRef(false);
+  const control: DialogControl = {
+    open: ids?.open ?? false,
     onOpenChange: (open) => {
-      if (!open) setMeasureFor((current) => (current ? { ...current, open: false } : null));
+      if (!open) setIds((current) => (current ? { ...current, open: false } : null));
     },
-    onCloseAutoFocus: returnFocus,
-  };
-  const releaseControl: DialogControl = {
-    open: releaseFor?.open ?? false,
-    onOpenChange: (open) => {
-      if (!open) setReleaseFor((current) => (current ? { ...current, open: false } : null));
+    onCloseAutoFocus: (event) => {
+      event.preventDefault();
+      const button = opener.current;
+      if (!toHeading.current && button?.isConnected && !button.disabled) {
+        button.focus();
+      } else if (ids) {
+        focusById(testHeadingId(ids.requestId, ids.testId));
+      }
     },
-    onCloseAutoFocus: returnFocus,
   };
+  function openFrom(event: MouseEvent<HTMLButtonElement>, next: Omit<DialogIds, "open">) {
+    opener.current = event.currentTarget;
+    toHeading.current = false;
+    setNotice(null);
+    setIds({ ...next, open: true });
+  }
   return {
-    measureFor,
-    releaseFor,
-    measureControl,
-    releaseControl,
-    openMeasure(
+    ids,
+    control,
+    notice,
+    openMeasure(event: MouseEvent<HTMLButtonElement>, requestId: string, testId: string) {
+      openFrom(event, { kind: "measure", requestId, testId, measurementId: null });
+    },
+    openRelease(
       event: MouseEvent<HTMLButtonElement>,
-      request: ResultsRequestRow,
-      test: RequestedTestRow,
+      requestId: string,
+      testId: string,
+      measurementId: string,
     ) {
-      opener.current = event.currentTarget;
-      fallback.current = null;
-      setMeasureFor({ open: true, request, test });
+      openFrom(event, { kind: "release", requestId, testId, measurementId });
     },
-    openRelease(event: MouseEvent<HTMLButtonElement>, target: ReleaseTarget) {
-      opener.current = event.currentTarget;
-      fallback.current = null;
-      setReleaseFor({ open: true, target });
+    /** Closes the dialog after a release; its button goes, so the focus goes to the heading. */
+    released() {
+      toHeading.current = true;
+      control.onOpenChange(false);
     },
-    /** After a release, the focus goes to the heading of the requested test. */
-    released(target: ReleaseTarget) {
-      fallback.current = testHeadingId(target.request.id, target.test.testId);
+    /** Closes the dialog on a refusal and shows it at the requested test. */
+    closedOn(message: string) {
+      toHeading.current = true;
+      if (ids) setNotice({ requestId: ids.requestId, testId: ids.testId, message });
+      control.onOpenChange(false);
     },
   };
 }
 
 function ResultsList({ results }: Readonly<{ results: LabResults }>) {
   const dialogs = useResultsDialogs();
+  const { ids } = dialogs;
+  // The released row leaves the open set once the data refetches, while the dialog still closes.
+  const shown = useRef<ReleaseTarget | undefined>(undefined);
   if (results.requests.length === 0) {
     return (
       <Empty className="border">
@@ -112,6 +130,12 @@ function ResultsList({ results }: Readonly<{ results: LabResults }>) {
       </Empty>
     );
   }
+  const measureRequest =
+    ids?.kind === "measure" ? results.requests.find((row) => row.id === ids.requestId) : undefined;
+  const measureTest = measureRequest?.tests.find((row) => row.testId === ids?.testId);
+  const live = ids?.kind === "release" ? releaseTarget(results, ids) : undefined;
+  if (live) shown.current = live;
+  const target = live ?? (ids?.kind === "release" && !ids.open ? shown.current : undefined);
   return (
     <>
       <ol className="flex flex-col gap-4">
@@ -120,38 +144,41 @@ function ResultsList({ results }: Readonly<{ results: LabResults }>) {
             key={request.id}
             request={request}
             headingId={(testId) => testHeadingId(request.id, testId)}
+            notice={(testId) =>
+              dialogs.notice?.requestId === request.id && dialogs.notice.testId === testId
+                ? dialogs.notice.message
+                : null
+            }
             actions={(test) => ({
+              labId: results.labId,
               writable: results.running && test.release === null,
-              onMeasure: (event) => dialogs.openMeasure(event, request, test),
-              onRelease: (event: MouseEvent<HTMLButtonElement>, measurement: MeasurementRow) => {
-                if (test.tolerance === null) return;
-                dialogs.openRelease(event, {
-                  request,
-                  test,
-                  measurement,
-                  tolerance: test.tolerance,
-                });
-              },
+              onMeasure: (event) => dialogs.openMeasure(event, request.id, test.testId),
+              onRelease: (event, measurement) =>
+                dialogs.openRelease(event, request.id, test.testId, measurement.id),
             })}
           />
         ))}
       </ol>
-      {dialogs.measureFor ? (
+      {measureRequest && measureTest ? (
         <MeasurementDialog
-          key={`${dialogs.measureFor.request.id}-${dialogs.measureFor.test.testId}`}
-          control={dialogs.measureControl}
+          key={`${measureRequest.id}-${measureTest.testId}`}
+          control={dialogs.control}
           labId={results.labId}
-          request={dialogs.measureFor.request}
-          test={dialogs.measureFor.test}
+          request={measureRequest}
+          test={measureTest}
+          onClosingRefusal={dialogs.closedOn}
         />
       ) : null}
-      <ReleaseDialog
-        key={dialogs.releaseFor?.target.measurement.id ?? "none"}
-        control={dialogs.releaseControl}
-        labId={results.labId}
-        target={dialogs.releaseFor?.target}
-        onReleased={dialogs.released}
-      />
+      {target ? (
+        <ReleaseDialog
+          key={target.measurement.id}
+          control={dialogs.control}
+          labId={results.labId}
+          target={target}
+          onReleased={dialogs.released}
+          onClosingRefusal={dialogs.closedOn}
+        />
+      ) : null}
     </>
   );
 }

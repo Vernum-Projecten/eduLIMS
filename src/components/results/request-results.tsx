@@ -17,10 +17,13 @@ export function RequestResults({
   request,
   headingId,
   actions,
+  notice = () => null,
 }: Readonly<{
   request: ResultsRequestRow;
   headingId: (testId: string) => string;
   actions: ((test: RequestedTestRow) => RequestedTestActions) | null;
+  /** A refusal to show at a requested test, after a dialog closed on it. */
+  notice?: (testId: string) => string | null;
 }>) {
   const title = request.patientName
     ? m.records_request_for({ name: request.patientName })
@@ -57,6 +60,7 @@ export function RequestResults({
             test={test}
             headingId={headingId(test.testId)}
             actions={actions ? actions(test) : null}
+            notice={notice(test.testId)}
           />
         ))}
       </article>

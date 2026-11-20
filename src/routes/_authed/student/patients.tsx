@@ -101,7 +101,7 @@ function PatientsPage() {
               {m.records_lab_choice({ lab: lab.labName, simulation: lab.simulationName })}
             </p>
           )}
-          <LabRecordsView labId={lab.labId} />
+          <LabRecordsView key={lab.labId} labId={lab.labId} />
         </>
       )}
     </Page>

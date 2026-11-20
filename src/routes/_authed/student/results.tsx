@@ -95,7 +95,7 @@ function ResultsPage() {
               {m.records_lab_choice({ lab: lab.labName, simulation: lab.simulationName })}
             </p>
           )}
-          <StudentResults labId={lab.labId} />
+          <StudentResults key={lab.labId} labId={lab.labId} />
         </>
       )}
     </Page>

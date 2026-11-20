@@ -48,11 +48,14 @@ export function MeasurementDialog({
   labId,
   request,
   test,
+  onClosingRefusal,
 }: Readonly<{
   control: DialogControl;
   labId: string;
   request: ResultsRequestRow;
   test: RequestedTestRow;
+  /** Runs on a refusal that leaves nothing to enter (released, not running); the caller closes. */
+  onClosingRefusal: (message: string) => void;
 }>) {
   const queryClient = useQueryClient();
   const call = useServerFn(recordMeasurementFn);
@@ -78,6 +81,10 @@ export function MeasurementDialog({
       } catch (error) {
         const code = resultsErrorCode(error);
         const message = resultsErrorMessage(code);
+        if (code === "released" || code === "not_running") {
+          onClosingRefusal(message);
+          return;
+        }
         const field = code === null ? undefined : REFUSAL_FIELD[code];
         applyServerRefusal(
           formApi,

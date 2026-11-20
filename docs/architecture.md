@@ -664,9 +664,13 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
   value, the sample, the tolerance and, for a value outside it, a warning
   with an icon and text; the button then reads "Release anyway". Focus goes
   back to the button that opened a dialog, and after a release, whose button
-  goes, to the heading of the requested test. The teacher's lab page shows
-  the same read-only, with the released measurement marked by an icon and
-  text.
+  goes, to the heading of the requested test. A refusal that leaves nothing
+  to confirm (the tolerance changed, the test is released, the simulation
+  stopped) closes the dialog and shows at the requested test. The team and
+  the teachers see the time of release. The teacher's lab page shows the
+  same read-only, with the released measurement marked by an icon and text.
+  The correction form of a request keeps every requested test ticked and
+  fixed, so a correction never removes one (#268).
 
 ### Template `eduLIMS-lab`
 

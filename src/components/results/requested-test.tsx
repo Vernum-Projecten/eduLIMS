@@ -3,6 +3,7 @@
 
 import { Link } from "@tanstack/react-router";
 import {
+  CircleAlertIcon,
   CircleCheckIcon,
   CircleDashedIcon,
   FlaskConicalIcon,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import type { MouseEvent } from "react";
 import { ScrollRegion } from "@/components/lab-records/scroll-region";
+import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +29,7 @@ import { formatDateTime, formatDecimal } from "@/lib/i18n/format";
 import { measurementSourceLabel, requestedTestStateLabel } from "@/lib/i18n/results-labels";
 import { formatLabNumber } from "@/lib/lab-number";
 import type { RequestedTestState } from "@/lib/results";
+import { cn } from "@/lib/utils";
 import type { MeasurementRow, RequestedTestRow } from "@/server/results/queries";
 
 /** The state of a requested test as a badge with an icon and text, never colour alone. */
@@ -59,40 +62,49 @@ export function ReleasedMark() {
 
 /** What the student can do with a requested test; the teacher's view passes none. */
 export interface RequestedTestActions {
+  /** The student's lab, for the link to its tolerances. */
+  labId: string;
   /** Whether the team can write: the simulation runs and the test is not released. */
   writable: boolean;
-  onMeasure: ((event: MouseEvent<HTMLButtonElement>) => void) | null;
+  onMeasure: (event: MouseEvent<HTMLButtonElement>) => void;
   onRelease: (event: MouseEvent<HTMLButtonElement>, measurement: MeasurementRow) => void;
 }
 
-/** The team's own tolerance of the test, or what it lacks for a release (S13). */
-function ToleranceLine({ test, student }: Readonly<{ test: RequestedTestRow; student: boolean }>) {
+/** A tolerance as a range in the test's unit. */
+function Range({ lower, upper, unit }: Readonly<{ lower: string; upper: string; unit: string }>) {
+  return (
+    <span className="tabular-nums">
+      {m.results_tolerance_range({
+        lower: formatDecimal(lower),
+        upper: formatDecimal(upper),
+        unit,
+      })}
+    </span>
+  );
+}
+
+/** The team's own tolerance and the release, or what the test lacks for a release (S13, S15). */
+function ReleaseFacts({ test, labId }: Readonly<{ test: RequestedTestRow; labId: string | null }>) {
   const unit = test.unit ?? "";
   if (test.release) {
     return (
-      <p className="text-sm">
-        <span className="text-muted-foreground">{m.results_release_tolerance()} </span>
-        <span className="tabular-nums">
-          {m.results_tolerance_range({
-            lower: formatDecimal(test.release.tolerance.lower),
-            upper: formatDecimal(test.release.tolerance.upper),
-            unit,
-          })}
-        </span>
-      </p>
+      <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
+        <dt className="text-muted-foreground">{m.results_released_at()}</dt>
+        <dd>
+          <time dateTime={test.release.releasedAt}>{formatDateTime(test.release.releasedAt)}</time>
+        </dd>
+        <dt className="text-muted-foreground">{m.results_release_tolerance()}</dt>
+        <dd>
+          <Range {...test.release.tolerance} unit={unit} />
+        </dd>
+      </dl>
     );
   }
   if (test.tolerance) {
     return (
       <p className="text-sm">
         <span className="text-muted-foreground">{m.results_your_tolerance()} </span>
-        <span className="tabular-nums">
-          {m.results_tolerance_range({
-            lower: formatDecimal(test.tolerance.lower),
-            upper: formatDecimal(test.tolerance.upper),
-            unit,
-          })}
-        </span>
+        <Range {...test.tolerance} unit={unit} />
       </p>
     );
   }
@@ -100,24 +112,35 @@ function ToleranceLine({ test, student }: Readonly<{ test: RequestedTestRow; stu
     <p className="inline-flex flex-wrap items-center gap-1.5 text-sm">
       <CircleDashedIcon aria-hidden="true" className="size-4 shrink-0" />
       {m.results_no_tolerance()}
-      {student ? (
-        <Link to="/student/tolerances" className="underline underline-offset-4">
+      {labId === null ? null : (
+        <Link
+          to="/student/tolerances"
+          search={{ lab: labId }}
+          className="underline underline-offset-4"
+        >
           {m.results_set_tolerance()}
         </Link>
-      ) : null}
+      )}
     </p>
   );
 }
 
 /**
  * One requested test with every measurement, oldest first, the released one marked (S14, S15,
- * D11). With `actions`, a member of the lab enters a measurement by hand and releases one.
+ * D11). With `actions`, a member of the lab enters a measurement by hand and releases one; a
+ * `notice` is a refusal the page shows at the test, after a dialog closed on it.
  */
 export function RequestedTest({
   test,
   headingId,
   actions,
-}: Readonly<{ test: RequestedTestRow; headingId: string; actions: RequestedTestActions | null }>) {
+  notice = null,
+}: Readonly<{
+  test: RequestedTestRow;
+  headingId: string;
+  actions: RequestedTestActions | null;
+  notice?: string | null;
+}>) {
   const measure = actions?.writable && test.source === "manual" ? actions.onMeasure : null;
   const release =
     actions?.writable && test.tolerance !== null && test.release === null
@@ -125,10 +148,14 @@ export function RequestedTest({
       : null;
   const tableLabel = m.results_measurements_of({ test: test.name });
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h4 id={headingId} tabIndex={-1} className="font-medium outline-none">
+          <h4
+            id={headingId}
+            tabIndex={-1}
+            className={cn(FOCUSABLE_HEADING, "text-base font-medium")}
+          >
             {test.unit ? m.results_test_with_unit({ test: test.name, unit: test.unit }) : test.name}
           </h4>
           <TestStateBadge state={test.state} />
@@ -146,7 +173,13 @@ export function RequestedTest({
           </Button>
         ) : null}
       </div>
-      <ToleranceLine test={test} student={actions !== null} />
+      <ReleaseFacts test={test} labId={actions?.labId ?? null} />
+      {notice ? (
+        <p role="alert" className="inline-flex items-center gap-1.5 text-destructive text-sm">
+          <CircleAlertIcon aria-hidden="true" className="size-4 shrink-0" />
+          {notice}
+        </p>
+      ) : null}
       {test.measurements.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           {test.source === "manual"
@@ -164,6 +197,7 @@ export function RequestedTest({
                 <TableHead scope="col">{m.results_col_value()}</TableHead>
                 <TableHead scope="col">{m.results_col_source()}</TableHead>
                 <TableHead scope="col">{m.results_col_status()}</TableHead>
+                {release ? <TableHead scope="col">{m.results_col_action()}</TableHead> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -182,10 +216,9 @@ export function RequestedTest({
                   </TableCell>
                   <TableCell className="tabular-nums">{formatDecimal(measurement.value)}</TableCell>
                   <TableCell>{measurementSourceLabel(measurement.source)}</TableCell>
-                  <TableCell>
-                    {measurement.released ? (
-                      <ReleasedMark />
-                    ) : release ? (
+                  <TableCell>{measurement.released ? <ReleasedMark /> : null}</TableCell>
+                  {release ? (
+                    <TableCell>
                       <Button
                         type="button"
                         size="sm"
@@ -198,14 +231,14 @@ export function RequestedTest({
                         <SendIcon aria-hidden="true" data-icon="inline-start" />
                         {m.results_release()}
                       </Button>
-                    ) : null}
-                  </TableCell>
+                    </TableCell>
+                  ) : null}
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </ScrollRegion>
       )}
-    </section>
+    </div>
   );
 }

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { RESULTS_ACTION_ERRORS } from "@/server/results/access";
 import {
   measurementSourceLabel,
+  releaseVerdict,
   requestedTestStateLabel,
   resultsErrorMessage,
   toleranceWarning,
@@ -39,5 +40,29 @@ describe("the words of results (S14, S15, ADR 0011)", () => {
     expect(toleranceWarning("above", LIMITS)).toBe(
       "The value is above your tolerance of 4 to 6 mmol/L. Check it before you release it.",
     );
+  });
+});
+
+describe("releaseVerdict (S15; UI review of #374, S4)", () => {
+  const tolerance = { lower: "4", upper: "6" };
+
+  it("is inside on a limit and outside past it, with the words of the warning", () => {
+    expect(releaseVerdict("4.000000", tolerance, "mmol/L")).toEqual({
+      kind: "inside",
+      text: "The value is inside your tolerance of 4 to 6 mmol/L.",
+    });
+    expect(releaseVerdict("3.9", tolerance, "mmol/L")).toEqual({
+      kind: "outside",
+      text: "The value is below your tolerance of 4 to 6 mmol/L. Check it before you release it.",
+    });
+  });
+
+  it("is unreadable for a value the check cannot read, so nothing is released", () => {
+    for (const value of ["1e5", "1234567890", "NaN"]) {
+      expect(releaseVerdict(value, tolerance, null)).toEqual({
+        kind: "unreadable",
+        text: "This value cannot be checked against your tolerance, so it cannot be released. Enter the measurement again.",
+      });
+    }
   });
 });

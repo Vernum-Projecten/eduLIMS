@@ -1,16 +1,23 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The world of the results journey (S14, S15, #270), written straight into this run's database:
-// a running simulation of the seeded teacher with two labs, one copied student in each, one
-// invented test entered by hand, and in the first lab an invented patient with a request for that
-// test on one sample and the team's own tolerance. Everything is invented (Q-PRIV-4).
+// The world of the results journeys (S14, S15, #270), written straight into this run's database:
+// a running simulation of the seeded teacher with two labs, one copied student in each, and in the
+// first lab an invented patient with one request on one sample for five invented tests: three
+// entered by hand with the team's tolerance (the second and third with one measurement already),
+// one from the Afinion 2 and one by hand without a tolerance. Everything is invented (Q-PRIV-4).
 import { randomInt } from "node:crypto";
 import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool } from "pg";
 import { withCheckDigit } from "../../src/lib/lab-number.ts";
 import type { DB } from "../../src/server/db/schema.gen.ts";
 import { copyAccount, type TestAccount } from "./accounts";
+
+/** One seeded test: its id and its name. */
+export interface SeededTest {
+  id: string;
+  name: string;
+}
 
 /** What {@link seedResults} stored. */
 export interface ResultsWorld {
@@ -20,8 +27,18 @@ export interface ResultsWorld {
   otherLabId: string;
   otherLab: string;
   patient: string;
-  testName: string;
-  sampleNumber: string;
+  requestId: string;
+  sampleId: string;
+  /** Entered by hand, with a tolerance of 4 to 6 and no measurement: the keyboard journey. */
+  journey: SeededTest;
+  /** Entered by hand, with a tolerance of 4 to 6 and one measurement of 5: the refusals. */
+  refused: SeededTest;
+  /** Entered by hand, with a tolerance of 4 to 6 and one measurement of 9: the narrow dialog. */
+  narrow: SeededTest;
+  /** Measured on the Afinion 2: no entry by hand. */
+  afinion: SeededTest;
+  /** Entered by hand without a tolerance: no release. */
+  untolerated: SeededTest;
   student: TestAccount;
   otherStudent: TestAccount;
 }
@@ -34,7 +51,17 @@ function database(): Kysely<DB> {
   });
 }
 
-/** Stores the journey's world under the run-unique `suffix`. */
+/** Runs `write` against this run's database and closes the connection. */
+async function withDatabase<T>(write: (db: Kysely<DB>) => Promise<T>): Promise<T> {
+  const db = database();
+  try {
+    return await write(db);
+  } finally {
+    await db.destroy();
+  }
+}
+
+/** Stores the journeys' world under the run-unique `suffix`. */
 export async function seedResults(suffix: string): Promise<ResultsWorld> {
   const student = await copyAccount("student@example.test", "results-student");
   const otherStudent = await copyAccount("student@example.test", "results-other");
@@ -42,12 +69,9 @@ export async function seedResults(suffix: string): Promise<ResultsWorld> {
     lab: `Bright Burettes ${suffix}`,
     otherLab: `Calm Centrifuges ${suffix}`,
     patient: `Noor Testpatient ${suffix}`,
-    testName: `Urate ${suffix}`,
-    sampleNumber: `R-${suffix}`,
   };
-  const db = database();
-  try {
-    return await db.transaction().execute(async (trx) => {
+  return withDatabase((db) =>
+    db.transaction().execute(async (trx) => {
       const teacher = await trx
         .selectFrom("user")
         .select("id")
@@ -81,11 +105,26 @@ export async function seedResults(suffix: string): Promise<ResultsWorld> {
       };
       const labId = await lab(names.lab, student.id);
       const otherLabId = await lab(names.otherLab, otherStudent.id);
-      const { id: testId } = await trx
-        .insertInto("catalogue_tests")
-        .values({ name: names.testName, unit: "mmol/L", material: "plasma", source: "manual" })
-        .returning("id")
-        .executeTakeFirstOrThrow();
+      const test = async (name: string, source: "manual" | "afinion"): Promise<SeededTest> => {
+        const full = `${name} ${suffix}`;
+        const { id } = await trx
+          .insertInto("catalogue_tests")
+          .values({
+            name: full,
+            unit: "mmol/L",
+            material: "plasma",
+            source,
+            afinion_analyte: source === "afinion" ? `AN${suffix}` : null,
+          })
+          .returning("id")
+          .executeTakeFirstOrThrow();
+        return { id, name: full };
+      };
+      const journey = await test("Urate", "manual");
+      const refused = await test("Lactate", "manual");
+      const narrow = await test("Glucose", "manual");
+      const afinion = await test("Cystatin", "afinion");
+      const untolerated = await test("Albumin", "manual");
       const { id: patientId } = await trx
         .insertInto("patients")
         .values({
@@ -113,34 +152,126 @@ export async function seedResults(suffix: string): Promise<ResultsWorld> {
         .executeTakeFirstOrThrow();
       await trx
         .insertInto("request_tests")
-        .values({ request_id: requestId, test_id: testId })
+        .values(
+          [journey, refused, narrow, afinion, untolerated].map((t) => ({
+            request_id: requestId,
+            test_id: t.id,
+          })),
+        )
         .execute();
-      await trx
+      const { id: sampleId } = await trx
         .insertInto("samples")
         .values({
           simulation_id: simulationId,
           lab_id: labId,
           request_id: requestId,
-          sample_number: names.sampleNumber,
+          sample_number: `R-${suffix}`,
           material: "plasma",
           lab_number: withCheckDigit(String(randomInt(100_000_000, 1_000_000_000))),
           created_by: student.id,
         })
-        .execute();
-      await trx
-        .insertInto("lab_tolerances")
-        .values({
-          simulation_id: simulationId,
-          lab_id: labId,
-          test_id: testId,
-          lower_limit: "4",
-          upper_limit: "6",
-          set_by: student.id,
-        })
-        .execute();
-      return { ...names, simulationId, labId, otherLabId, student, otherStudent };
-    });
-  } finally {
-    await db.destroy();
-  }
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      for (const t of [journey, refused, narrow]) {
+        await trx
+          .insertInto("lab_tolerances")
+          .values({
+            simulation_id: simulationId,
+            lab_id: labId,
+            test_id: t.id,
+            lower_limit: "4",
+            upper_limit: "6",
+            set_by: student.id,
+          })
+          .execute();
+      }
+      for (const [t, value] of [
+        [refused, "5"],
+        [narrow, "9"],
+      ] as const) {
+        await trx
+          .insertInto("measurements")
+          .values({
+            simulation_id: simulationId,
+            lab_id: labId,
+            request_id: requestId,
+            test_id: t.id,
+            sample_id: sampleId,
+            value,
+            source: "manual",
+            recorded_by: student.id,
+          })
+          .execute();
+      }
+      return {
+        ...names,
+        simulationId,
+        labId,
+        otherLabId,
+        requestId,
+        sampleId,
+        journey,
+        refused,
+        narrow,
+        afinion,
+        untolerated,
+        student,
+        otherStudent,
+      };
+    }),
+  );
+}
+
+/** Sets a new tolerance for `testId`, as a classmate would (the dialog's tolerance goes stale). */
+export function changeTolerance(world: ResultsWorld, testId: string): Promise<void> {
+  return withDatabase(async (db) => {
+    await db
+      .insertInto("lab_tolerances")
+      .values({
+        simulation_id: world.simulationId,
+        lab_id: world.labId,
+        test_id: testId,
+        lower_limit: "4.5",
+        upper_limit: "5.5",
+        set_by: world.student.id,
+      })
+      .execute();
+  });
+}
+
+/** Releases the first measurement of `testId`, as a classmate would. */
+export function releaseElsewhere(world: ResultsWorld, testId: string): Promise<void> {
+  return withDatabase(async (db) => {
+    const measurement = await db
+      .selectFrom("measurements")
+      .select("id")
+      .where("request_id", "=", world.requestId)
+      .where("test_id", "=", testId)
+      .orderBy("recorded_at")
+      .executeTakeFirstOrThrow();
+    const tolerance = await db
+      .selectFrom("lab_tolerances")
+      .select("id")
+      .where("lab_id", "=", world.labId)
+      .where("test_id", "=", testId)
+      .orderBy("set_at", "desc")
+      .executeTakeFirstOrThrow();
+    await db
+      .updateTable("request_tests")
+      .set({ released_measurement_id: measurement.id, released_tolerance_id: tolerance.id })
+      .where("request_id", "=", world.requestId)
+      .where("test_id", "=", testId)
+      .execute();
+  });
+}
+
+/** Finishes the journeys' simulation, as the teacher's finish would. */
+export function finishResults(world: ResultsWorld): Promise<void> {
+  return withDatabase(async (db) => {
+    await db
+      .updateTable("simulations")
+      .set({ state: "finished", finished_at: sql<Date>`now()` })
+      .where("id", "=", world.simulationId)
+      .execute();
+  });
 }

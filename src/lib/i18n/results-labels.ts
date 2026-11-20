@@ -5,8 +5,9 @@
 // measurement came from, the state of a requested test and the tolerance check, each from the
 // i18n layer (ADR 0011).
 import { m } from "@/i18n/messages";
+import { formatDecimal } from "@/lib/i18n/format";
 import type { MeasurementSource, RequestedTestState } from "@/lib/results";
-import type { ToleranceCheck } from "@/lib/tolerance";
+import { checkMeasuredValue, type ToleranceCheck } from "@/lib/tolerance";
 import type { ResultsActionError } from "@/server/results/access";
 
 /** Returns the translated message of a refusal; `null` (no refusal code) is a failure. */
@@ -26,6 +27,8 @@ export function resultsErrorMessage(code: ResultsActionError | null): string {
       return m.results_error_measurement_not_found();
     case "not_manual_test":
       return m.results_error_not_manual_test();
+    case "source_mismatch":
+      return m.results_error_source_mismatch();
     case "value_invalid":
       return m.results_value_invalid();
     case "released":
@@ -95,4 +98,33 @@ export function toleranceWarning(
       return unknown;
     }
   }
+}
+
+/** What the release confirmation says about a value: unreadable, inside, or outside with why. */
+export type ReleaseVerdict =
+  | { kind: "unreadable"; text: string }
+  | { kind: "inside"; text: string }
+  | { kind: "outside"; text: string };
+
+/**
+ * Returns what the release confirmation shows for `value` against the team's own tolerance
+ * (S15): the warning outside it, the plain statement inside it, and, for a value the check
+ * cannot read, a refusal text and no release.
+ */
+export function releaseVerdict(
+  value: string,
+  tolerance: { lower: string; upper: string },
+  unit: string | null,
+): ReleaseVerdict {
+  const check = checkMeasuredValue(value, tolerance);
+  if (check === null) return { kind: "unreadable", text: m.results_value_unreadable() };
+  const limits = {
+    lower: formatDecimal(tolerance.lower),
+    upper: formatDecimal(tolerance.upper),
+    unit: unit ?? "",
+  };
+  const warning = toleranceWarning(check, limits);
+  return warning === null
+    ? { kind: "inside", text: m.results_inside(limits) }
+    : { kind: "outside", text: warning };
 }
