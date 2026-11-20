@@ -11,6 +11,7 @@ import { validateRoleValue } from "../../lib/roles.ts";
 import { isAsciiEmail, normalizeEmail } from "../../lib/simulations.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { inOtherActiveSimulation } from "./one-simulation.ts";
 import { removedAt } from "./removals.ts";
 
 /** What one link run did. */
@@ -19,7 +20,8 @@ export interface LinkOutcome {
   linked: number;
   /**
    * Waiting addresses refused: dropped because the student is in another lab of that simulation,
-   * or kept because a teacher removed the student from it (#330).
+   * or kept because a teacher removed the student from it (#330) or the student is in another
+   * simulation that is not finished (#379).
    */
   refused: number;
   /** Waiting addresses whose transaction failed; they stay waiting for the next run. */
@@ -46,25 +48,26 @@ export async function hasWaitingLabAddress(db: Kysely<DB>, email: string): Promi
 type RowOutcome = "linked" | "refused" | "gone";
 
 /**
- * Returns whether a link refusal with the reason `removed` was logged for `userId` in the
- * simulation at or after `removal`, the time of their removal record.
+ * Returns whether a link refusal with `reason` was logged for `userId` in the simulation at or
+ * after `since`: the time of their removal record, or the time the address was added.
  */
 async function refusedSince(
   trx: Kysely<DB>,
   simulationId: string,
   userId: string,
-  removal: Date,
+  reason: "removed" | "in_other_simulation",
+  since: Date,
 ): Promise<boolean> {
   const row = await trx
     .selectFrom("audit_event")
     .select("id")
     .where("action", "=", "lab_member_joined")
     .where("outcome", "=", "refused")
-    .where("reason_code", "=", "removed")
+    .where("reason_code", "=", reason)
     .where("actor_type", "=", "user")
     .where("actor_id", "=", userId)
     .where(sql<string>`metadata ->> 'simulation_id'`, "=", simulationId)
-    .where("occurred_at", ">=", removal)
+    .where("occurred_at", ">=", since)
     .limit(1)
     .executeTakeFirst();
   return row !== undefined;
@@ -87,7 +90,7 @@ async function linkRow(
       .executeTakeFirst();
     const waiting = await trx
       .selectFrom("lab_member_emails")
-      .select("lab_id")
+      .select(["lab_id", "added_at"])
       .where("simulation_id", "=", simulationId)
       .where("email", "=", email)
       .forUpdate()
@@ -99,23 +102,21 @@ async function linkRow(
       target: { type: "lab", id: waiting.lab_id },
     } as const;
     const metadata = { simulation_id: simulationId, user_id: userId, join_via: "email" } as const;
+    /** Logs a refusal that keeps the address waiting, once from `since` on. */
+    const refuseOnce = async (reason: "removed" | "in_other_simulation", since: Date) => {
+      if (!(await refusedSince(trx, simulationId, userId, reason, since))) {
+        // A `now` taken before this transaction waited on the lock can predate `since`; the row
+        // then carries that time, so the check above finds it next time.
+        const occurredAt = now.getTime() < since.getTime() ? since : now;
+        await recordAudit(trx, { ...event, outcome: "refused", reason, metadata, occurredAt });
+      }
+      return "refused" as const;
+    };
     const removal = await removedAt(trx, simulationId, userId);
     if (removal !== null) {
       // NOTE: #330 (maintainer, 2026-11-20); a teacher's removal wins over a waiting address, which
       // stays (it may be a classmate's), and the refusal is logged once per removal.
-      if (!(await refusedSince(trx, simulationId, userId, removal))) {
-        // A `now` taken before this transaction waited on the lock can predate the removal; the
-        // row then carries the removal's time, so the check above finds it next time.
-        const occurredAt = now.getTime() < removal.getTime() ? removal : now;
-        await recordAudit(trx, {
-          ...event,
-          outcome: "refused",
-          reason: "removed",
-          metadata,
-          occurredAt,
-        });
-      }
-      return "refused";
+      return refuseOnce("removed", removal);
     }
     const place = await trx
       .selectFrom("lab_members")
@@ -137,6 +138,11 @@ async function linkRow(
       return "refused";
     }
     if (!place) {
+      if (await inOtherActiveSimulation(trx, userId, simulationId)) {
+        // NOTE: #379 (owner, 2026-11-20); the address keeps waiting and links once the student's
+        // other simulation is finished; the refusal is logged once per address.
+        return refuseOnce("in_other_simulation", waiting.added_at);
+      }
       await trx
         .insertInto("lab_members")
         .values({
@@ -160,7 +166,9 @@ async function linkRow(
  * not only a student link nothing. A student already in another lab of that simulation stays
  * there: the waiting address is deleted and the refusal is logged once. A student a teacher
  * removed from the simulation is refused, logged once per removal, and the address keeps waiting
- * (#330).
+ * (#330). A student in a lab of another prepared or running simulation is refused with
+ * `in_other_simulation`, logged once per address, and the address keeps waiting (#379); the
+ * simulations are tried in the order of their ids, so the first that links wins.
  */
 export async function linkWaitingAddresses(
   db: Kysely<DB>,

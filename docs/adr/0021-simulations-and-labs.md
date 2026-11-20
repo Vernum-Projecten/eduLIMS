@@ -126,6 +126,20 @@ browser client were checked: none of them depends on it.
 - Bad: an email address a teacher mistypes links nobody. The student then
   needs the lab's code.
 
+## Amendment: one simulation at a time per student (2026-11-20)
+
+The owner decided on #379 that a student takes part in one simulation at a
+time, so the Student portal stays simple. The maintainer set the rule: a
+student is in at most one lab whose simulation is not finished. Once that
+simulation is finished, the student may join another; the finished one is
+history and leaves the Student portal once they do. The join code, the link
+of a waiting address and a teacher's move refuse a second place with
+`in_other_simulation`, under the simulation lock and then a lock on the
+student's user row, and a trigger on `lab_members` holds the rule as the last
+line. The primary key (simulation, student) stays: it keeps one lab per
+simulation, finished simulations included. The Student portal shows one lab
+without a picker, and the server resolves it.
+
 ## References
 
 - [Requirements](../requirements.md): S10, D10, D15, B2 (dropped), B5, O10

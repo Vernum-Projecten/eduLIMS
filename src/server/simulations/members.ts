@@ -17,6 +17,7 @@ import {
   type SimulationResult,
   withSimulation,
 } from "./access.ts";
+import { inOtherActiveSimulation } from "./one-simulation.ts";
 import { recordRemoval } from "./removals.ts";
 import { dropWaitingAddressesOf } from "./waiting.ts";
 
@@ -32,7 +33,8 @@ async function placeOf(trx: Kysely<DB>, simulationId: string, userId: string) {
 /**
  * Moves a student of a simulation the actor teaches to another of its labs. A lab of another
  * simulation answers `not_found`, as an unknown or malformed one does, and the probe is logged
- * (ASVS V16.3.2).
+ * (ASVS V16.3.2). A student in a lab of another prepared or running simulation is
+ * `in_other_simulation`, logged (#379).
  */
 export function moveMember(
   db: Kysely<DB>,
@@ -57,6 +59,22 @@ export function moveMember(
     const place = await placeOf(trx, simulationId, input.userId);
     if (!place) return refused("member_not_found");
     if (place.lab_id === target.id) return refused("same_lab");
+    // NOTE: #379 (owner, 2026-11-20); a move puts the student in a lab too, so it keeps the rule.
+    if (await inOtherActiveSimulation(trx, input.userId, simulationId)) {
+      await recordAudit(trx, {
+        action: "lab_member_moved",
+        actor: { type: "user", id: actor.id },
+        outcome: "refused",
+        reason: "in_other_simulation",
+        target: { type: "lab", id: target.id },
+        metadata: {
+          simulation_id: simulationId,
+          user_id: input.userId,
+          previous_lab_id: place.lab_id,
+        },
+      });
+      return refused("in_other_simulation");
+    }
     await trx
       .updateTable("lab_members")
       .set({ lab_id: target.id })

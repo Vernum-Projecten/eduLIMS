@@ -113,11 +113,7 @@ function ReleaseFacts({ test, labId }: Readonly<{ test: RequestedTestRow; labId:
       <CircleDashedIcon aria-hidden="true" className="size-4 shrink-0" />
       {m.results_no_tolerance()}
       {labId === null ? null : (
-        <Link
-          to="/student/tolerances"
-          search={{ lab: labId }}
-          className="underline underline-offset-4"
-        >
+        <Link to="/student/tolerances" className="underline underline-offset-4">
           {m.results_set_tolerance()}
         </Link>
       )}

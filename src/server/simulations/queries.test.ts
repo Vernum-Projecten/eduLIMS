@@ -8,9 +8,9 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { png } from "../logo/test-images.ts";
 import {
+  getCurrentStudentLab,
   getTeacherLab,
   getTeacherSimulation,
-  listStudentLabs,
   listTeacherSimulations,
 } from "./queries.ts";
 import { findStudentLab } from "./student-access.ts";
@@ -19,6 +19,7 @@ import {
   type Person,
   place,
   securityLines,
+  setState,
   type World,
   world,
 } from "./test-helpers.ts";
@@ -163,50 +164,66 @@ describe("getTeacherLab (D10, D11)", () => {
   });
 });
 
-describe("listStudentLabs (S10)", () => {
-  it("lists the student's own lab with its simulation, and nothing else", async () => {
+describe("getCurrentStudentLab (S10, #379)", () => {
+  it("gives the student's own lab with its simulation and state, and nothing else", async () => {
     const { database, w } = await open();
-    expect(await listStudentLabs(database, w.student.id)).toEqual([
-      {
-        labId: w.labId,
-        labName: "Pipette Pilots",
-        simulationId: w.simulationId,
-        simulationName: "Practice simulation",
-        logoVersion: null,
-      },
-    ]);
+    expect(await getCurrentStudentLab(database, w.student.id)).toEqual({
+      labId: w.labId,
+      labName: "Pipette Pilots",
+      simulationId: w.simulationId,
+      simulationName: "Practice simulation",
+      state: "prepared",
+      logoVersion: null,
+    });
   });
 
   it("gives a student of another lab only that lab", async () => {
     const { database, w } = await open();
-    const rows = await listStudentLabs(database, w.otherLabStudent.id);
-    expect(rows.map((row) => row.labId)).toEqual([w.otherLabId]);
+    expect((await getCurrentStudentLab(database, w.otherLabStudent.id))?.labId).toBe(w.otherLabId);
   });
 
   it("gives a student outside the simulation only their own simulation's lab", async () => {
     const { database, w } = await open();
-    const rows = await listStudentLabs(database, w.outsideStudent.id);
-    expect(rows.map((row) => row.labId)).toEqual([w.outsideLabId]);
+    expect((await getCurrentStudentLab(database, w.outsideStudent.id))?.labId).toBe(w.outsideLabId);
   });
 
   it.each([
     ["a teacher of the simulation", (w: World) => w.teacher],
     ["an administrator", (w: World) => w.admin],
     ["a student in no lab", (w: World) => w.stranger],
-  ])("lists nothing for %s", async (_who, actorOf) => {
+  ])("gives nothing to %s", async (_who, actorOf) => {
     const { database, w } = await open();
-    expect(await listStudentLabs(database, actorOf(w).id)).toEqual([]);
+    expect(await getCurrentStudentLab(database, actorOf(w).id)).toBeNull();
   });
 
-  it("returns names, ids and the logo version only: no member, address or teacher (Q-SIM-1)", async () => {
+  it("gives the lab of the unfinished simulation over a finished one (#379)", async () => {
     const { database, w } = await open();
-    const [row] = await listStudentLabs(database, w.student.id);
+    await setState(database, w.simulationId, "finished");
+    await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
+    const lab = await getCurrentStudentLab(database, w.student.id);
+    expect(lab).toEqual(expect.objectContaining({ labId: w.outsideLabId, state: "prepared" }));
+  });
+
+  it("gives the most recently finished lab, read-only, when every simulation is finished (#379)", async () => {
+    const { database, w } = await open();
+    await setState(database, w.outsideSimulationId, "finished", new Date("2026-11-01T09:00:00Z"));
+    await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
+    await setState(database, w.simulationId, "finished", new Date("2026-11-10T09:00:00Z"));
+    expect(await getCurrentStudentLab(database, w.student.id)).toEqual(
+      expect.objectContaining({ labId: w.labId, state: "finished" }),
+    );
+  });
+
+  it("returns names, ids, the state and the logo version only: no member, address or teacher (Q-SIM-1)", async () => {
+    const { database, w } = await open();
+    const row = await getCurrentStudentLab(database, w.student.id);
     expect(Object.keys(row ?? {}).sort()).toEqual([
       "labId",
       "labName",
       "logoVersion",
       "simulationId",
       "simulationName",
+      "state",
     ]);
   });
 });
@@ -276,19 +293,14 @@ describe("the logo version of each read (#293)", () => {
     return sha256.toString("hex").slice(0, 16);
   }
 
-  it("gives a student in two simulations each lab's own version (V8.2.2)", async () => {
+  it("gives a student in two simulations the current lab's own version (V8.2.2, #379)", async () => {
     const { database, w } = await open();
+    await setState(database, w.simulationId, "finished");
     await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
     const mine = await storeLogo(database, w, w.labId, 4);
     const outside = await storeLogo(database, w, w.outsideLabId, 6);
-    const rows = await listStudentLabs(database, w.student.id);
-    const versions = new Map(rows.map((row) => [row.labId, row.logoVersion]));
-    expect(versions).toEqual(
-      new Map([
-        [w.labId, mine],
-        [w.outsideLabId, outside],
-      ]),
-    );
+    const lab = await getCurrentStudentLab(database, w.student.id);
+    expect(lab).toEqual(expect.objectContaining({ labId: w.outsideLabId, logoVersion: outside }));
     expect(mine).not.toBe(outside);
   });
 
@@ -316,12 +328,8 @@ describe("the logo version of each read (#293)", () => {
   it("gives the student of the lab its version, and a student of another lab none of it", async () => {
     const { database, w } = await open();
     const version = await storeLogo(database, w);
-    expect((await listStudentLabs(database, w.student.id)).map((r) => r.logoVersion)).toEqual([
-      version,
-    ]);
-    expect(
-      (await listStudentLabs(database, w.otherLabStudent.id)).map((r) => r.logoVersion),
-    ).toEqual([null]);
+    expect((await getCurrentStudentLab(database, w.student.id))?.logoVersion).toBe(version);
+    expect((await getCurrentStudentLab(database, w.otherLabStudent.id))?.logoVersion).toBeNull();
   });
 
   it("changes the version when the logo is replaced", async () => {

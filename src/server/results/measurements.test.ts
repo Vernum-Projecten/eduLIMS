@@ -18,6 +18,7 @@ import {
   person,
   place,
   securityLines,
+  setState,
 } from "../simulations/test-helpers.ts";
 import { insertMeasurement, type NewMeasurement, recordManualMeasurement } from "./measurements.ts";
 import { releaseResult } from "./release.ts";
@@ -428,6 +429,8 @@ describe("more refusals of entry by hand (security review of #370)", () => {
       { simulationId: w.outsideSimulationId },
       NOW,
     );
+    // NOTE: #379; one unfinished simulation at a time, so the first one is finished here.
+    await setState(database, w.simulationId, "finished");
     await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
     expect(
       await recordManualMeasurement(database, w.student, { ...input(w), labId: w.outsideLabId }),

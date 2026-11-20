@@ -53,6 +53,23 @@ export async function place(
     .execute();
 }
 
+/**
+ * Sets the state of a simulation with the times the CHECK of migration 0018 asks for, bypassing
+ * the service (test set-up only). `at` is the time of the start and of the finish.
+ */
+export async function setState(
+  db: Kysely<DB>,
+  simulationId: string,
+  state: "running" | "finished",
+  at: Date = NOW,
+): Promise<void> {
+  await db
+    .updateTable("simulations")
+    .set({ state, started_at: at, finished_at: state === "finished" ? at : null })
+    .where("id", "=", simulationId)
+    .execute();
+}
+
 async function simulationOf(db: Kysely<DB>, teacher: Person, name: string): Promise<string> {
   const created = await createSimulation(db, teacher, { name }, NOW);
   if (!created.ok) throw new Error(created.error);

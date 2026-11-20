@@ -319,7 +319,9 @@ for (const [theme, locale] of [
     await preferences(context, theme, locale);
     await page.goto("/student");
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
-    await expect(page.getByRole("listitem").filter({ hasText: LAB }).locator("img")).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: text("student_labs_heading", "Your lab") }).locator("img"),
+    ).toBeVisible();
     await axe(page);
   });
 }
@@ -327,7 +329,7 @@ for (const [theme, locale] of [
 test("the student sees the logo of their lab on the overview, also at 320 px", async ({ page }) => {
   await devLogin(page, student.email);
   await expect(page).toHaveURL(/\/student$/);
-  const img = page.getByRole("listitem").filter({ hasText: LAB }).locator("img");
+  const img = page.getByRole("region", { name: "Your lab" }).locator("img");
   await expect(img).toHaveAttribute("alt", "");
   await expect(img).toHaveAttribute("src", new RegExp(`^/api/labs/${labId}/logo\\?v=`));
   await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(16);
