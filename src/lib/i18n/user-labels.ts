@@ -107,6 +107,7 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   lab_join_code_regenerated: m.audit_action_lab_join_code_regenerated,
   lab_join_code_disabled: m.audit_action_lab_join_code_disabled,
   lab_join_failed: m.audit_action_lab_join_failed,
+  lab_logo_changed: m.audit_action_lab_logo_changed,
   lab_patient_registered: m.audit_action_lab_patient_registered,
   lab_patient_corrected: m.audit_action_lab_patient_corrected,
   lab_request_recorded: m.audit_action_lab_request_recorded,

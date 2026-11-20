@@ -39,6 +39,7 @@ import { Route as AuthedAdminSimulationsSimulationIdRouteImport } from './routes
 import { Route as AuthedAdminSystemIndexRouteImport } from './routes/_authed/admin/system/index'
 import { Route as AuthedAdminUsersUserIdRouteImport } from './routes/_authed/admin/users/$userId'
 import { Route as AuthedTeacherSimulationsIndexRouteImport } from './routes/_authed/teacher/simulations/index'
+import { Route as ApiLabsLabIdLogoRouteImport } from './routes/api/labs/$labId/logo'
 import { Route as AuthedAdminSystemIdentityProvidersIndexRouteImport } from './routes/_authed/admin/system/identity-providers/index'
 import { Route as AuthedAdminSystemIdentityProvidersNewRouteImport } from './routes/_authed/admin/system/identity-providers/new'
 import { Route as AuthedTeacherSimulationsSimulationIdIndexRouteImport } from './routes/_authed/teacher/simulations/$simulationId/index'
@@ -198,6 +199,11 @@ const AuthedTeacherSimulationsIndexRoute =
     path: '/simulations/',
     getParentRoute: () => AuthedTeacherRoute,
   } as any)
+const ApiLabsLabIdLogoRoute = ApiLabsLabIdLogoRouteImport.update({
+  id: '/api/labs/$labId/logo',
+  path: '/api/labs/$labId/logo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthedAdminSystemIdentityProvidersIndexRoute =
   AuthedAdminSystemIdentityProvidersIndexRouteImport.update({
     id: '/system/identity-providers/',
@@ -262,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/teacher/': typeof AuthedTeacherIndexRoute
   '/admin/simulations/$simulationId': typeof AuthedAdminSimulationsSimulationIdRoute
   '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
+  '/api/labs/$labId/logo': typeof ApiLabsLabIdLogoRoute
   '/admin/simulations/': typeof AuthedAdminSimulationsIndexRoute
   '/admin/system/': typeof AuthedAdminSystemIndexRoute
   '/teacher/simulations/': typeof AuthedTeacherSimulationsIndexRoute
@@ -296,6 +303,7 @@ export interface FileRoutesByTo {
   '/teacher': typeof AuthedTeacherIndexRoute
   '/admin/simulations/$simulationId': typeof AuthedAdminSimulationsSimulationIdRoute
   '/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
+  '/api/labs/$labId/logo': typeof ApiLabsLabIdLogoRoute
   '/admin/simulations': typeof AuthedAdminSimulationsIndexRoute
   '/admin/system': typeof AuthedAdminSystemIndexRoute
   '/teacher/simulations': typeof AuthedTeacherSimulationsIndexRoute
@@ -335,6 +343,7 @@ export interface FileRoutesById {
   '/_authed/teacher/': typeof AuthedTeacherIndexRoute
   '/_authed/admin/simulations/$simulationId': typeof AuthedAdminSimulationsSimulationIdRoute
   '/_authed/admin/users/$userId': typeof AuthedAdminUsersUserIdRoute
+  '/api/labs/$labId/logo': typeof ApiLabsLabIdLogoRoute
   '/_authed/admin/simulations/': typeof AuthedAdminSimulationsIndexRoute
   '/_authed/admin/system/': typeof AuthedAdminSystemIndexRoute
   '/_authed/teacher/simulations/': typeof AuthedTeacherSimulationsIndexRoute
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/teacher/'
     | '/admin/simulations/$simulationId'
     | '/admin/users/$userId'
+    | '/api/labs/$labId/logo'
     | '/admin/simulations/'
     | '/admin/system/'
     | '/teacher/simulations/'
@@ -408,6 +418,7 @@ export interface FileRouteTypes {
     | '/teacher'
     | '/admin/simulations/$simulationId'
     | '/admin/users/$userId'
+    | '/api/labs/$labId/logo'
     | '/admin/simulations'
     | '/admin/system'
     | '/teacher/simulations'
@@ -446,6 +457,7 @@ export interface FileRouteTypes {
     | '/_authed/teacher/'
     | '/_authed/admin/simulations/$simulationId'
     | '/_authed/admin/users/$userId'
+    | '/api/labs/$labId/logo'
     | '/_authed/admin/simulations/'
     | '/_authed/admin/system/'
     | '/_authed/teacher/simulations/'
@@ -468,6 +480,7 @@ export interface RootRouteChildren {
   DevVirtualRoute: typeof DevVirtualRoute
   DevVirtualTableRoute: typeof DevVirtualTableRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiLabsLabIdLogoRoute: typeof ApiLabsLabIdLogoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -682,6 +695,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedTeacherSimulationsIndexRouteImport
       parentRoute: typeof AuthedTeacherRoute
     }
+    '/api/labs/$labId/logo': {
+      id: '/api/labs/$labId/logo'
+      path: '/api/labs/$labId/logo'
+      fullPath: '/api/labs/$labId/logo'
+      preLoaderRoute: typeof ApiLabsLabIdLogoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authed/admin/system/identity-providers/': {
       id: '/_authed/admin/system/identity-providers/'
       path: '/system/identity-providers'
@@ -845,6 +865,7 @@ const rootRouteChildren: RootRouteChildren = {
   DevVirtualRoute: DevVirtualRoute,
   DevVirtualTableRoute: DevVirtualTableRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiLabsLabIdLogoRoute: ApiLabsLabIdLogoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
