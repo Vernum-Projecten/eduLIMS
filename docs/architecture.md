@@ -373,7 +373,9 @@ student's place and a waiting address point at their lab through the pair
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it and it holds no patient or request
   (`has_records`, maintainer, 2026-11-20), and a simulation only while no student is in
-  one of its labs; the teacher moves or removes the students first.
+  one of its labs and none of its labs holds a patient, a request, a
+  tolerance or a measurement (`has_records`, maintainer on #370); the
+  teacher moves or removes the students first.
 - **The administrator** reads each simulation with its teachers' names and
   its labs with their member counts, and nothing else (B5). The list in
   Admin → Simulations is paged and searched by name on the server, newest
@@ -534,12 +536,17 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
   sample and the measurement to the lab in the same query. An analyser
   result is matched by the lab number alone (maintainer on #270), lands on
   that sample, and only the lab whose sample it is can release it.
-- **The seam for the analysers.** `insertMeasurement` parses and bounds the
-  value (`value_invalid`) and writes the activity-log row; the Afinion 2
-  route (#158) and the Epoch 2 upload (#152) call it after they have matched
-  the sample, checked that its simulation runs and locked the request
-  `FOR SHARE`. Entry by hand is allowed only for a test whose source is
-  entry by hand (D9).
+- **The seam for the analysers.** The Afinion 2 route (#158) and the Epoch 2
+  upload (#152) call `insertMeasurement` once they have matched the sample by
+  its lab number. In the caller's transaction it checks that the lab's
+  simulation runs (its row `FOR SHARE`), locks the request `FOR SHARE`,
+  checks that the measurement comes from the test's own source (entry by
+  hand only for a test entered by hand, D9), refuses entry by hand once the
+  test is released, checks the sample, and parses and bounds the value
+  (`value_invalid`). An analyser result that arrives after the release still
+  lands and shows, and the release stays final (maintainer on #370). Every
+  refusal writes an activity-log row; an analyser's measurement has no
+  student (a CHECK), and its time is the database clock (a trigger).
 - **FerroEHR.** The release returns what goes to the patient's record (the
   patient, the released measurement, the sample number, the test, the value
   and the time), and #148 writes it as Final after the transaction commits,

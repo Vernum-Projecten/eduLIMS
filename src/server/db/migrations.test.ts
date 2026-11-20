@@ -777,9 +777,32 @@ describe("migrations", () => {
     await expect(measurement("1.1234567")).rejects.toThrow(/measurements_value/);
     await expect(measurement("1000000000")).rejects.toThrow(/measurements_value/);
     await expect(measurement("5", "guess")).rejects.toThrow(/measurements_source/);
+    // An analyser's measurement has no student (security review of #370, S3).
+    const someone = await one(sql<{
+      id: string;
+    }>`insert into "user" (id, name, email, "emailVerified")
+        values ('u-0023', 'Test someone', 'someone-0023@example.test', true) returning id`);
+    await expect(
+      inSavepoint(sql`insert into measurements
+          (simulation_id, lab_id, request_id, test_id, sample_id, value, source, recorded_by)
+          values (${simulationId}, ${labId}, ${requestId}, ${testId}, ${sampleId}, 1, 'afinion',
+            ${someone})`),
+    ).rejects.toThrow(/measurements_recorded_by/);
+    // A time the insert carries is replaced by the server's clock (S1).
+    await inSavepoint(sql`insert into measurements
+        (simulation_id, lab_id, request_id, test_id, sample_id, value, source, recorded_at)
+        values (${simulationId}, ${labId}, ${requestId}, ${testId}, ${sampleId}, 7, 'manual',
+          '2000-01-01T00:00:00Z')`);
+    const smuggled = await sql<{ recorded_at: Date }>`select recorded_at from measurements
+        where value = 7`.execute(database);
+    expect(smuggled.rows[0]?.recorded_at.getUTCFullYear()).toBeGreaterThan(2000);
+    // A measured sample is never deleted on its own (S4).
+    await expect(inSavepoint(sql`delete from samples where id = ${sampleId}`)).rejects.toThrow(
+      /measurements_sample_fkey|a measurement is never removed/,
+    );
     const ids = await sql<{
       id: string;
-    }>`select id from measurements order by recorded_at, id`.execute(database);
+    }>`select id from measurements where value <> 7 order by recorded_at, id`.execute(database);
     const [first, second] = ids.rows.map((row) => row.id);
     await expect(
       inSavepoint(sql`update measurements set value = 1 where id = ${first}`),
@@ -794,6 +817,11 @@ describe("migrations", () => {
     await expect(release(first, otherToleranceId)).rejects.toThrow(
       /the tolerance of a release belongs to its lab and test/,
     );
+    // Who released goes only with a release (N2).
+    await expect(
+      inSavepoint(sql`update request_tests set released_by = ${someone}
+          where request_id = ${requestId} and test_id = ${testId}`),
+    ).rejects.toThrow(/request_tests_release/);
     await release(first, toleranceId);
     const stored = await sql<{ released_at: Date }>`select released_at from request_tests
         where request_id = ${requestId}`.execute(database);

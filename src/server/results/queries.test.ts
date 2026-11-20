@@ -10,7 +10,7 @@ import { SECRET_RED, SECRET_VALUE, SECRET_YELLOW } from "../correct-values/test-
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
-import { notFoundLine, securityLines } from "../simulations/test-helpers.ts";
+import { notFoundLine, person, securityLines } from "../simulations/test-helpers.ts";
 import { readStudentResults, readTeacherResults } from "./queries.ts";
 import { releaseResult } from "./release.ts";
 import { measure, resultsWorld } from "./test-helpers.ts";
@@ -144,5 +144,11 @@ describe("the teacher's view of a lab's results (D11)", () => {
     for (const actor of [w.student, w.admin]) {
       await expect(readTeacherResults(database, actor, w.labId)).rejects.toThrow(AuthError);
     }
+  });
+
+  it("answers an account with the roles teacher and admin that teaches nothing with null", async () => {
+    const { database, w } = await open();
+    const both = await person(database, "teacher-admin", ["teacher", "admin"]);
+    expect(await readTeacherResults(database, both, w.labId)).toBeNull();
   });
 });

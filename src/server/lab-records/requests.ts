@@ -253,7 +253,10 @@ export function correctRequest(
     if (refusal !== null) return refused(refusal);
     // NOTE: S12, S14 (maintainer on #268, 2026-11-20); a correction never removes a requested
     // test, so a measurement always keeps the test it belongs to.
-    if ([...before].some((testId) => !after.has(testId))) return refused("test_removed");
+    if ([...before].some((testId) => !after.has(testId))) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: "test_removed" });
+      return refused("test_removed");
+    }
     const storedSamples = await trx
       .selectFrom("samples")
       .select(["id", "sample_number", "material"])

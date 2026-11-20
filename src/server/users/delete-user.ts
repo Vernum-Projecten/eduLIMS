@@ -3,7 +3,8 @@
 
 // Deleting a user (B1, D10, #318), where the GDPR erasure path of #47 ends. eduLIMS deletes the
 // user itself, in one transaction: the simulations the user teaches are locked first, in id order
-// as every simulation write locks them, then the administrators when the user is one, then the
+// as every simulation write locks them, then a student's places in labs, then the administrators
+// when the user is one, then the
 // last-teacher and last-administrator rules are judged, then the sessions, the accounts and the
 // user go with their activity-log rows. A refusal changes nothing.
 import "@tanstack/react-start/server-only";
@@ -125,6 +126,15 @@ async function deleteInTransaction(
   requestId: string | undefined,
 ): Promise<Deletion> {
   await lockTaughtSimulations(trx, userId);
+  // NOTE: security review of #370 (N4); a student's write locks their place before it takes the
+  // user row's key, so the deletion takes the places first, or the two would deadlock.
+  await trx
+    .selectFrom("lab_members")
+    .select("simulation_id")
+    .where("user_id", "=", userId)
+    .orderBy("simulation_id")
+    .forUpdate()
+    .execute();
   const seen = await trx
     .selectFrom("user")
     .select("role")

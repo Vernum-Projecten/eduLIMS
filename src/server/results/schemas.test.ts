@@ -88,3 +88,28 @@ describe("the inputs of the server functions (E1, Q-SIM-2)", () => {
     expect(released).not.toHaveProperty("releasedAt");
   });
 });
+
+describe("ids in their canonical form (security review of #370, N3)", () => {
+  it("lower-case an upper-case UUID in every input", () => {
+    const upper = ID.toUpperCase();
+    expect(labResultsInput.parse({ labId: upper })).toEqual({ labId: ID });
+    expect(
+      releaseResultInput.parse({
+        labId: upper,
+        requestId: upper,
+        testId: upper,
+        measurementId: upper,
+        toleranceId: upper,
+      }),
+    ).toEqual({ labId: ID, requestId: ID, testId: ID, measurementId: ID, toleranceId: ID });
+    expect(
+      recordMeasurementInput.parse({
+        labId: upper,
+        requestId: upper,
+        testId: upper,
+        sampleId: upper,
+        value: "1",
+      }),
+    ).toMatchObject({ labId: ID, sampleId: ID });
+  });
+});

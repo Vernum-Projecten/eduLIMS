@@ -8,11 +8,18 @@ import { type Kysely, sql } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
-import { requestFor } from "../lab-records/test-helpers.ts";
+import { patientIn, requestFor } from "../lab-records/test-helpers.ts";
 import { AuthError } from "../middleware.ts";
-import { finishSimulation } from "../simulations/state.ts";
-import { auditRows, NOW, notFoundLine, securityLines } from "../simulations/test-helpers.ts";
-import { insertMeasurement, recordManualMeasurement } from "./measurements.ts";
+import { finishSimulation, startSimulation } from "../simulations/state.ts";
+import {
+  auditRows,
+  NOW,
+  notFoundLine,
+  person,
+  place,
+  securityLines,
+} from "../simulations/test-helpers.ts";
+import { insertMeasurement, type NewMeasurement, recordManualMeasurement } from "./measurements.ts";
 import { releaseResult } from "./release.ts";
 import { measure, type ResultsWorld, resultsWorld } from "./test-helpers.ts";
 
@@ -172,6 +179,42 @@ describe("recording a measurement by hand (S14)", () => {
   });
 });
 
+/** Makes the world's CRP an Afinion 2 test, as the catalogue would hold it (test set-up only). */
+async function afinionCrp(database: Kysely<DB>, w: ResultsWorld): Promise<void> {
+  await database
+    .updateTable("catalogue_tests")
+    .set({ source: "afinion", afinion_analyte: "CRP" })
+    .where("id", "=", w.crp)
+    .execute();
+}
+
+/** Runs the seam in its own transaction, as an analyser route would. */
+function seam(database: Kysely<DB>, w: ResultsWorld, overrides: Partial<NewMeasurement> = {}) {
+  return database.transaction().execute((trx) =>
+    insertMeasurement(trx, {
+      labId: w.labId,
+      requestId: w.requestId,
+      testId: w.crp,
+      sampleId: w.second.id,
+      value: "12.5",
+      source: "afinion",
+      recordedBy: null,
+      ...overrides,
+    }),
+  );
+}
+
+function refusals(database: Kysely<DB>) {
+  return database
+    .selectFrom("audit_event")
+    .select(["actor_type", "reason_code"])
+    .where("action", "=", "lab_measurement_recorded")
+    .where("outcome", "=", "refused")
+    .orderBy("occurred_at")
+    .orderBy("id")
+    .execute();
+}
+
 describe("a value is parsed and bounded before it is stored", () => {
   for (const value of [
     "1e5",
@@ -183,39 +226,23 @@ describe("a value is parsed and bounded before it is stored", () => {
     "NaN",
     "Infinity",
   ]) {
-    it(`refuses ${JSON.stringify(value)} with value_invalid and stores nothing`, async () => {
+    it(`refuses ${JSON.stringify(value)} with value_invalid, logged, and stores nothing`, async () => {
       const { database, w } = await open();
-      const result = await database.transaction().execute((trx) =>
-        insertMeasurement(trx, {
-          simulationId: w.simulationId,
-          labId: w.labId,
-          requestId: w.requestId,
-          testId: w.hba1c,
-          sampleId: w.first.id,
-          value,
-          source: "epoch_upload",
-          recordedBy: null,
-        }),
-      );
-      expect(result).toEqual({ ok: false, error: "value_invalid" });
+      await afinionCrp(database, w);
+      expect(await seam(database, w, { value })).toEqual({ ok: false, error: "value_invalid" });
       expect(await stored(database, w.requestId)).toEqual([]);
+      expect(await refusals(database)).toEqual([
+        { actor_type: "system", reason_code: "value_invalid" },
+      ]);
     });
   }
+});
 
+describe("the seam of the analyser routes (security review of #370, S3)", () => {
   it("stores an analyser's measurement with no student and a system actor", async () => {
     const { database, w } = await open();
-    const result = await database.transaction().execute((trx) =>
-      insertMeasurement(trx, {
-        simulationId: w.simulationId,
-        labId: w.labId,
-        requestId: w.requestId,
-        testId: w.hba1c,
-        sampleId: w.second.id,
-        value: "123456789.123456",
-        source: "afinion",
-        recordedBy: null,
-      }),
-    );
+    await afinionCrp(database, w);
+    const result = await seam(database, w, { value: "123456789.123456" });
     expect(result.ok).toBe(true);
     expect(await stored(database, w.requestId)).toMatchObject([
       { value: "123456789.123456", source: "afinion", recorded_by: null },
@@ -226,6 +253,92 @@ describe("a value is parsed and bounded before it is stored", () => {
       .where("action", "=", "lab_measurement_recorded")
       .execute();
     expect(rows).toEqual([{ actor_type: "system", actor_id: null }]);
+  });
+
+  it("refuses a measurement whose source is not the test's own, logged (D9)", async () => {
+    const { database, w } = await open();
+    expect(await seam(database, w)).toEqual({ ok: false, error: "source_mismatch" });
+    await afinionCrp(database, w);
+    expect(await seam(database, w, { source: "epoch_upload" })).toEqual({
+      ok: false,
+      error: "source_mismatch",
+    });
+    expect(await stored(database, w.requestId)).toEqual([]);
+    expect((await refusals(database)).map((row) => row.reason_code)).toEqual([
+      "source_mismatch",
+      "source_mismatch",
+    ]);
+  });
+
+  it("refuses a result for a lab whose simulation does not run, logged (maintainer on #270)", async () => {
+    const { database, w } = await open();
+    await afinionCrp(database, w);
+    await finishSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    expect(await seam(database, w)).toEqual({ ok: false, error: "not_running" });
+    expect(await stored(database, w.requestId)).toEqual([]);
+    expect(await refusals(database)).toEqual([
+      { actor_type: "system", reason_code: "not_running" },
+    ]);
+  });
+
+  it("lets an analyser result land after the release; the release stays final (maintainer on #370, Q1)", async () => {
+    const { database, w } = await open();
+    const chosen = await measure(database, w, "5.2");
+    const released = await releaseResult(database, w.student, {
+      labId: w.labId,
+      requestId: w.requestId,
+      testId: w.hba1c,
+      measurementId: chosen,
+      toleranceId: w.toleranceId,
+    });
+    expect(released.ok).toBe(true);
+    await database
+      .updateTable("catalogue_tests")
+      .set({ source: "afinion", afinion_analyte: "HbA1c" })
+      .where("id", "=", w.hba1c)
+      .execute();
+    expect((await seam(database, w, { testId: w.hba1c, value: "5.9" })).ok).toBe(true);
+    const row = await database
+      .selectFrom("request_tests")
+      .select("released_measurement_id")
+      .where("request_id", "=", w.requestId)
+      .where("test_id", "=", w.hba1c)
+      .executeTakeFirstOrThrow();
+    expect(row.released_measurement_id).toBe(chosen);
+  });
+
+  it("refuses a hand-entered measurement on a released test through the seam too, logged", async () => {
+    const { database, w } = await open();
+    const chosen = await measure(database, w, "5.2");
+    await releaseResult(database, w.student, {
+      labId: w.labId,
+      requestId: w.requestId,
+      testId: w.hba1c,
+      measurementId: chosen,
+      toleranceId: w.toleranceId,
+    });
+    expect(
+      await seam(database, w, {
+        testId: w.hba1c,
+        sampleId: w.first.id,
+        source: "manual",
+        recordedBy: w.student.id,
+      }),
+    ).toEqual({ ok: false, error: "released" });
+    expect((await refusals(database)).map((row) => row.reason_code)).toEqual(["released"]);
+  });
+
+  it("refuses a request or a sample of another lab", async () => {
+    const { database, w } = await open();
+    await afinionCrp(database, w);
+    expect(await seam(database, w, { labId: w.otherLabId })).toEqual({
+      ok: false,
+      error: "request_not_found",
+    });
+    expect(await seam(database, w, { sampleId: "01960000-0000-7000-8000-00000000beef" })).toEqual({
+      ok: false,
+      error: "sample_not_found",
+    });
   });
 });
 
@@ -275,5 +388,56 @@ describe("who records a measurement (S10, E1)", () => {
       await expect(recordManualMeasurement(database, actor, input(w))).rejects.toThrow(AuthError);
     }
     expect(await stored(database, w.requestId)).toEqual([]);
+  });
+});
+
+describe("more refusals of entry by hand (security review of #370)", () => {
+  it("logs each refusal of entry by hand with its reason (N1)", async () => {
+    const { database, w } = await open();
+    await afinionCrp(database, w);
+    await recordManualMeasurement(database, w.student, { ...input(w), testId: w.crp });
+    await recordManualMeasurement(database, w.student, { ...input(w), value: "1e5" });
+    await finishSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    await recordManualMeasurement(database, w.student, input(w));
+    expect(await refusals(database)).toEqual([
+      { actor_type: "user", reason_code: "not_manual_test" },
+      { actor_type: "user", reason_code: "value_invalid" },
+      { actor_type: "user", reason_code: "not_running" },
+    ]);
+  });
+
+  it("refuses a sample of another lab on the student's own request, logged", async () => {
+    const { database, w } = await open();
+    const patientId = await patientIn(database, w.otherLabStudent, w.otherLabId);
+    const theirs = await requestFor(database, w.otherLabStudent, w.otherLabId, patientId, [
+      w.hba1c,
+    ]);
+    const sampleId = theirs.samples[0]?.id ?? "";
+    expect(await recordManualMeasurement(database, w.student, { ...input(w), sampleId })).toEqual({
+      ok: false,
+      error: "sample_not_found",
+    });
+    expect(await stored(database, theirs.requestId)).toEqual([]);
+  });
+
+  it("refuses a student in two simulations who mixes the ids of both", async () => {
+    const { database, w } = await open();
+    await startSimulation(
+      database,
+      w.outsiderTeacher,
+      { simulationId: w.outsideSimulationId },
+      NOW,
+    );
+    await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
+    expect(
+      await recordManualMeasurement(database, w.student, { ...input(w), labId: w.outsideLabId }),
+    ).toEqual({ ok: false, error: "request_not_found" });
+    expect(await stored(database, w.requestId)).toEqual([]);
+  });
+
+  it("refuses an account with the roles teacher and admin that teaches nothing, with a 403", async () => {
+    const { database, w } = await open();
+    const both = await person(database, "teacher-admin", ["teacher", "admin"]);
+    await expect(recordManualMeasurement(database, both, input(w))).rejects.toThrow(AuthError);
   });
 });
