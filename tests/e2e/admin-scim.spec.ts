@@ -12,6 +12,10 @@ import { appUrl } from "./run-env";
 const PROVIDER_PAGE = "/admin/system/identity-providers/keycloak";
 
 async function axe(page: Page): Promise<void> {
+  // The token buttons stay disabled at half opacity while a token write is pending and fade back
+  // once it settles; a scan before the fade measured the faded text (3.69:1, #321).
+  const tokenButtons = page.getByRole("button", { name: /^(Create|Replace|Revoke) token$/ });
+  await expect(tokenButtons.and(page.locator(":disabled"))).toHaveCount(0);
   await page.evaluate(() =>
     Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
   );
