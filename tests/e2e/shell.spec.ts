@@ -13,7 +13,7 @@ const nl: Readonly<Record<string, string>> = JSON.parse(
 const PORTALS = {
   student: {
     heading: "Student portal",
-    sections: ["Patients and requests", "Tolerances", "Measurements and results", "Upload"],
+    sections: ["Patients", "Requests", "Tolerances", "Measurements and results", "Upload"],
   },
   teacher: {
     heading: "Teacher portal",

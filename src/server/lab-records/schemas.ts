@@ -10,6 +10,9 @@ import { m } from "@/i18n/messages";
 import { CONTROL_OR_FORMAT } from "@/lib/catalogue";
 import {
   isIsoDate,
+  NOT_OFFERED_MAX,
+  NOT_OFFERED_NAME_MAX,
+  NOT_OFFERED_REMARK_MAX,
   PATIENT_IDENTIFIER_MAX,
   PATIENT_NAME_MAX,
   parsePatientSex,
@@ -103,6 +106,20 @@ const testIds = z
   })
   .refine((ids) => new Set(ids).size === ids.length, { error: () => m.records_tests_repeated() });
 
+/**
+ * One test the form asks for that the lab does not offer (#398): free text as written, with an
+ * optional remark. Nothing compares it with the catalogue or any other list (Q-SIM-1).
+ */
+export const notOfferedTestSchema = z.object({
+  name: formLine(NOT_OFFERED_NAME_MAX, () => m.records_not_offered_name_required()),
+  remark: optionalLine(NOT_OFFERED_REMARK_MAX),
+});
+
+/** The tests not offered of a request: none or more, bounded. */
+const notOffered = z.array(notOfferedTestSchema).max(NOT_OFFERED_MAX, {
+  error: () => m.records_not_offered_too_many({ max: String(NOT_OFFERED_MAX) }),
+});
+
 const requestFields = {
   phoneThrough: z.boolean(),
   remarks,
@@ -125,6 +142,7 @@ export const recordRequestInput = z.discriminatedUnion("kind", [
     patientId: z.uuid({ error: () => m.records_patient_required() }),
     requester: formLine(REQUESTER_MAX, () => m.records_requester_required()),
     ...requestFields,
+    notOffered: notOffered.default([]),
     samples: newSamples,
   }),
   z.object({
@@ -132,17 +150,22 @@ export const recordRequestInput = z.discriminatedUnion("kind", [
     labId: id,
     requester: optionalLine(REQUESTER_MAX),
     ...requestFields,
+    notOffered: notOffered.default([]),
     samples: newSamples,
   }),
 ]);
 export type RecordRequestForm = z.input<typeof recordRequestInput>;
 
-/** Correcting a request: its fields, and its samples (an id to change one, none to add one). */
+/**
+ * Correcting a request: its fields, its tests not offered (left out: unchanged), and its samples
+ * (an id to change one, none to add one).
+ */
 export const correctRequestInput = z.object({
   labId: id,
   requestId: id,
   requester: optionalLine(REQUESTER_MAX),
   ...requestFields,
+  notOffered: notOffered.optional(),
   samples: z
     .array(sampleSchema.extend({ sampleId: z.uuid().optional() }))
     .min(1, { error: () => m.records_samples_required() })
@@ -170,6 +193,9 @@ export const requestFormSchema = z
     patientId: z.string(),
     requester: optionalLine(REQUESTER_MAX),
     ...requestFields,
+    notOffered: z.array(notOfferedTestSchema.extend({ key: z.string() })).max(NOT_OFFERED_MAX, {
+      error: () => m.records_not_offered_too_many({ max: String(NOT_OFFERED_MAX) }),
+    }),
     samples: z
       .array(sampleSchema.extend({ key: z.string(), sampleId: z.string().optional() }))
       .min(1, { error: () => m.records_samples_required() })
@@ -197,3 +223,9 @@ export const labRecordsInput = z.object({ labId: id });
 
 /** The correction log of one simulation, as its teacher reads it. */
 export const correctionLogInput = z.object({ simulationId: id });
+
+/**
+ * The search of the student's patients and requests pages (#380): one patient of the lab to show
+ * alone. A malformed id shows every record; an id of no patient of the lab does too.
+ */
+export const recordsPageSearch = z.object({ patient: z.uuid().optional().catch(undefined) });

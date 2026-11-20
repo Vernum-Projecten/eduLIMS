@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
+import { notOfferedText } from "@/components/lab-records/request-details-sheet";
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/i18n/messages";
 import { formatDateTime } from "@/lib/i18n/format";
@@ -54,6 +55,13 @@ export function RequestResults({
           </div>
           <Badge variant="outline">{requestKindLabel(request.kind)}</Badge>
         </div>
+        {request.notOffered.length === 0 ? null : (
+          <p className="text-sm break-words">
+            {m.records_not_offered_list({
+              tests: request.notOffered.map(notOfferedText).join(", "),
+            })}
+          </p>
+        )}
         {request.tests.map((test) => (
           <RequestedTest
             key={test.testId}

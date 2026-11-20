@@ -36,7 +36,7 @@ export function PageFrame({
           <h1
             id={PAGE_TITLE_ID}
             tabIndex={-1}
-            className="rounded-sm font-semibold text-2xl tracking-tight text-balance outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="rounded-sm font-semibold text-2xl tracking-tight text-balance outline-none focus:ring-3 focus:ring-ring/50"
           >
             {title}
           </h1>

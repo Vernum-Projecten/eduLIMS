@@ -24,9 +24,11 @@ import { m } from "@/i18n/messages";
 import { formatDateTime } from "@/lib/i18n/format";
 import { correctionFieldLabel } from "@/lib/i18n/records-labels";
 import { formatLabNumber } from "@/lib/lab-number";
+import type { NotOfferedTest } from "@/lib/lab-records";
 import type { CorrectionLog } from "@/server/lab-records/correction-log";
 import type { CorrectionChange } from "@/server/lab-records/corrections";
 import { correctionLogQueryOptions } from "@/server/lab-records/query-options";
+import { notOfferedText } from "./request-details-sheet";
 import { ScrollRegion } from "./scroll-region";
 
 /** Returns a stored value in words: a flag as yes or no, nothing as a dash. */
@@ -40,6 +42,11 @@ function testList(ids: readonly string[], names: CorrectionLog["testNames"]): st
   return ids.map((id) => names[id] ?? m.records_unknown_test()).join(", ");
 }
 
+/** Returns a list of tests not offered as one line, or a dash for none (#398). */
+function notOfferedList(entries: readonly NotOfferedTest[]): string {
+  return entries.length === 0 ? m.records_none() : entries.map(notOfferedText).join(", ");
+}
+
 /** Returns one change as "before → after" text, so nothing depends on colour (WCAG 1.4.1). */
 function changeText(change: CorrectionChange, names: CorrectionLog["testNames"]): string {
   switch (change.field) {
@@ -47,6 +54,11 @@ function changeText(change: CorrectionChange, names: CorrectionLog["testNames"])
       return m.records_change({
         before: testList(change.before, names),
         after: testList(change.after, names),
+      });
+    case "not_offered":
+      return m.records_change({
+        before: notOfferedList(change.before),
+        after: notOfferedList(change.after),
       });
     case "sample_added":
       return m.records_change_sample_added({

@@ -52,7 +52,7 @@ describe("navigationFor (B1: a user sees only the screens of their role)", () =>
   it("lists the agreed sections per portal", () => {
     const ids = (role: "student" | "teacher" | "admin") =>
       portalNavigation(role).sections.map((section) => section.id);
-    expect(ids("student")).toEqual(["patients", "tolerances", "results", "upload"]);
+    expect(ids("student")).toEqual(["patients", "requests", "tolerances", "results", "upload"]);
     expect(ids("teacher")).toEqual(["simulations", "dashboard", "catalogue"]);
     expect(ids("admin")).toEqual(["users", "simulations", "integrations", "activity", "system"]);
   });
@@ -72,6 +72,7 @@ describe("sectionOf", () => {
 
   it("gives a student the sections of the lab's work (S4, S5, S11 to S15)", () => {
     expect(sectionOf("student", "patients").to).toBe("/student/patients");
+    expect(sectionOf("student", "requests").to).toBe("/student/requests");
     expect(sectionOf("student", "tolerances").to).toBe("/student/tolerances");
     expect(sectionOf("student", "results").to).toBe("/student/results");
     expect(sectionOf("student", "upload").to).toBe("/student/upload");

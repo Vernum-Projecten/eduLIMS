@@ -30,6 +30,7 @@ import * as m0023 from "./0023_measurements_and_release.ts";
 import * as m0024 from "./0024_result_ehr_writes.ts";
 import * as m0025 from "./0025_result_ehr_write_lease.ts";
 import * as m0026 from "./0026_one_active_simulation_per_student.ts";
+import * as m0029 from "./0029_request_tests_not_offered.ts";
 
 export const migrations: Record<string, Migration> = {
   "0001_auth": m0001,
@@ -58,6 +59,7 @@ export const migrations: Record<string, Migration> = {
   "0024_result_ehr_writes": m0024,
   "0025_result_ehr_write_lease": m0025,
   "0026_one_active_simulation_per_student": m0026,
+  "0029_request_tests_not_offered": m0029,
 };
 
 export const migrationProvider: MigrationProvider = {

@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { revalidateLogic } from "@tanstack/react-form";
 import { PlusIcon, SaveIcon, Trash2Icon } from "lucide-react";
 import { useId, useMemo } from "react";
 import { useAppForm } from "@/components/form/app-form";
@@ -33,13 +32,9 @@ import {
 import { correctRequestFn, recordRequestFn } from "@/server/lab-records/functions";
 import type { LabRecords, RequestableTest, RequestRow } from "@/server/lab-records/queries";
 import { recordsErrorCode } from "@/server/lab-records/query-options";
-import { type RequestForm, requestFormSchema } from "@/server/lab-records/schemas";
+import type { RequestForm } from "@/server/lab-records/schemas";
+import { NotOfferedFields, newRowKey, requestFormOptions } from "./not-offered-fields";
 import { useRecordsAction } from "./use-records-action";
-
-/** Returns a new row key; only called from an event handler or a dialog's first render. */
-function newRowKey(): string {
-  return crypto.randomUUID();
-}
 
 function emptyForm(): RequestForm {
   return {
@@ -49,6 +44,7 @@ function emptyForm(): RequestForm {
     phoneThrough: false,
     remarks: "",
     testIds: [],
+    notOffered: [],
     samples: [{ key: newRowKey(), sampleNumber: "", material: "" }],
   };
 }
@@ -61,6 +57,11 @@ function formOf(request: RequestRow): RequestForm {
     phoneThrough: request.phoneThrough,
     remarks: request.remarks ?? "",
     testIds: request.tests.map((test) => test.id),
+    notOffered: request.notOffered.map((entry) => ({
+      key: newRowKey(),
+      name: entry.name,
+      remark: entry.remark ?? "",
+    })),
     samples: request.samples.map((sample) => ({
       key: sample.id,
       sampleId: sample.id,
@@ -134,9 +135,8 @@ export function RequestDialog({
   );
 
   const form = useAppForm({
+    ...requestFormOptions,
     defaultValues: initial,
-    validationLogic: revalidateLogic(),
-    validators: { onDynamic: requestFormSchema },
     onSubmit: async ({ value, formApi }) => {
       // The server function validates the typed values again with its own schema.
       const samples = value.samples.map(({ sampleNumber, material, sampleId }) => ({
@@ -150,6 +150,7 @@ export function RequestDialog({
         phoneThrough: value.phoneThrough,
         remarks: value.remarks,
         testIds: value.testIds,
+        notOffered: value.notOffered.map(({ name, remark }) => ({ name, remark })),
       };
       try {
         if (request) {
@@ -250,6 +251,7 @@ export function RequestDialog({
                   />
                 )}
               </form.AppField>
+              <NotOfferedFields form={form} idBase={base} />
               <form.AppField name="phoneThrough">
                 {(field) => (
                   <field.CheckboxField

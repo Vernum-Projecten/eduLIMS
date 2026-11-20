@@ -10,6 +10,7 @@ import "@tanstack/react-start/server-only";
 import { type Kysely, sql } from "kysely";
 import { parseTestSourceKind, type TestSourceKind } from "../../lib/catalogue.ts";
 import {
+  type NotOfferedTest,
   type PatientId,
   parsePatientId,
   parseRequestId,
@@ -32,6 +33,7 @@ import { parseLabId } from "../../lib/simulations.ts";
 import type { Tolerance } from "../../lib/tolerance.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { assertStudent, logRecordsProbe } from "../lab-records/access.ts";
+import { notOfferedOf } from "../lab-records/not-offered.ts";
 import { assertTeacher, logNotFound, type SimulationActor } from "../simulations/access.ts";
 import { findStudentLab } from "../simulations/student-access.ts";
 
@@ -85,6 +87,8 @@ export interface ResultsRequestRow {
   patientName: string | null;
   enteredAt: string;
   samples: { id: SampleId; sampleNumber: string; labNumber: string }[];
+  /** The tests the form asks for that the lab does not offer, as the team typed them (#398). */
+  notOffered: NotOfferedTest[];
   tests: RequestedTestRow[];
 }
 
@@ -139,7 +143,7 @@ async function labResults(db: Kysely<DB>, labId: string): Promise<LabResults> {
     .execute();
   const ids = requests.map((request) => request.id);
   if (ids.length === 0) return { labId, running: lab.state === "running", requests: [] };
-  const [tests, current, measurements, samples] = await Promise.all([
+  const [tests, current, measurements, samples, notOffered] = await Promise.all([
     db
       .selectFrom("request_tests as rt")
       .innerJoin("catalogue_tests as t", "t.id", "rt.test_id")
@@ -200,6 +204,7 @@ async function labResults(db: Kysely<DB>, labId: string): Promise<LabResults> {
       .orderBy("created_at")
       .orderBy("id")
       .execute(),
+    notOfferedOf(db, ids),
   ]);
   const tolerances = new Map(current.map((row) => [row.test_id, row]));
   return {
@@ -219,6 +224,7 @@ async function labResults(db: Kysely<DB>, labId: string): Promise<LabResults> {
           sampleNumber: sample.sample_number,
           labNumber: sample.lab_number,
         })),
+      notOffered: notOffered.get(request.id) ?? [],
       tests: tests
         .filter((test) => test.request_id === request.id)
         .map((test): RequestedTestRow => {

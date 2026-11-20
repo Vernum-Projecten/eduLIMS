@@ -1,0 +1,1 @@
+- The Student portal shows patients and requests as two items in the side menu, in the order patients, requests, tolerances, results, upload: a patient links to its requests and a request to its patient, and a request opens its full details in a side panel (S11, S12).

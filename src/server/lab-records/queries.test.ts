@@ -52,6 +52,7 @@ describe("readLabRecords (S10, S11, S12)", () => {
           { id: w.crp, name: "CRP (invented)", unit: "mmol/L" },
           { id: w.hba1c, name: "HbA1c (invented)", unit: "mmol/L" },
         ],
+        notOffered: [],
         samples: recorded.samples.map((sample) => ({ ...sample, material: "whole blood" })),
       },
     ]);

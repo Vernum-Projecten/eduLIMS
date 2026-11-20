@@ -8,6 +8,7 @@
 import "@tanstack/react-start/server-only";
 import { type Kysely, sql } from "kysely";
 import {
+  type NotOfferedTest,
   type PatientId,
   type PatientSex,
   parsePatientId,
@@ -22,6 +23,7 @@ import {
 import type { DB } from "../db/schema.gen.ts";
 import { findStudentLab } from "../simulations/student-access.ts";
 import { assertStudent, logRecordsProbe, type RecordsActor } from "./access.ts";
+import { notOfferedOf } from "./not-offered.ts";
 
 /** A patient as the team registered it. */
 export interface PatientRow {
@@ -54,6 +56,8 @@ export interface RequestRow {
   enteredAt: string;
   locked: boolean;
   tests: { id: string; name: string; unit: string | null }[];
+  /** The tests the form asks for that the lab does not offer, as the team typed them (#398). */
+  notOffered: NotOfferedTest[];
   samples: SampleRow[];
 }
 
@@ -172,6 +176,7 @@ export async function readLabRecords(
           .orderBy("created_at")
           .orderBy("id")
           .execute();
+  const notOffered = await notOfferedOf(db, ids);
   return {
     labId: lab.labId,
     running: simulation.state === "running",
@@ -195,6 +200,7 @@ export async function readLabRecords(
       tests: tests
         .filter((test) => test.request_id === row.id)
         .map((test) => ({ id: test.id, name: test.name, unit: test.unit })),
+      notOffered: notOffered.get(row.id) ?? [],
       samples: samples
         .filter((sample) => sample.request_id === row.id)
         .map((sample) => ({

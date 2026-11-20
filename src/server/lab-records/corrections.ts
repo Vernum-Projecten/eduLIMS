@@ -24,6 +24,9 @@ export type PlainField = (typeof PLAIN_FIELDS)[number];
 
 const plainValue = z.union([z.string(), z.boolean(), z.null()]);
 
+/** A test not offered as the log keeps it (#398). */
+const notOfferedEntry = z.strictObject({ name: z.string(), remark: z.string().nullable() });
+
 /** One change of a correction. */
 export const correctionChangeSchema = z.discriminatedUnion("field", [
   z.strictObject({ field: z.enum(PLAIN_FIELDS), before: plainValue, after: plainValue }),
@@ -37,6 +40,11 @@ export const correctionChangeSchema = z.discriminatedUnion("field", [
     sample_id: z.string(),
     before: z.string(),
     after: z.string(),
+  }),
+  z.strictObject({
+    field: z.literal("not_offered"),
+    before: z.array(notOfferedEntry),
+    after: z.array(notOfferedEntry),
   }),
   z.strictObject({
     field: z.literal("sample_added"),

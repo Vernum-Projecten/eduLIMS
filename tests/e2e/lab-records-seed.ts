@@ -181,3 +181,25 @@ export async function seedControlRequest(lab: SeededLab): Promise<string> {
     await db.destroy();
   }
 }
+
+/** Stores an invented patient called `name` in `lab` and returns its id. */
+export async function seedPatient(lab: SeededLab, name: string): Promise<string> {
+  const db = database();
+  try {
+    const { id } = await db
+      .insertInto("patients")
+      .values({
+        simulation_id: lab.simulationId,
+        lab_id: lab.labId,
+        name,
+        date_of_birth: "1984-02-03",
+        sex: "male",
+        identifier: "PID-E2E-SEED",
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    return id;
+  } finally {
+    await db.destroy();
+  }
+}

@@ -18,7 +18,7 @@ interface DialogState<T> {
  * `DialogTrigger`, so Radix would otherwise focus nothing.
  */
 export function useRecordDialog<T extends { id: string }>() {
-  const opener = useRef<HTMLButtonElement | null>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const [state, setState] = useState<DialogState<T>>({ open: false, row: undefined, key: "new" });
   const control: DialogControl = {
     open: state.open,
@@ -38,6 +38,14 @@ export function useRecordDialog<T extends { id: string }>() {
     openFrom(event: MouseEvent<HTMLButtonElement>, row?: T) {
       opener.current = event.currentTarget;
       setState({ open: true, row, key: row ? row.id : "new" });
+    },
+    /**
+     * Opens the dialog for `row` from a menu item: focus returns to `opener`, the menu's button,
+     * because the menu is gone when the dialog closes.
+     */
+    openWith(element: HTMLElement | null, row: T) {
+      opener.current = element;
+      setState({ open: true, row, key: row.id });
     },
   };
 }
