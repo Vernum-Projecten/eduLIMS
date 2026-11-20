@@ -7,7 +7,7 @@ import type { Auth } from "./auth.ts";
 import type { DB } from "./db/schema.gen.ts";
 import { createTestDb } from "./db/test-db.ts";
 import { parseEnv } from "./env.ts";
-import { guardRoleValue, isOwnRoleWrite, OWN_ROLES_REFUSED } from "./role-guard.ts";
+import { guardRoleValue } from "./role-guard.ts";
 import { setSecurityLogWriter } from "./security-log.ts";
 import { createTestAuth } from "./test-auth.ts";
 import { VALID_ENV } from "./test-env.ts";
@@ -86,69 +86,46 @@ describe("guardRoleValue", () => {
   );
 });
 
-describe("isOwnRoleWrite", () => {
-  it("is true for set-role and update-user with data.role on the session user", () => {
-    expect(isOwnRoleWrite("/admin/set-role", { userId: "a1", role: "teacher" }, "a1")).toBe(true);
-    expect(isOwnRoleWrite("/admin/update-user", { userId: "a1", data: { role: "x" } }, "a1")).toBe(
-      true,
-    );
-  });
-
-  it("is false for another user, other data, other paths and without a session", () => {
-    expect(isOwnRoleWrite("/admin/set-role", { userId: "u2", role: "teacher" }, "a1")).toBe(false);
-    expect(isOwnRoleWrite("/admin/update-user", { userId: "a1", data: { name: "A" } }, "a1")).toBe(
-      false,
-    );
-    expect(isOwnRoleWrite("/admin/ban-user", { userId: "a1" }, "a1")).toBe(false);
-    expect(isOwnRoleWrite("/admin/set-role", { userId: "a1", role: "admin" }, undefined)).toBe(
-      false,
-    );
-    expect(isOwnRoleWrite("/admin/set-role", null, "a1")).toBe(false);
-  });
-
-  it("compares a numeric user id as the endpoint coerces it", () => {
-    expect(isOwnRoleWrite("/admin/set-role", { userId: 7, role: "admin" }, "7")).toBe(true);
-  });
-});
-
-describe("own role changes through the admin API (A01, ADR 0012)", () => {
-  async function adminId(database: Kysely<DB>) {
-    const row = await database
+describe("own role changes through the admin API (A01, ADR 0012, #345)", () => {
+  async function admin(database: Kysely<DB>) {
+    return database
       .selectFrom("user")
-      .select("id")
+      .select(["id", "name", "role"])
       .where("email", "=", "admin@example.test")
       .executeTakeFirstOrThrow();
-    return row.id;
   }
 
-  it("refuses set-role on the administrator's own account with 403", async () => {
+  it("answers 404 to set-role on the administrator's own account", async () => {
     const { auth, database } = await setup();
     const headers = await adminHeaders(auth);
-    const id = await adminId(database);
-    const error = await auth.api
-      .setRole({ body: { userId: id, role: ["teacher", "admin"] }, headers })
-      .catch((e: unknown) => e);
-    expect(error).toMatchObject({ statusCode: 403, body: { code: OWN_ROLES_REFUSED.code } });
-    expect(await storedRole(database, "admin@example.test")).toBe("admin");
+    const before = await admin(database);
+    await expect(
+      auth.api.setRole({ body: { userId: before.id, role: ["teacher", "admin"] }, headers }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(await admin(database)).toEqual(before);
   });
 
-  it("refuses update-user with data.role on the administrator's own account with 403", async () => {
+  it("answers 404 to update-user with data.role on the administrator's own account", async () => {
     const { auth, database } = await setup();
     const headers = await adminHeaders(auth);
-    const id = await adminId(database);
-    const error = await auth.api
-      .adminUpdateUser({ body: { userId: id, data: { role: "teacher,admin" } }, headers })
-      .catch((e: unknown) => e);
-    expect(error).toMatchObject({ statusCode: 403 });
-    expect(await storedRole(database, "admin@example.test")).toBe("admin");
+    const before = await admin(database);
+    await expect(
+      auth.api.adminUpdateUser({
+        body: { userId: before.id, data: { role: "teacher,admin" } },
+        headers,
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(await admin(database)).toEqual(before);
   });
 
-  it("still lets the administrator change their own name", async () => {
+  it("answers 404 to update-user with a new name: names come from the provider", async () => {
     const { auth, database } = await setup();
     const headers = await adminHeaders(auth);
-    const id = await adminId(database);
-    await auth.api.adminUpdateUser({ body: { userId: id, data: { name: "Renamed" } }, headers });
-    expect(await storedRole(database, "admin@example.test")).toBe("admin");
+    const before = await admin(database);
+    await expect(
+      auth.api.adminUpdateUser({ body: { userId: before.id, data: { name: "Renamed" } }, headers }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(await admin(database)).toEqual(before);
   });
 });
 
@@ -203,40 +180,25 @@ describe("role writes through better-auth (ADR 0012)", () => {
     },
   );
 
-  it("refuses set-role with a conflicting set and keeps the stored role", async () => {
-    const { auth, database } = await setup();
-    const headers = await adminHeaders(auth);
-    const { user } = await auth.api.createUser({
-      body: { email: "s@example.test", name: "S", password: PASSWORD, role: "student" },
-    });
-    await expect(
-      auth.api.setRole({ body: { userId: user.id, role: ["student", "teacher"] }, headers }),
-    ).rejects.toThrow();
-    expect(await storedRole(database, "s@example.test")).toBe("student");
-  });
-
-  it("accepts set-role with teacher and admin", async () => {
-    const { auth, database } = await setup();
-    const headers = await adminHeaders(auth);
+  // The IdP sign-in gate and SCIM write roles through the internal adapter, which runs the hooks.
+  async function teacher(auth: Auth) {
     const { user } = await auth.api.createUser({
       body: { email: "t@example.test", name: "T", password: PASSWORD, role: "teacher" },
     });
-    await auth.api.setRole({ body: { userId: user.id, role: ["admin", "teacher"] }, headers });
-    expect(await storedRole(database, "t@example.test")).toBe("teacher,admin");
-  });
+    return { id: user.id, adapter: (await auth.$context).internalAdapter };
+  }
 
-  it("refuses admin update-user with a conflicting role", async () => {
+  it("refuses an update with a conflicting set and keeps the stored role", async () => {
     const { auth, database } = await setup();
-    const headers = await adminHeaders(auth);
-    const { user } = await auth.api.createUser({
-      body: { email: "t@example.test", name: "T", password: PASSWORD, role: "teacher" },
-    });
-    await expect(
-      auth.api.adminUpdateUser({
-        body: { userId: user.id, data: { role: "teacher,student" } },
-        headers,
-      }),
-    ).rejects.toThrow();
+    const { id, adapter } = await teacher(auth);
+    await expect(adapter.updateUser(id, { role: "teacher,student" })).rejects.toThrow();
     expect(await storedRole(database, "t@example.test")).toBe("teacher");
+  });
+
+  it("stores an update with teacher and admin, sorted", async () => {
+    const { auth, database } = await setup();
+    const { id, adapter } = await teacher(auth);
+    await adapter.updateUser(id, { role: ["admin", "teacher"] });
+    expect(await storedRole(database, "t@example.test")).toBe("teacher,admin");
   });
 });

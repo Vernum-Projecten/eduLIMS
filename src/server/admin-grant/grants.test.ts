@@ -56,7 +56,11 @@ async function stored(database: Kysely<DB>, id: string) {
 }
 
 async function actions(database: Kysely<DB>) {
-  const rows = await database.selectFrom("audit_event").select(["action", "actor_type"]).execute();
+  const rows = await database
+    .selectFrom("audit_event")
+    .select(["action", "actor_type"])
+    .orderBy("id")
+    .execute();
   return rows.map((row) => `${row.action}:${row.actor_type}`);
 }
 
@@ -142,6 +146,7 @@ describe("grantAdmin (#48)", () => {
     const rows = await database
       .selectFrom("audit_event")
       .select(["action", "actor_type", "target_id", "reason_code"])
+      .orderBy("id")
       .execute();
     expect(rows).toEqual([
       {
@@ -283,6 +288,53 @@ describe("revokeAdmin (#48)", () => {
     ]);
   });
 
+  it("counts a blocked administrator as gone (#356 review, S3)", async () => {
+    const database = await setup();
+    await user(database, "a1", "admin");
+    await user(database, "b1", "teacher,admin");
+    await database
+      .updateTable("user")
+      .set({ banned: true, banExpires: null })
+      .where("id", "=", "b1")
+      .execute();
+    expect(await revokeAdmin(database, { email: "a1@example.test", now: NOW })).toEqual({
+      ok: false,
+      error: "last_admin",
+    });
+    expect((await stored(database, "a1"))?.role).toBe("admin");
+  });
+
+  it("counts a deprovisioned administrator as gone (second review of #356, N3)", async () => {
+    const database = await setup();
+    await user(database, "a1", "admin");
+    await user(database, "b1", "admin");
+    await database
+      .updateTable("user")
+      .set({ deprovisioned_at: NOW })
+      .where("id", "=", "b1")
+      .execute();
+    expect(await revokeAdmin(database, { email: "a1@example.test", now: NOW })).toEqual({
+      ok: false,
+      error: "last_admin",
+    });
+    expect((await stored(database, "a1"))?.role).toBe("admin");
+  });
+
+  it("counts an administrator whose block has ended (#356 review, S3)", async () => {
+    const database = await setup();
+    await user(database, "a1", "admin");
+    await user(database, "b1", "admin");
+    await database
+      .updateTable("user")
+      .set({ banned: true, banExpires: new Date(NOW.getTime() - 1000) })
+      .where("id", "=", "b1")
+      .execute();
+    expect(await revokeAdmin(database, { email: "a1@example.test", now: NOW })).toEqual({
+      ok: true,
+      kind: "revoked",
+    });
+  });
+
   it("logs a revocation for an unknown email as refused, with no target (V16.3.2)", async () => {
     const database = await setup();
     expect(await revokeAdmin(database, { email: "nobody@example.test", now: NOW })).toEqual({
@@ -320,6 +372,40 @@ describe("revokeAdmin (#48)", () => {
     });
     expect(await stored(database, "c1")).toEqual({ role: "teacher", role_source: "local" });
     expect(await database.selectFrom("session").select("id").execute()).toEqual([]);
+  });
+
+  it("logs every ended session as session_revoked, roles_changed (#345)", async () => {
+    const database = await setup();
+    await user(database, "a1", "admin");
+    await user(database, "c1", "teacher,admin");
+    for (const id of ["s2", "s1"]) {
+      await database
+        .insertInto("session")
+        .values({
+          id,
+          token: `t-${id}`,
+          userId: "c1",
+          expiresAt: new Date(Date.now() + 60_000),
+          updatedAt: new Date(),
+        })
+        .execute();
+    }
+    await revokeAdmin(database, { email: "c1@example.test", now: NOW });
+    const rows = await database
+      .selectFrom("audit_event")
+      .select(["actor_type", "target_type", "target_id", "outcome", "reason_code"])
+      .where("action", "=", "session_revoked")
+      .orderBy("id")
+      .execute();
+    expect(rows).toEqual(
+      ["s1", "s2"].map((id) => ({
+        actor_type: "system",
+        target_type: "session",
+        target_id: id,
+        outcome: "success",
+        reason_code: "roles_changed",
+      })),
+    );
   });
 
   it("withdraws a pending grant, and reports an unknown email", async () => {

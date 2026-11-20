@@ -122,11 +122,13 @@ without login. This file is how the code meets them.
   (`src/server/role-guard.ts`), and a stored conflicting set gives the
   session no roles. A `CHECK` on `user.role` (migration
   `0004_user_role_check`) holds the same sets in their stored form, because
-  better-auth's admin permission check splits the raw string. Nobody changes
-  their own roles: the `hooks.before` guard `refuseOwnRoleWrites` answers a
-  `set-role` or `update-user` `data.role` on the session user's own id with
-  403 `cannot_change_own_roles` (owner decision on #32), and `setLocalRoles`
-  refuses the same. A sign-in refused for no role or a role conflict also revokes
+  better-auth's admin permission check splits the raw string. Roles change
+  only through eduLIMS's own code: better-auth's `admin/set-role`,
+  `admin/update-user` and `admin/remove-user` answer 404
+  (`src/server/users/admin-endpoint-lock.ts`, #318, #345). Nobody changes
+  their own roles: `setLocalRoles` refuses it with `cannot_change_own_roles`
+  (owner decision on #32). The last administrator keeps the role on every
+  eduLIMS path, and a user who loses a role is signed out. A sign-in refused for no role or a role conflict also revokes
   that user's live sessions (A07). No role implies another: check the specific role a
   function needs (`requireRole("teacher")`), never "admin or higher". An
   administrator who is also a teacher reaches the teams' work only as a

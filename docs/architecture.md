@@ -364,10 +364,40 @@ student's place and a waiting address point at their lab through the pair
   the last administrator, runs the deferred last-teacher check before it
   writes the activity-log rows, and deletes the sessions, the accounts and
   the user with those rows, so a refusal changes nothing. Better-auth's
-  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404. A
+  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404,
+  and so do `admin/set-role`, `admin/update-user` and the core `update-user`
+  (`src/server/users/admin-endpoint-lock.ts`, #345, #356): eduLIMS writes
+  roles only through its own paths, and names come from the identity
+  provider. Each call to one of them is a refused `authz_endpoint_closed`
+  row. `admin/create-user` and `admin/ban-user` answer 404 over HTTP only,
+  since the seed and the tests call `create-user` on the server. A
   `BEFORE DELETE` trigger on `user` and a deferred constraint trigger, which
   refuses any commit that leaves an existing simulation without a teacher
-  row, stay as the last line.
+  row, stay as the last line. The other paths that take the admin role away
+  or block an administrator, `pnpm admin:revoke` and the local role edit and
+  the block of the Users screen, lock the administrators first, the same way
+  and in the same order, before they read the target and count
+  (`src/server/users/administrators.ts`, #345, #356). A blocked administrator
+  does not count, so two of them, or one and a deletion, never leave eduLIMS
+  without an administrator who can sign in; a deprovisioned administrator
+  does not count either (maintainer, second review of #356). Under the same
+  locks each of them checks that the acting administrator still holds the
+  role and is neither blocked nor deprovisioned, and refuses with 403 when
+  not. The global lock order is simulations, administrators, other users:
+  `removeTeacher` takes the administrator locks after the simulation lock
+  and before the teachers' rows. The session read ends a session of a
+  blocked user, so a sign-in that raced a block keeps none. The local role edit
+  and `admin revoke` end the sessions of a user who loses a role, each with
+  a `session_revoked` row, so their next request signs in with the new set.
+  The rule binds eduLIMS's own paths only: an identity provider stays
+  authoritative over the roles it owns, by a claim or over SCIM, and may
+  take the admin role from the last administrator (maintainer, #345); the
+  host command `admin grant` is the way back. A SCIM role change keeps the
+  user's sessions: eduLIMS reads the roles on every request, so the next one
+  carries the new set. An administrator cannot give their own account
+  teacher access without the identity provider, but one who mints a SCIM
+  token holds the same trust as configuring that provider and can change the
+  roles it owns through SCIM; the maintainer accepts this (#356 review, S4).
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it and it holds no patient or request
   (`has_records`, maintainer, 2026-11-20), and a simulation only while no student is in

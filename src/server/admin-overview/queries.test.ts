@@ -102,6 +102,14 @@ describe("accountCounts (#36)", () => {
     expect(after.blockedUsers - before.blockedUsers).toBe(2);
   });
 
+  it("counts a block that ends at this exact instant as blocked (#356)", async () => {
+    const database = await testDb();
+    const before = await accountCounts(database, NOW);
+    await insertUser(database, { role: "student", banned: true, banExpires: NOW });
+    const after = await accountCounts(database, NOW);
+    expect(after.blockedUsers - before.blockedUsers).toBe(1);
+  });
+
   it("counts a user whose block is unset (NULL) as a user, not as blocked (#121, B1)", async () => {
     const database = await testDb();
     const before = await accountCounts(database, NOW);

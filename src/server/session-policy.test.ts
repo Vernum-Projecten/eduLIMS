@@ -131,6 +131,23 @@ describe("session lifetimes in better-auth (#42, ASVS V7.3.1, V7.3.2)", () => {
     expect(await database.selectFrom("session").select("id").execute()).toEqual([]);
   });
 
+  it("revokes and refuses the session of a blocked user, a sign-in that raced the block (#356)", async () => {
+    const { auth, database, headers } = await signedIn();
+    expect(await resolveSessionUser(auth, headers)).not.toBeNull();
+    await sql`update "user" set banned = true, "banExpires" = null`.execute(database);
+    expect(await resolveSessionUser(auth, headers)).toBeNull();
+    expect(await database.selectFrom("session").select("id").execute()).toEqual([]);
+  });
+
+  it("keeps the session of a user whose block has ended (#356)", async () => {
+    const { auth, database, headers } = await signedIn();
+    await sql`update "user" set banned = true, "banExpires" = now() - interval '1 minute'`.execute(
+      database,
+    );
+    expect(await resolveSessionUser(auth, headers)).not.toBeNull();
+    expect(await database.selectFrom("session").select("id").execute()).toHaveLength(1);
+  });
+
   it("revokes and refuses a session signed in 24 hours ago, however recently used", async () => {
     const { auth, database, headers } = await signedIn();
     await sql`update "session" set "createdAt" = now() - interval '25 hours'`.execute(database);
