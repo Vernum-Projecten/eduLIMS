@@ -61,7 +61,7 @@ describe("correcting a request (S12)", () => {
       ...same(w, recorded.requestId, sample.id),
       requester: "Dr. Other",
       phoneThrough: true,
-      testIds: [w.crp],
+      testIds: [w.hba1c, w.crp],
       samples: [{ sampleId: sample.id, sampleNumber: "S-010", material: "whole blood" }],
     });
     expect(result).toEqual({ ok: true, value: { changed: 4 } });
@@ -73,7 +73,7 @@ describe("correcting a request (S12)", () => {
         changes: [
           { field: "requester", before: "Dr. Invented", after: "Dr. Other" },
           { field: "phone_through", before: false, after: true },
-          { field: "tests", before: [w.hba1c], after: [w.crp] },
+          { field: "tests", before: [w.hba1c], after: [w.hba1c, w.crp].sort() },
           { field: "sample_number", sample_id: sample.id, before: "S-001", after: "S-010" },
         ],
       },
@@ -83,13 +83,37 @@ describe("correcting a request (S12)", () => {
       .select("test_id")
       .where("request_id", "=", recorded.requestId)
       .execute();
-    expect(tests).toEqual([{ test_id: w.crp }]);
+    expect(tests.map((row) => row.test_id).sort()).toEqual([w.hba1c, w.crp].sort());
     const stored = await database
       .selectFrom("samples")
       .select(["sample_number", "lab_number"])
       .where("id", "=", sample.id)
       .executeTakeFirstOrThrow();
     expect(stored).toEqual({ sample_number: "S-010", lab_number: sample.labNumber });
+  });
+
+  it("never removes a requested test, measured or not (S12; maintainer on #268)", async () => {
+    const { db: database, w, recorded, sample } = await open();
+    await correctRequest(database, w.student, {
+      ...same(w, recorded.requestId, sample.id),
+      testIds: [w.hba1c, w.crp],
+    });
+    for (const testIds of [[w.crp], [w.hba1c], []]) {
+      expect(
+        await correctRequest(database, w.student, {
+          ...same(w, recorded.requestId, sample.id),
+          remarks: "Dropped one.",
+          testIds,
+        }),
+      ).toEqual({ ok: false, error: "test_removed" });
+    }
+    const tests = await database
+      .selectFrom("request_tests")
+      .select("test_id")
+      .where("request_id", "=", recorded.requestId)
+      .execute();
+    expect(tests.map((row) => row.test_id).sort()).toEqual([w.hba1c, w.crp].sort());
+    expect(await corrections(database)).toHaveLength(1);
   });
 
   it("never changes the time of entry (S12, Q-SIM-2)", async () => {

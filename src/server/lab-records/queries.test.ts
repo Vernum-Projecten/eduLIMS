@@ -6,6 +6,7 @@
 // only a teacher of the simulation (D10, D11).
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
+import { catalogueTest } from "../correct-values/test-helpers.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
@@ -153,13 +154,14 @@ describe("readCorrectionLog (S11, S12, D10)", () => {
 
   it("names the tests a correction of the tests changed", async () => {
     const { db: database, w, recorded } = await open();
+    const urea = await catalogueTest(database, "Urea (invented)");
     await correctRequest(database, w.student, {
       labId: w.labId,
       requestId: recorded.requestId,
       requester: "Dr. Invented",
       phoneThrough: false,
       remarks: null,
-      testIds: [w.hba1c],
+      testIds: [w.hba1c, w.crp, urea],
       samples: recorded.samples.map((sample) => ({
         sampleId: sample.id,
         sampleNumber: sample.sampleNumber,
@@ -167,7 +169,11 @@ describe("readCorrectionLog (S11, S12, D10)", () => {
       })),
     });
     const log = await readCorrectionLog(database, w.teacher, w.simulationId);
-    expect(log?.testNames).toEqual({ [w.hba1c]: "HbA1c (invented)", [w.crp]: "CRP (invented)" });
+    expect(log?.testNames).toEqual({
+      [w.hba1c]: "HbA1c (invented)",
+      [w.crp]: "CRP (invented)",
+      [urea]: "Urea (invented)",
+    });
     // A request is named by the lab numbers of its samples (maintainer, 2026-11-20).
     expect(log?.entries.map((entry) => entry.target)).toEqual([
       {

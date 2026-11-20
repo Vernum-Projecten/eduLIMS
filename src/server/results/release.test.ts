@@ -216,7 +216,7 @@ describe("a released result is final (S15)", () => {
       testIds: [w.hba1c],
       samples: [],
     });
-    expect(corrected).toEqual({ ok: false, error: "test_measured" });
+    expect(corrected).toEqual({ ok: false, error: "test_removed" });
   });
 });
 

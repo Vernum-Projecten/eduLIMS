@@ -202,8 +202,9 @@ function sampleChanges(
 
 /**
  * Corrects a request of the actor's lab (S12): its requester, the phone-through flag, the
- * remarks, its tests, the sample number and material of a sample, and a new sample (a second
- * tube) with a fresh lab number. A sample is never removed and the time of entry never changes.
+ * remarks, a test it adds, the sample number and material of a sample, and a new sample (a second
+ * tube) with a fresh lab number. A sample or a requested test is never removed (`test_removed`)
+ * and the time of entry never changes.
  * Refused once a result of the request is released (`released`, logged). The changes are
  * written with a correction row and logged as `lab_request_corrected` with ids.
  */
@@ -250,11 +251,9 @@ export function correctRequest(
     const after = new Set(input.testIds);
     const refusal = await testRefusal(trx, [...after], before);
     if (refusal !== null) return refused(refusal);
-    // NOTE: S14; a measurement is never removed, so neither is the requested test it belongs to.
-    const dropped = [...before].filter((testId) => !after.has(testId));
-    if (dropped.length > 0 && (await hasMeasurement(trx, id, dropped))) {
-      return refused("test_measured");
-    }
+    // NOTE: S12, S14 (maintainer on #268, 2026-11-20); a correction never removes a requested
+    // test, so a measurement always keeps the test it belongs to.
+    if ([...before].some((testId) => !after.has(testId))) return refused("test_removed");
     const storedSamples = await trx
       .selectFrom("samples")
       .select(["id", "sample_number", "material"])
@@ -305,29 +304,13 @@ export function correctRequest(
   });
 }
 
-/** Returns whether one of `testIds` of the request has a measurement (S14). */
-async function hasMeasurement(
-  trx: Transaction<DB>,
-  requestId: string,
-  testIds: readonly string[],
-): Promise<boolean> {
-  const row = await trx
-    .selectFrom("measurements")
-    .select("id")
-    .where("request_id", "=", requestId)
-    .where("test_id", "in", testIds)
-    .limit(1)
-    .executeTakeFirst();
-  return row !== undefined;
-}
-
 /** Returns the stored kind of a request as a {@link RequestKind}. */
 function kindOf(value: string): RequestKind {
   if (value === "patient" || value === "control") return value;
   throw new Error("the database holds an unknown request kind");
 }
 
-/** Writes the request's fields, its tests and the changed samples. The new samples are in. */
+/** Writes the request's fields, its added tests and the changed samples. The new samples are in. */
 async function applyRequestChanges(
   trx: Transaction<DB>,
   actorId: string,
@@ -347,15 +330,7 @@ async function applyRequestChanges(
     })
     .where("id", "=", requestId)
     .execute();
-  const removed = [...before].filter((testId) => !after.has(testId));
   const added = [...after].filter((testId) => !before.has(testId));
-  if (removed.length > 0) {
-    await trx
-      .deleteFrom("request_tests")
-      .where("request_id", "=", requestId)
-      .where("test_id", "in", removed)
-      .execute();
-  }
   if (added.length > 0) {
     await trx
       .insertInto("request_tests")

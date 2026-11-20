@@ -480,7 +480,8 @@ A team's records from the paper request form live in the eduLIMS database
   the request or patient `FOR UPDATE` (a patient correction also reads the
   patient's requests `FOR SHARE`), and the release locks the request
   `FOR UPDATE` too, so the two serialise. A correction never removes a
-  sample and never changes the patient or the kind of a request; a new
+  sample or a requested test (`test_removed`, maintainer on #268) and never
+  changes the patient or the kind of a request; a new
   sample gets a fresh lab number. Each correction writes a
   `record_corrections` row and an activity-log row with ids only.
 - **The catalogue.** A request reads its tests `FOR SHARE` in id order, so a
@@ -510,10 +511,10 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
 | `request_tests` | the release, on the requested test itself: one row per requested test, so at most one released measurement |
 
 - **Kept as they arrived.** A trigger refuses any change to a measurement and
-  any direct delete; only its lab's cascade removes one. A correction that
-  would drop a requested test with a measurement is refused
-  (`test_measured`), and the foreign key from a measurement to its requested
-  test holds the same rule.
+  any direct delete; only its lab's cascade removes one. A correction never
+  removes a requested test (`test_removed`, maintainer on #268), and the
+  foreign key from a measurement to its requested test holds the same rule
+  in the database.
 - **The release.** A member of the lab picks a measurement and confirms. In
   one transaction the service checks the lab (`findWorkingStudentLab`),
   takes the lab row `FOR SHARE` (a tolerance change takes it `FOR NO KEY
