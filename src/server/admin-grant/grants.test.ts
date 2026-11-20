@@ -283,6 +283,37 @@ describe("revokeAdmin (#48)", () => {
     ]);
   });
 
+  it("counts a blocked administrator as gone (#356 review, S3)", async () => {
+    const database = await setup();
+    await user(database, "a1", "admin");
+    await user(database, "b1", "teacher,admin");
+    await database
+      .updateTable("user")
+      .set({ banned: true, banExpires: null })
+      .where("id", "=", "b1")
+      .execute();
+    expect(await revokeAdmin(database, { email: "a1@example.test", now: NOW })).toEqual({
+      ok: false,
+      error: "last_admin",
+    });
+    expect((await stored(database, "a1"))?.role).toBe("admin");
+  });
+
+  it("counts an administrator whose block has ended (#356 review, S3)", async () => {
+    const database = await setup();
+    await user(database, "a1", "admin");
+    await user(database, "b1", "admin");
+    await database
+      .updateTable("user")
+      .set({ banned: true, banExpires: new Date(NOW.getTime() - 1000) })
+      .where("id", "=", "b1")
+      .execute();
+    expect(await revokeAdmin(database, { email: "a1@example.test", now: NOW })).toEqual({
+      ok: true,
+      kind: "revoked",
+    });
+  });
+
   it("logs a revocation for an unknown email as refused, with no target (V16.3.2)", async () => {
     const database = await setup();
     expect(await revokeAdmin(database, { email: "nobody@example.test", now: NOW })).toEqual({

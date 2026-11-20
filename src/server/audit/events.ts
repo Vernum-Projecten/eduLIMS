@@ -17,6 +17,7 @@ export const AUTH_AUDIT_ACTIONS = [
   "authn_login_fail",
   "authn_logout",
   "authz_role_change",
+  "authz_endpoint_closed",
   "session_revoked",
   "session_expired",
   "user_created",

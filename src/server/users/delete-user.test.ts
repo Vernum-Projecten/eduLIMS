@@ -262,10 +262,11 @@ describe("deleteUser keeps an administrator (maintainer, 2026-11-20, #318)", () 
     const { auth, db: database, admin } = await setup();
     const lastId = await createUser(auth, "last-admin@example.test", ["admin"]);
     await signIn(auth, "last-admin@example.test");
-    // The caller lost the admin role after signing in, so the target is the only administrator.
+    // The caller was blocked after signing in, so the target is the only administrator left who
+    // is not blocked (#356 review, S3).
     await database
       .updateTable("user")
-      .set({ role: "teacher" })
+      .set({ banned: true, banExpires: null })
       .where("id", "=", admin.actor.id)
       .execute();
     const before = await rowsOf(database, lastId);
@@ -275,6 +276,27 @@ describe("deleteUser keeps an administrator (maintainer, 2026-11-20, #318)", () 
     expect(await events(database, "session_revoked")).toEqual([]);
     expect(await events(database, "user_deleted")).toEqual([
       expect.objectContaining({ target_id: lastId, outcome: "refused", reason_code: LAST_ADMIN }),
+    ]);
+  });
+
+  it("refuses a caller who lost the admin role meanwhile with 403, and logs it (#356 N3)", async () => {
+    const { auth, db: database, admin } = await setup();
+    const otherId = await createUser(auth, "other-admin@example.test", ["admin"]);
+    await database
+      .updateTable("user")
+      .set({ role: "teacher" })
+      .where("id", "=", admin.actor.id)
+      .execute();
+    const before = await rowsOf(database, otherId);
+    await expect(deleteUser(admin, { userId: otherId })).rejects.toThrow(AuthError);
+    expect(await rowsOf(database, otherId)).toEqual(before);
+    expect(await events(database, "user_deleted")).toEqual([
+      expect.objectContaining({
+        actor_id: admin.actor.id,
+        target_id: otherId,
+        outcome: "refused",
+        reason_code: "not_an_admin",
+      }),
     ]);
   });
 

@@ -101,6 +101,7 @@ export async function removeTeacher(
         .innerJoin("user", "user.id", "simulation_teachers.user_id")
         .select(["simulation_teachers.user_id", "user.role"])
         .where("simulation_teachers.simulation_id", "=", simulationId)
+        .orderBy("user.id")
         .forShare("user")
         .execute();
       if (!teachers.some((row) => row.user_id === input.userId)) {

@@ -93,13 +93,14 @@ export const accessControl = createAccessControl({ ...defaultStatements });
 
 /**
  * The user-management actions of the administrator (B1): the better-auth admin
- * statements minus impersonation and credential changes.
+ * statements minus impersonation, credential changes and role or profile writes, which go
+ * through eduLIMS's own `setLocalRoles` (#345).
  *
  * NOTE: R-01 and Q-SEC-2; impersonation would bypass the ownership checks,
  * and sign-in is SSO, so eduLIMS sets no password, e-mail or phone.
  */
 export const ADMIN_STATEMENTS = {
-  user: ["create", "list", "get", "update", "set-role", "ban", "delete"],
+  user: ["create", "list", "get", "ban", "delete"],
   session: ["list", "revoke"],
 } as const;
 

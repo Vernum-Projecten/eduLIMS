@@ -16,7 +16,7 @@ import { isAsciiEmail } from "../../lib/simulations.ts";
 import { auditProvider } from "../audit/events.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
-import { isLastAdministrator, LAST_ADMIN, lockUserForRoleChange } from "../users/administrators.ts";
+import { isLastAdministrator, LAST_ADMIN, lockForRoleChange } from "../users/administrators.ts";
 import { revokeSessionsForRoleChange } from "../users/revoke-sessions.ts";
 
 /** How long a pending grant waits for its first sign-in (owner decision on #46/#48). */
@@ -240,14 +240,14 @@ export async function revokeAdmin(
       .executeTakeFirst();
     // NOTE: #345; the administrators are locked in id order before the target, as deleteUser
     // does, so two revocations or a revocation and a deletion queue instead of both passing.
-    const locked = found ? await lockUserForRoleChange(trx, found.id) : undefined;
+    const locked = found ? (await lockForRoleChange(trx, found.id)).user : undefined;
     if (!found || !locked) {
       return pending ? { ok: true, kind: "revoked" } : refuseRoleChange(trx, "not_found");
     }
     const user = { id: found.id, role: locked.role };
     const current = rolesOf(user.role);
     if (!current.includes("admin")) return { ok: true, kind: pending ? "revoked" : "not_admin" };
-    if (await isLastAdministrator(trx, user.id)) {
+    if (await isLastAdministrator(trx, user.id, input.now)) {
       return refuseRoleChange(trx, LAST_ADMIN, user.id);
     }
     const rest = current.filter((role) => role !== "admin");

@@ -74,7 +74,11 @@ Role sets: option 2. Display: option 2, the portal switcher.
   Amended 2026-11-20 (#345): better-auth's `set-role` and `update-user`
   endpoints are closed (404), so the guard is gone. The Users screen's
   `setLocalRoles` refuses a change of one's own roles, and every role write
-  still passes the `databaseHooks.user` check.
+  still passes the `databaseHooks.user` check. An administrator who mints a
+  SCIM token holds the same trust as one who configures the identity
+  provider: through SCIM they can change the roles that provider owns, their
+  own included. The maintainer accepts this (#356 review, S4); the
+  provider's settings and its tokens are the boundary, not this rule.
 - A sign-in refused with `no_edulims_role` or `role_conflict` also revokes
   the user's existing sessions, so a role the identity provider removed ends
   the live access as well.

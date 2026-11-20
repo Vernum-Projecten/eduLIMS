@@ -7,7 +7,7 @@ import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Auth } from "../auth.ts";
 import type { DB } from "../db/schema.gen.ts";
-import { CLOSED_AUTH_PATHS } from "./admin-endpoint-lock.ts";
+import { CLOSED_AUTH_PATHS, HTTP_CLOSED_AUTH_PATHS } from "./admin-endpoint-lock.ts";
 import { authOnTestDb, createUser, signIn } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
@@ -47,14 +47,16 @@ function request(path: string, method: "GET" | "POST", headers: Headers, body?: 
 }
 
 describe("the user deletion endpoints of better-auth (#318)", () => {
-  it("lists remove-user, set-role, update-user, delete-user and its callback as disabled", () => {
+  it("lists the closed paths, and the paths closed over HTTP only", () => {
     expect([...CLOSED_AUTH_PATHS].sort()).toEqual([
       "/admin/remove-user",
       "/admin/set-role",
       "/admin/update-user",
       "/delete-user",
       "/delete-user/callback",
+      "/update-user",
     ]);
+    expect([...HTTP_CLOSED_AUTH_PATHS].sort()).toEqual(["/admin/ban-user", "/admin/create-user"]);
   });
 
   it.each([
@@ -139,6 +141,99 @@ describe("the role-writing endpoints of better-auth (#345)", () => {
         headers,
       }),
     ).rejects.toMatchObject({ statusCode: 404 });
+    expect(await stored(database, victimId)).toEqual(before);
+  });
+});
+
+function closedRows(database: Kysely<DB>) {
+  return database
+    .selectFrom("audit_event")
+    .select(["actor_type", "actor_id", "outcome", "reason_code", "target_id"])
+    .where("action", "=", "authz_endpoint_closed")
+    .execute();
+}
+
+describe("a call to a closed endpoint is logged (#356 review, S1, V16.3.2)", () => {
+  it("logs an administrator's set-role on their own id as one refused row", async () => {
+    const { auth, database, headers } = await setup();
+    const adminId = (
+      await database
+        .selectFrom("user")
+        .select("id")
+        .where("email", "=", "admin@example.test")
+        .executeTakeFirstOrThrow()
+    ).id;
+    const response = await auth.handler(
+      request("/admin/set-role", "POST", headers, { userId: adminId, role: "teacher" }),
+    );
+    expect(response.status).toBe(404);
+    expect(await closedRows(database)).toEqual([
+      {
+        actor_type: "user",
+        actor_id: adminId,
+        outcome: "refused",
+        reason_code: "endpoint_closed",
+        target_id: adminId,
+      },
+    ]);
+  });
+
+  it("logs a call without a session as anonymous", async () => {
+    const { auth, database, victimId } = await setup();
+    await expect(
+      auth.api.setRole({ body: { userId: victimId, role: "teacher" }, headers: new Headers() }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(await closedRows(database)).toEqual([
+      expect.objectContaining({ actor_type: "anonymous", actor_id: null, target_id: victimId }),
+    ]);
+  });
+});
+
+describe("the endpoints closed over HTTP only (#356 review, S2, S3)", () => {
+  it("answers 404 to an administrator's create-user and creates no user", async () => {
+    const { auth, database, headers } = await setup();
+    const response = await auth.handler(
+      request("/admin/create-user", "POST", headers, {
+        email: "new-admin@example.test",
+        name: "New",
+        password: "correct-horse-battery",
+        role: "admin",
+      }),
+    );
+    expect(response.status).toBe(404);
+    const rows = await database
+      .selectFrom("user")
+      .select("id")
+      .where("email", "=", "new-admin@example.test")
+      .execute();
+    expect(rows).toEqual([]);
+  });
+
+  it("answers 404 to an administrator's ban-user and blocks nobody", async () => {
+    const { auth, database, victimId, headers } = await setup();
+    const response = await auth.handler(
+      request("/admin/ban-user", "POST", headers, { userId: victimId }),
+    );
+    expect(response.status).toBe(404);
+    const row = await database
+      .selectFrom("user")
+      .select("banned")
+      .where("id", "=", victimId)
+      .executeTakeFirstOrThrow();
+    expect(row.banned).toBe(false);
+  });
+});
+
+describe("the core update-user endpoint (#356 review, en-route)", () => {
+  it.each([
+    ["a new name", { name: "Renamed Student" }],
+    ["the admin role", { role: "admin" }],
+  ] as const)("answers 404 to a student who sends %s, and changes nothing", async (_, body) => {
+    const { auth, database, victimId } = await setup();
+    const student = await signIn(auth, "victim@example.test");
+    const before = await stored(database, victimId);
+    const response = await auth.handler(request("/update-user", "POST", student, body));
+    expect(response.status).toBe(404);
     expect(await stored(database, victimId)).toEqual(before);
   });
 });

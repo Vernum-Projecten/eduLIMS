@@ -48,6 +48,7 @@ const ACTION_LABELS: Readonly<Record<string, () => string>> = {
   authn_login_fail: m.audit_action_login_fail,
   authn_logout: m.audit_action_logout,
   authz_role_change: m.audit_action_role_change,
+  authz_endpoint_closed: m.audit_action_endpoint_closed,
   session_revoked: m.audit_action_session_revoked,
   session_expired: m.audit_action_session_expired,
   user_created: m.audit_action_user_created,

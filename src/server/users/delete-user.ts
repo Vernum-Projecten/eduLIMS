@@ -9,16 +9,19 @@
 import "@tanstack/react-start/server-only";
 import { type Kysely, sql, type Transaction } from "kysely";
 import { storedRoleSetsWith } from "../../lib/roles.ts";
-import { type AuditActor, toRequestId } from "../audit/events.ts";
+import { toRequestId } from "../audit/events.ts";
 import { recordAudit, recordCommittedAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { AuthError } from "../middleware.ts";
 import { isLastTeacherViolation, LAST_TEACHER_CONSTRAINT } from "../simulations/teachers.ts";
 import { type ActionContext, assertAdmin } from "./actions.ts";
 import {
+  actorIsAdministrator,
   holdsAdmin,
   isLastAdministrator,
   LAST_ADMIN,
-  lockUserForRoleChange,
+  lockForRoleChange,
+  NOT_AN_ADMIN,
 } from "./administrators.ts";
 
 /** The refusal code of deleting the only active teacher of a simulation (D10). */
@@ -41,7 +44,7 @@ export type DeleteUserError =
 /** The outcome of a deletion: done, or refused with a code. */
 export type DeleteUserResult = { ok: true } | { ok: false; error: DeleteUserError };
 
-type Deletion = DeleteUserResult;
+type Deletion = DeleteUserResult | { ok: false; error: typeof NOT_AN_ADMIN };
 
 /**
  * Locks every simulation `userId` teaches (`FOR UPDATE`), in id order: the order the
@@ -105,16 +108,20 @@ export async function isOnlyTeacherOfASimulation(
 async function deleteInTransaction(
   trx: Transaction<DB>,
   userId: string,
-  actor: AuditActor,
+  actor: { type: "user"; id: string },
   requestId: string | undefined,
+  now: Date,
 ): Promise<Deletion> {
   await lockTaughtSimulations(trx, userId);
-  const user = await lockUserForRoleChange(trx, userId);
+  const locks = await lockForRoleChange(trx, userId);
+  // NOTE: #356 review (N3); the actor's role is judged again under the locks, not from the session.
+  if (!actorIsAdministrator(locks, actor.id)) return { ok: false, error: NOT_AN_ADMIN };
+  const { user } = locks;
   if (!user) return { ok: false, error: "not_found" };
   if (await isOnlyTeacherOfASimulation(trx, userId)) {
     return { ok: false, error: ONLY_SIMULATION_TEACHER };
   }
-  if (holdsAdmin(user.role) && (await isLastAdministrator(trx, userId))) {
+  if (holdsAdmin(user.role) && (await isLastAdministrator(trx, userId, now))) {
     return { ok: false, error: LAST_ADMIN };
   }
   const sessions = await trx
@@ -151,9 +158,11 @@ async function deleteInTransaction(
 /**
  * Deletes a user with their sessions and accounts in one transaction (B1, D10). An administrator
  * cannot delete themself (`cannot_delete_self`), the only active teacher of a simulation is
- * refused (`only_simulation_teacher`), and so is the last administrator (`last_admin`); every
- * refusal is logged and changes nothing. Every
+ * refused (`only_simulation_teacher`), and so is the last administrator who is not blocked
+ * (`last_admin`); every refusal is logged and changes nothing. Every
  * session gets a `session_revoked` row and the user a `user_deleted` row, ids only (B4).
+ *
+ * @throws AuthError 403 when the actor no longer holds the admin role, logged as `not_an_admin`.
  */
 export async function deleteUser(
   ctx: ActionContext,
@@ -180,7 +189,7 @@ export async function deleteUser(
   try {
     outcome = await ctx.db
       .transaction()
-      .execute((trx) => deleteInTransaction(trx, input.userId, actor, requestId));
+      .execute((trx) => deleteInTransaction(trx, input.userId, actor, requestId, ctx.now));
   } catch (error) {
     // NOTE: D10 (#318); the trigger of migration 0012 is the last line, for a simulation the
     // user joined after the locks were taken. The transaction rolled back, so nothing changed.
@@ -188,5 +197,6 @@ export async function deleteUser(
     outcome = { ok: false, error: ONLY_SIMULATION_TEACHER };
   }
   if (!outcome.ok && outcome.error !== "not_found") await refusal(outcome.error);
+  if (!outcome.ok && outcome.error === NOT_AN_ADMIN) throw new AuthError(403);
   return outcome;
 }

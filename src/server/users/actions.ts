@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The actions of the user detail sheet (#34, B1): block and unblock, end one or all sessions,
-// and edit a local role set. Blocks and sessions go through better-auth's admin endpoints with
-// the administrator's own session, so its permission check and the activity-log hooks run; the
-// local role edit writes in one transaction with its activity-log row (B4).
+// and edit a local role set. Unblocking and sessions go through better-auth's admin endpoints
+// with the administrator's own session, so its permission check and the activity-log hooks run;
+// a block and the local role edit write in one transaction with their activity-log rows, under
+// the administrator locks (B4, #345).
 import "@tanstack/react-start/server-only";
 import { isAPIError } from "better-auth/api";
 import type { Kysely } from "kysely";
@@ -25,10 +26,12 @@ import type { DB } from "../db/schema.gen.ts";
 import { AuthError } from "../middleware.ts";
 import { logSecurityEvent } from "../security-log.ts";
 import {
+  actorIsAdministrator,
   holdsAdmin,
   isLastAdministrator,
   LAST_ADMIN,
-  lockUserForRoleChange,
+  lockForRoleChange,
+  NOT_AN_ADMIN,
 } from "./administrators.ts";
 import { revokeSessionsForRoleChange } from "./revoke-sessions.ts";
 
@@ -64,6 +67,11 @@ const DONE: AdminActionResult = { ok: true };
 function refused(error: AdminActionError): AdminActionResult {
   return { ok: false, error };
 }
+
+/** The outcome of a write under the administrator locks: an action result, or a lost admin role. */
+type LockedOutcome = AdminActionResult | { ok: false; error: typeof NOT_AN_ADMIN };
+
+const ACTOR_NOT_ADMIN: LockedOutcome = { ok: false, error: NOT_AN_ADMIN };
 
 /**
  * Refuses a caller without the admin role, whatever else they hold (B1, ADR 0012). The
@@ -109,9 +117,34 @@ function refusal(ctx: ActionContext, event: Refusal, reason: string): Promise<vo
 }
 
 /**
- * Blocks a user (owner decision on #32): better-auth's `ban-user` with the reason and, when
- * given, an end at the close of the `until` day; it also ends the user's sessions, and every
- * later sign-in, SSO included, is refused. An administrator cannot block themselves.
+ * Ends a write under the administrator locks: logs a refusal whose code is in `logged`, and
+ * refuses an actor who lost the admin role meanwhile with 403, logged as `not_an_admin` (#345).
+ *
+ * @throws AuthError 403 when the actor no longer holds the admin role.
+ */
+async function settle(
+  ctx: ActionContext,
+  event: Extract<Refusal, { action: "user_banned" | "authz_role_change" }>,
+  outcome: LockedOutcome,
+  logged: readonly AdminActionError[],
+): Promise<AdminActionResult> {
+  if (outcome.ok) return outcome;
+  if (outcome.error === NOT_AN_ADMIN) {
+    await refusal(ctx, event, NOT_AN_ADMIN);
+    throw new AuthError(403);
+  }
+  if (logged.includes(outcome.error)) await refusal(ctx, event, outcome.error);
+  return { ok: false, error: outcome.error };
+}
+
+/**
+ * Blocks a user (owner decision on #32) with the reason and, when given, an end at the close of
+ * the `until` day, and ends the user's sessions; every later sign-in, SSO included, is refused.
+ * An administrator cannot block themselves, nor the last administrator who is not blocked
+ * (`last_admin`, #345). The block, the ended sessions and their activity-log rows commit
+ * together under the administrator locks.
+ *
+ * @throws AuthError 403 when the actor no longer holds the admin role.
  */
 export async function blockUser(
   ctx: ActionContext,
@@ -126,33 +159,47 @@ export async function blockUser(
     );
     return refused("cannot_block_self");
   }
-  if (!(await userExists(ctx.db, input.userId))) return refused("not_found");
-  const banExpiresIn = input.until
-    ? Math.max(1, Math.round((endOfDayIn(input.until).getTime() - ctx.now.getTime()) / 1000))
-    : undefined;
-  try {
-    await ctx.auth.api.banUser({
-      body: {
-        userId: input.userId,
-        banReason: input.reason.trim(),
-        ...(banExpiresIn ? { banExpiresIn } : {}),
-      },
-      headers: ctx.headers,
-    });
-  } catch (error) {
-    return fromAuthError(error);
-  }
-  if (input.until) {
-    // NOTE: better-auth takes the end as a duration and adds it to its own clock, which runs a
-    // little after ctx.now, so the stored end drifted past the close of the day under load.
-    // The end is set to the exact instant here.
-    await ctx.db
+  const target = { type: "user" as const, id: input.userId };
+  const banExpires = input.until ? endOfDayIn(input.until) : null;
+  const actor = { type: "user", id: ctx.actor.id } as const;
+  // NOTE: #356 review (S3); the block is written here, not through better-auth's ban-user, so
+  // the last-administrator rule and the ban share one transaction and its locks.
+  const outcome = await ctx.db.transaction().execute(async (trx): Promise<LockedOutcome> => {
+    const locks = await lockForRoleChange(trx, input.userId);
+    if (!actorIsAdministrator(locks, ctx.actor.id)) return ACTOR_NOT_ADMIN;
+    if (!locks.user) return refused("not_found");
+    if (holdsAdmin(locks.user.role) && (await isLastAdministrator(trx, input.userId, ctx.now))) {
+      return refused(LAST_ADMIN);
+    }
+    await trx
       .updateTable("user")
-      .set({ banExpires: endOfDayIn(input.until) })
+      .set({ banned: true, banReason: input.reason.trim(), banExpires, updatedAt: ctx.now })
       .where("id", "=", input.userId)
       .execute();
-  }
-  return DONE;
+    const sessions = await trx
+      .deleteFrom("session")
+      .where("userId", "=", input.userId)
+      .returning("id")
+      .execute();
+    for (const session of sessions.toSorted((a, b) => a.id.localeCompare(b.id))) {
+      await recordAudit(trx, {
+        action: "session_revoked",
+        actor,
+        outcome: "success",
+        target: { type: "session", id: session.id },
+        reason: "user_banned",
+      });
+    }
+    await recordAudit(trx, {
+      action: "user_banned",
+      actor,
+      outcome: "success",
+      target,
+      ...(banExpires ? { metadata: { ban_expires_at: banExpires.toISOString() } } : {}),
+    });
+    return DONE;
+  });
+  return settle(ctx, { action: "user_banned", target }, outcome, [LAST_ADMIN]);
 }
 
 /** Lifts the block of a user through better-auth's `unban-user`. */
@@ -250,9 +297,12 @@ export async function endAllSessions(
 /**
  * Sets the role set of a user whose roles are local (hybrid ownership, owner decision on #32):
  * an allowed set (ADR 0012), never the administrator's own, never a set the identity provider
- * owns, and never one that takes the admin role from the last administrator (`last_admin`). The
- * update and its `authz_role_change` row commit together; when a role goes, the user's sessions
- * end in the same transaction, each with a `session_revoked` row (`roles_changed`).
+ * owns, and never one that takes the admin role from the last administrator who is not blocked
+ * (`last_admin`). The update and its `authz_role_change` row commit together; when a role goes,
+ * the user's sessions end in the same transaction, each with a `session_revoked` row
+ * (`roles_changed`).
+ *
+ * @throws AuthError 403 when the actor no longer holds the admin role.
  */
 export async function setLocalRoles(
   ctx: ActionContext,
@@ -267,17 +317,19 @@ export async function setLocalRoles(
   const validated = validateRoleSet(input.roles);
   if (!validated.ok) return refused("role_set_not_allowed");
   const role = formatRoles(validated.roles);
-  const outcome = await ctx.db.transaction().execute(async (trx) => {
+  const outcome = await ctx.db.transaction().execute(async (trx): Promise<LockedOutcome> => {
     // NOTE: #345; the administrators are locked in id order before the target, as deleteUser
     // does, so two administrators who take the role from each other cannot both pass.
-    const user = await lockUserForRoleChange(trx, input.userId);
+    const locks = await lockForRoleChange(trx, input.userId);
+    if (!actorIsAdministrator(locks, ctx.actor.id)) return ACTOR_NOT_ADMIN;
+    const { user } = locks;
     if (!user) return refused("not_found");
     if (!isLocallyEditable(parseRoleSource(user.role_source))) return refused("roles_not_local");
     if (user.role === role) return DONE;
     if (
       holdsAdmin(user.role) &&
       !holdsAdmin(role) &&
-      (await isLastAdministrator(trx, input.userId))
+      (await isLastAdministrator(trx, input.userId, ctx.now))
     ) {
       return refused(LAST_ADMIN);
     }
@@ -305,10 +357,10 @@ export async function setLocalRoles(
     }
     return DONE;
   });
-  if (!outcome.ok && (outcome.error === "roles_not_local" || outcome.error === LAST_ADMIN)) {
-    await refusal(ctx, { action: "authz_role_change", target }, outcome.error);
-  }
-  return outcome;
+  return settle(ctx, { action: "authz_role_change", target }, outcome, [
+    "roles_not_local",
+    LAST_ADMIN,
+  ]);
 }
 
 /** The outcome of a bulk action: the users it was done for, and each refusal with its code. */

@@ -5,9 +5,9 @@
 // operations one by one and waits here until each of them queues on a lock.
 import type { CommittedTestDb } from "./test-committed-db.ts";
 
-const WAIT_LIMIT_MS = 10_000;
+const WAIT_LIMIT_MS = 4_000;
 
-/** Waits until `count` backends of this database wait on a lock; throws after 10 seconds. */
+/** Waits until `count` backends of this database wait on a lock; throws after 4 seconds. */
 export async function lockWaiters(database: CommittedTestDb, count: number): Promise<void> {
   const deadline = Date.now() + WAIT_LIMIT_MS;
   for (;;) {
