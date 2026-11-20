@@ -5,10 +5,15 @@
 // declared length at, under and over the limit, a request without a length, a streamed body that
 // lies about its length, cut off at the limit without being read whole, and a failing stream.
 import { describe, expect, it } from "vitest";
+import { setBodyRefusalLogDeps } from "./body-refusal-log.ts";
 import { carriesJson, JSON_BODY_MAX, jsonBodyRefusal, refuseJsonBody } from "./json-body-limit.ts";
+import { RefusalDeduper } from "./refusal-deduper.ts";
 import { setSecurityLogWriter } from "./security-log.ts";
 
 const URL = "http://edulims.test/_serverFn/abc";
+const PROXY = "10.0.0.1";
+const CLIENT_A = "203.0.113.1";
+const CLIENT_B = "203.0.113.2";
 const JSON_TYPE = "application/json";
 
 /** A POST whose body is `size` bytes of a JSON string, declared with its true length. */
@@ -209,10 +214,22 @@ describe("refuseJsonBody", () => {
   it("logs the request id the reverse proxy set, and leaves out a malformed one (#357)", async () => {
     const lines: string[] = [];
     const restore = setSecurityLogWriter((line) => lines.push(line));
+    // Two clients, so the per-client window of the refusal log (#350) keeps both lines.
+    const restoreLog = setBodyRefusalLogDeps({
+      trustedProxies: () => [PROXY],
+      deduper: new RefusalDeduper(),
+    });
     try {
-      await refuseJsonBody(jsonPost(101, { "x-request-id": "req-357" }), 100);
-      await refuseJsonBody(jsonPost(101, { "x-request-id": "not an id" }), 100);
+      await refuseJsonBody(
+        jsonPost(101, { "x-request-id": "req-357", "x-forwarded-for": CLIENT_A }),
+        100,
+      );
+      await refuseJsonBody(
+        jsonPost(101, { "x-request-id": "not an id", "x-forwarded-for": CLIENT_B }),
+        100,
+      );
     } finally {
+      restoreLog();
       restore();
     }
     const parsed: unknown[] = lines.map((line): unknown => JSON.parse(line));
