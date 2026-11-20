@@ -16,6 +16,7 @@ import { finishSimulation, startSimulation, toSimulationState } from "./state.ts
 import { findWorkingStudentLab } from "./student-access.ts";
 import { teacherWriteRefusals } from "./test-access.ts";
 import { auditRows, NOW, setState, startable, world } from "./test-helpers.ts";
+import { key } from "./test-join.ts";
 
 const LATER = new Date("2026-11-19T12:00:00Z");
 
@@ -37,7 +38,13 @@ async function open() {
 describe("starting and finishing a simulation (D10, #267)", () => {
   it("starts a new simulation as prepared", async () => {
     const { db: database, w } = await open();
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page).toMatchObject({ state: "prepared", startedAt: null, finishedAt: null });
   });
 
@@ -48,7 +55,13 @@ describe("starting and finishing a simulation (D10, #267)", () => {
       ok: true,
       value: null,
     });
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page).toMatchObject({
       state: "running",
       startedAt: NOW.toISOString(),
@@ -67,7 +80,13 @@ describe("starting and finishing a simulation (D10, #267)", () => {
       ok: true,
       value: null,
     });
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page).toMatchObject({ state: "finished", finishedAt: LATER.toISOString() });
     const list = await listTeacherSimulations(database, w.teacher.id);
     expect(list.find((row) => row.id === w.simulationId)?.state).toBe("finished");
@@ -84,7 +103,13 @@ describe("starting and finishing a simulation (D10, #267)", () => {
     expect(await auditRows(database, "simulation_started")).toEqual([
       expect.objectContaining({ outcome: "refused", reason_code: "no_students" }),
     ]);
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page).toMatchObject({ state: "prepared", startedAt: null });
   });
 
@@ -194,7 +219,13 @@ describe("starting and finishing a simulation (D10, #267)", () => {
         metadata: null,
       }),
     ]);
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page?.state).toBe("prepared");
     for (const testId of [without, second]) {
       await setLimits(

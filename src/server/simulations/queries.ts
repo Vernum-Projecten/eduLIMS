@@ -113,11 +113,11 @@ function joinCodeState(
     key_fingerprint: string | null;
   },
   now: Date,
-  fingerprint: string | undefined,
+  fingerprint: string,
 ): LabJoinCodeState {
   if (row.expires_at === null || row.uses === null || row.max_uses === null) return "off";
-  // A code made under a rotated secret no longer works (security review of #394, N1).
-  const stale = fingerprint !== undefined && row.key_fingerprint !== fingerprint;
+  // A code made under a rotated secret no longer works (security reviews of #394 and #403).
+  const stale = row.key_fingerprint !== fingerprint;
   return stale || row.expires_at <= now || row.uses >= row.max_uses ? "ended" : "on";
 }
 
@@ -130,8 +130,8 @@ export async function getTeacherSimulation(
   db: Kysely<DB>,
   userId: string,
   simulationId: string,
-  now: Date = new Date(),
-  fingerprint?: string,
+  now: Date,
+  fingerprint: string,
 ): Promise<TeacherSimulationPage | null> {
   const id = parseSimulationId(simulationId);
   if (id === null) {

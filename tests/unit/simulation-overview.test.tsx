@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { LimitsText } from "@/components/correct-values/limits-dialog";
 import { firstBlockingStep, stepsOf } from "@/components/simulations/preparation-steps";
 import { PreparationChecklist } from "@/components/simulations/simulation-overview";
 import {
@@ -54,6 +55,17 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
+
+/** Returns the text an element's `aria-describedby` names, joined by spaces. */
+function description(element: HTMLElement): string {
+  return (element.getAttribute("aria-describedby") ?? "")
+    .split(/\s+/)
+    .flatMap((id) => {
+      const text = id === "" ? null : document.getElementById(id)?.textContent;
+      return text ? [text] : [];
+    })
+    .join(" ");
+}
 
 // jsdom has no ResizeObserver; Radix measures with it once a dialog opens.
 globalThis.ResizeObserver ??= class {
@@ -170,9 +182,22 @@ describe("SimulationPrimaryAction (#381, the UI review of #394)", () => {
     start.focus();
     fireEvent.click(start);
     expect(screen.queryByRole("alertdialog")).toBeNull();
-    expect(document.activeElement).toBe(
-      screen.getByRole("heading", { level: 3, name: "Labs and students" }),
+    const heading = screen.getByRole("heading", { level: 3, name: "Labs and students" });
+    expect(document.activeElement).toBe(heading);
+    // The focused heading carries its status and its reason (the UI review of #403).
+    expect(description(heading)).toBe(
+      "Blocks the start 1 lab, 0 students, 0 addresses waiting. No lab has a student yet, and the start needs one.",
     );
+  });
+
+  it("sends focus to the start step when no step above owns the reason", () => {
+    renderWith({ ...READY, startRefusal: { error: "not_prepared" } });
+    const start = screen.getByRole("button", { name: "Start simulation" });
+    fireEvent.click(start);
+    const step = screen.getByRole("heading", { level: 3, name: "Start" });
+    expect(step.id).toBe("step-start");
+    expect(document.activeElement).toBe(step);
+    expect(description(step)).toContain("Blocks the start");
   });
 
   it("returns focus to Start after a refused start, and names the tests in the toast", async () => {
@@ -191,6 +216,39 @@ describe("SimulationPrimaryAction (#381, the UI review of #394)", () => {
     expect(toasts.error).toHaveBeenCalledWith(
       "Set the accuracy limits of Albumin before you start the simulation.",
     );
+  });
+});
+
+describe("LimitsText (D13, #394)", () => {
+  const test = {
+    id: "t-alb",
+    name: "Albumin",
+    unit: "g/L",
+    retired: false,
+    values: 1,
+    limits: null,
+    simulationId: READY.simulationId,
+  };
+
+  it("says that a test without limits blocks the start while the simulation is prepared", () => {
+    render(<LimitsText test={test} blocksStart />);
+    expect(screen.getByText("No accuracy limits yet: this blocks the start.")).toBeDefined();
+  });
+
+  it("says only that the limits are missing once the simulation runs", () => {
+    render(<LimitsText test={test} blocksStart={false} />);
+    expect(screen.getByText("No accuracy limits yet")).toBeDefined();
+    expect(screen.queryByText(/blocks the start/)).toBeNull();
+  });
+
+  it("words the limits a test has", () => {
+    render(
+      <LimitsText
+        test={{ ...test, limits: { kind: "percent", yellow: "5", red: "10" } }}
+        blocksStart
+      />,
+    );
+    expect(screen.getByText("Yellow beyond 5%, red beyond 10%")).toBeDefined();
   });
 });
 

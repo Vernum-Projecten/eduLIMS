@@ -100,7 +100,12 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await startButton.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
-  await expect(page.getByRole("heading", { level: 3, name: "Labs and students" })).toBeFocused();
+  const labsStep = page.getByRole("heading", { level: 3, name: "Labs and students" });
+  await expect(labsStep).toBeFocused();
+  // The focused step says why it blocks the start (the UI review of #403).
+  await expect(labsStep).toHaveAccessibleDescription(
+    "Blocks the start No labs yet. Create a lab for each team and add its students.",
+  );
   await axe(page);
 
   // A lab with one student; the student comes from the run's own accounts.
@@ -145,6 +150,10 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await expect(
     page.getByText("Correct values saved: 1 added, 0 changed, 0 unchanged."),
   ).toBeVisible();
+  // The dialog stays open over the toasts' layer and says itself what it saved (WCAG 4.1.3).
+  await expect(
+    addDialog.getByRole("status").filter({ hasText: "Saved the correct value" }),
+  ).toHaveText(`Saved the correct value of ${testName} for sample S-101.`);
   // The dialog stays open, empty, with focus on its first field for the next value; closing it
   // returns focus to the opener, now in the page's header.
   await expect(one.getByLabel("Sample number")).toHaveValue("");
@@ -224,21 +233,23 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await page.getByRole("link", { name: "Open correct values" }).first().click();
   await expect(page.getByRole("heading", { level: 1, name: "Correct values" })).toBeVisible();
   const section = testSection(page, testName);
-  await expect(section).toContainText("No limits yet: this blocks the start.");
-  await section.getByRole("button", { name: `Set limits for ${testName}` }).click();
-  const limits = page.getByRole("dialog", { name: `Limits of ${testName}` });
+  await expect(section).toContainText("No accuracy limits yet: this blocks the start.");
+  await section.getByRole("button", { name: `Set accuracy limits for ${testName}` }).click();
+  const limits = page.getByRole("dialog", { name: `Accuracy limits of ${testName}` });
   await limits.getByLabel("Yellow limit").fill("0,30");
   await limits.getByLabel("Red limit").fill("0.29");
-  await limits.getByRole("button", { name: "Save limits" }).click();
+  await limits.getByRole("button", { name: "Save accuracy limits" }).click();
   await expect(
     limits.getByText("The red limit cannot be smaller than the yellow limit."),
   ).toBeVisible();
   await axe(page);
   await limits.getByLabel("Red limit").fill("10");
-  await limits.getByRole("button", { name: "Save limits" }).click();
+  await limits.getByRole("button", { name: "Save accuracy limits" }).click();
   await expect(limits).toHaveCount(0);
   await expect(section).toContainText("Yellow beyond 0.30%, red beyond 10%");
-  await expect(section.getByRole("button", { name: `Set limits for ${testName}` })).toBeFocused();
+  await expect(
+    section.getByRole("button", { name: `Set accuracy limits for ${testName}` }),
+  ).toBeFocused();
 
   // Start behind a confirmation whose safe choice takes the first focus (WCAG 3.3.4).
   await openPage(page, simulation, "Overview");

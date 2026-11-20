@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { ReactNode } from "react";
+import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
 import { cn } from "@/lib/utils";
 
 /** The id of every page's `h1`, which its main section is labelled by. */
@@ -58,7 +59,7 @@ export function PageFrame({
           <h1
             id={PAGE_TITLE_ID}
             tabIndex={-1}
-            className="rounded-sm font-semibold text-2xl tracking-tight text-balance outline-none focus:ring-3 focus:ring-ring/50"
+            className={cn(FOCUSABLE_HEADING, "text-2xl tracking-tight text-balance")}
           >
             {title}
           </h1>

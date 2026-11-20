@@ -15,6 +15,7 @@ import {
 } from "./queries.ts";
 import { findStudentLab } from "./student-access.ts";
 import {
+  NOW,
   notFoundLine,
   type Person,
   place,
@@ -23,6 +24,7 @@ import {
   type World,
   world,
 } from "./test-helpers.ts";
+import { key } from "./test-join.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -76,7 +78,13 @@ describe("getTeacherSimulation (D10, D11)", () => {
       .insertInto("lab_member_emails")
       .values({ simulation_id: w.simulationId, lab_id: w.otherLabId, email: "waits@example.test" })
       .execute();
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page?.labs).toEqual([
       {
         id: w.otherLabId,
@@ -107,7 +115,7 @@ describe("getTeacherSimulation (D10, D11)", () => {
       const actor = actorOf(w);
       let page: unknown;
       const lines = await securityLines(async () => {
-        page = await getTeacherSimulation(database, actor.id, w.simulationId);
+        page = await getTeacherSimulation(database, actor.id, w.simulationId, NOW, key.fingerprint);
       });
       expect(page).toBeNull();
       expect(lines).toEqual([notFoundLine(actor.id, "simulation", w.simulationId)]);
@@ -119,8 +127,10 @@ describe("getTeacherSimulation (D10, D11)", () => {
     const unknown = "01960000-0000-7000-8000-000000000001";
     const pages: unknown[] = [];
     const lines = await securityLines(async () => {
-      pages.push(await getTeacherSimulation(database, w.teacher.id, "not-a-uuid"));
-      pages.push(await getTeacherSimulation(database, w.teacher.id, unknown));
+      pages.push(
+        await getTeacherSimulation(database, w.teacher.id, "not-a-uuid", NOW, key.fingerprint),
+      );
+      pages.push(await getTeacherSimulation(database, w.teacher.id, unknown, NOW, key.fingerprint));
     });
     expect(pages).toEqual([null, null]);
     expect(lines).toEqual([
@@ -132,7 +142,7 @@ describe("getTeacherSimulation (D10, D11)", () => {
   it("logs nothing for the teacher's own simulation", async () => {
     const { database, w } = await open();
     const lines = await securityLines(() =>
-      getTeacherSimulation(database, w.teacher.id, w.simulationId),
+      getTeacherSimulation(database, w.teacher.id, w.simulationId, NOW, key.fingerprint),
     );
     expect(lines).toEqual([]);
   });
@@ -322,15 +332,35 @@ describe("the logo version of each read (#293)", () => {
     const { database, w } = await open();
     await storeLogo(database, w);
     expect(await getTeacherLab(database, w.outsiderTeacher.id, w.labId)).toBeNull();
-    expect(await getTeacherSimulation(database, w.outsiderTeacher.id, w.simulationId)).toBeNull();
-    const own = await getTeacherSimulation(database, w.outsiderTeacher.id, w.outsideSimulationId);
+    expect(
+      await getTeacherSimulation(
+        database,
+        w.outsiderTeacher.id,
+        w.simulationId,
+        NOW,
+        key.fingerprint,
+      ),
+    ).toBeNull();
+    const own = await getTeacherSimulation(
+      database,
+      w.outsiderTeacher.id,
+      w.outsideSimulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(own?.labs.map((lab) => lab.logoVersion)).toEqual([null]);
   });
 
   it("gives the lab with a logo its version and the lab without one null", async () => {
     const { database, w } = await open();
     const version = await storeLogo(database, w);
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page?.labs.map((lab) => [lab.id, lab.logoVersion])).toEqual([
       [w.otherLabId, null],
       [w.labId, version],

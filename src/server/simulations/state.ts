@@ -126,11 +126,16 @@ export async function startFacts(
   state: SimulationState,
 ): Promise<StartFacts> {
   // One query after the other: inside a transaction they share one connection.
-  const students = await db
+  // NOTE: security review of #403 (N2); the places are locked FOR SHARE, after the simulation
+  // row: an account deletion locks the student's places first and no simulation row, so a start
+  // that waits on it counts without the deleted student.
+  const places = await db
     .selectFrom("lab_members")
-    .select((eb) => eb.fn.countAll<string>().as("n"))
+    .select("user_id")
     .where("simulation_id", "=", simulationId)
-    .executeTakeFirstOrThrow();
+    .orderBy("user_id")
+    .forShare()
+    .execute();
   const values = await db
     .selectFrom("correct_values")
     .select((eb) => eb.fn.countAll<string>().as("n"))
@@ -139,7 +144,7 @@ export async function startFacts(
   const missingLimits = await testsWithoutLimits(db, simulationId);
   return {
     state,
-    students: Number(students.n),
+    students: places.length,
     correctValues: Number(values.n),
     missingLimits,
   };

@@ -17,6 +17,7 @@ export interface Step {
   id: "labs" | "values" | "limits" | "start";
   title: string;
   status: StepStatus;
+  /** One sentence on where the step stands; empty when a step above already says it. */
   description: string;
   page: StepPage | null;
 }
@@ -120,9 +121,8 @@ function startStep({ startRefusal }: SimulationReadiness): Step {
   return {
     ...base,
     status: "blocks",
-    description: fromAbove
-      ? m.simulation_step_start_blocked()
-      : simulationErrorMessage(startRefusal.error),
+    // A step above already names the reason; the start's own status says it is blocked.
+    description: fromAbove ? "" : simulationErrorMessage(startRefusal.error),
   };
 }
 

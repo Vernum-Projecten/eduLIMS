@@ -11,6 +11,7 @@ import {
   HistoryIcon,
   type LucideIcon,
 } from "lucide-react";
+import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
 import {
   type StepPage,
   type StepStatus,
@@ -109,20 +110,33 @@ export function PreparationChecklist({ readiness }: Readonly<{ readiness: Simula
               </ItemMedia>
               <ItemContent className="min-w-0">
                 <ItemTitle className="line-clamp-none flex-wrap whitespace-normal">
+                  {/* The status and the reason describe the heading a blocked Start focuses. */}
                   <h3
                     id={stepHeadingId(step.id)}
                     tabIndex={-1}
-                    className="rounded-sm font-medium outline-none focus:ring-3 focus:ring-ring/50"
+                    aria-describedby={cn(
+                      `${stepHeadingId(step.id)}-status`,
+                      step.description && `${stepHeadingId(step.id)}-description`,
+                    )}
+                    className={cn(FOCUSABLE_HEADING, "font-medium text-base")}
                   >
                     {step.title}
                   </h3>
-                  <span className={cn("font-normal text-xs", status.className)}>
+                  <span
+                    id={`${stepHeadingId(step.id)}-status`}
+                    className={cn("font-normal text-xs", status.className)}
+                  >
                     {status.label()}
                   </span>
                 </ItemTitle>
-                <ItemDescription className="line-clamp-none break-words">
-                  {step.description}
-                </ItemDescription>
+                {step.description && (
+                  <ItemDescription
+                    id={`${stepHeadingId(step.id)}-description`}
+                    className="line-clamp-none break-words"
+                  >
+                    {step.description}
+                  </ItemDescription>
+                )}
               </ItemContent>
               {step.page && (
                 <ItemActions>

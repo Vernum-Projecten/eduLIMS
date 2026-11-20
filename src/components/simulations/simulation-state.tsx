@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { PAGE_TITLE_ID } from "@/components/shell/page-header";
 import { ConfirmDialog, useConfirmation } from "@/components/simulations/confirm-dialog";
+import { focusById } from "@/components/simulations/focus";
 import { firstBlockingStep, stepHeadingId } from "@/components/simulations/preparation-steps";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
 import { Badge } from "@/components/ui/badge";
@@ -170,7 +171,7 @@ export function SimulationPrimaryAction({
         onClick={() => {
           if (pending) return;
           if (refusal) {
-            document.getElementById(stepHeadingId(firstBlockingStep(readiness)))?.focus();
+            focusById(stepHeadingId(firstBlockingStep(readiness)));
             return;
           }
           confirmation.show();

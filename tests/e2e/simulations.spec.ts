@@ -10,6 +10,7 @@ import { type BrowserContext, expect, type Page, type Route, test } from "@playw
 import { copyAccount } from "./accounts";
 import { axe, dutch } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
+import { seedLabRecords } from "./lab-records-seed";
 import { appUrl } from "./run-env";
 
 const TEACHER = "teacher@example.test";
@@ -154,6 +155,9 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   expect(await labsHeading.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
   await expect(page.getByText("No labs yet", { exact: true })).toBeVisible();
   await createLab(page, alpha);
+  // The first lab replaces the empty state: focus goes to Create lab, now in the header.
+  await settle(page);
+  await expect(page.getByRole("button", { name: "Create lab" })).toBeFocused();
   await createLab(page, beta);
 
   // A lab name is unique within the simulation, whatever its case; the refusal is at the field.
@@ -664,4 +668,59 @@ test("a pointer user reaches a menu item while a toast shows (UI review of #394)
     page.getByRole("alertdialog", { name: "Remove Test Coordinator as a teacher?" }),
   ).toBeVisible();
   await expect(toast).toBeVisible();
+});
+
+for (const [theme, locale] of [
+  ["light", "en"],
+  ["dark", "en"],
+  ["light", "nl"],
+  ["dark", "nl"],
+] as const) {
+  test(`a new simulation's overview and labs, and a finished overview, are axe-clean in ${theme}, ${locale} (the UI review of #403)`, async ({
+    page,
+    context,
+  }) => {
+    const id = suffix();
+    const finished = await seedLabRecords(id, "finished");
+    await signInAsTeacher(page);
+    const name = `Axe ${id}`;
+    await createSimulation(page, name);
+    await usePreferences(context, theme, locale);
+    const t = (key: string, english: string) => (locale === "nl" ? dutch(key) : english);
+    // A prepared overview whose Start says why it waits.
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(
+      page.getByRole("heading", { level: 1, name: t("simulation_nav_overview", "Overview") }),
+    ).toBeVisible();
+    await axe(page);
+    // The labs page with its empty state and its one action.
+    await page.goto(`${page.url()}/labs`);
+    await expect(
+      page.getByRole("heading", { level: 1, name: t("simulation_nav_labs", "Labs") }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(t("labs_empty_title", "No labs yet"), { exact: true }),
+    ).toBeVisible();
+    await axe(page);
+    // A finished overview, which points to the corrections.
+    await page.goto(`/teacher/simulations/${finished.simulationId}`);
+    await expect(
+      page.getByRole("link", { name: t("simulation_open_corrections", "Open corrections") }),
+    ).toBeVisible();
+    await axe(page);
+  });
+}
+
+test("the overview with a blocked Start and its reason reflows at 320 px (WCAG 1.4.10)", async ({
+  page,
+}) => {
+  await signInAsTeacher(page);
+  await createSimulation(page, `Reflow ${suffix()}`);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await expect(page.getByText("Add a student to a lab first.")).toBeVisible();
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
 });

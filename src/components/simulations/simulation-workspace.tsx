@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Fragment, type ReactNode, useEffect, useRef } from "react";
 import { PAGE_TITLE_ID } from "@/components/shell/page-header";
+import { focusById } from "@/components/simulations/focus";
 import { SimulationStateBadge } from "@/components/simulations/simulation-state";
 import { m } from "@/i18n/messages";
 import { formatDate, formatDateTime } from "@/lib/i18n/format";
@@ -116,7 +117,7 @@ function useFocusTitleOnNavigate(): void {
   useEffect(() => {
     if (previous.current === pathname) return;
     previous.current = pathname;
-    document.getElementById(PAGE_TITLE_ID)?.focus();
+    focusById(PAGE_TITLE_ID);
   }, [pathname]);
 }
 
@@ -136,7 +137,7 @@ export function SimulationWorkspace({
       <header className="flex flex-col gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="min-w-0 break-words font-semibold text-xl tracking-tight">{page.name}</p>
+            <p className="min-w-0 break-words font-medium text-lg">{page.name}</p>
             <SimulationStateBadge state={page.state} />
           </div>
           <StateTimes page={page} />
