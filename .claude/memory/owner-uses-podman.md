@@ -19,4 +19,9 @@ fallback.
 as the equivalent; pin every image fully qualified (`docker.io/library/…`,
 `quay.io/…`, `ghcr.io/…`), since Podman does not resolve short names the way
 Docker does. Never stop or recreate the owner's running containers without
-asking.
+asking, and never start the owner's stack (`pnpm dev:db`) either when it is
+down: the owner may have stopped it on purpose to rebuild it (2026-11-20). A
+worker that needs a stack runs its own under its own project name
+(`podman compose -p <own-name> …`), because `compose.dev.yaml` names its
+project `edulims-dev`, so a bare `podman compose -f compose.dev.yaml down`
+from any checkout acts on the owner's stack.
