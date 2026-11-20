@@ -982,6 +982,7 @@ its cause by error class and code (a SQLSTATE such as `42P01`, or
 | `idp_role_conflict` | the identity provider sent a role set eduLIMS does not allow |
 | `admin_action_failed` | an Admin portal action failed in the sign-in library |
 | `audit_write_failed` | an activity-log row could not be written |
+| `input_validation_fail` | a server function refused a request body before reading it: `json_length_missing` (411) or `json_too_large` (413) for JSON, `form_length_missing` (411) or `form_too_large` (413) for a form; see "Keeping the log on the host bounded" for a flood of them |
 
 The activity log in the database stays the record. A line written in a
 transaction that later rolls back can still reach the stream, so read a
@@ -1062,6 +1063,31 @@ container output to the journal by default; forward the entries whose
 `CONTAINER_NAME` is the eduLIMS container with the
 host's own tools (`systemd-journal-upload`, or rsyslog with `imjournal` and
 TLS). This route is not tested here.
+
+### Keeping the log on the host bounded
+
+Anyone can send requests that eduLIMS refuses, and each refusal writes one
+line (`input_validation_fail`, `authz_fail`). eduLIMS does not throttle these
+lines, so a flood of refused requests makes a flood of lines. Docker's default
+`json-file` log driver never rotates them, so they can fill the disk. Bound
+the host copy with rotation:
+
+- **Docker, the whole host:** in `/etc/docker/daemon.json` set
+  `"log-driver": "local"` (it rotates at 20 MB per file and keeps 5 files by
+  default), or keep `json-file` and set
+  `"log-opts": { "max-size": "20m", "max-file": "5" }`. Restart the Docker
+  daemon and recreate the containers; a running container keeps its old
+  driver.
+- **Docker, eduLIMS only:** put the same driver and options under
+  `services.edulims.logging` in `compose.override.yaml`. With the forwarder
+  on, the `fluentd` driver sends each line on, and Docker's local copy rotates
+  by its own defaults (`cache-max-size`, `cache-max-file`).
+- **Podman on systemd:** the journal holds the lines; cap it with
+  `SystemMaxUse=` in `/etc/systemd/journald.conf`.
+
+Rotation keeps the newest lines and drops the oldest, so ship the security
+events off the host (above) when you need to keep them all. None of these
+settings is tested here.
 
 ## Local development
 

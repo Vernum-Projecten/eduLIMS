@@ -295,7 +295,12 @@ student's place and a waiting address point at their lab through the pair
   becomes a place in its lab, one row per transaction. A failed row never
   fails the sign-in and never undoes another row; an address of a student
   who is already in another lab of that simulation is deleted, and the
-  refusal is logged once. Only an account whose role set is {student} and
+  refusal is logged once. A teacher's removal wins over a waiting address:
+  a student with a removal record in the simulation links nothing there,
+  the refusal is logged with the reason `removed` once per removal (the
+  link result counts it every time), and the address keeps
+  waiting, because it may belong to a classmate whose own sign-in still
+  links through it (#330). Only an account whose role set is {student} and
   whose address is plain ASCII links: lower-casing folds some other letters
   onto ASCII ones, so such an address is never verified either. The
   identity provider sync grants the student role to an address that waits
@@ -314,11 +319,17 @@ student's place and a waiting address point at their lab through the pair
   removed student all get the same answer, with the real reason in the
   activity log. A student already in another lab of the simulation is
   refused as such, at no cost, and that refusal is logged once per student,
-  lab and 15 minutes. A removed student cannot rejoin with a code until a
-  teacher adds their address again. A place and a waiting address of the
-  same student never stand side by side: a code join, a removal and a move
-  delete the student's waiting addresses in the simulation in the same
-  transaction, so the next link cannot put a removed student back. A join locks the simulation row
+  lab and 15 minutes. A removed student cannot rejoin with a code or through
+  a waiting address until a teacher adds their address again, which clears
+  the removal of an account whose email is verified; an unverified email
+  may be a classmate's, so adding it clears nothing (#330). A code join, a
+  removal and a move delete the student's waiting address in the
+  simulation in the same transaction, for a verified email only, wherever
+  it waits except in a move's target lab (an address waits in at most one
+  lab per simulation, so 0 or 1 rows). An unverified email drops nothing,
+  because the row may be a classmate's; the link refusal keeps the removed
+  student out. The removal and move log rows carry the number dropped
+  (`count`, #330). A join locks the simulation row
   (shared) before the code row, and lets go and retries when the code row is
   taken, so it never deadlocks with a writer. The code panel is on the
   teacher's lab page; the Student portal overview lists the student's labs
@@ -327,11 +338,18 @@ student's place and a waiting address point at their lab through the pair
 - **Teachers.** A teacher adds another teacher by the address of an existing
   account with the teacher role; an unknown address and a non-teacher get
   the same refusal. The last teacher of a simulation cannot be removed: a
-  teacher row counts only while its user holds the teacher role. Better-auth's
-  `admin/remove-user` refuses an account that is the only teacher of a
-  simulation, and a deferred constraint trigger refuses any commit that
-  leaves an existing simulation without a teacher row, so the two cannot
-  race past each other.
+  teacher row counts only while its user holds the teacher role. eduLIMS
+  deletes a user in one transaction (`src/server/users/delete-user.ts`,
+  #318), the last step of the GDPR erasure path (#47), which has no screen
+  yet: it locks the user's simulations in id order (and the administrators,
+  when the user is one), refuses the only active teacher of a simulation and
+  the last administrator, runs the deferred last-teacher check before it
+  writes the activity-log rows, and deletes the sessions, the accounts and
+  the user with those rows, so a refusal changes nothing. Better-auth's
+  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404. A
+  `BEFORE DELETE` trigger on `user` and a deferred constraint trigger, which
+  refuses any commit that leaves an existing simulation without a teacher
+  row, stay as the last line.
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it, and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.
@@ -513,6 +531,51 @@ system); **Check now** logs it as the administrator who pressed it. A PostgreSQL
 result make one replica check per interval. The Admin portal reads the stored
 result and refetches it every 30 seconds, so an unreachable service shows
 within the 5 minutes of B3.
+
+### Request size limits
+
+TanStack Start reads the body of a server function call whole before the
+function's own middleware runs: `request.formData()` for a form,
+`request.json()` for everything else. So request middleware in `src/start.ts`
+checks the size first, after the CSRF check, and the server never buffers more
+than the limit for a caller who is not signed in (ASVS 5.0 V5.2.1, V15.2.2).
+
+| Request | Limit | Refusal |
+|---|---|---|
+| JSON body to a server function | 1 MiB, declared and as it streams | 411 without a `Content-Length`, 413 over the limit |
+| Form body to a server function (multipart or URL-encoded) | the largest lab logo (512 KiB) plus 16 KiB for its fields, declared (#292) | 411 without a `Content-Length`, 413 over the limit |
+| GET payload of a server function (the `payload` query parameter) | Node's 16 KiB limit on the request line and headers | 431 from Node's HTTP parser, before eduLIMS runs |
+
+**The JSON limit** comes from the largest input any server function takes:
+the pasted list of a lab's member addresses, 500 lines of 320 characters
+(D10). Serialized as the Start client sends it, that list is 167,699 bytes in
+ASCII, 487,699 bytes in 3-byte characters, and 807,699 bytes when every
+character is `<`, which the serializer escapes. 1 MiB holds it for any
+printable text. Only a list made mostly of control characters or U+2028,
+which JSON writes as 6 or 7 bytes each, passes it, and no address list or IdP
+metadata is made of those. The next largest input, a SAML provider with 100 KiB
+of metadata, stays under 0.7 MB in every case.
+
+The JSON check (`src/server/json-body-limit.ts`, #347) refuses a declared
+length over the limit without reading a byte. Under it, the check reads a
+clone of the body, counts the bytes, keeps none, and cuts the stream off as
+soon as it passes the limit. Start then reads the other branch of the clone.
+On Node, the HTTP parser already reads no more than the declared length as the
+body, so the count is the guard for a body that lies about its length on
+another path.
+
+**The form limit** (#292) checks only the declared length: a form without a
+`Content-Length` or above the limit is refused before Start reads it.
+
+The JSON and the form refusals are empty responses with `Connection: close`, so Node closes
+the socket instead of reading and discarding the refused body to keep the
+connection alive. Each refusal writes an `input_validation_fail` line to the
+security log; [deployment.md](deployment.md#keeping-the-log-on-the-host-bounded)
+says how to keep a flood of them from filling the host.
+
+A GET payload never reaches Start above 16 KiB: Node answers 431 first. An
+e2e test (`tests/e2e/json-body-limit.spec.ts`) sends a 20 KiB payload, so a
+raised header limit (`--max-http-header-size`) fails CI.
 
 ## Deployment
 

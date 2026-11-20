@@ -8,7 +8,6 @@
 // 100 MiB is refused with 413 and `Connection: close` before the client has sent it all.
 import { randomBytes } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
-import { connect } from "node:net";
 import { join } from "node:path";
 import { expect, type Page, test } from "@playwright/test";
 import { Kysely, PostgresDialect } from "kysely";
@@ -18,6 +17,7 @@ import type { DB } from "../../src/server/db/schema.gen.ts";
 import { png, pngChunk } from "../../src/server/logo/test-images.ts";
 import { copyAccount, type TestAccount } from "./accounts";
 import { devLogin } from "./fixtures";
+import { rawPost } from "./raw-http";
 import { appUrl } from "./run-env";
 
 let teacher: TestAccount;
@@ -142,73 +142,19 @@ async function cookieHeader(page: Page): Promise<string> {
   return cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
 }
 
-/** The head of a multipart POST to the upload function, declaring `length` bytes. */
-function head(path: string, cookie: string, length: number): string {
-  const url = new URL(appUrl());
-  return [
-    `POST ${path} HTTP/1.1`,
-    `Host: ${url.host}`,
-    `Origin: ${url.origin}`,
-    `Cookie: ${cookie}`,
-    "Content-Type: multipart/form-data; boundary=x",
-    `Content-Length: ${length}`,
-    "",
-    "",
-  ].join("\r\n");
-}
-
-interface RawResult {
-  /** The first status line the server sent, if any. */
-  status: string;
-  /** The raw answer, headers and bodies. */
-  answer: string;
-  /** How many body bytes the client wrote before the socket closed. */
-  written: number;
-}
-
-/**
- * Sends `head`, then up to `total` body bytes in 64 KiB writes on a raw socket, stopping when the
- * server closes it, and resolves with what came back.
- */
-function rawPost(headText: string, total: number): Promise<RawResult> {
-  const url = new URL(appUrl());
-  return new Promise((resolve) => {
-    const socket = connect({ host: url.hostname, port: Number(url.port) });
-    let answer = "";
-    let written = 0;
-    let closed = false;
-    const finish = () => {
-      if (closed) return;
-      closed = true;
-      resolve({ status: answer.split("\r\n")[0] ?? "", answer, written });
-    };
-    socket.on("data", (chunk) => {
-      answer += chunk.toString("latin1");
-    });
-    socket.on("close", finish);
-    socket.on("error", finish);
-    const chunk = Buffer.alloc(64 * 1024, 0x61);
-    const pump = () => {
-      while (!closed && written < total) {
-        const size = Math.min(chunk.length, total - written);
-        written += size;
-        if (!socket.write(chunk.subarray(0, size))) {
-          socket.once("drain", pump);
-          return;
-        }
-      }
-      if (!closed && written >= total) setTimeout(() => socket.end(), 2_000);
-    };
-    socket.write(headText, pump);
-  });
+/** The headers of a multipart POST to the upload function by the signed-in page. */
+async function formHeaders(page: Page): Promise<Record<string, string>> {
+  return {
+    Cookie: await cookieHeader(page),
+    "Content-Type": "multipart/form-data; boundary=x",
+  };
 }
 
 test("stores nothing from a form whose body runs past its declared length (V5.2.1)", async ({
   page,
 }) => {
   await devLogin(page, teacher.email);
-  const cookie = await cookieHeader(page);
-  const result = await rawPost(head(uploadFnPath(), cookie, 1000), 600 * 1024);
+  const result = await rawPost(uploadFnPath(), await formHeaders(page), 1000, 600 * 1024);
   expect(result.status).toMatch(/^HTTP\/1\.1 /);
   expect(result.status).not.toMatch(/^HTTP\/1\.1 2/);
   expect(await storedSize(labs.overrun)).toBeUndefined();
@@ -218,11 +164,11 @@ test("refuses a form declaring 100 MiB with 413 and closes before it is sent (V5
   page,
 }) => {
   await devLogin(page, teacher.email);
-  const cookie = await cookieHeader(page);
-  const total = 100 * 1024 * 1024;
-  const result = await rawPost(head(uploadFnPath(), cookie, total), total);
+  const declared = 100 * 1024 * 1024;
+  const result = await rawPost(uploadFnPath(), await formHeaders(page), declared);
   expect(result.status).toMatch(/^HTTP\/1\.1 413\b/);
-  expect(result.answer.toLowerCase()).toContain("connection: close");
-  expect(result.written).toBeLessThan(total);
+  expect(result.answer).toMatch(/\r\nconnection: close\r\n/i);
+  expect(result.closedEarly).toBe(true);
+  expect(result.written).toBeLessThan(declared);
   expect(await storedSize(labs.declared)).toBeUndefined();
 });
