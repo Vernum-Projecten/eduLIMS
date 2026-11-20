@@ -14,6 +14,12 @@ import { recordAudit, recordCommittedAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { isLastTeacherViolation, LAST_TEACHER_CONSTRAINT } from "../simulations/teachers.ts";
 import { type ActionContext, assertAdmin } from "./actions.ts";
+import {
+  holdsAdmin,
+  isLastAdministrator,
+  LAST_ADMIN,
+  lockUserForRoleChange,
+} from "./administrators.ts";
 
 /** The refusal code of deleting the only active teacher of a simulation (D10). */
 export const ONLY_SIMULATION_TEACHER = "only_simulation_teacher" as const;
@@ -21,15 +27,9 @@ export const ONLY_SIMULATION_TEACHER = "only_simulation_teacher" as const;
 /** The refusal code of an administrator deleting their own account. */
 export const CANNOT_DELETE_SELF = "cannot_delete_self" as const;
 
-/** The refusal code of deleting the last administrator (maintainer, 2026-11-20, #318). */
-export const LAST_ADMIN = "last_admin" as const;
+export { LAST_ADMIN };
 
 const TEACHER_ROLE_VALUES: readonly string[] = storedRoleSetsWith("teacher");
-const ADMIN_ROLE_VALUES: readonly string[] = storedRoleSetsWith("admin");
-
-function holdsAdmin(role: string | null): boolean {
-  return role !== null && ADMIN_ROLE_VALUES.includes(role);
-}
 
 /** Why a deletion was refused; nothing changed. */
 export type DeleteUserError =
@@ -102,22 +102,6 @@ export async function isOnlyTeacherOfASimulation(
   return mine.some((row) => !taught.has(row.simulation_id));
 }
 
-/**
- * Locks every user who holds the admin role (`FOR NO KEY UPDATE`, in id order) and returns their
- * ids. Two deletions of administrators queue on the first of these rows instead of each holding
- * its own target and waiting for the other's; a session insert (a key-share lock) still passes.
- */
-async function lockAdministrators(trx: Kysely<DB>): Promise<string[]> {
-  const rows = await trx
-    .selectFrom("user")
-    .select("id")
-    .where("role", "in", ADMIN_ROLE_VALUES)
-    .orderBy("id")
-    .forNoKeyUpdate()
-    .execute();
-  return rows.map((row) => row.id);
-}
-
 async function deleteInTransaction(
   trx: Transaction<DB>,
   userId: string,
@@ -125,26 +109,13 @@ async function deleteInTransaction(
   requestId: string | undefined,
 ): Promise<Deletion> {
   await lockTaughtSimulations(trx, userId);
-  const seen = await trx
-    .selectFrom("user")
-    .select("role")
-    .where("id", "=", userId)
-    .executeTakeFirst();
-  if (!seen) return { ok: false, error: "not_found" };
-  if (holdsAdmin(seen.role)) await lockAdministrators(trx);
-  const user = await trx
-    .selectFrom("user")
-    .select("role")
-    .where("id", "=", userId)
-    .forUpdate()
-    .executeTakeFirst();
+  const user = await lockUserForRoleChange(trx, userId);
   if (!user) return { ok: false, error: "not_found" };
   if (await isOnlyTeacherOfASimulation(trx, userId)) {
     return { ok: false, error: ONLY_SIMULATION_TEACHER };
   }
-  if (holdsAdmin(user.role)) {
-    const others = (await lockAdministrators(trx)).filter((id) => id !== userId);
-    if (others.length === 0) return { ok: false, error: LAST_ADMIN };
+  if (holdsAdmin(user.role) && (await isLastAdministrator(trx, userId))) {
+    return { ok: false, error: LAST_ADMIN };
   }
   const sessions = await trx
     .deleteFrom("session")

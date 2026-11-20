@@ -168,6 +168,8 @@ export function adminActionErrorMessage(code: string): string {
       return m.role_error_not_allowed();
     case "only_simulation_teacher":
       return m.admin_users_error_only_simulation_teacher();
+    case "last_admin":
+      return m.admin_users_error_last_admin();
     default:
       return m.admin_users_error_failed();
   }

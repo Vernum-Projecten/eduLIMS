@@ -376,6 +376,7 @@
   "admin_users_error_block_self": "You cannot block your own account.",
   "admin_users_error_current_session": "You cannot end the session you are using. Sign out instead.",
   "admin_users_error_failed": "The action failed. Try again.",
+  "admin_users_error_last_admin": "This is the last administrator. Give another user the admin role first.",
   "admin_users_error_not_found": "This user no longer exists.",
   "admin_users_error_only_simulation_teacher": "This user is the only teacher of a simulation. Add another teacher to that simulation first.",
   "admin_users_error_roles_not_local": "The identity provider manages these roles. Change them there.",

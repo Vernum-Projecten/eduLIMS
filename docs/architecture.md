@@ -349,7 +349,11 @@ student's place and a waiting address point at their lab through the pair
   `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404. A
   `BEFORE DELETE` trigger on `user` and a deferred constraint trigger, which
   refuses any commit that leaves an existing simulation without a teacher
-  row, stay as the last line.
+  row, stay as the last line. The other paths that take the admin role away,
+  `pnpm admin:revoke` and the local role edit of the Users screen, lock the
+  administrators the same way and in the same order before they count them
+  (`src/server/users/administrators.ts`, #345), so two of them, or one and a
+  deletion, never leave eduLIMS without an administrator.
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it, and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.

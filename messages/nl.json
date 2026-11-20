@@ -376,6 +376,7 @@
   "admin_users_error_block_self": "Je kunt je eigen account niet blokkeren.",
   "admin_users_error_current_session": "Je kunt de sessie die je gebruikt niet beëindigen. Meld je in plaats daarvan af.",
   "admin_users_error_failed": "De actie is mislukt. Probeer het opnieuw.",
+  "admin_users_error_last_admin": "Dit is de laatste beheerder. Geef eerst een andere gebruiker de beheerdersrol.",
   "admin_users_error_not_found": "Deze gebruiker bestaat niet meer.",
   "admin_users_error_only_simulation_teacher": "Deze gebruiker is de enige docent van een simulatie. Voeg eerst een andere docent aan die simulatie toe.",
   "admin_users_error_roles_not_local": "De identiteitsprovider beheert deze rollen. Wijzig ze daar.",

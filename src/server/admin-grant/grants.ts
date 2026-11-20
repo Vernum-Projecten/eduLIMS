@@ -16,6 +16,7 @@ import { isAsciiEmail } from "../../lib/simulations.ts";
 import { auditProvider } from "../audit/events.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { isLastAdministrator, LAST_ADMIN, lockUserForRoleChange } from "../users/administrators.ts";
 
 /** How long a pending grant waits for its first sign-in (owner decision on #46/#48). */
 export const PENDING_GRANT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -27,7 +28,7 @@ export type GrantError =
   | "provider_required"
   | "provider_unknown"
   | "provider_not_authoritative"
-  | "last_admin"
+  | typeof LAST_ADMIN
   | "not_found";
 
 /** The outcome of a grant or a revocation. */
@@ -231,21 +232,23 @@ export async function revokeAdmin(
         metadata: { provider_id: pending.provider_id },
       });
     }
-    const user = await trx
-      .selectFrom("user")
-      .select(["id", "role"])
-      .where("email", "=", email)
-      .forUpdate()
-      .executeTakeFirst();
-    if (!user) return pending ? { ok: true, kind: "revoked" } : refuseRoleChange(trx, "not_found");
-    const current = rolesOf(user.role);
-    if (!current.includes("admin")) return { ok: true, kind: pending ? "revoked" : "not_admin" };
-    const admins = await trx
+    const found = await trx
       .selectFrom("user")
       .select("id")
-      .where((eb) => eb.or([eb("role", "=", "admin"), eb("role", "=", "teacher,admin")]))
-      .execute();
-    if (admins.length <= 1) return refuseRoleChange(trx, "last_admin", user.id);
+      .where("email", "=", email)
+      .executeTakeFirst();
+    // NOTE: #345; the administrators are locked in id order before the target, as deleteUser
+    // does, so two revocations or a revocation and a deletion queue instead of both passing.
+    const locked = found ? await lockUserForRoleChange(trx, found.id) : undefined;
+    if (!found || !locked) {
+      return pending ? { ok: true, kind: "revoked" } : refuseRoleChange(trx, "not_found");
+    }
+    const user = { id: found.id, role: locked.role };
+    const current = rolesOf(user.role);
+    if (!current.includes("admin")) return { ok: true, kind: pending ? "revoked" : "not_admin" };
+    if (await isLastAdministrator(trx, user.id)) {
+      return refuseRoleChange(trx, LAST_ADMIN, user.id);
+    }
     const rest = current.filter((role) => role !== "admin");
     const role = rest.length > 0 ? formatRoles(rest) : null;
     await trx

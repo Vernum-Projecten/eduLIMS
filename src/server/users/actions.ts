@@ -24,6 +24,12 @@ import { hasRole, type SessionUser } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { AuthError } from "../middleware.ts";
 import { logSecurityEvent } from "../security-log.ts";
+import {
+  holdsAdmin,
+  isLastAdministrator,
+  LAST_ADMIN,
+  lockUserForRoleChange,
+} from "./administrators.ts";
 
 /** Why an action was refused or failed; the sheet maps each code to a translated message. */
 export const ADMIN_ACTION_ERRORS = [
@@ -34,6 +40,7 @@ export const ADMIN_ACTION_ERRORS = [
   OWN_ROLES_ERROR,
   "roles_not_local",
   "role_set_not_allowed",
+  LAST_ADMIN,
   "failed",
 ] as const;
 export type AdminActionError = (typeof ADMIN_ACTION_ERRORS)[number];
@@ -242,7 +249,8 @@ export async function endAllSessions(
 /**
  * Sets the role set of a user whose roles are local (hybrid ownership, owner decision on #32):
  * an allowed set (ADR 0012), never the administrator's own, never a set the identity provider
- * owns. The update and its `authz_role_change` row commit together.
+ * owns, and never one that takes the admin role from the last administrator (`last_admin`). The
+ * update and its `authz_role_change` row commit together.
  */
 export async function setLocalRoles(
   ctx: ActionContext,
@@ -258,15 +266,19 @@ export async function setLocalRoles(
   if (!validated.ok) return refused("role_set_not_allowed");
   const role = formatRoles(validated.roles);
   const outcome = await ctx.db.transaction().execute(async (trx) => {
-    const user = await trx
-      .selectFrom("user")
-      .select(["role", "role_source"])
-      .where("id", "=", input.userId)
-      .forUpdate()
-      .executeTakeFirst();
+    // NOTE: #345; the administrators are locked in id order before the target, as deleteUser
+    // does, so two administrators who take the role from each other cannot both pass.
+    const user = await lockUserForRoleChange(trx, input.userId);
     if (!user) return refused("not_found");
     if (!isLocallyEditable(parseRoleSource(user.role_source))) return refused("roles_not_local");
     if (user.role === role) return DONE;
+    if (
+      holdsAdmin(user.role) &&
+      !holdsAdmin(role) &&
+      (await isLastAdministrator(trx, input.userId))
+    ) {
+      return refused(LAST_ADMIN);
+    }
     await trx
       .updateTable("user")
       .set({ role, updatedAt: ctx.now })
@@ -286,8 +298,8 @@ export async function setLocalRoles(
     });
     return DONE;
   });
-  if (!outcome.ok && outcome.error === "roles_not_local") {
-    await refusal(ctx, { action: "authz_role_change", target }, "roles_not_local");
+  if (!outcome.ok && (outcome.error === "roles_not_local" || outcome.error === LAST_ADMIN)) {
+    await refusal(ctx, { action: "authz_role_change", target }, outcome.error);
   }
   return outcome;
 }

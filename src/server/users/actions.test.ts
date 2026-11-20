@@ -337,6 +337,44 @@ describe("setLocalRoles (hybrid role ownership, owner decision on #32)", () => {
     },
   );
 
+  it("never takes the admin role from the last administrator, and logs the refusal (#345)", async () => {
+    const { auth, db: database, admin } = await setup();
+    const target = await createUser(auth, "target@example.test", ["teacher", "admin"]);
+    // The actor's own role went in the database while their request was on its way.
+    await database
+      .updateTable("user")
+      .set({ role: "teacher" })
+      .where("id", "=", admin.actor.id)
+      .execute();
+    expect(await setLocalRoles(admin, { userId: target, roles: ["teacher"] })).toEqual({
+      ok: false,
+      error: "last_admin",
+    });
+    const row = await database
+      .selectFrom("user")
+      .select("role")
+      .where("id", "=", target)
+      .executeTakeFirstOrThrow();
+    expect(row.role).toBe("teacher,admin");
+    expect(await events(database, "authz_role_change")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "last_admin", target_id: target }),
+    ]);
+  });
+
+  it("takes the admin role while another administrator is left (#345)", async () => {
+    const { auth, db: database, admin } = await setup();
+    const target = await createUser(auth, "target@example.test", ["teacher", "admin"]);
+    expect(await setLocalRoles(admin, { userId: target, roles: ["teacher"] })).toEqual({
+      ok: true,
+    });
+    const row = await database
+      .selectFrom("user")
+      .select("role")
+      .where("id", "=", target)
+      .executeTakeFirstOrThrow();
+    expect(row.role).toBe("teacher");
+  });
+
   it("answers not_found for an unknown user", async () => {
     const { admin } = await setup();
     expect(await setLocalRoles(admin, { userId: "nobody", roles: ["teacher"] })).toEqual({

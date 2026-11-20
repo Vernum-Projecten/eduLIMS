@@ -1,0 +1,1 @@
+- Two changes at the same moment can no longer leave eduLIMS without an administrator. `pnpm admin:revoke`, the role edit on the Users screen and the user deletion now wait for each other, and the later one is refused when it would take the admin role from the last administrator. The Users screen says so in its own message (B4).
