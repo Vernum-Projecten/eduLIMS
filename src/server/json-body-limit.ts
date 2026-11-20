@@ -66,7 +66,11 @@ export async function jsonBodyRefusal(
   return (await fitsIn(request, request.clone(), limit)) ? null : 413;
 }
 
-/** Returns the refusal response of {@link jsonBodyRefusal} and logs it, or `null`. */
+/**
+ * Returns the refusal response of {@link jsonBodyRefusal} and logs it, or `null`. The response
+ * closes the connection, so the server does not read and discard the refused body to keep the
+ * connection alive (RFC 9112 §9.6).
+ */
 export async function refuseJsonBody(
   request: Request,
   limit: number = JSON_BODY_MAX,
@@ -78,5 +82,8 @@ export async function refuseJsonBody(
     reason: status === 411 ? "json_length_missing" : "json_too_large",
     status,
   });
-  return new Response(null, { status, headers: { "Cache-Control": "no-store" } });
+  return new Response(null, {
+    status,
+    headers: { "Cache-Control": "no-store", Connection: "close" },
+  });
 }

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The size limit of a JSON body sent to a server function (ASVS 5.0 V5.2.1, V15.2.2, #347): the
-// declared length at, under and over the limit, a request without a length, and a streamed body
-// that lies about its length, cut off at the limit without being read whole.
+// declared length at, under and over the limit, a request without a length, a streamed body that
+// lies about its length, cut off at the limit without being read whole, and a failing stream.
 import { describe, expect, it } from "vitest";
 import { carriesJson, JSON_BODY_MAX, jsonBodyRefusal, refuseJsonBody } from "./json-body-limit.ts";
 import { setSecurityLogWriter } from "./security-log.ts";
@@ -74,6 +74,18 @@ describe("carriesJson", () => {
     expect(carriesJson(form)).toBe(false);
     expect(carriesJson(new Request(URL, { method: "POST", body: "{}" }))).toBe(false);
   });
+
+  it.each(["text/plain; profile=application/json", "application/json-patch+json"])(
+    "takes %j, which names application/json inside another type, as Start does",
+    (type) => {
+      const request = new Request(URL, {
+        method: "POST",
+        headers: { "content-type": type },
+        body: "{}",
+      });
+      expect(carriesJson(request)).toBe(true);
+    },
+  );
 });
 
 describe("jsonBodyRefusal (V5.2.1)", () => {
@@ -102,6 +114,28 @@ describe("jsonBodyRefusal (V5.2.1)", () => {
     const { stream, state } = endlessStream(1024);
     expect(await jsonBodyRefusal(streamedPost(stream, { "content-type": JSON_TYPE }))).toBe(411);
     expect(state.pulled).toBe(0);
+  });
+
+  it("reads a declared length with leading zeros as its number", async () => {
+    const { stream, state } = endlessStream(1024);
+    const over = streamedPost(stream, {
+      "content-type": JSON_TYPE,
+      "content-length": `000${JSON_BODY_MAX + 1}`,
+    });
+    expect(await jsonBodyRefusal(over)).toBe(413);
+    expect(state.pulled).toBe(0);
+    expect(await jsonBodyRefusal(jsonPost(100, { "content-length": "000100" }))).toBeNull();
+  });
+
+  it("rejects, never lets through, a body whose stream fails while it is read", async () => {
+    const failing = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(16).fill(0x20));
+        controller.error(new Error("connection reset"));
+      },
+    });
+    const request = streamedPost(failing, { "content-type": JSON_TYPE, "content-length": "64" });
+    await expect(jsonBodyRefusal(request)).rejects.toThrow("connection reset");
   });
 
   it.each(["", "abc", "-1", "1e3", "12 34", "9".repeat(16)])(
@@ -157,8 +191,10 @@ describe("refuseJsonBody", () => {
     }
     expect(tooLarge?.status).toBe(413);
     expect(tooLarge?.headers.get("cache-control")).toBe("no-store");
+    expect(tooLarge?.headers.get("connection")).toBe("close");
     expect(await tooLarge?.text()).toBe("");
     expect(missing?.status).toBe(411);
+    expect(missing?.headers.get("connection")).toBe("close");
     expect(lines.map((line) => JSON.parse(line))).toEqual([
       expect.objectContaining({
         event: "input_validation_fail",
