@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // The students a teacher removed from a simulation (#280): a removed student cannot rejoin with a
-// lab's code (#288) until a teacher adds their address to a lab again, which clears the record.
+// lab's code (#288) or through a waiting address (#330) until a teacher adds their address to a
+// lab again, which clears the record.
 // Relative imports and no server-only marker: the sign-in link loads this in plain Node.
 import type { Kysely } from "kysely";
 import type { DB } from "../db/schema.gen.ts";
@@ -40,19 +41,6 @@ export async function wasRemoved(
     .where("user_id", "=", userId)
     .executeTakeFirst();
   return row !== undefined;
-}
-
-/** Clears the removal of `userId` from the simulation: they are back in it. */
-export async function clearRemoval(
-  trx: Kysely<DB>,
-  simulationId: string,
-  userId: string,
-): Promise<void> {
-  await trx
-    .deleteFrom("simulation_removals")
-    .where("simulation_id", "=", simulationId)
-    .where("user_id", "=", userId)
-    .execute();
 }
 
 /**

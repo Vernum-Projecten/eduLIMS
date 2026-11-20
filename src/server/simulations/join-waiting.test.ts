@@ -129,8 +129,12 @@ describe("a code join and the student's waiting addresses (#323)", () => {
       true,
     );
     expect(await waiting(database, unverified.email)).toHaveLength(1);
+    // NOTE: #330 (maintainer, 2026-11-19); the removal of an unverified account keeps the address
+    // waiting in a lab the student never left.
     await removeStudent(database, w, unverified.id);
-    expect(await waiting(database, unverified.email)).toEqual([]);
+    expect(await waiting(database, unverified.email)).toEqual([
+      { simulation_id: w.simulationId, lab_id: w.otherLabId },
+    ]);
   });
 
   it("costs no waiting address when the code is refused", async () => {

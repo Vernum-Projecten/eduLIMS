@@ -11,13 +11,16 @@ import { validateRoleValue } from "../../lib/roles.ts";
 import { isAsciiEmail, normalizeEmail } from "../../lib/simulations.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
-import { clearRemoval } from "./removals.ts";
+import { wasRemoved } from "./removals.ts";
 
 /** What one link run did. */
 export interface LinkOutcome {
   /** Waiting addresses that became a place in their lab. */
   linked: number;
-  /** Waiting addresses dropped because the student is in another lab of that simulation. */
+  /**
+   * Waiting addresses refused: dropped because the student is in another lab of that simulation,
+   * or kept because a teacher removed the student from it (#330).
+   */
   refused: number;
   /** Waiting addresses whose transaction failed; they stay waiting for the next run. */
   failed: number;
@@ -65,18 +68,24 @@ async function linkRow(
       .forUpdate()
       .executeTakeFirst();
     if (!waiting) return "gone";
-    const place = await trx
-      .selectFrom("lab_members")
-      .select("lab_id")
-      .where("simulation_id", "=", simulationId)
-      .where("user_id", "=", userId)
-      .executeTakeFirst();
     const event = {
       action: "lab_member_joined",
       actor: { type: "user", id: userId },
       target: { type: "lab", id: waiting.lab_id },
     } as const;
     const metadata = { simulation_id: simulationId, user_id: userId, join_via: "email" } as const;
+    if (await wasRemoved(trx, simulationId, userId)) {
+      // NOTE: #330 (maintainer, 2026-11-20); a teacher's removal wins over a waiting address, which
+      // stays: it may be a classmate's, whose own sign-in still links through it.
+      await recordAudit(trx, { ...event, outcome: "refused", reason: "removed", metadata });
+      return "refused";
+    }
+    const place = await trx
+      .selectFrom("lab_members")
+      .select("lab_id")
+      .where("simulation_id", "=", simulationId)
+      .where("user_id", "=", userId)
+      .executeTakeFirst();
     const remove = () =>
       trx
         .deleteFrom("lab_member_emails")
@@ -104,7 +113,6 @@ async function linkRow(
       await recordAudit(trx, { ...event, outcome: "success", metadata });
     }
     await remove();
-    await clearRemoval(trx, simulationId, userId);
     return "linked";
   });
 }
@@ -113,7 +121,8 @@ async function linkRow(
  * Links every address that waits for the verified email of `userId` to its lab, one row per
  * transaction. An unverified address, an address that is not plain ASCII, and an account that is
  * not only a student link nothing. A student already in another lab of that simulation stays
- * there: the waiting address is deleted and the refusal is logged once.
+ * there: the waiting address is deleted and the refusal is logged once. A student a teacher
+ * removed from the simulation is refused and logged, and the address keeps waiting (#330).
  */
 export async function linkWaitingAddresses(
   db: Kysely<DB>,

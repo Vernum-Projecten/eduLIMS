@@ -63,10 +63,12 @@ export function moveMember(
       .where("simulation_id", "=", simulationId)
       .where("user_id", "=", input.userId)
       .execute();
-    // NOTE: #323 (maintainer, 2026-11-19); an address waiting in another lab goes with the move.
-    await dropWaitingAddressesOf(trx, simulationId, input.userId, {
-      exceptLabId: target.id,
-      verifiedOnly: false,
+    // NOTE: #323, #330 (maintainer, 2026-11-19); an address waiting in another lab goes with the
+    // move, and for an unverified email only the one in the lab the student leaves.
+    const dropped = await dropWaitingAddressesOf(trx, simulationId, input.userId, {
+      kind: "move",
+      leftLabId: place.lab_id,
+      targetLabId: target.id,
     });
     await recordAudit(trx, {
       action: "lab_member_moved",
@@ -77,6 +79,7 @@ export function moveMember(
         simulation_id: simulationId,
         user_id: input.userId,
         previous_lab_id: place.lab_id,
+        count: dropped,
       },
     });
     return done(null);
@@ -103,15 +106,18 @@ export function removeMember(
       .where("user_id", "=", input.userId)
       .execute();
     await recordRemoval(trx, simulationId, input.userId, actor.id, now);
-    // NOTE: #323 (maintainer, 2026-11-19); a waiting address would link the student back at the
-    // next sign-in and clear the removal, so every one of theirs in the simulation goes with it.
-    await dropWaitingAddressesOf(trx, simulationId, input.userId, { verifiedOnly: false });
+    // NOTE: #323, #330 (maintainer, 2026-11-19); the student's waiting address goes with them, and
+    // for an unverified email (maybe a classmate's) only one in the lab the student leaves.
+    const dropped = await dropWaitingAddressesOf(trx, simulationId, input.userId, {
+      kind: "removal",
+      leftLabId: place.lab_id,
+    });
     await recordAudit(trx, {
       action: "lab_member_removed",
       actor: { type: "user", id: actor.id },
       outcome: "success",
       target: { type: "lab", id: place.lab_id },
-      metadata: { simulation_id: simulationId, user_id: input.userId },
+      metadata: { simulation_id: simulationId, user_id: input.userId, count: dropped },
     });
     return done(null);
   });
