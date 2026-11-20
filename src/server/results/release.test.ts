@@ -20,6 +20,7 @@ import {
   place,
   securityLines,
   setState,
+  startable,
 } from "../simulations/test-helpers.ts";
 import { insertMeasurement } from "./measurements.ts";
 import { type ReleaseInput, releaseResult } from "./release.ts";
@@ -366,6 +367,7 @@ describe("more cases of the release (security review of #370)", () => {
   it("refuses a student in two simulations who mixes the ids of both", async () => {
     const { database, w } = await open();
     const chosen = await measure(database, w, "5.1");
+    await startable(database, w.outsideSimulationId);
     await startSimulation(
       database,
       w.outsiderTeacher,

@@ -4,7 +4,7 @@
 import { notOfferedText } from "@/components/lab-records/request-details-sheet";
 import { Badge } from "@/components/ui/badge";
 import { m } from "@/i18n/messages";
-import { formatDateTime } from "@/lib/i18n/format";
+import { formatDateTime, formatList } from "@/lib/i18n/format";
 import { requestKindLabel } from "@/lib/i18n/records-labels";
 import { formatLabNumber } from "@/lib/lab-number";
 import type { RequestedTestRow, ResultsRequestRow } from "@/server/results/queries";
@@ -58,7 +58,7 @@ export function RequestResults({
         {request.notOffered.length === 0 ? null : (
           <p className="text-sm break-words">
             {m.records_not_offered_list({
-              tests: request.notOffered.map(notOfferedText).join(", "),
+              tests: formatList(request.notOffered.map(notOfferedText)),
             })}
           </p>
         )}

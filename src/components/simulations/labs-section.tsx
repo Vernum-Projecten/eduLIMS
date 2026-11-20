@@ -14,7 +14,7 @@ import {
   TimerOffIcon,
   Trash2Icon,
 } from "lucide-react";
-import { type RefObject, useMemo, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useMemo, useRef, useState } from "react";
 import { DataTableRowActions } from "@/components/data-table/data-table-row-actions";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { PAGE_TITLE_ID } from "@/components/shell/page-header";
@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -141,11 +142,13 @@ const columns = helper.columns([
 export function LabsTable({
   page,
   busy,
-}: Readonly<{ page: TeacherSimulationPage; busy: boolean }>) {
+  emptyAction,
+}: Readonly<{ page: TeacherSimulationPage; busy: boolean; emptyAction: ReactNode }>) {
   const rows = useMemo(
     () => page.labs.map((lab) => ({ ...lab, simulationId: page.id })),
     [page.labs, page.id],
   );
+  if (rows.length === 0) return <LabsEmpty action={emptyAction} />;
   return (
     <ListTable
       columns={columns}
@@ -153,14 +156,15 @@ export function LabsTable({
       rowId={(row) => row.id}
       caption={m.labs_caption({ simulation: page.name })}
       busy={busy}
-      empty={<LabsEmpty />}
+      empty={null}
     />
   );
 }
 
-function LabsEmpty() {
+/** No labs yet: what is missing and the one action that adds the first lab (#384). */
+function LabsEmpty({ action }: Readonly<{ action: ReactNode }>) {
   return (
-    <Empty>
+    <Empty className="border">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FlaskConicalIcon aria-hidden="true" />
@@ -168,12 +172,18 @@ function LabsEmpty() {
         <EmptyTitle>{m.labs_empty_title()}</EmptyTitle>
         <EmptyDescription>{m.labs_empty_next()}</EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>{action}</EmptyContent>
     </Empty>
   );
 }
 
-/** The primary action of the labs page: a lab by name, in a dialog. */
-export function CreateLab({ simulationId }: Readonly<{ simulationId: string }>) {
+/**
+ * The primary action of the labs page and its dialog (#384). The page shows `button` in its
+ * header once a lab exists and in the empty state before, and `dialog` once, so creating the
+ * first lab neither closes the dialog early nor drops focus: it returns to whichever button is
+ * on screen, else to the page's `h1` (WCAG 2.4.3).
+ */
+export function useCreateLab(simulationId: string): { button: ReactNode; dialog: ReactNode } {
   const [open, setOpen] = useState(false);
   const openerRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
@@ -182,19 +192,21 @@ export function CreateLab({ simulationId }: Readonly<{ simulationId: string }>) 
     simulationMutationOptions(queryClient, call, simulationActionKeys.createLab(simulationId)),
     { success: (_value, data) => m.labs_created({ name: data.name }), toastErrors: false },
   );
-  return (
-    <>
+  return {
+    button: (
       <Button ref={openerRef} type="button" onClick={() => setOpen(true)}>
         <PlusIcon aria-hidden="true" data-icon="inline-start" />
         {m.labs_create()}
       </Button>
+    ),
+    dialog: (
       <NameDialog
         control={{
           open,
           onOpenChange: setOpen,
           onCloseAutoFocus: (event) => {
             event.preventDefault();
-            openerRef.current?.focus();
+            (openerRef.current ?? document.getElementById(PAGE_TITLE_ID))?.focus();
           },
         }}
         schema={labFormSchema}
@@ -206,8 +218,8 @@ export function CreateLab({ simulationId }: Readonly<{ simulationId: string }>) 
         maxLength={LAB_NAME_MAX}
         save={(value) => create.mutateAsync({ ...value, simulationId })}
       />
-    </>
-  );
+    ),
+  };
 }
 
 function LabRowActions({ lab }: Readonly<{ lab: LabRow }>) {

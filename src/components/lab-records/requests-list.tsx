@@ -19,7 +19,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { m } from "@/i18n/messages";
-import { byCount, formatDateTime } from "@/lib/i18n/format";
+import { byCount, formatDateTime, formatList } from "@/lib/i18n/format";
 import { sectionOf } from "@/lib/navigation";
 import type { RequestRow } from "@/server/lab-records/queries";
 import {
@@ -92,7 +92,7 @@ const columns = helper.columns([
     cell: ({ row }) => (
       <div className="flex min-w-32 flex-col gap-1 whitespace-normal">
         <span className="break-words">
-          {row.original.tests.map((test) => test.name).join(", ")}
+          {formatList(row.original.tests.map((test) => test.name))}
         </span>
         {row.original.notOffered.length === 0 ? null : (
           <span className="text-muted-foreground text-sm">

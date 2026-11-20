@@ -10,6 +10,7 @@ import { type BrowserContext, expect, type Page, type Route, test } from "@playw
 import { copyAccount } from "./accounts";
 import { axe, dutch } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
+import { seedLabRecords } from "./lab-records-seed";
 import { appUrl } from "./run-env";
 
 const TEACHER = "teacher@example.test";
@@ -141,14 +142,22 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   await expect(page).toHaveTitle(`${simulation} | Simulations | Teacher portal | eduLIMS`);
   // The overview's checklist names the first missing step and links to its page (#381).
   await expect(page.getByText("Next step: Labs and students.")).toBeVisible();
-  await expect(page.getByText("No labs yet. Create a lab for each team.")).toBeVisible();
+  await expect(
+    page.getByText("No labs yet. Create a lab for each team and add its students."),
+  ).toBeVisible();
   await axe(page);
   await openPage(page, simulation, "Labs");
   await expect(page).toHaveTitle(`Labs | ${simulation} | Simulations | Teacher portal | eduLIMS`);
-  // A navigation inside the simulation moves focus to the new page's h1 (WCAG 2.4.3).
-  await expect(page.getByRole("heading", { level: 1, name: "Labs" })).toBeFocused();
+  // A navigation inside the simulation moves focus to the new page's h1, and its ring shows
+  // after a mouse click too (WCAG 2.4.3, 2.4.7).
+  const labsHeading = page.getByRole("heading", { level: 1, name: "Labs" });
+  await expect(labsHeading).toBeFocused();
+  expect(await labsHeading.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
   await expect(page.getByText("No labs yet", { exact: true })).toBeVisible();
   await createLab(page, alpha);
+  // The first lab replaces the empty state: focus goes to Create lab, now in the header.
+  await settle(page);
+  await expect(page.getByRole("button", { name: "Create lab" })).toBeFocused();
   await createLab(page, beta);
 
   // A lab name is unique within the simulation, whatever its case; the refusal is at the field.
@@ -608,13 +617,7 @@ test("a teacher adds, removes and leaves as a teacher of a simulation (D10, #328
   await form.getByRole("button", { name: "Add teacher" }).click();
   await expect(teachers.getByRole("cell", { name: "Test Coordinator", exact: true })).toBeVisible();
   await teachers.getByRole("row").filter({ hasText: "You" }).getByRole("button").click();
-  // The keyboard picks the item: the toasts of the last two actions may cover the open menu.
-  await pressUntilFocused(
-    page,
-    "ArrowDown",
-    page.getByRole("menuitem", { name: "Leave this simulation" }),
-  );
-  await page.keyboard.press("Enter");
+  await page.getByRole("menuitem", { name: "Leave this simulation" }).click();
   await page
     .getByRole("alertdialog", { name: "Leave this simulation?" })
     .getByRole("button", { name: "Leave simulation" })
@@ -631,4 +634,93 @@ test("an identity provider that does not exist has a not-found title (WCAG 2.4.2
   await page.goto("/admin/system/identity-providers/does-not-exist");
   await expect(page.getByRole("alert")).toContainText("This provider no longer exists.");
   await expect(page).toHaveTitle(/^Provider not found \| /);
+});
+
+test("a pointer user reaches a menu item while a toast shows (UI review of #394)", async ({
+  page,
+}) => {
+  const name = `Toast menu ${suffix()}`;
+  await signInAsTeacher(page);
+  await createSimulation(page, name);
+  await openPage(page, name, "Settings");
+  // A short window puts the teachers' row menu where the toasts stand, bottom right.
+  await page.setViewportSize({ width: 800, height: 520 });
+  const opener = page.getByRole("button", { name: "Add teacher" });
+  await expectHydrated(opener);
+  await opener.click();
+  const dialog = page.getByRole("dialog", { name: "Add a teacher" });
+  await dialog.getByLabel("Email address of the teacher").fill("teacher-admin@example.test");
+  await dialog.getByRole("button", { name: "Add teacher" }).click();
+  const toast = page.getByText("teacher-admin@example.test now teaches this simulation.");
+  await expect(toast).toBeVisible();
+  await page.getByRole("button", { name: "Actions for Test Coordinator" }).click();
+  const item = page.getByRole("menuitem", { name: "Remove Test Coordinator" });
+  await expect(item).toBeVisible();
+  // What a pointer at the item's centre hits is the item itself, never the toast above it.
+  const hit = await item.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const top = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return top !== null && el.contains(top);
+  });
+  expect(hit).toBe(true);
+  await item.click();
+  await expect(
+    page.getByRole("alertdialog", { name: "Remove Test Coordinator as a teacher?" }),
+  ).toBeVisible();
+  await expect(toast).toBeVisible();
+});
+
+for (const [theme, locale] of [
+  ["light", "en"],
+  ["dark", "en"],
+  ["light", "nl"],
+  ["dark", "nl"],
+] as const) {
+  test(`a new simulation's overview and labs, and a finished overview, are axe-clean in ${theme}, ${locale} (the UI review of #403)`, async ({
+    page,
+    context,
+  }) => {
+    const id = suffix();
+    const finished = await seedLabRecords(id, "finished");
+    await signInAsTeacher(page);
+    const name = `Axe ${id}`;
+    await createSimulation(page, name);
+    await usePreferences(context, theme, locale);
+    const t = (key: string, english: string) => (locale === "nl" ? dutch(key) : english);
+    // A prepared overview whose Start says why it waits.
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(
+      page.getByRole("heading", { level: 1, name: t("simulation_nav_overview", "Overview") }),
+    ).toBeVisible();
+    await axe(page);
+    // The labs page with its empty state and its one action.
+    await page.goto(`${page.url()}/labs`);
+    await expect(
+      page.getByRole("heading", { level: 1, name: t("simulation_nav_labs", "Labs") }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(t("labs_empty_title", "No labs yet"), { exact: true }),
+    ).toBeVisible();
+    await axe(page);
+    // A finished overview, which points to the corrections.
+    await page.goto(`/teacher/simulations/${finished.simulationId}`);
+    await expect(
+      page.getByRole("link", { name: t("simulation_open_corrections", "Open corrections") }),
+    ).toBeVisible();
+    await axe(page);
+  });
+}
+
+test("the overview with a blocked Start and its reason reflows at 320 px (WCAG 1.4.10)", async ({
+  page,
+}) => {
+  await signInAsTeacher(page);
+  await createSimulation(page, `Reflow ${suffix()}`);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await expect(page.getByText("Add a student to a lab first.")).toBeVisible();
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
 });

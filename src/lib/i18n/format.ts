@@ -117,3 +117,14 @@ export function byCount(
   const text = formatNumber(count, { locale });
   return new Intl.PluralRules(locale).select(count) === "one" ? one(text) : other(text);
 }
+
+/**
+ * Joins names as the locale writes a list: "Albumin, Glucose and Urea" in English, "Albumin,
+ * Glucose en Urea" in Dutch (`Intl.ListFormat`, a conjunction).
+ */
+export function formatList(items: readonly string[], options: FormatOptions = {}): string {
+  return new Intl.ListFormat(options.locale ?? getLocale(), {
+    style: "long",
+    type: "conjunction",
+  }).format(items);
+}

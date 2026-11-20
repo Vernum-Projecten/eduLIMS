@@ -8,6 +8,7 @@ import {
   formatDate,
   formatDateTime,
   formatDecimal,
+  formatList,
   formatNumber,
   formatRelativeTime,
 } from "./format";
@@ -113,5 +114,17 @@ describe("byCount", () => {
   it("formats the count for the locale", () => {
     expect(byCount(1200, one, other, { locale: "en" })).toBe("1,200 requests");
     expect(byCount(1200, one, other, { locale: "nl" })).toBe("1.200 requests");
+  });
+});
+
+describe("formatList (#394)", () => {
+  it("joins names as each locale writes a list", () => {
+    expect(formatList(["Albumin", "Glucose", "Urea"], { locale: "en" })).toBe(
+      "Albumin, Glucose, and Urea",
+    );
+    expect(formatList(["Albumin", "Glucose", "Urea"], { locale: "nl" })).toBe(
+      "Albumin, Glucose en Urea",
+    );
+    expect(formatList(["Albumin"], { locale: "en" })).toBe("Albumin");
   });
 });

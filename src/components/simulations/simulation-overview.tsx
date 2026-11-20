@@ -8,8 +8,16 @@ import {
   CircleAlertIcon,
   CircleCheckIcon,
   CircleIcon,
+  HistoryIcon,
   type LucideIcon,
 } from "lucide-react";
+import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
+import {
+  type StepPage,
+  type StepStatus,
+  stepHeadingId,
+  stepsOf,
+} from "@/components/simulations/preparation-steps";
 import { Button } from "@/components/ui/button";
 import {
   Item,
@@ -21,23 +29,8 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { m } from "@/i18n/messages";
-import { formatNumber } from "@/lib/i18n/format";
-import { simulationErrorMessage } from "@/lib/i18n/simulation-labels";
 import { cn } from "@/lib/utils";
 import type { SimulationReadiness } from "@/server/simulations/readiness";
-
-/** Where a step of the preparation stands: done, still to do, or what blocks the start. */
-type StepStatus = "done" | "todo" | "blocks";
-
-type StepPage = "labs" | "values";
-
-interface Step {
-  id: string;
-  title: string;
-  status: StepStatus;
-  description: string;
-  page: StepPage | null;
-}
 
 /** The icon and the text of each status: never colour alone (WCAG 1.4.1). */
 const STATUS: Record<StepStatus, { icon: LucideIcon; label: () => string; className: string }> = {
@@ -54,80 +47,15 @@ const STATUS: Record<StepStatus, { icon: LucideIcon; label: () => string; classN
   },
 };
 
-function labsStep({ labs }: SimulationReadiness): Step {
-  const base = { id: "labs", title: m.simulation_step_labs(), page: "labs" as const };
-  if (labs.count === 0) {
-    return { ...base, status: "todo", description: m.simulation_step_labs_none() };
-  }
-  const counts = m.simulation_step_labs_counts({
-    labs: formatNumber(labs.count),
-    students: formatNumber(labs.students),
-    waiting: formatNumber(labs.waiting),
-  });
-  if (labs.empty > 0) {
-    return {
-      ...base,
-      status: "todo",
-      description: `${counts} ${m.simulation_step_labs_empty({ empty: formatNumber(labs.empty) })}`,
-    };
-  }
-  return { ...base, status: "done", description: counts };
-}
-
-function valuesStep({ values }: SimulationReadiness): Step {
-  const base = { id: "values", title: m.simulation_step_values(), page: "values" as const };
-  if (values.count === 0) {
-    return { ...base, status: "todo", description: m.simulation_step_values_none() };
-  }
-  return {
-    ...base,
-    status: "done",
-    description: m.simulation_step_values_counts({
-      values: formatNumber(values.count),
-      tests: formatNumber(values.tests),
-    }),
-  };
-}
-
-function limitsStep({ values, missingLimits }: SimulationReadiness): Step {
-  const base = { id: "limits", title: m.simulation_step_limits(), page: "values" as const };
-  if (missingLimits.length > 0) {
-    return {
-      ...base,
-      status: "blocks",
-      description: m.simulations_missing_limits({
-        tests: missingLimits.map((test) => test.name).join(", "),
-      }),
-    };
-  }
-  if (values.count === 0) {
-    return { ...base, status: "todo", description: m.simulation_step_limits_waiting() };
-  }
-  return { ...base, status: "done", description: m.simulation_step_limits_done() };
-}
-
-function startStep({ startRefusal }: SimulationReadiness): Step {
-  const base = { id: "start", title: m.simulation_step_start(), page: null };
-  if (startRefusal === null) {
-    return { ...base, status: "todo", description: m.simulation_step_start_ready() };
-  }
-  // Any reason the start gives shows here as the start would word it (#386 adds one).
-  const description =
-    startRefusal.error === "missing_limits"
-      ? m.simulation_step_start_blocked()
-      : simulationErrorMessage(startRefusal.error);
-  return { ...base, status: "blocks", description };
-}
-
-/** Returns the checklist of a prepared simulation, in the order a teacher works. */
-function stepsOf(readiness: SimulationReadiness): Step[] {
-  return [labsStep(readiness), valuesStep(readiness), limitsStep(readiness), startStep(readiness)];
-}
-
-function StepLink({ simulationId, page }: Readonly<{ simulationId: string; page: StepPage }>) {
+/** A step's link to its page: an outline button while there is work, a quiet one once done. */
+function StepLink({
+  simulationId,
+  page,
+  done,
+}: Readonly<{ simulationId: string; page: StepPage; done: boolean }>) {
   const label = page === "labs" ? m.simulation_open_labs() : m.simulation_open_values();
   return (
-    <Button asChild variant="outline" size="sm">
+    <Button asChild variant={done ? "ghost" : "outline"} size="sm">
       <Link
         to={
           page === "labs"
@@ -148,7 +76,8 @@ const CHECKLIST_HEADING = "checklist-heading";
 /**
  * The preparation of a simulation as a checklist (D10, #381): each step says what is done and
  * what is missing, and links to its page. Every count and the start's verdict come from the
- * server's read, which asks the same rule the start does; nothing is worked out here.
+ * server's read, which asks the same rule the start does; nothing is worked out here. Each
+ * step's heading takes focus from a blocked Start (WCAG 2.4.3).
  */
 export function PreparationChecklist({ readiness }: Readonly<{ readiness: SimulationReadiness }>) {
   const steps = stepsOf(readiness);
@@ -181,18 +110,41 @@ export function PreparationChecklist({ readiness }: Readonly<{ readiness: Simula
               </ItemMedia>
               <ItemContent className="min-w-0">
                 <ItemTitle className="line-clamp-none flex-wrap whitespace-normal">
-                  <h3 className="font-medium">{step.title}</h3>
-                  <span className={cn("font-normal text-xs", status.className)}>
+                  {/* The status and the reason describe the heading a blocked Start focuses. */}
+                  <h3
+                    id={stepHeadingId(step.id)}
+                    tabIndex={-1}
+                    aria-describedby={cn(
+                      `${stepHeadingId(step.id)}-status`,
+                      step.description && `${stepHeadingId(step.id)}-description`,
+                    )}
+                    className={cn(FOCUSABLE_HEADING, "font-medium text-base")}
+                  >
+                    {step.title}
+                  </h3>
+                  <span
+                    id={`${stepHeadingId(step.id)}-status`}
+                    className={cn("font-normal text-xs", status.className)}
+                  >
                     {status.label()}
                   </span>
                 </ItemTitle>
-                <ItemDescription className="line-clamp-none break-words">
-                  {step.description}
-                </ItemDescription>
+                {step.description && (
+                  <ItemDescription
+                    id={`${stepHeadingId(step.id)}-description`}
+                    className="line-clamp-none break-words"
+                  >
+                    {step.description}
+                  </ItemDescription>
+                )}
               </ItemContent>
               {step.page && (
                 <ItemActions>
-                  <StepLink simulationId={readiness.simulationId} page={step.page} />
+                  <StepLink
+                    simulationId={readiness.simulationId}
+                    page={step.page}
+                    done={step.status === "done"}
+                  />
                 </ItemActions>
               )}
             </Item>
@@ -203,29 +155,44 @@ export function PreparationChecklist({ readiness }: Readonly<{ readiness: Simula
   );
 }
 
-/** The overview of a running or finished simulation: where to follow the labs. */
+/**
+ * The overview of a simulation that runs or ran: while it runs, where to follow the labs; once
+ * it is finished, the dashboard has nothing live to show, so it points to the corrections.
+ */
 export function RunningOverview({ readiness }: Readonly<{ readiness: SimulationReadiness }>) {
+  const running = readiness.state === "running";
+  const Icon = running ? ChartColumnIcon : HistoryIcon;
   return (
     <Item variant="outline">
       <ItemMedia variant="icon">
-        <ChartColumnIcon aria-hidden="true" />
+        <Icon aria-hidden="true" />
       </ItemMedia>
       <ItemContent className="min-w-0">
         <ItemTitle className="line-clamp-none whitespace-normal">
-          <h2 className="font-medium">{m.simulation_follow_heading()}</h2>
+          <h2 className="font-medium">
+            {running ? m.simulation_follow_heading() : m.simulation_review_heading()}
+          </h2>
         </ItemTitle>
         <ItemDescription className="line-clamp-none break-words">
-          {readiness.state === "running"
-            ? m.simulation_follow_running()
-            : m.simulation_follow_finished()}
+          {running ? m.simulation_follow_running() : m.simulation_follow_finished()}
         </ItemDescription>
       </ItemContent>
       <ItemActions>
         <Button asChild variant="outline" size="sm">
-          <Link to="/teacher/dashboard">
-            {m.simulation_open_dashboard()}
-            <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
-          </Link>
+          {running ? (
+            <Link to="/teacher/dashboard">
+              {m.simulation_open_dashboard()}
+              <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
+            </Link>
+          ) : (
+            <Link
+              to="/teacher/simulations/$simulationId/corrections"
+              params={{ simulationId: readiness.simulationId }}
+            >
+              {m.simulation_open_corrections()}
+              <ArrowRightIcon aria-hidden="true" data-icon="inline-end" />
+            </Link>
+          )}
         </Button>
       </ItemActions>
     </Item>

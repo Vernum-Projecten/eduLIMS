@@ -197,11 +197,16 @@ dialog that returns focus to its opener.
 | Settings | `…/settings` | the name, the co-teachers, deleting the simulation | none |
 
 The checklist reads `getSimulationReadinessFn`
-(`src/server/simulations/readiness.ts`): counts per step and the start's
-verdict from `startRefusal`, the one rule the start itself applies, so Start
-is enabled only when the server would accept it and the checklist names the
-same reason it would refuse with (`missing_limits`, `not_prepared`, and any
-reason the start gains later). Every page's loader reads through the
+(`src/server/simulations/readiness.ts`), which reads the teacher row and every
+count in one statement, so one snapshot: counts per step and the start's
+verdict from `startRefusal` (`state.ts`), the one rule the start itself
+applies. A start needs a prepared simulation, at least one lab with at least
+one student, at least one correct value and the accuracy limits of every test
+with a value (owner, 2026-11-20 on #394); the refusals are `not_prepared`,
+`no_students`, `no_correct_values` and `missing_limits`, each logged, and a
+reason the start gains later keeps the same shape. While one holds, Start
+stays focusable with `aria-disabled`, says why beside it, and a click sends
+focus to the first step that blocks it. Every page's loader reads through the
 teacher-scoped functions, so a teacher of another simulation gets not found
 on each of them (D11).
 

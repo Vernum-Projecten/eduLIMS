@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { m } from "@/i18n/messages";
-import { formatDateTime } from "@/lib/i18n/format";
+import { formatDateTime, formatList } from "@/lib/i18n/format";
 import { requestKindLabel } from "@/lib/i18n/records-labels";
 import type { NotOfferedTest } from "@/lib/lab-records";
 import type { RequestRow } from "@/server/lab-records/queries";
@@ -114,7 +114,7 @@ export function RequestDetailsSheet({
                   <Detail term={m.records_phone_through()}>{m.records_yes()}</Detail>
                 ) : null}
                 <Detail term={m.records_tests()}>
-                  {request.tests.map((test) => test.name).join(", ")}
+                  {formatList(request.tests.map((test) => test.name))}
                 </Detail>
                 <Detail term={m.records_not_offered()}>
                   {request.notOffered.length === 0 ? (
