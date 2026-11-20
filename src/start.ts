@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { createCsrfMiddleware, createMiddleware, createStart } from "@tanstack/react-start";
+import { refuseFormBody } from "@/server/form-body-limit";
+import { refuseJsonBody } from "@/server/json-body-limit";
 import { createNonce, securityHeaders, withSecurityHeaders } from "@/server/security-headers";
 
 /** Rejects cross-site server function calls (same-origin RPC only). */
@@ -17,6 +19,25 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
   return { ...result, response: withSecurityHeaders(result.response, headers) };
 });
 
+/** Refuses a JSON body to a server function before Start reads it, when it is too large. */
+const jsonBodyLimitMiddleware = createMiddleware().server(
+  async ({ next, request, handlerType }) => {
+    if (handlerType !== "serverFn") return next();
+    return (await refuseJsonBody(request)) ?? next();
+  },
+);
+
+/** Refuses a form sent to a server function before its body is read, when it is too large. */
+const formBodyLimitMiddleware = createMiddleware().server(({ next, request, handlerType }) => {
+  if (handlerType !== "serverFn") return next();
+  return refuseFormBody(request) ?? next();
+});
+
 export const startInstance = createStart(() => ({
-  requestMiddleware: [securityHeadersMiddleware, csrfMiddleware],
+  requestMiddleware: [
+    securityHeadersMiddleware,
+    csrfMiddleware,
+    jsonBodyLimitMiddleware,
+    formBodyLimitMiddleware,
+  ],
 }));

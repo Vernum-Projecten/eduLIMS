@@ -159,6 +159,18 @@ export interface LabJoinCodes {
   uses: Generated<number>;
 }
 
+export interface LabLogos {
+  byte_size: number;
+  content: Buffer;
+  height: number;
+  lab_id: string;
+  media_type: string;
+  sha256: Buffer;
+  updated_at: Generated<Timestamp>;
+  updated_by: string | null;
+  width: number;
+}
+
 export interface LabMemberEmails {
   added_at: Generated<Timestamp>;
   added_by: string | null;
@@ -464,6 +476,7 @@ export interface DB {
   integration_checks: IntegrationChecks;
   lab_join_attempts: LabJoinAttempts;
   lab_join_codes: LabJoinCodes;
+  lab_logos: LabLogos;
   lab_member_emails: LabMemberEmails;
   lab_members: LabMembers;
   labs: Labs;
