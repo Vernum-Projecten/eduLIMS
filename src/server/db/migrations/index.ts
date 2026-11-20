@@ -22,7 +22,7 @@ import * as m0015 from "./0015_integration_check_steps.ts";
 import * as m0016 from "./0016_test_catalogue.ts";
 import * as m0017 from "./0017_catalogue_follow_ups.ts";
 import * as m0018 from "./0018_simulation_state_and_correct_values.ts";
-import * as m0020 from "./0020_lab_tolerances.ts";
+import * as m0021 from "./0021_lab_tolerances.ts";
 
 export const migrations: Record<string, Migration> = {
   "0001_auth": m0001,
@@ -43,7 +43,7 @@ export const migrations: Record<string, Migration> = {
   "0016_test_catalogue": m0016,
   "0017_catalogue_follow_ups": m0017,
   "0018_simulation_state_and_correct_values": m0018,
-  "0020_lab_tolerances": m0020,
+  "0021_lab_tolerances": m0021,
 };
 
 export const migrationProvider: MigrationProvider = {
