@@ -3,9 +3,9 @@
 
 // The application's toast (#328): an error stays until it is closed and has a close button
 // (WCAG 2.2.1, 3.3.1); every other kind keeps Sonner's timing; nothing takes Sonner's own.
-import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { handWrittenFiles, handWrittenSources } from "../server/test-source-files.ts";
 
 const sonner = vi.hoisted(() => ({
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), dismiss: vi.fn() }),
@@ -44,20 +44,29 @@ describe("toast", () => {
 });
 
 describe("the toast import", () => {
-  const SRC = join(import.meta.dirname, "..");
-  // The generated message modules are skipped: they never import a library.
-  const files = readdirSync(SRC, { recursive: true, encoding: "utf8" }).filter(
-    (path) => /\.(ts|tsx)$/.test(path) && !path.startsWith("i18n") && !path.endsWith(".gen.ts"),
+  // Generated output (the message modules, the route tree) is skipped: it never imports a
+  // library, and reading it outlasts the test's time under load (#320).
+  const files = handWrittenFiles("src").filter(
+    (path) => /\.(ts|tsx)$/.test(path) && !path.endsWith(".test.ts"),
   );
-  const allowed = new Set([join("lib", "toast.ts"), join("components", "ui", "sonner.tsx")]);
+  const allowed = new Set([
+    join("src", "lib", "toast.ts"),
+    join("src", "components", "ui", "sonner.tsx"),
+  ]);
 
-  it("takes `toast` from src/lib/toast.ts, never from Sonner directly", () => {
-    const direct = files.filter(
-      (path) =>
-        !allowed.has(path) &&
-        !path.endsWith(".test.ts") &&
-        /\btoast\b[^;]*from\s+["']sonner["']/.test(readFileSync(join(SRC, path), "utf8")),
-    );
+  it("checks the hand-written sources", () => {
+    expect(files).toContain(join("src", "lib", "toast.ts"));
+    expect(files).not.toContain(join("src", "routeTree.gen.ts"));
+  });
+
+  it("takes `toast` from src/lib/toast.ts, never from Sonner directly", async () => {
+    const checked = new Set(files.filter((path) => !allowed.has(path)));
+    const codes = await handWrittenSources("src");
+    const direct = [...codes]
+      .filter(
+        ([path, code]) => checked.has(path) && /\btoast\b[^;]*from\s+["']sonner["']/.test(code),
+      )
+      .map(([path]) => path);
     expect(direct).toEqual([]);
   });
 });
