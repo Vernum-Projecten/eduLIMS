@@ -9,6 +9,7 @@ import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { type CommittedTestDb, createCommittedTestDb } from "../db/test-committed-db.ts";
+import { lockWaiters } from "../db/test-lock-waiters.ts";
 import { parseEnv } from "../env.ts";
 import type { SimulationResult } from "../simulations/access.ts";
 import { createSimulation } from "../simulations/simulations.ts";
@@ -25,22 +26,6 @@ afterEach(async () => {
   await committed?.destroy();
   committed = undefined;
 });
-
-const WAIT_LIMIT_MS = 10_000;
-
-/** Waits until `count` backends of this database wait on a lock. */
-async function lockWaiters(database: CommittedTestDb, count: number): Promise<void> {
-  const deadline = Date.now() + WAIT_LIMIT_MS;
-  for (;;) {
-    const { rows } = await database.pool.query<{ n: number }>(
-      `select count(*)::int as n from pg_stat_activity
-        where datname = current_database() and wait_event_type = 'Lock'`,
-    );
-    if ((rows[0]?.n ?? 0) >= count) return;
-    if (Date.now() > deadline) throw new Error(`fewer than ${count} lock waiters`);
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-}
 
 async function rowsOf(db: Kysely<DB>, userId: string) {
   const [user, accounts, sessions] = await Promise.all([

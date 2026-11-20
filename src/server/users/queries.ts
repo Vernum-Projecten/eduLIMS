@@ -50,7 +50,7 @@ export function userStatus(
   user: { banned: boolean | null; banExpires: Date | null; lastSignInAt: Date | null },
   now: Date,
 ): UserStatus {
-  if (user.banned && (user.banExpires === null || user.banExpires > now)) return "blocked";
+  if (user.banned && (user.banExpires === null || user.banExpires >= now)) return "blocked";
   return user.lastSignInAt === null ? "never" : "active";
 }
 
@@ -143,7 +143,7 @@ function statusCondition(
   // NULL; `is true` makes `blocked` never NULL, so `not(blocked)` keeps those users (#121).
   const blocked: Expression<SqlBool> = eb.and([
     eb("user.banned", "is", true),
-    eb.or([eb("user.banExpires", "is", null), eb("user.banExpires", ">", now)]),
+    eb.or([eb("user.banExpires", "is", null), eb("user.banExpires", ">=", now)]),
   ]);
   return eb.or(
     statuses.map((status) => {

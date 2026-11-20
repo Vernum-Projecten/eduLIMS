@@ -26,7 +26,7 @@ import { SSO_DISABLED_PATHS, ssoGuards } from "./idp/sso-guards.ts";
 import { recordTestOutcome, testOfState } from "./idp/test-flow.ts";
 import { createIdpRoleSync } from "./idp-sync.ts";
 import { applySavedLocaleOnSignIn } from "./preferences/locale-cookie.ts";
-import { refuseOwnRoleWrites, roleWriteHooks } from "./role-guard.ts";
+import { roleWriteHooks } from "./role-guard.ts";
 import { scimGate } from "./scim/gate.ts";
 import { scimPlugins } from "./scim/provisioning.ts";
 import { scimSignInResolver } from "./scim/sign-in.ts";
@@ -34,8 +34,8 @@ import { type ScimSessionOptions, staticScimSupport } from "./scim/support.ts";
 import { SESSION_EXPIRES_IN_SECONDS, SESSION_UPDATE_AGE_SECONDS } from "./session-policy.ts";
 import { labSignInLink } from "./simulations/auth-plugins.ts";
 import { hasWaitingLabAddress } from "./simulations/linking.ts";
+import { adminEndpointLock, HTTP_CLOSED_AUTH_PATHS } from "./users/admin-endpoint-lock.ts";
 import { lastSignInMethod, lastSignInTime } from "./users/sign-in-tracking.ts";
-import { USER_DELETION_DISABLED_PATHS, userDeletionLock } from "./users/user-deletion-lock.ts";
 
 /** Where an identity provider returns the user after signing out of it: the eduLIMS sign-in page. */
 export const POST_LOGOUT_PATH = "/login";
@@ -108,7 +108,9 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
     database: adapter,
     // NOTE: ADR 0015; the plugin's management endpoints let any signed-in user register an IdP.
     // NOTE: #318; eduLIMS deletes a user in one transaction (src/server/users/delete-user.ts).
-    disabledPaths: [...SSO_DISABLED_PATHS, ...USER_DELETION_DISABLED_PATHS],
+    // NOTE: #356 review (S1); the paths of adminEndpointLock stay routed, so its hook logs each
+    // call before it answers 404.
+    disabledPaths: [...SSO_DISABLED_PATHS, ...HTTP_CLOSED_AUTH_PATHS],
     // NOTE: ASVS V1.3.6; the app origin is always trusted, and besides it only the operator's
     // private IdP origins: every other IdP endpoint gets the sso plugin's DNS check at fetch time.
     trustedOrigins: [...env.EDULIMS_IDP_PRIVATE_ORIGINS],
@@ -172,12 +174,11 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         hasWaitingLabAddress: (email) => hasWaitingLabAddress(db, email),
       }),
     },
-    // Every role write (IdP sync, seed, admin create-user, set-role, update-user) is validated.
+    // Every role write (IdP sync, SCIM, seed, admin create-user) is validated.
     // No plaintext IdP token at rest: access and refresh tokens are dropped; the adapter seals the
     // ID token, bound to its account row.
     databaseHooks: { user: roleWriteHooks, account: accountTokenHooks },
-    // Nobody changes their own roles through the admin endpoints (ADR 0012).
-    hooks: { before: refuseOwnRoleWrites, after: applySavedLocaleOnSignIn(env.BETTER_AUTH_URL) },
+    hooks: { after: applySavedLocaleOnSignIn(env.BETTER_AUTH_URL) },
     plugins: [
       admin({ ac: accessControl, roles, defaultRole: DEFAULT_ROLE, adminRoles: [ADMIN_ROLE] }),
       sso({
@@ -201,7 +202,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         },
       }),
       ssoGuards(db),
-      userDeletionLock(),
+      adminEndpointLock({ trustedProxies: env.EDULIMS_TRUSTED_PROXIES }),
       // Simulations and labs (ADR 0021): the link of waiting addresses at sign-in (S10).
       labSignInLink(db),
       // Answers 501 when SCIM cannot run here; rate limit, size cap and activity log (#45).

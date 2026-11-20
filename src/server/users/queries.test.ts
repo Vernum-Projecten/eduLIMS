@@ -174,6 +174,14 @@ describe("pure helpers", () => {
     );
     expect(userStatus({ banned: false, banExpires: null, lastSignInAt: null }, NOW)).toBe("never");
   });
+
+  it("userStatus: a block that ends at this exact instant still holds (#356)", () => {
+    expect(userStatus({ banned: true, banExpires: NOW, lastSignInAt: NOW }, NOW)).toBe("blocked");
+    const justAfter = new Date(NOW.getTime() + 1);
+    expect(userStatus({ banned: true, banExpires: NOW, lastSignInAt: NOW }, justAfter)).toBe(
+      "active",
+    );
+  });
 });
 
 describe("listUsers (#34)", () => {
@@ -240,6 +248,14 @@ describe("listUsers (#34)", () => {
     const database = await seed(PEOPLE);
     expect(ids(await listUsers(database, { provider: [KEYCLOAK] }, NOW))).toEqual(["u2", "u3"]);
     expect(ids(await listUsers(database, { provider: ["credential"] }, NOW))).toEqual(["u5"]);
+  });
+
+  it("filters a block that ends at this exact instant as blocked (#356)", async () => {
+    const database = await seed(PEOPLE);
+    const u5End = new Date(NOW.getTime() - DAY);
+    expect(ids(await listUsers(database, { status: ["blocked"] }, u5End))).toContain("u5");
+    const justAfter = new Date(u5End.getTime() + 1);
+    expect(ids(await listUsers(database, { status: ["blocked"] }, justAfter))).not.toContain("u5");
   });
 
   it("filters on the status, an expired ban counting as not blocked", async () => {
