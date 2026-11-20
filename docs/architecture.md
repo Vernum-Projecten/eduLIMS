@@ -295,7 +295,12 @@ student's place and a waiting address point at their lab through the pair
   becomes a place in its lab, one row per transaction. A failed row never
   fails the sign-in and never undoes another row; an address of a student
   who is already in another lab of that simulation is deleted, and the
-  refusal is logged once. Only an account whose role set is {student} and
+  refusal is logged once. A teacher's removal wins over a waiting address:
+  a student with a removal record in the simulation links nothing there,
+  the refusal is logged with the reason `removed` once per removal (the
+  link result counts it every time), and the address keeps
+  waiting, because it may belong to a classmate whose own sign-in still
+  links through it (#330). Only an account whose role set is {student} and
   whose address is plain ASCII links: lower-casing folds some other letters
   onto ASCII ones, so such an address is never verified either. The
   identity provider sync grants the student role to an address that waits
@@ -314,11 +319,17 @@ student's place and a waiting address point at their lab through the pair
   removed student all get the same answer, with the real reason in the
   activity log. A student already in another lab of the simulation is
   refused as such, at no cost, and that refusal is logged once per student,
-  lab and 15 minutes. A removed student cannot rejoin with a code until a
-  teacher adds their address again. A place and a waiting address of the
-  same student never stand side by side: a code join, a removal and a move
-  delete the student's waiting addresses in the simulation in the same
-  transaction, so the next link cannot put a removed student back. A join locks the simulation row
+  lab and 15 minutes. A removed student cannot rejoin with a code or through
+  a waiting address until a teacher adds their address again, which clears
+  the removal of an account whose email is verified; an unverified email
+  may be a classmate's, so adding it clears nothing (#330). A code join, a
+  removal and a move delete the student's waiting address in the
+  simulation in the same transaction, for a verified email only, wherever
+  it waits except in a move's target lab (an address waits in at most one
+  lab per simulation, so 0 or 1 rows). An unverified email drops nothing,
+  because the row may be a classmate's; the link refusal keeps the removed
+  student out. The removal and move log rows carry the number dropped
+  (`count`, #330). A join locks the simulation row
   (shared) before the code row, and lets go and retries when the code row is
   taken, so it never deadlocks with a writer. The code panel is on the
   teacher's lab page; the Student portal overview lists the student's labs
@@ -327,11 +338,18 @@ student's place and a waiting address point at their lab through the pair
 - **Teachers.** A teacher adds another teacher by the address of an existing
   account with the teacher role; an unknown address and a non-teacher get
   the same refusal. The last teacher of a simulation cannot be removed: a
-  teacher row counts only while its user holds the teacher role. Better-auth's
-  `admin/remove-user` refuses an account that is the only teacher of a
-  simulation, and a deferred constraint trigger refuses any commit that
-  leaves an existing simulation without a teacher row, so the two cannot
-  race past each other.
+  teacher row counts only while its user holds the teacher role. eduLIMS
+  deletes a user in one transaction (`src/server/users/delete-user.ts`,
+  #318), the last step of the GDPR erasure path (#47), which has no screen
+  yet: it locks the user's simulations in id order (and the administrators,
+  when the user is one), refuses the only active teacher of a simulation and
+  the last administrator, runs the deferred last-teacher check before it
+  writes the activity-log rows, and deletes the sessions, the accounts and
+  the user with those rows, so a refusal changes nothing. Better-auth's
+  `admin/remove-user`, `delete-user` and `delete-user/callback` answer 404. A
+  `BEFORE DELETE` trigger on `user` and a deferred constraint trigger, which
+  refuses any commit that leaves an existing simulation without a teacher
+  row, stay as the last line.
 - **Deleting.** A lab can be deleted with its waiting addresses and its
   code once no student is in it, and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.
