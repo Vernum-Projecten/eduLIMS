@@ -10,7 +10,8 @@ import "@tanstack/react-start/server-only";
 import type { AuthContext, BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import type { Kysely } from "kysely";
-import { ACCOUNT_DEPROVISIONED_ERROR } from "../../lib/identity-providers.ts";
+import { foldsOntoAscii } from "../../lib/email-fold.ts";
+import { ACCOUNT_DEPROVISIONED_ERROR, EMAIL_FOLD_ERROR } from "../../lib/identity-providers.ts";
 import { requestIdOf } from "../audit/better-auth-hooks.ts";
 import { auditProvider } from "../audit/events.ts";
 import { recordCommittedAudit } from "../audit/record.ts";
@@ -22,7 +23,12 @@ import {
   scimResourceAction,
   scimResourceEvent,
 } from "./audit.ts";
-import { addressOutsideDomains, addressTakenElsewhere, scimBodyAddresses } from "./emails.ts";
+import {
+  addressOutsideDomains,
+  addressTakenElsewhere,
+  scimBodyAddresses,
+  scimBodyRawAddresses,
+} from "./emails.ts";
 import {
   bearerOf,
   bodyTooLarge,
@@ -87,9 +93,13 @@ async function refuseTakenAddress(db: Kysely<DB>, ctx: unknown): Promise<Respons
     headers instanceof Headers ? bearerOf(headers) : null,
   );
   if (!inspected.ok) return undefined;
-  const addresses = scimBodyAddresses(field(ctx, "body"));
-  const outside = await addressOutsideDomains(db, inspected.providerId, addresses);
-  if (!outside && !(await addressTakenElsewhere(db, inspected.providerId, addresses))) {
+  const body = field(ctx, "body");
+  // NOTE: #324 (ASVS V6.8.1); the plugin lower-cases an address before it stores it, so one that
+  // folds onto ASCII is refused here, before the plugin's own `z.email()` check (1.7.20).
+  const folds = scimBodyRawAddresses(body).some(foldsOntoAscii);
+  const addresses = scimBodyAddresses(body);
+  const outside = !folds && (await addressOutsideDomains(db, inspected.providerId, addresses));
+  if (!folds && !outside && !(await addressTakenElsewhere(db, inspected.providerId, addresses))) {
     return undefined;
   }
   const action = scimResourceAction(method, "/scim/v2/Users");
@@ -104,7 +114,7 @@ async function refuseTakenAddress(db: Kysely<DB>, ctx: unknown): Promise<Respons
         {
           actor: { type: "system" },
           outcome: "refused",
-          reason: outside ? "address_domain" : "uniqueness",
+          reason: folds ? EMAIL_FOLD_ERROR : outside ? "address_domain" : "uniqueness",
           ...(provider ? { provider } : {}),
           ...(requestId ? { requestId } : {}),
         },
@@ -112,7 +122,9 @@ async function refuseTakenAddress(db: Kysely<DB>, ctx: unknown): Promise<Respons
       ),
     );
   }
-  if (outside) return scimErrorResponse(400, "A value is not accepted", {}, "invalidValue");
+  if (folds || outside) {
+    return scimErrorResponse(400, "A value is not accepted", {}, "invalidValue");
+  }
   return scimErrorResponse(409, "A resource with these values already exists", {}, "uniqueness");
 }
 

@@ -60,7 +60,9 @@ Option 3, with `@better-auth/sso` and `better-auth` both at exactly 1.7.20.
   UserInfo has no `roles`). SAML requires signed assertions, timestamps,
   InResponseTo, no IdP-initiated sign-in, no deprecated algorithms and a
   persistent NameID: the metadata must list it, and a response with another
-  NameID format is refused at the sign-in gate. Single-logout requests and
+  NameID format is refused at the sign-in gate, as is an e-mail address the
+  provider sent in a form that only becomes plain ASCII when lower-cased
+  (#324). Single-logout requests and
   responses must be signed (`wantLogoutRequestSigned`,
   `wantLogoutResponseSigned`). The issuer must match the discovery document
   exactly (mix-up defence), and the endpoints must share its origin.

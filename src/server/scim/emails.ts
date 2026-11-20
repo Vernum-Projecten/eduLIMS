@@ -62,12 +62,12 @@ function keyedAddresses(value: unknown): string[] {
 }
 
 /**
- * Returns the e-mail addresses a SCIM User create, replace or patch body would set: `userName`
- * when it is an address, every `emails` value, and the values of PATCH operations on those. A
- * PATCH path that is missing, empty or blank is pathless, as the plugin reads it, and every key
- * of its value counts as a path of its own (third review, B1).
+ * Returns the e-mail addresses a SCIM User create, replace or patch body would set, exactly as
+ * the directory sent them: `userName` when it is an address, every `emails` value, and the values
+ * of PATCH operations on those. A PATCH path that is missing, empty or blank is pathless, as the
+ * plugin reads it, and every key of its value counts as a path of its own (third review, B1).
  */
-export function scimBodyAddresses(body: unknown): string[] {
+export function scimBodyRawAddresses(body: unknown): string[] {
   const found = keyedAddresses(body);
   const operations = field(body, "Operations");
   if (Array.isArray(operations)) {
@@ -79,7 +79,15 @@ export function scimBodyAddresses(body: unknown): string[] {
       else if (typeof path === "string" && setsAddress(path)) found.push(...addresses(value));
     }
   }
-  return [...new Set(found.map((address) => address.trim().toLowerCase()))];
+  return found;
+}
+
+/**
+ * Returns the addresses of {@link scimBodyRawAddresses} in the form the plugin stores and
+ * compares them: trimmed, lower case, each once.
+ */
+export function scimBodyAddresses(body: unknown): string[] {
+  return [...new Set(scimBodyRawAddresses(body).map((address) => address.trim().toLowerCase()))];
 }
 
 /**

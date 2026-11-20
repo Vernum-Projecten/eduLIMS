@@ -17,10 +17,11 @@ import { ROLE_ICONS } from "@/lib/role-icons";
 import type { AccountCounts } from "@/server/admin-overview/queries";
 
 /** The classes of a tile's link that covers the card, so the card is one target. */
-const COVER_LINK =
+export const COVER_LINK =
   "outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:underline";
 
-function Tile({
+/** One count of the overview, as a card; with `link`, the whole card opens it. */
+export function Tile({
   icon: Icon,
   label,
   value,

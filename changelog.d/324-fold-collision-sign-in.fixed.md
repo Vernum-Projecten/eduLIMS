@@ -1,0 +1,1 @@
+- An identity-provider sign-in or a SCIM write whose e-mail address only becomes a plain ASCII address after lower-casing (such as one with the Kelvin sign) is refused, so it can no longer take another person's waiting lab place, pending administrator grant or teacher invitation; addresses such as `josé@school.example` still sign in.

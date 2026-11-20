@@ -213,6 +213,7 @@ describe("activity log labels (#36)", () => {
       "token_refused",
       "provider_disabled",
       "address_domain",
+      "email_fold_collision",
       "uniqueness",
       "http_404",
       "user_deprovisioned",
