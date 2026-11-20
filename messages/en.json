@@ -1044,6 +1044,7 @@
   "labs_code_field_days_help": "From 1 to {max} days.",
   "labs_code_field_uses": "Maximum number of students who can join",
   "labs_code_field_uses_help": "From 1 to {max}. Students who are already in the lab do not count.",
+  "labs_code_finished": "This simulation is finished, so its labs get no code: a finished simulation takes no new students.",
   "labs_code_form": "Turn on the lab code",
   "labs_code_heading": "Lab code",
   "labs_code_hidden": "eduLIMS showed the code once, when it was made, and keeps no copy. Lost it? Make a new code.",

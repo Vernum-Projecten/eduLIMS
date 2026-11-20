@@ -10,11 +10,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { joinLabWithCode } from "./join.ts";
+import { enableJoinCode, getJoinCode, regenerateJoinCode } from "./join-code.ts";
 import { linkWaitingAddresses } from "./linking.ts";
 import { moveMember } from "./members.ts";
 import { finishSimulation, startSimulation } from "./state.ts";
 import { auditRows, NOW, person, setState, type World, world } from "./test-helpers.ts";
-import { codeOf, context, labOf } from "./test-join.ts";
+import { codeOf, context, key, labOf } from "./test-join.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -149,5 +150,47 @@ describe("a waiting address of a finished simulation (review of #392, N2)", () =
       failed: 0,
     });
     expect(await labOf(database, w.simulationId, w.stranger.id)).toBeNull();
+  });
+});
+
+describe("a join code in a finished simulation (coordinator on #399)", () => {
+  const settings = { validDays: 7, maxUses: 30 };
+
+  it("cannot be turned on: simulation_finished, logged, and no code row", async () => {
+    const { database, w } = await open();
+    await setState(database, w.simulationId, "finished");
+    expect(
+      await enableJoinCode(database, w.teacher, { labId: w.labId, ...settings }, NOW, key),
+    ).toEqual({ ok: false, error: "simulation_finished" });
+    expect(await database.selectFrom("lab_join_codes").select("lab_id").execute()).toEqual([]);
+    expect(await auditRows(database, "lab_join_code_enabled")).toEqual([
+      expect.objectContaining({
+        actor_id: w.teacher.id,
+        outcome: "refused",
+        reason_code: "simulation_finished",
+        target_id: w.labId,
+      }),
+    ]);
+  });
+
+  it("cannot be made new, even when a code row is left: simulation_finished, logged", async () => {
+    const { database, w } = await open();
+    await codeOf(database, w.teacher, w.labId);
+    await setState(database, w.simulationId, "finished");
+    expect(
+      await regenerateJoinCode(database, w.teacher, { labId: w.labId, ...settings }, NOW, key),
+    ).toEqual({ ok: false, error: "simulation_finished" });
+    expect(await auditRows(database, "lab_join_code_regenerated")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "simulation_finished" }),
+    ]);
+  });
+
+  it("reads as off and finished on the lab page, so the panel offers no action", async () => {
+    const { database, w } = await open();
+    await setState(database, w.simulationId, "finished");
+    expect(await getJoinCode(database, w.teacher, w.labId, NOW, key.fingerprint)).toEqual({
+      enabled: false,
+      finished: true,
+    });
   });
 });

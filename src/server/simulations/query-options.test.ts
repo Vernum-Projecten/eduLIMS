@@ -159,7 +159,9 @@ describe("simulationMutationOptions (explicit invalidation keys)", () => {
   });
 
   it("invalidates only the lab's join-code state after a code write (#288)", async () => {
-    seedCache(queryClient, [[simulationsKeys.joinCode(ONE, LAB), { enabled: false }]]);
+    seedCache(queryClient, [
+      [simulationsKeys.joinCode(ONE, LAB), { enabled: false, finished: false }],
+    ]);
     await runMutation(
       queryClient,
       simulationMutationOptions(

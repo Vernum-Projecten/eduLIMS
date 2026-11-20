@@ -13,7 +13,6 @@ import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
 
 const TEACHER = "teacher@example.test";
-const STUDENT = "student@example.test";
 
 /** A suffix no other run of a journey uses, so parallel and repeated runs never meet. */
 function suffix(): string {
@@ -460,7 +459,8 @@ for (const [theme, locale] of [
     // The outcome of a list is part of the screen too; checking it stores nothing.
     const field = page.getByLabel(t("labs_paste_label", "Email addresses"), { exact: true });
     await expectHydrated(field);
-    await field.fill(`not-an-address\n${STUDENT}`);
+    const listed = await copyAccount("student@example.test", "listed-student");
+    await field.fill(`not-an-address\n${listed.email}`);
     await field.press("Enter");
     await page.getByRole("button", { name: t("labs_paste_check", "Check the list") }).click();
     await expect(
@@ -503,7 +503,8 @@ test("the three screens reflow at 320 px without horizontal scrolling (WCAG 1.4.
 test("a student who opens the teacher's simulations lands on the Student portal (D11, A01)", async ({
   page,
 }) => {
-  await devLogin(page, STUDENT);
+  const student = await copyAccount("student@example.test", "portal-student");
+  await devLogin(page, student.email);
   await page.goto("/teacher/simulations");
   await expect(page).toHaveURL(/\/student$/);
   await expect(page.getByRole("heading", { level: 1, name: "Student portal" })).toBeVisible();
@@ -564,7 +565,8 @@ test("a teacher adds, removes and leaves as a teacher of a simulation (D10, #328
 
   // A student's address and an unknown one get the same answer at the field: no account is
   // revealed.
-  for (const email of [STUDENT, `nobody.${id}@example.test`]) {
+  const student = await copyAccount("student@example.test", "teacher-list-student");
+  for (const email of [student.email, `nobody.${id}@example.test`]) {
     await address.fill(email);
     await form.getByRole("button", { name: "Add teacher" }).click();
     await expect(form.getByText("No teacher account uses this address.")).toBeVisible();

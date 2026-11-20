@@ -8,12 +8,12 @@
 // test, value and limit is invented (Q-PRIV-4).
 import { randomBytes } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
+import { copyAccount } from "./accounts";
 import { axe, dutch } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
 
 const TEACHER = "teacher@example.test";
-const STUDENT = "student@example.test";
 
 function suffix(): string {
   return randomBytes(3).toString("hex").toUpperCase();
@@ -244,7 +244,9 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   // A student reaches neither the page nor its values (Q-SIM-1).
   const context = await browser.newContext();
   const student = await context.newPage();
-  await devLogin(student, STUDENT);
+  // NOTE: #379; a student of its own, so no other journey's simulation can meet this one.
+  const account = await copyAccount("student@example.test", "values-student");
+  await devLogin(student, account.email);
   for (const path of ["", "/values", "/labs", "/corrections", "/settings"]) {
     await student.goto(`/teacher/simulations/${simulationId}${path}`);
     await expect(student).toHaveURL(/\/student$/);

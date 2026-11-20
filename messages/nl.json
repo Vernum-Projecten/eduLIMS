@@ -1044,6 +1044,7 @@
   "labs_code_field_days_help": "Van 1 tot en met {max} dagen.",
   "labs_code_field_uses": "Maximaal aantal studenten dat in het lab kan komen",
   "labs_code_field_uses_help": "Van 1 tot en met {max}. Studenten die al in het lab zitten, tellen niet mee.",
+  "labs_code_finished": "Deze simulatie is afgerond, dus haar labs krijgen geen code: een afgeronde simulatie neemt geen nieuwe studenten op.",
   "labs_code_form": "De labcode aanzetten",
   "labs_code_heading": "Labcode",
   "labs_code_hidden": "eduLIMS liet de code één keer zien, toen hij werd gemaakt, en bewaart geen kopie. Ben je hem kwijt? Maak dan een nieuwe code.",
