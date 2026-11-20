@@ -14,6 +14,13 @@
 #   - tests/integration/patient-ehr.test.ts: a patient's EHR is found or
 #     created by its subject, and FerroEHR refuses this client a commit of a
 #     template outside its `writes` and an EHR_STATUS update (#147, #364).
+#   - tests/integration/lab-result-composition.test.ts: a released result is
+#     written as a composition of eduLIMS-lab.v1 and read back (#148, S15).
+#   - tests/integration/keycloak-roles.test.ts, sso-sign-in.test.ts and
+#     scim-sign-in.test.ts: the dev realm's roles and an SSO sign-in through
+#     the stack's Keycloak (ADR 0012, ADR 0015, #45).
+# The other files under tests/integration/ need PostgreSQL only and run in
+# ci.yml's test job.
 # ci.yml calls it for a change to its path filter, so it reports under
 # `conclusion`; the schedule runs it nightly on main. The credentials are the
 # public development values of compose.dev.yaml and the realm file.
@@ -64,11 +71,17 @@ jobs:
             echo "::error::FerroBRIDGE readiness answered ${status}, expected 200"
             exit 1
           fi
-      - name: The openEHR client, the B3 check and a patient's EHR against the stack
+      - name: The openEHR client, the B3 check, a patient's EHR and a released result against the stack
         run: |
           set -euo pipefail
           pnpm i18n
-          pnpm exec vitest run tests/integration/ferro-stack.test.ts tests/integration/patient-ehr.test.ts
+          pnpm exec vitest run tests/integration/ferro-stack.test.ts tests/integration/patient-ehr.test.ts \
+            tests/integration/lab-result-composition.test.ts
+      - name: The realm's roles and an SSO sign-in through the stack's Keycloak
+        run: |
+          set -euo pipefail
+          pnpm exec vitest run tests/integration/keycloak-roles.test.ts \
+            tests/integration/sso-sign-in.test.ts tests/integration/scim-sign-in.test.ts
       - name: Container logs
         if: failure()
         run: |

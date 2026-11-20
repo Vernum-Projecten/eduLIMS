@@ -65,16 +65,17 @@ TEMPLATE = {
     "id": "eduLIMS-lab.v1",
     "uid": "c9d683e6-cc7b-4a78-b6aa-21e25deed3aa",
     "concept": "eduLIMS laboratory result",
+    # TODO(#396): correct the purpose and use text in the next template version; v1 is stored.
     "purpose": (
-        "Records a laboratory result of a workplace simulation in laboratory education: the "
-        "released result of a requested test on a sample of a fictional patient, with the "
-        "analyser, the request and the result status."
+        "Records a measurement of a practical laboratory session in education: the result of one "
+        "analyser run on one or more sample IDs, with the analyser, the order (practical) and the "
+        "result status."
     ),
     "use": (
-        "Written by eduLIMS when a team releases a result. The lab number eduLIMS gives the "
-        "sample is the specimen's laboratory specimen identifier, the sample number from the "
-        "request form its external identifier, the request the requester order identifier, and "
-        "the analyser the medical device."
+        "Written by eduLIMS for the Epoch 2 Excel upload and by FerroBRIDGE for the Afinion 2 HL7 v2 "
+        "results. The sample ID is the specimen's laboratory specimen identifier, the well position "
+        "its specimen label, the practical the requester order identifier, and the analyser the "
+        "medical device."
     ),
     "misuse": (
         "Not for clinical diagnosis or patient care. Never holds a name, student number or e-mail "
