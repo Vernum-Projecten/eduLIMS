@@ -4,6 +4,7 @@
 // The Users and roles screen and the user detail sheet (#34, B1). The data table's own
 // journeys (#58) are in admin-users-table.spec.ts.
 import { expect, test } from "@playwright/test";
+import { copyAccount } from "./accounts";
 import {
   axe,
   dutch,
@@ -240,8 +241,11 @@ test("an administrator blocks a user with a reason and an end date, and unblocks
 test("an administrator changes a local role set after confirming it (owner decision on #32)", async ({
   page,
 }) => {
+  // The journey changes the account's roles, so it changes a copy of its own: a repeat or a
+  // retry would otherwise start from the roles the last one saved (#321).
+  const account = await copyAccount("roles@example.test", "roles");
   await signInAsAdmin(page);
-  const sheet = await openUser(page, "Roles Test Teacher");
+  const sheet = await openUser(page, account.name);
   const roles = sheet.getByRole("region", { name: "Roles" });
   await expect(roles.getByText("From eduLIMS")).toBeVisible();
   const editor = roles.getByRole("group", { name: "Change roles" });
@@ -260,11 +264,11 @@ test("an administrator changes a local role set after confirming it (owner decis
   await editor.getByLabel("Administrator").check();
   await roles.getByRole("button", { name: "Save roles" }).click();
   const confirm = page.getByRole("alertdialog", {
-    name: "Change the roles of Roles Test Teacher?",
+    name: `Change the roles of ${account.name}?`,
   });
   await expect(confirm).toContainText("Teacher · Administrator");
   await confirm.getByRole("button", { name: "Save roles" }).click();
-  await expect(page.getByText("The roles of Roles Test Teacher are saved.")).toBeVisible();
+  await expect(page.getByText(`The roles of ${account.name} are saved.`)).toBeVisible();
   await expect(
     sheet.getByRole("region", { name: "Recent activity" }).getByText("Roles changed").first(),
   ).toBeVisible();
