@@ -41,6 +41,7 @@ export const SIMULATION_ACTION_ERRORS = [
   "in_other_simulation",
   "simulation_finished",
   "not_prepared",
+  "another_running",
   "not_running",
   "test_not_found",
   "test_retired",

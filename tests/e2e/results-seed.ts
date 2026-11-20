@@ -12,6 +12,7 @@ import { Pool } from "pg";
 import { withCheckDigit } from "../../src/lib/lab-number.ts";
 import type { DB } from "../../src/server/db/schema.gen.ts";
 import { copyAccount, type TestAccount } from "./accounts";
+import { finishRunning } from "./running-simulation";
 
 /** One seeded test: its id and its name. */
 export interface SeededTest {
@@ -80,6 +81,8 @@ export async function seedResults(suffix: string): Promise<ResultsWorld> {
         .select("id")
         .where("email", "=", "teacher@example.test")
         .executeTakeFirstOrThrow();
+      // NOTE: #386; one running simulation at a time, so an earlier journey's one is finished.
+      await finishRunning(trx);
       const { id: simulationId } = await trx
         .insertInto("simulations")
         .values({

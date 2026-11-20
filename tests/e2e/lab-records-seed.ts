@@ -11,6 +11,7 @@ import { Pool } from "pg";
 import { withCheckDigit } from "../../src/lib/lab-number.ts";
 import type { DB } from "../../src/server/db/schema.gen.ts";
 import { copyAccount, type TestAccount } from "./accounts";
+import { finishRunning } from "./running-simulation";
 
 /** What {@link seedLabRecords} stored. */
 export interface SeededLab {
@@ -48,6 +49,8 @@ async function labWith(
     .where("email", "=", "teacher@example.test")
     .executeTakeFirstOrThrow();
   const started = new Date(createdAt.getTime() + 60_000);
+  // NOTE: #386; one running simulation at a time, so an earlier journey's one is finished.
+  if (state === "running") await finishRunning(db);
   const { id: simulationId } = await db
     .insertInto("simulations")
     .values({
@@ -109,35 +112,60 @@ export async function seedLabRecords(
 export async function seedSecondLab(
   studentId: string,
   suffix: string,
-): Promise<{ labId: string; lab: string; simulation: string }> {
+): Promise<{ simulationId: string; labId: string; lab: string; simulation: string }> {
   const db = database();
   try {
     const simulation = `Second records ${suffix}`;
     const lab = `Second lab ${suffix}`;
-    const { labId } = await labWith(db, studentId, simulation, lab, "running", new Date());
-    return { labId, lab, simulation };
+    const placed = await labWith(db, studentId, simulation, lab, "running", new Date());
+    return { ...placed, lab, simulation };
   } finally {
     await db.destroy();
   }
 }
 
-/** Stores a lab of another student, which the journey's student is not in, and returns its id. */
-export async function seedForeignLab(suffix: string): Promise<string> {
-  return (await foreignLab(suffix)).labId;
+/**
+ * Stores a lab of another student, which the journey's student is not in, and returns its id:
+ * in the running simulation `simulationId` when given (R-01: a classmate's lab next door), or
+ * else in a simulation of its own that is finished, since only one runs at a time (#386).
+ */
+export async function seedForeignLab(suffix: string, simulationId?: string): Promise<string> {
+  return (await foreignLab(suffix, simulationId)).labId;
 }
 
-async function foreignLab(suffix: string): Promise<{ simulationId: string; labId: string }> {
+/** Stores the lab of {@link seedForeignLab} and returns it with its simulation. */
+async function foreignLab(
+  suffix: string,
+  simulationId?: string,
+): Promise<{ simulationId: string; labId: string }> {
   const other = await copyAccount("student@example.test", "records-other");
   const db = database();
   try {
-    return await labWith(
-      db,
-      other.id,
-      `Foreign ${suffix}`,
-      `Foreign lab ${suffix}`,
-      "running",
-      new Date(),
-    );
+    if (simulationId === undefined) {
+      return await labWith(
+        db,
+        other.id,
+        `Foreign ${suffix}`,
+        `Foreign lab ${suffix}`,
+        "finished",
+        new Date(),
+      );
+    }
+    const { id: labId } = await db
+      .insertInto("labs")
+      .values({ simulation_id: simulationId, name: `Foreign lab ${suffix}` })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    await db
+      .insertInto("lab_members")
+      .values({
+        simulation_id: simulationId,
+        lab_id: labId,
+        user_id: other.id,
+        joined_via: "email",
+      })
+      .execute();
+    return { simulationId, labId };
   } finally {
     await db.destroy();
   }

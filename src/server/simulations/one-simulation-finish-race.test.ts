@@ -5,9 +5,9 @@
 // into B while the student's simulation A finishes gives a clean answer in every order; a link
 // that waits behind a finish of its own simulation refuses with `simulation_finished`; and a link
 // already refused for another simulation takes no lock on the next overview read (S2).
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { type CommittedTestDb, createCommittedTestDb } from "../db/test-committed-db.ts";
-import { lockWaiters } from "../db/test-lock-waiters.ts";
+import { describe, expect, it } from "vitest";
+import { committedTestDbPerCase } from "../db/test-committed-hooks.ts";
+import { lockWaiters, settlesWithin } from "../db/test-lock-waiters.ts";
 import { type JoinContext, joinLabWithCode } from "./join.ts";
 import { JOIN_LIMITS } from "./join-limits.ts";
 import { linkWaitingAddresses } from "./linking.ts";
@@ -17,27 +17,7 @@ import { codeOf, key } from "./test-join.ts";
 
 const context: JoinContext = { now: NOW, clientIp: null, key, limits: JOIN_LIMITS };
 
-let committed: CommittedTestDb | undefined;
-
-beforeEach(async () => {
-  committed = await createCommittedTestDb(8);
-}, 60_000);
-
-afterEach(async () => {
-  await committed?.destroy();
-  committed = undefined;
-}, 60_000);
-
-function database(): CommittedTestDb {
-  if (!committed) throw new Error("no committed test database");
-  return committed;
-}
-
-/** Resolves to whether `promise` settles within `ms`. */
-async function settlesWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
-  const timeout = new Promise<false>((resolve) => setTimeout(() => resolve(false), ms));
-  return Promise.race([promise.then(() => true), timeout]);
-}
+const database = committedTestDbPerCase();
 
 /** The world with its first simulation (A, the student's) running and a code on in B. */
 async function runningWithCode() {

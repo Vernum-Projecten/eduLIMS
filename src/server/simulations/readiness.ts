@@ -107,6 +107,16 @@ export async function getSimulationReadiness(
         .select((cb) => cb.fn.count<string>("correct_values.test_id").distinct().as("n"))
         .whereRef("correct_values.simulation_id", "=", "s.id")
         .as("tests"),
+      // NOTE: the rule of anotherRunning (state.ts, #386), inside this one statement.
+      eb
+        .exists(
+          eb
+            .selectFrom("simulations as other")
+            .select("other.id")
+            .where("other.state", "=", "running")
+            .whereRef("other.id", "<>", "s.id"),
+        )
+        .as("another_running"),
       // NOTE: the rule of testsWithoutLimits (state.ts), inside this one statement.
       sql<unknown>`(
         select coalesce(json_agg(json_build_object('id', t.id, 'name', t.name)
@@ -150,6 +160,7 @@ export async function getSimulationReadiness(
       correctValues: values,
       // Ordered by id, as the start's own read orders them.
       missingLimits: missing.map((test) => test.id).sort(byCodeUnit),
+      anotherRunning: row.another_running === true,
     }),
   };
 }

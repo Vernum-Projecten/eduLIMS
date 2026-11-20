@@ -33,6 +33,7 @@ import * as m0026 from "./0026_one_active_simulation_per_student.ts";
 import * as m0027 from "./0027_gen5_uploads.ts";
 import * as m0028 from "./0028_catalogue_unit_ucum.ts";
 import * as m0029 from "./0029_request_tests_not_offered.ts";
+import * as m0030 from "./0030_one_running_simulation.ts";
 
 export const migrations: Record<string, Migration> = {
   "0001_auth": m0001,
@@ -64,6 +65,7 @@ export const migrations: Record<string, Migration> = {
   "0027_gen5_uploads": m0027,
   "0028_catalogue_unit_ucum": m0028,
   "0029_request_tests_not_offered": m0029,
+  "0030_one_running_simulation": m0030,
 };
 
 export const migrationProvider: MigrationProvider = {

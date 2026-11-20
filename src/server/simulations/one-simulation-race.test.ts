@@ -5,8 +5,9 @@
 // two simulations at once, a join that meets a link, and two raw writes that meet in the trigger
 // of migration 0026. These need real, committing transactions; the forced-order cases hold the
 // first writer open by hand so the second is seen waiting on the student's lock.
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { type CommittedTestDb, createCommittedTestDb } from "../db/test-committed-db.ts";
+import { describe, expect, it } from "vitest";
+import { committedTestDbPerCase } from "../db/test-committed-hooks.ts";
+import { settlesWithin } from "../db/test-lock-waiters.ts";
 import { addEmails } from "./emails.ts";
 import { type JoinContext, joinLabWithCode } from "./join.ts";
 import { JOIN_LIMITS } from "./join-limits.ts";
@@ -16,27 +17,7 @@ import { codeOf, key } from "./test-join.ts";
 
 const context: JoinContext = { now: NOW, clientIp: null, key, limits: JOIN_LIMITS };
 
-let committed: CommittedTestDb | undefined;
-
-beforeEach(async () => {
-  committed = await createCommittedTestDb(8);
-}, 60_000);
-
-afterEach(async () => {
-  await committed?.destroy();
-  committed = undefined;
-}, 60_000);
-
-function database(): CommittedTestDb {
-  if (!committed) throw new Error("no committed test database");
-  return committed;
-}
-
-/** Resolves to whether `promise` settles within `ms`. */
-async function settlesWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
-  const timeout = new Promise<false>((resolve) => setTimeout(() => resolve(false), ms));
-  return Promise.race([promise.then(() => true), timeout]);
-}
+const database = committedTestDbPerCase();
 
 /** The world with a code on in a lab of each of its two simulations. */
 async function twoCodes() {
