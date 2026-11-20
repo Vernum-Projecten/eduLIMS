@@ -297,7 +297,7 @@ Server functions are an API: hold them to the API Security Top 10 2023 too
   number, so the upload validates the layout only; the team links each well
   to a sample, and the server checks that the sample belongs to that team
   (S4, S10, `integration.md`).
-- The lab logo a teacher uploads when creating a lab (D10, ADR 0021) is an
+- The lab logo a teacher uploads on the lab's page (D10, ADR 0021) is an
   upload too: PNG or JPEG decided by the content, at most 512 KiB and 1024
   by 1024 pixels, metadata removed by `src/server/logo/` without a
   re-encode, served with `no-store` to the lab's members and the

@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
+import { createHash } from "node:crypto";
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
+import { png } from "../logo/test-images.ts";
 import {
   getTeacherLab,
   getTeacherSimulation,
@@ -12,7 +14,14 @@ import {
   listTeacherSimulations,
 } from "./queries.ts";
 import { findStudentLab } from "./student-access.ts";
-import { notFoundLine, type Person, securityLines, type World, world } from "./test-helpers.ts";
+import {
+  notFoundLine,
+  type Person,
+  place,
+  securityLines,
+  type World,
+  world,
+} from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
 
@@ -68,8 +77,8 @@ describe("getTeacherSimulation (D10, D11)", () => {
       .execute();
     const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
     expect(page?.labs).toEqual([
-      { id: w.otherLabId, name: "Blue Cuvettes", members: 1, waiting: 1 },
-      { id: w.labId, name: "Pipette Pilots", members: 6, waiting: 0 },
+      { id: w.otherLabId, name: "Blue Cuvettes", members: 1, waiting: 1, logoVersion: null },
+      { id: w.labId, name: "Pipette Pilots", members: 6, waiting: 0, logoVersion: null },
     ]);
     expect(page?.teachers.map((teacher) => teacher.userId).sort()).toEqual(
       [w.teacher.id, w.coTeacher.id].sort(),
@@ -163,6 +172,7 @@ describe("listStudentLabs (S10)", () => {
         labName: "Pipette Pilots",
         simulationId: w.simulationId,
         simulationName: "Practice simulation",
+        logoVersion: null,
       },
     ]);
   });
@@ -188,12 +198,13 @@ describe("listStudentLabs (S10)", () => {
     expect(await listStudentLabs(database, actorOf(w).id)).toEqual([]);
   });
 
-  it("returns names and ids only: no member, address or teacher (Q-SIM-1)", async () => {
+  it("returns names, ids and the logo version only: no member, address or teacher (Q-SIM-1)", async () => {
     const { database, w } = await open();
     const [row] = await listStudentLabs(database, w.student.id);
     expect(Object.keys(row ?? {}).sort()).toEqual([
       "labId",
       "labName",
+      "logoVersion",
       "simulationId",
       "simulationName",
     ]);
@@ -237,5 +248,99 @@ describe("findStudentLab (the student lab predicate, S10, for #268)", () => {
       .execute();
     expect(await findStudentLab(database, w.student.id, w.labId)).toBeNull();
     expect(await findStudentLab(database, w.student.id, w.otherLabId)).not.toBeNull();
+  });
+});
+
+describe("the logo version of each read (#293)", () => {
+  async function storeLogo(
+    database: Kysely<DB>,
+    w: World,
+    labId = w.labId,
+    side = 4,
+  ): Promise<string> {
+    const content = Buffer.from(png(side, side));
+    const sha256 = createHash("sha256").update(content).digest();
+    await database
+      .insertInto("lab_logos")
+      .values({
+        lab_id: labId,
+        content,
+        media_type: "image/png",
+        byte_size: content.length,
+        width: side,
+        height: side,
+        sha256,
+        updated_by: w.teacher.id,
+      })
+      .execute();
+    return sha256.toString("hex").slice(0, 16);
+  }
+
+  it("gives a student in two simulations each lab's own version (V8.2.2)", async () => {
+    const { database, w } = await open();
+    await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
+    const mine = await storeLogo(database, w, w.labId, 4);
+    const outside = await storeLogo(database, w, w.outsideLabId, 6);
+    const rows = await listStudentLabs(database, w.student.id);
+    const versions = new Map(rows.map((row) => [row.labId, row.logoVersion]));
+    expect(versions).toEqual(
+      new Map([
+        [w.labId, mine],
+        [w.outsideLabId, outside],
+      ]),
+    );
+    expect(mine).not.toBe(outside);
+  });
+
+  it("gives a teacher of another simulation nothing of a lab with a stored logo (V8.2.2)", async () => {
+    const { database, w } = await open();
+    await storeLogo(database, w);
+    expect(await getTeacherLab(database, w.outsiderTeacher.id, w.labId)).toBeNull();
+    expect(await getTeacherSimulation(database, w.outsiderTeacher.id, w.simulationId)).toBeNull();
+    const own = await getTeacherSimulation(database, w.outsiderTeacher.id, w.outsideSimulationId);
+    expect(own?.labs.map((lab) => lab.logoVersion)).toEqual([null]);
+  });
+
+  it("gives the lab with a logo its version and the lab without one null", async () => {
+    const { database, w } = await open();
+    const version = await storeLogo(database, w);
+    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    expect(page?.labs.map((lab) => [lab.id, lab.logoVersion])).toEqual([
+      [w.otherLabId, null],
+      [w.labId, version],
+    ]);
+    expect((await getTeacherLab(database, w.teacher.id, w.labId))?.logoVersion).toBe(version);
+    expect((await getTeacherLab(database, w.teacher.id, w.otherLabId))?.logoVersion).toBeNull();
+  });
+
+  it("gives the student of the lab its version, and a student of another lab none of it", async () => {
+    const { database, w } = await open();
+    const version = await storeLogo(database, w);
+    expect((await listStudentLabs(database, w.student.id)).map((r) => r.logoVersion)).toEqual([
+      version,
+    ]);
+    expect(
+      (await listStudentLabs(database, w.otherLabStudent.id)).map((r) => r.logoVersion),
+    ).toEqual([null]);
+  });
+
+  it("changes the version when the logo is replaced", async () => {
+    const { database, w } = await open();
+    const first = await storeLogo(database, w);
+    const content = Buffer.from(png(5, 5));
+    await database
+      .updateTable("lab_logos")
+      .set({
+        content,
+        byte_size: content.length,
+        width: 5,
+        height: 5,
+        sha256: createHash("sha256").update(content).digest(),
+      })
+      .where("lab_id", "=", w.labId)
+      .execute();
+    const page = await getTeacherLab(database, w.teacher.id, w.labId);
+    expect(page?.logoVersion).toMatch(/^[0-9a-f]{16}$/);
+    expect(page?.logoVersion).not.toBe(first);
   });
 });

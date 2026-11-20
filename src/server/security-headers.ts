@@ -29,6 +29,7 @@ export function securityHeaders(options: { nonce: string; production: boolean })
       `script-src 'self' 'nonce-${options.nonce}'`,
       // Radix and Sonner position elements with inline style attributes.
       "style-src 'self' 'unsafe-inline'",
+      // The lab logo form previews the chosen file as a data: address before it is sent (#293).
       "img-src 'self' data:",
       "font-src 'self'",
       "connect-src 'self'",

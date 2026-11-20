@@ -49,6 +49,8 @@ export const simulationActionKeys = {
     simulationInvalidation.joinCode(simulationId, labId),
   disableJoinCode: (simulationId: string, labId: string): QueryKey[] =>
     simulationInvalidation.joinCode(simulationId, labId),
+  uploadLabLogo: (simulationId: string): QueryKey[] => simulationInvalidation.logo(simulationId),
+  removeLabLogo: (simulationId: string): QueryKey[] => simulationInvalidation.logo(simulationId),
   /** The student's join: their own labs only; the teacher's pages read the new member anew. */
   joinLab: (): QueryKey[] => simulationInvalidation.student(),
 };
