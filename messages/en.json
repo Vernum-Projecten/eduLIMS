@@ -1106,6 +1106,7 @@
   "labs_join_field_help": "10 letters and digits, such as ABCDE-FGH23. Capitals and small letters both work; dashes and spaces are ignored.",
   "labs_join_heading": "Join a lab with a code",
   "labs_join_submit": "Join lab",
+  "labs_join_unavailable": "You can join another lab once your current simulation is finished.",
   "labs_joined_via_code": "With the lab code",
   "labs_joined_via_email": "By email address",
   "labs_line_in_other_lab": "Not added: already in lab {lab}",

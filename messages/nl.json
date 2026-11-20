@@ -1106,6 +1106,7 @@
   "labs_join_field_help": "10 letters en cijfers, zoals ABCDE-FGH23. Hoofdletters en kleine letters werken allebei; streepjes en spaties tellen niet mee.",
   "labs_join_heading": "Met een code in een lab komen",
   "labs_join_submit": "In het lab komen",
+  "labs_join_unavailable": "Je kunt in een ander lab komen zodra je huidige simulatie is afgerond.",
   "labs_joined_via_code": "Met de labcode",
   "labs_joined_via_email": "Via e-mailadres",
   "labs_line_in_other_lab": "Niet toegevoegd: al in lab {lab}",
