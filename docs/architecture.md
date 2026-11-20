@@ -295,7 +295,10 @@ student's place and a waiting address point at their lab through the pair
   delete the student's waiting addresses in the simulation in the same
   transaction, so the next link cannot put a removed student back. A join locks the simulation row
   (shared) before the code row, and lets go and retries when the code row is
-  taken, so it never deadlocks with a writer.
+  taken, so it never deadlocks with a writer. The code panel is on the
+  teacher's lab page; the Student portal overview lists the student's labs
+  and holds the join form, and it runs the link as a POST once the page has
+  loaded, never inside its read, which a preload also runs (#290).
 - **Teachers.** A teacher adds another teacher by the address of an existing
   account with the teacher role; an unknown address and a non-teacher get
   the same refusal. The last teacher of a simulation cannot be removed: a

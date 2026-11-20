@@ -1,0 +1,1 @@
+- The lab code panel says so when the browser cannot copy the code, and announces every copy, also a repeated one; a screen reader spells the code. When joining a lab fails for a reason other than the code (the network, a server error), the join form says so above the form instead of under the code field (S10).

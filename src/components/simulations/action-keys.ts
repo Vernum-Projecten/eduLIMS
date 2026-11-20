@@ -43,4 +43,12 @@ export const simulationActionKeys = {
   previewEmails: (): QueryKey[] => [],
   addEmails: (simulationId: string): QueryKey[] => simulationInvalidation.waiting(simulationId),
   removeEmail: (simulationId: string): QueryKey[] => simulationInvalidation.waiting(simulationId),
+  enableJoinCode: (simulationId: string, labId: string): QueryKey[] =>
+    simulationInvalidation.joinCode(simulationId, labId),
+  regenerateJoinCode: (simulationId: string, labId: string): QueryKey[] =>
+    simulationInvalidation.joinCode(simulationId, labId),
+  disableJoinCode: (simulationId: string, labId: string): QueryKey[] =>
+    simulationInvalidation.joinCode(simulationId, labId),
+  /** The student's join: their own labs only; the teacher's pages read the new member anew. */
+  joinLab: (): QueryKey[] => simulationInvalidation.student(),
 };

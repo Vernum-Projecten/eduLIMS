@@ -4,9 +4,11 @@
 // The translated words of the simulation and lab screens (D10, S10): the refusals of the server,
 // the outcome of each pasted line, and how a student came into a lab.
 import { m } from "@/i18n/messages";
+import { formatNumber } from "@/lib/i18n/format";
 import type { JoinVia } from "@/lib/simulations";
 import type { SimulationActionError } from "@/server/simulations/access";
 import type { EmailLine } from "@/server/simulations/emails";
+import type { StudentLabRow } from "@/server/simulations/queries";
 
 /** Returns the message of a refused action; `null` (a failure, not a refusal) is the generic one. */
 export function simulationErrorMessage(code: SimulationActionError | null): string {
@@ -86,6 +88,26 @@ export function joinViaLabel(via: JoinVia): string {
       return unknown;
     }
   }
+}
+
+/**
+ * Returns the announcement of the link the Student portal overview runs (S10): the lab by name
+ * when one place was made and the labs read again show exactly one new lab, the count otherwise,
+ * and `null` when nothing was linked.
+ */
+export function linkedMessage(
+  linked: number,
+  before: readonly StudentLabRow[],
+  after: readonly StudentLabRow[],
+): string | null {
+  if (linked <= 0) return null;
+  const known = new Set(before.map((lab) => lab.labId));
+  const added = after.filter((lab) => !known.has(lab.labId));
+  const [only] = added;
+  if (linked === 1 && added.length === 1 && only) {
+    return m.student_labs_linked_one({ lab: only.labName, simulation: only.simulationName });
+  }
+  return m.student_labs_linked({ count: formatNumber(linked) });
 }
 
 /** Returns whether `value` is a {@link JoinVia}; the page gets it from the database as text. */
