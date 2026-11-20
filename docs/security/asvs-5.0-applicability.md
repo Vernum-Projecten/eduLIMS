@@ -70,12 +70,12 @@ moves a row to `met` in the same pull request.
 |---|---|
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
-| Applicable (yes or partly) | 174 |
-| Status met | 96 |
-| Status partial | 56 |
-| Status planned | 14 |
+| Applicable (yes or partly) | 176 |
+| Status met | 101 |
+| Status partial | 54 |
+| Status planned | 13 |
 | Status open | 8 |
-| Status n-a | 171 |
+| Status n-a | 169 |
 
 ### V1 Encoding and Sanitization
 
@@ -187,7 +187,7 @@ Text: [vendor/asvs/en/0x12-V3-Web-Frontend-Security.md](vendor/asvs/en/0x12-V3-W
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V3.2.1 | 1 | partly | `X-Content-Type-Options: nosniff` on every response (`src/server/security-headers.ts`); upload download headers come with S4 | unit `src/server/security-headers.test.ts`, e2e `tests/e2e/app.spec.ts` | partial |
+| V3.2.1 | 1 | partly | `X-Content-Type-Options: nosniff` on every response (`src/server/security-headers.ts`); the user-uploaded lab logo is served with its stored image type, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: same-origin` (`src/server/simulations/logo-response.ts`, #292); upload download headers come with S4 | unit `src/server/security-headers.test.ts`, e2e `tests/e2e/app.spec.ts` | partial |
 | V3.2.2 | 1 | yes | React renders text nodes; `dangerouslySetInnerHTML` banned outside `src/components/ui/` (`biome.json`) | CI `lint` | met |
 | V3.2.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
@@ -291,14 +291,14 @@ Text: [vendor/asvs/en/0x14-V5-File-Handling.md](vendor/asvs/en/0x14-V5-File-Hand
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.1.1 | 2 | yes | the Gen5 upload (S4) is documented in `docs/gen5-export.md`: `.xlsx` only, an OOXML workbook, 1 MiB packed, 8 MiB unpacked in total, 1 MiB unpacked per part, 50 entries, at most 5,000 elements, depth 32, 32 attributes per element and 64 namespace declarations in each XML part, one sheet, and what is refused; the lab logo (D10, ADR 0021) is not: its types and size limit are not decided | review | partial |
+| V5.1.1 | 2 | yes | the Gen5 upload (S4) is documented in `docs/gen5-export.md`: `.xlsx` only, an OOXML workbook, 1 MiB packed, 8 MiB unpacked in total, 1 MiB unpacked per part, 50 entries, at most 5,000 elements, depth 32, 32 attributes per element and 64 namespace declarations in each XML part, one sheet, and what is refused; the lab logo (D10, ADR 0021, #292) in `docs/architecture.md` ("The lab logo"): PNG or JPEG by content, at most 512 KiB and 1024 by 1024 pixels, metadata removed before it is stored, served only to the lab and its teachers with `nosniff`, a sandboxing CSP and a generated name, and every other file refused with a typed code | review | met |
 
 #### V5.2 File Upload and Content
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.2.1 | 1 | yes | in place: the Gen5 parser refuses a file over 1 MiB before it reads anything else, a part over 1 MiB unpacked before it inflates it, and an XML part over 5,000 elements, depth 32, 32 attributes on one element or 64 namespace declarations while it reads it; an element keeps only its own declarations and resolves a prefix by walking up at most 32 levels, so these caps bound the reader's memory per part and across the six parts it opens (`src/server/upload/gen5.ts`, `limits.ts`, `zip.ts`, `xml.ts`, S4); open: the request-body limit of the upload's server function (#156) and the lab logo (D10) | unit `tests/unit/gen5-parser.test.ts`, `tests/unit/gen5-parser-hardening.test.ts` (each cap at and one over, every opened part flooded at once), `src/server/upload/xml.test.ts` | partial |
-| V5.2.2 | 1 | yes | the Gen5 parser checks the `.xlsx` extension, the zip signature and the SpreadsheetML workbook content type, so a macro-enabled workbook, a template or a renamed file is refused (`src/server/upload/gen5.ts`, `workbook.ts`, S4); entries the reader never opens (styles, theme, printer settings, properties) are not inspected, which holds only while the original file is neither stored nor served; the extension and content check of the lab logo (D10) is not built | unit `tests/unit/gen5-parser.test.ts`, `tests/unit/upload-workbook.test.ts` | partial |
+| V5.2.1 | 1 | yes | in place: the Gen5 parser refuses a file over 1 MiB before it reads anything else, a part over 1 MiB unpacked before it inflates it, and an XML part over 5,000 elements, depth 32, 32 attributes on one element or 64 namespace declarations while it reads it; an element keeps only its own declarations and resolves a prefix by walking up at most 32 levels, so these caps bound the reader's memory per part and across the six parts it opens (`src/server/upload/gen5.ts`, `limits.ts`, `zip.ts`, `xml.ts`, S4); the lab logo is refused over 512 KiB before its type is read and over 1024 pixels in either direction from its header, before any image data (`src/server/logo/image.ts`, #292); a form to a server function without a `Content-Length` or declaring more than 528 KiB is refused (411, 413) in the request middleware before Start reads its body (`src/server/form-body-limit.ts`, `src/start.ts`); open: the Gen5 upload's own body limit when its server function lands (#156), and JSON bodies of server functions, which Start reads without a limit | unit `tests/unit/gen5-parser.test.ts`, `tests/unit/gen5-parser-hardening.test.ts` (each cap at and one over, every opened part flooded at once), `src/server/upload/xml.test.ts`, `src/server/logo/image.test.ts` (512 KiB and 1024 px at and one over), `src/server/form-body-limit.test.ts`; e2e `tests/e2e/lab-logo.spec.ts` (413 on the build) | partial |
+| V5.2.2 | 1 | yes | the Gen5 parser checks the `.xlsx` extension, the zip signature and the SpreadsheetML workbook content type, so a macro-enabled workbook, a template or a renamed file is refused (`src/server/upload/gen5.ts`, `workbook.ts`, S4); entries the reader never opens (styles, theme, printer settings, properties) are not inspected, which holds only while the original file is neither stored nor served; the lab logo's type comes from its signature and its header alone (PNG chunks with every CRC, the JPEG frame header), SVG and every other type is refused, and the file is written again with only the chunks or segments needed to render it (`src/server/logo/`, #292); its uploaded name is never read, so its extension is not compared with its content (a question for the owner on #292) | unit `tests/unit/gen5-parser.test.ts`, `tests/unit/upload-workbook.test.ts`, `src/server/logo/image.test.ts`, `src/server/logo/mutation.test.ts` | partial |
 | V5.2.3 | 2 | yes | the `.xlsx` is a zip: the entry count (50) and the declared unpacked size (8 MiB in total) are checked from the central directory before any entry is unpacked; a part the reader opens is refused over 1 MiB declared before it is inflated, and inflation stops once the output passes the declared size (`src/server/upload/zip.ts`, S4) | unit `tests/unit/upload-zip.test.ts`, `tests/unit/gen5-parser.test.ts`, `tests/unit/gen5-parser-hardening.test.ts` (zip bomb, limits at and one over) | met |
 | V5.2.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 | V5.2.5 | 3 | no | Level 3, above the L2 target | none | n-a |
@@ -308,16 +308,16 @@ Text: [vendor/asvs/en/0x14-V5-File-Handling.md](vendor/asvs/en/0x14-V5-File-Hand
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.3.1 | 1 | yes | the Gen5 upload is parsed in memory and never served from a public folder (S4); how a lab logo is stored and served is not designed yet (D10, #280) | review with S4 and D10 | planned |
-| V5.3.2 | 1 | yes | the Gen5 parser works in memory and reads the uploaded name only for its extension, and archive entry names are lookup keys, never paths (`src/server/upload/gen5.ts`, `zip.ts`); stored files get generated names (UUIDv7), never the uploaded name, once the upload (#155) and the logo (D10) store files | unit `tests/unit/gen5-parser.test.ts` (a name with path segments) | partial |
+| V5.3.1 | 1 | yes | the Gen5 upload is parsed in memory and never served from a public folder (S4); the lab logo is stored as bytes in PostgreSQL (`lab_logos`, keyed by the lab) and served by a server route as an image, never from a folder (#292) | unit `src/server/simulations/logo.test.ts`, `src/server/simulations/logo-response.test.ts` | met |
+| V5.3.2 | 1 | yes | the Gen5 parser works in memory and reads the uploaded name only for its extension, and archive entry names are lookup keys, never paths (`src/server/upload/gen5.ts`, `zip.ts`); the lab logo is a row keyed by the lab id with no file name and no path (`src/server/db/migrations/0019_lab_logos.ts`, #292); eduLIMS creates no file path from user input | unit `tests/unit/gen5-parser.test.ts` (a name with path segments), `src/server/simulations/logo.test.ts` (the stored columns), `src/server/simulations/logo-schemas.test.ts` (a name with path segments passes unread) | met |
 | V5.3.3 | 3 | no | Level 3, above the L2 target | none | n-a |
 
 #### V5.4 File Download
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V5.4.1 | 2 | no | eduLIMS serves no file download since the lab report was dropped (S6, 2026-11-19); the lab logo (D10) will be served to browsers, so judge this row again with that work (#280) | none | n-a |
-| V5.4.2 | 2 | no | eduLIMS serves no file download since the lab report was dropped (S6, 2026-11-19); the lab logo (D10) will be served to browsers, so judge this row again with that work (#280) | none | n-a |
+| V5.4.1 | 2 | yes | the lab logo is the one file eduLIMS serves: the uploaded name is ignored, and the response names the file `lab-logo.png` or `lab-logo.jpg` from its stored type in `Content-Disposition: inline` (`src/server/simulations/logo-response.ts`, #292) | unit `src/server/simulations/logo-response.test.ts`; e2e `tests/e2e/lab-logo.spec.ts` | met |
+| V5.4.2 | 2 | yes | the one served file name is a fixed ASCII name the server makes, with no user input in it (`src/server/simulations/logo-response.ts`, #292) | unit `src/server/simulations/logo-response.test.ts` | met |
 | V5.4.3 | 2 | yes | no antivirus scan of uploaded files (the Gen5 export, S4; the lab logo, D10) is designed yet; needs an owner decision | review | open |
 
 ### V6 Authentication

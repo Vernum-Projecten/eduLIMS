@@ -119,7 +119,8 @@ browser client were checked: none of them depends on it.
   need a counterpart.
 - Bad: a lab logo is a new upload (#292). It follows the upload rules of
   `.claude/rules/auth-security.md` (ASVS V5): PNG or JPEG checked by content,
-  a size and pixel limit, metadata removed, stored in PostgreSQL.
+  a size and pixel limit, metadata removed, stored in PostgreSQL
+  (`docs/architecture.md`, "The lab logo").
 - Bad: a join code per lab means more codes for a teacher to hand out than
   one code per class.
 - Bad: an email address a teacher mistypes links nobody. The student then

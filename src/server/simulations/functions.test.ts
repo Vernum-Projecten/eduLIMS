@@ -37,6 +37,8 @@ const ROLE_OF: Record<string, "teacher" | "student" | "admin"> = {
   enableJoinCodeFn: "teacher",
   regenerateJoinCodeFn: "teacher",
   disableJoinCodeFn: "teacher",
+  uploadLabLogoFn: "teacher",
+  removeLabLogoFn: "teacher",
   joinLabFn: "student",
   getMyLabs: "student",
   linkMyLabsFn: "student",

@@ -49,6 +49,7 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "lab_join_code_regenerated",
   "lab_join_code_disabled",
   "lab_join_failed",
+  "lab_logo_changed",
   "test_created",
   "test_changed",
   "test_retired",
@@ -214,6 +215,8 @@ export const auditMetadataSchema = z.strictObject({
   previous_lab_id: z.uuid().optional(),
   /** How a student came into a lab, on a `lab_member_joined` (S10). */
   join_via: z.enum(["email", "code"]).optional(),
+  /** What a `lab_logo_changed` did to the lab's logo (#292); never the image or its name. */
+  logo_change: z.enum(["added", "replaced", "removed"]).optional(),
   /** How many addresses a `lab_emails_added` stored: a count, never an address. */
   count: z.number().int().min(0).optional(),
   /** The term and the most joins a teacher chose for a lab's join code (#288); never the code. */

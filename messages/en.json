@@ -456,6 +456,7 @@
   "audit_action_lab_join_code_enabled": "Lab code turned on",
   "audit_action_lab_join_code_regenerated": "Lab code replaced",
   "audit_action_lab_join_failed": "Joining a lab with a code failed",
+  "audit_action_lab_logo_changed": "Lab logo changed",
   "audit_action_lab_member_joined": "Joined a lab",
   "audit_action_lab_member_moved": "Moved to another lab",
   "audit_action_lab_member_removed": "Removed from a simulation",

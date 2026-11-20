@@ -10,6 +10,13 @@ export function createNonce(): string {
 const ENFORCED_HEADERS = new Set(["cache-control"]);
 
 /**
+ * The one cache policy a handler may keep over `no-store`: the browser's own cache only, checked
+ * with the server on every use, so the server decides each time who reads the response. The lab
+ * logo uses it with an ETag (#292).
+ */
+export const PRIVATE_REVALIDATE = "private, no-cache";
+
+/**
  * Security headers for every response the Start handler serves (pages, server functions,
  * server routes; built assets are served before it and keep their long cache). CSP, HSTS and
  * `Cache-Control: no-store` are only sent by production builds: the Vite dev server injects
@@ -48,12 +55,15 @@ export function securityHeaders(options: { nonce: string; production: boolean })
 
 /**
  * Copies the security headers onto a response, keeping headers the handler already set, except
- * `Cache-Control`, which the security headers decide whenever they carry it.
+ * `Cache-Control`, which the security headers decide whenever they carry it, unless the handler
+ * set exactly {@link PRIVATE_REVALIDATE}.
  */
 export function withSecurityHeaders(response: Response, headers: Headers): Response {
   const merged = new Headers(response.headers);
+  const revalidated = merged.get("cache-control") === PRIVATE_REVALIDATE;
   for (const [name, value] of headers) {
-    if (ENFORCED_HEADERS.has(name) || !merged.has(name)) merged.set(name, value);
+    const enforced = ENFORCED_HEADERS.has(name) && !(name === "cache-control" && revalidated);
+    if (enforced || !merged.has(name)) merged.set(name, value);
   }
   return new Response(response.body, {
     status: response.status,

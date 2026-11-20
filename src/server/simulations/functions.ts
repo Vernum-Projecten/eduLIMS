@@ -16,6 +16,8 @@ import { disableJoinCode, enableJoinCode, getJoinCode, regenerateJoinCode } from
 import { requestJoinContext, serverJoinCodeKey } from "./join-context.ts";
 import { createLab, deleteLab, renameLab } from "./labs.ts";
 import { linkWaitingAddresses } from "./linking.ts";
+import { removeLabLogo, setLabLogo } from "./logo.ts";
+import { uploadLogoInput } from "./logo-schemas.ts";
 import { moveMember, removeMember } from "./members.ts";
 import {
   getTeacherLab,
@@ -218,3 +220,21 @@ export const getAdminSimulationFn = createServerFn({ method: "GET" })
     if (!simulation) throw notFound();
     return simulation;
   });
+
+/**
+ * Sets or replaces the logo of a lab (D10, #292): checked by its content, stored without its
+ * metadata. A refused file is a typed code (`LogoRefusal`), logged without its content.
+ */
+export const uploadLabLogoFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(uploadLogoInput)
+  .handler(async ({ data, context }) => {
+    const bytes = new Uint8Array(await data.file.arrayBuffer());
+    return setLabLogo(getDb(), context.user, { labId: data.labId, bytes }, new Date());
+  });
+
+/** Removes the logo of a lab (D10, #292). */
+export const removeLabLogoFn = createServerFn({ method: "POST" })
+  .middleware([teacher])
+  .validator(labIdInput)
+  .handler(({ data, context }) => removeLabLogo(getDb(), context.user, data));
