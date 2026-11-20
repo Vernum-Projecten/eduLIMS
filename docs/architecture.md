@@ -291,6 +291,7 @@ and all students of a year take part in it. The service is
 | `simulation_removals` | the students a teacher removed, so a lab's code does not let them back in |
 | `correct_values` | the correct value per simulation, sample number and catalogue test, never per lab; one per sample number (regardless of case) and test; the value as `numeric`, never a float (D10) |
 | `simulation_test_limits` | per simulation and test, the kind of limit (a percentage of the correct value or an absolute distance) and the yellow and red limits (D13) |
+| `lab_tolerances` | a lab's own tolerance per catalogue test: a lower and an upper limit as `numeric`, the lower not above the upper; every change is a new row, never an update, and the newest row of a lab and test is the one in force (S13, #269) |
 | `lab_join_codes`, `lab_join_attempts` | the join code of a lab, stored only as an HMAC with its key's fingerprint, and the wrong-code counters per student and per client IP, stored only as keyed hashes (#288) |
 
 Every foreign key to a simulation or a lab cascades on delete, and a
@@ -328,6 +329,23 @@ student's place and a waiting address point at their lab through the pair
   (`missing_limits`), and no function removes limits, so a running
   simulation never holds a test with a value and no limits (maintainer,
   2026-11-20).
+- **Tolerances.** The service is `src/server/tolerances/`. A member of the
+  lab sets a tolerance through `findWorkingStudentLab`, so only while the
+  simulation runs, and the lab row is locked so its members write one at a
+  time. A first tolerance for a retired test is refused. Every change is a
+  new row with an activity-log row of ids only (`lab_tolerance_set`, never a
+  limit), and no function removes one, so the release (S15, #270) can name
+  the row in force. The student's page lists the active catalogue with the
+  lab's own current tolerances; the teachers of the simulation see the
+  tolerance in force per test and every change, newest first, 50 to a page.
+  `findWorkingStudentLab` locks the student's `lab_members` row as well, so a
+  write that waited behind a removal or a move of the student finds no place
+  in the lab. A test with a tolerance counts as used in the catalogue (its
+  unit is fixed), and a lab with a tolerance cannot be deleted
+  (`has_records`; maintainer on #352). No write rate limit applies, since the
+  draft names none. The one check, `checkTolerance` in
+  `src/lib/tolerance.ts`, compares a value with the limits as decimals, and a
+  value equal to a limit is inside (S13).
 - **The email list.** A teacher pastes the addresses of a lab's members. The
   server classifies each line (invalid, repeated, already in this lab, in
   another lab of the simulation, new) and stores the new ones; no answer

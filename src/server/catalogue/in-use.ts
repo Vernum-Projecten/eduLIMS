@@ -12,7 +12,8 @@ import type { DB } from "../db/schema.gen.ts";
 /**
  * Returns how simulations use each test of `ids`: `running` when a running simulation uses it,
  * `used` when only other simulations do, `unused` otherwise. A simulation uses a test when one of
- * its correct values (D10, #267) or one of its labs' requests (S12, #268) names it. A test
+ * its correct values (D10, #267), one of its labs' requests (S12, #268) or one of its labs'
+ * tolerances (S13, #269) names it. A test
  * missing from the map is unused. Runs inside the caller's transaction when given one; starting a
  * simulation locks its tests `FOR SHARE`, so a caller that holds a test `FOR UPDATE` reads the
  * state that start committed.
@@ -33,8 +34,13 @@ export async function testUsage(
     .innerJoin("simulations", "simulations.id", "requests.simulation_id")
     .select(["request_tests.test_id as test_id", "simulations.state"])
     .where("request_tests.test_id", "in", ids);
+  const tolerated = db
+    .selectFrom("lab_tolerances")
+    .innerJoin("simulations", "simulations.id", "lab_tolerances.simulation_id")
+    .select(["lab_tolerances.test_id as test_id", "simulations.state"])
+    .where("lab_tolerances.test_id", "in", ids);
   const rows = await db
-    .selectFrom(values.unionAll(requested).as("uses"))
+    .selectFrom(values.unionAll(requested).unionAll(tolerated).as("uses"))
     .select(["uses.test_id", sql<boolean>`bool_or(uses.state = 'running')`.as("running")])
     .groupBy("uses.test_id")
     .execute();

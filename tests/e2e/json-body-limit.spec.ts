@@ -12,13 +12,17 @@ import { appUrl } from "./run-env";
 
 const PATH = "/_serverFn/any";
 
-test("refuses a JSON body over the limit with 413 (V5.2.1)", async ({ request }) => {
-  const response = await request.post(PATH, {
-    headers: { Origin: appUrl(), "Content-Type": "application/json" },
-    data: Buffer.alloc(JSON_BODY_MAX + 1, 0x20),
-  });
-  expect(response.status()).toBe(413);
-  expect(await response.body()).toHaveLength(0);
+test("refuses a JSON body over the limit with 413 (V5.2.1)", async () => {
+  // A raw socket reads the 413 even when the server closes before the body is all written; an
+  // HTTP client can fail on that close with a reset (#358).
+  const result = await rawPost(PATH, { "Content-Type": "application/json" }, JSON_BODY_MAX + 1);
+  expect(result.status).toMatch(/^HTTP\/1\.1 413\b/);
+  expect(result.answer).toMatch(/\r\nconnection: close\r\n/i);
+  // The body is empty: nothing after the headers, or only the last chunk of a chunked answer.
+  const end = result.answer.indexOf("\r\n\r\n");
+  const headers = result.answer.slice(0, end);
+  const body = result.answer.slice(end + 4);
+  expect(body).toBe(/\r\ntransfer-encoding: chunked(\r\n|$)/i.test(headers) ? "0\r\n\r\n" : "");
 });
 
 test("lets a JSON body of exactly the limit past the check (V5.2.1)", async ({ request }) => {

@@ -14,7 +14,7 @@ import { FORM_BODY_MAX } from "../../src/server/form-body-limit.ts";
 import { png } from "../../src/server/logo/test-images.ts";
 import { copyAccount, type TestAccount } from "./accounts";
 import { devLogin } from "./fixtures";
-import { appUrl } from "./run-env";
+import { rawPost } from "./raw-http";
 
 const LOGO = png(12, 8);
 
@@ -119,12 +119,14 @@ test("answers an empty 404 to a signed-out caller", async ({ request }) => {
   expect(await response.body()).toHaveLength(0);
 });
 
-test("refuses a form too large for a server function before reading it (V5.2.1)", async ({
-  request,
-}) => {
-  const response = await request.post("/_serverFn/any", {
-    headers: { Origin: appUrl(), "Content-Type": "multipart/form-data; boundary=x" },
-    data: Buffer.alloc(FORM_BODY_MAX + 1),
-  });
-  expect(response.status()).toBe(413);
+test("refuses a form too large for a server function before reading it (V5.2.1)", async () => {
+  // A raw socket reads the 413 even when the server closes before the body is all written; an
+  // HTTP client can fail on that close with a reset (#358).
+  const result = await rawPost(
+    "/_serverFn/any",
+    { "Content-Type": "multipart/form-data; boundary=x" },
+    FORM_BODY_MAX + 1,
+  );
+  expect(result.status).toMatch(/^HTTP\/1\.1 413\b/);
+  expect(result.answer).toMatch(/\r\nconnection: close\r\n/i);
 });

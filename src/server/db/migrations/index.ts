@@ -24,7 +24,8 @@ import * as m0017 from "./0017_catalogue_follow_ups.ts";
 import * as m0018 from "./0018_simulation_state_and_correct_values.ts";
 import * as m0019 from "./0019_lab_logos.ts";
 import * as m0020 from "./0020_patients_requests_samples.ts";
-import * as m0021 from "./0021_patient_ehr.ts";
+import * as m0021 from "./0021_lab_tolerances.ts";
+import * as m0022 from "./0022_patient_ehr.ts";
 
 export const migrations: Record<string, Migration> = {
   "0001_auth": m0001,
@@ -47,7 +48,8 @@ export const migrations: Record<string, Migration> = {
   "0018_simulation_state_and_correct_values": m0018,
   "0019_lab_logos": m0019,
   "0020_patients_requests_samples": m0020,
-  "0021_patient_ehr": m0021,
+  "0021_lab_tolerances": m0021,
+  "0022_patient_ehr": m0022,
 };
 
 export const migrationProvider: MigrationProvider = {
