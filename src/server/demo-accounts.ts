@@ -47,20 +47,6 @@ export const DEV_USERS = [
     hidden: true,
   },
   { email: "roles@example.test", name: "Roles Test Teacher", roles: ["teacher"], hidden: true },
-  // The Users screen's deletion journey (#318): the only teacher of a simulation it creates, and a
-  // student it deletes.
-  {
-    email: "sole-teacher@example.test",
-    name: "Sole Test Teacher",
-    roles: ["teacher"],
-    hidden: true,
-  },
-  {
-    email: "deletion@example.test",
-    name: "Deletion Test Student",
-    roles: ["student"],
-    hidden: true,
-  },
   // The data table's e2e journeys (#58): bulk actions, and optimistic updates rolled back.
   {
     email: "bulk-one@example.test",

@@ -1,8 +1,8 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// Deleting a user from the Admin portal (B1, D10, #318). eduLIMS deletes the user itself, in one
-// transaction: the simulations the user teaches are locked first, in id order as every
+// Deleting a user (B1, D10, #318), where the GDPR erasure path of #47 ends. eduLIMS deletes the
+// user itself, in one transaction: the simulations the user teaches are locked first, in id order as every
 // simulation write locks them, then the last-teacher rule is judged, then the sessions, the
 // accounts and the user go with their activity-log rows. A refusal changes nothing.
 import "@tanstack/react-start/server-only";
@@ -12,17 +12,26 @@ import { type AuditActor, toRequestId } from "../audit/events.ts";
 import { recordAudit, recordCommittedAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { isLastTeacherViolation } from "../simulations/teachers.ts";
-import { type ActionContext, type AdminActionResult, assertAdmin } from "./actions.ts";
+import { type ActionContext, assertAdmin } from "./actions.ts";
 
 /** The refusal code of deleting the only active teacher of a simulation (D10). */
-export const ONLY_SIMULATION_TEACHER = "only_simulation_teacher";
+export const ONLY_SIMULATION_TEACHER = "only_simulation_teacher" as const;
 
 /** The refusal code of an administrator deleting their own account. */
-export const CANNOT_DELETE_SELF = "cannot_delete_self";
+export const CANNOT_DELETE_SELF = "cannot_delete_self" as const;
 
 const TEACHER_ROLE_VALUES: readonly string[] = storedRoleSetsWith("teacher");
 
-type Deletion = AdminActionResult;
+/** Why a deletion was refused; nothing changed. */
+export type DeleteUserError =
+  | "not_found"
+  | typeof CANNOT_DELETE_SELF
+  | typeof ONLY_SIMULATION_TEACHER;
+
+/** The outcome of a deletion: done, or refused with a code. */
+export type DeleteUserResult = { ok: true } | { ok: false; error: DeleteUserError };
+
+type Deletion = DeleteUserResult;
 
 /**
  * Locks every simulation `userId` teaches (`FOR UPDATE`), in id order: the order the
@@ -137,7 +146,8 @@ async function deleteInTransaction(
 export async function deleteUser(
   ctx: ActionContext,
   input: { userId: string },
-): Promise<AdminActionResult> {
+): Promise<DeleteUserResult> {
+  // TODO(#47): the GDPR erasure path calls this after it anonymised the user's records.
   assertAdmin(ctx.actor);
   const actor = { type: "user", id: ctx.actor.id } as const;
   const requestId = toRequestId(ctx.headers.get("x-request-id"));

@@ -8,7 +8,6 @@ import type { ReactNode } from "react";
 import { UserDetailContent } from "@/components/admin-users/user-detail-sheet";
 import { userLinkId } from "@/components/admin-users/users-columns";
 import { useRouteRetry } from "@/components/shell/route-error";
-import { MAIN_CONTENT_ID } from "@/components/shell/skip-link";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -59,13 +58,11 @@ function UserSheet({ userId, children }: Readonly<{ userId: string; children: Re
         showCloseButton={false}
         className="w-full gap-0 data-[side=right]:sm:max-w-xl"
         onCloseAutoFocus={(event) => {
-          // WCAG 2.4.3: focus returns to the user's link in the table, or to the main content
-          // when the user was deleted and their row is gone.
-          const target =
-            document.getElementById(userLinkId(userId)) ?? document.getElementById(MAIN_CONTENT_ID);
-          if (target) {
+          // WCAG 2.4.3: focus returns to the user's link in the table.
+          const link = document.getElementById(userLinkId(userId));
+          if (link) {
             event.preventDefault();
-            target.focus();
+            link.focus();
           }
         }}
       >

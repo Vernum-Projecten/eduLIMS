@@ -65,9 +65,6 @@ describe("user labels (#34)", () => {
     expect(adminActionErrorMessage("only_simulation_teacher")).toBe(
       "This user is the only teacher of a simulation. Add another teacher to that simulation first.",
     );
-    expect(adminActionErrorMessage("cannot_delete_self")).toBe(
-      "You cannot delete your own account.",
-    );
   });
 
   it("names a language in the active locale", () => {

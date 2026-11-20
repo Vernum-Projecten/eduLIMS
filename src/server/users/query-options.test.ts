@@ -18,10 +18,8 @@ import {
   blockUserMutationOptions,
   bulkBlockMutationOptions,
   bulkEndSessionsMutationOptions,
-  deleteUserMutationOptions,
   endAllSessionsMutationOptions,
   endSessionMutationOptions,
-  forgetUser,
   setRolesMutationOptions,
   unblockUserMutationOptions,
   usersKeys,
@@ -137,24 +135,6 @@ describe("targeted invalidation: each mutation invalidates the lists and its use
     expect(invalidated).not.toContain(JSON.stringify(usersKeys.detail(ONE)));
     expect(invalidated).not.toContain(JSON.stringify(sessionKeys.current()));
     expect(invalidated).toContain(JSON.stringify(usersKeys.detail(TWO)));
-  });
-
-  it("delete invalidates the lists only, and forgetUser drops the deleted user's detail (#318)", async () => {
-    await runMutation(queryClient, deleteUserMutationOptions(queryClient, ok), { userId: ONE });
-    expect(invalidatedKeys(queryClient)).toEqual(
-      [FIRST_PAGE, SEARCHED].map((key) => JSON.stringify(key)).sort(),
-    );
-    forgetUser(queryClient, ONE);
-    expect(queryClient.getQueryData(usersKeys.detail(ONE))).toBeUndefined();
-    expect(queryClient.getQueryData(usersKeys.detail(TWO))).toEqual(detail(TWO));
-  });
-
-  it("a refused delete keeps the user and invalidates their detail and the lists (#318)", async () => {
-    await runMutation(queryClient, deleteUserMutationOptions(queryClient, refused), {
-      userId: ONE,
-    });
-    expect(invalidatedKeys(queryClient)).toEqual(ONE_AND_LISTS);
-    expect(queryClient.getQueryData(usersKeys.detail(ONE))).toEqual(detail(ONE));
   });
 
   it("a failed action still invalidates only its keys", async () => {

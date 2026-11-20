@@ -8,7 +8,6 @@ import { LockOpenIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { ConfirmButton, useUsersMutation } from "@/components/admin-users/admin-action";
 import { BlockUserDialog } from "@/components/admin-users/block-user-dialog";
-import { DeleteUserDialog } from "@/components/admin-users/delete-user-dialog";
 import { useProviderLabels } from "@/components/admin-users/provider-labels";
 import {
   ProvisioningText,
@@ -274,19 +273,6 @@ export function UserDetailContent({
               </Link>
             </li>
           </ul>
-        </Section>
-        <Separator />
-        <Section id="user-delete" title={m.admin_users_section_delete()}>
-          {user.self ? (
-            <p className="text-muted-foreground">{m.admin_users_error_delete_self()}</p>
-          ) : (
-            <>
-              <p className="text-muted-foreground">{m.admin_users_delete_help()}</p>
-              <div>
-                <DeleteUserDialog userId={user.id} name={user.name} />
-              </div>
-            </>
-          )}
         </Section>
       </div>
     </>
