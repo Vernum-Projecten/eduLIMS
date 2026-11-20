@@ -687,6 +687,22 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
   tolerance; the teachers of the simulation read the same with the released
   measurement marked and the tolerance kept at the release (D11). Neither
   read holds a correct value, a limit or an accuracy status (Q-SIM-1).
+- **Screens.** The Student portal's Measurements and results page shows one
+  of the student's labs at a time (`?lab=`, the newest by default): per
+  request every requested test with its state as a badge with an icon and
+  text, the team's own tolerance, and its measurements in a named,
+  keyboard-reachable scroll region. Entry by hand opens a form whose refusal
+  shows at its field. The release opens a confirmation (WCAG 3.3.4) with the
+  value, the sample, the tolerance and, for a value outside it, a warning
+  with an icon and text; the button then reads "Release anyway". Focus goes
+  back to the button that opened a dialog, and after a release, whose button
+  goes, to the heading of the requested test. A refusal that leaves nothing
+  to confirm (the tolerance changed, the test is released, the simulation
+  stopped) closes the dialog and shows at the requested test. The team and
+  the teachers see the time of release. The teacher's lab page shows the
+  same read-only, with the released measurement marked by an icon and text.
+  The correction form of a request keeps every requested test ticked and
+  fixed, so a correction never removes one (#268).
 
 ### Template `eduLIMS-lab`
 
