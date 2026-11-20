@@ -4,7 +4,7 @@
 // The supported UCUM units of the test catalogue (D9, #393; https://ucum.org/ucum).
 import { describe, expect, it } from "vitest";
 import { TEST_UNIT_MAX } from "./catalogue.ts";
-import { isUcumCode, UCUM_CODES, UCUM_UNITS, ucumSymbol, ucumUnit } from "./ucum.ts";
+import { isUcumCode, UCUM_CODES, UCUM_UNITS, ucumUnit, unitSymbol } from "./ucum.ts";
 
 describe("the supported UCUM units (#393)", () => {
   it("lists every code once", () => {
@@ -38,10 +38,18 @@ describe("the supported UCUM units (#393)", () => {
     expect(isUcumCode("1")).toBe(false);
   });
 
+  it("shows every supported unit by its symbol, and no unit as nothing (#404)", () => {
+    expect(unitSymbol("10*9/L")).toBe("10⁹/L");
+    expect(unitSymbol("[IU]/L")).toBe("IU/L");
+    expect(unitSymbol("[pH]")).toBe("pH");
+    expect(unitSymbol(null)).toBe("");
+    for (const entry of UCUM_UNITS) expect(unitSymbol(entry.code)).toBe(entry.symbol);
+  });
+
   it("prints µ for the micro prefix and keeps any other code as it is", () => {
-    expect(ucumSymbol("umol/L")).toBe("µmol/L");
-    expect(ucumSymbol("mmol/L")).toBe("mmol/L");
-    expect(ucumSymbol("furlong")).toBe("furlong");
+    expect(unitSymbol("umol/L")).toBe("µmol/L");
+    expect(unitSymbol("mmol/L")).toBe("mmol/L");
+    expect(unitSymbol("furlong")).toBe("furlong");
     expect(ucumUnit("furlong")).toBeUndefined();
   });
 });

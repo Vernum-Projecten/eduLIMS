@@ -67,6 +67,7 @@ describe("createTest (D9)", () => {
     expect(await events(ctx.db)).toEqual([
       {
         action: "test_created",
+        actor_type: "user",
         actor_id: ctx.actor.id,
         target_type: "test",
         target_id: id,
@@ -112,6 +113,7 @@ describe("createTest (D9)", () => {
     // ASVS V16.3.3: the refusal leaves its own row, with the code and no test of its own.
     expect((await events(ctx.db)).at(-1)).toEqual({
       action: "test_created",
+      actor_type: "user",
       actor_id: ctx.actor.id,
       target_type: null,
       target_id: null,
@@ -151,6 +153,7 @@ describe("updateTest (D9)", () => {
     });
     expect((await events(owner.db)).at(-1)).toEqual({
       action: "test_changed",
+      actor_type: "user",
       actor_id: other.actor.id,
       target_type: "test",
       target_id: id,
@@ -306,7 +309,7 @@ describe("the database holds the catalogue's rules (D9)", () => {
     return db.transaction().execute((trx) =>
       trx
         .insertInto("catalogue_tests")
-        .values({ name: "X", unit: "U", material: "M", source: "manual", ...values })
+        .values({ name: "X", unit: "U/L", material: "M", source: "manual", ...values })
         .execute(),
     );
   }

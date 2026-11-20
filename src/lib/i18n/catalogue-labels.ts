@@ -107,6 +107,10 @@ export function catalogueErrorMessage(code: string): string {
       return m.catalogue_error_in_running_simulation();
     case "analyte_taken":
       return m.catalogue_error_analyte_taken();
+    case "unit_unsupported":
+      return m.catalogue_unit_unsupported();
+    case "unit_fixed_by_analyte":
+      return m.catalogue_unit_fixed_by_analyte();
     default:
       return m.catalogue_error_failed();
   }

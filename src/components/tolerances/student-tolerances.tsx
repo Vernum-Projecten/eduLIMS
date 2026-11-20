@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { formatDateTime, formatDecimal } from "@/lib/i18n/format";
+import { unitSymbol } from "@/lib/ucum";
 import type { ToleranceEntry } from "@/server/tolerances/queries";
 import { myTolerancesQueryOptions } from "@/server/tolerances/query-options";
 
@@ -44,7 +45,7 @@ const columns = helper.columns([
       <span className="flex flex-col">
         <span className="font-medium break-words">{row.original.name}</span>
         {row.original.unit ? (
-          <span className="text-muted-foreground text-sm">{row.original.unit}</span>
+          <span className="text-muted-foreground text-sm">{unitSymbol(row.original.unit)}</span>
         ) : null}
       </span>
     ),

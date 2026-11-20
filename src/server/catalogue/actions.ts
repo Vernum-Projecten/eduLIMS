@@ -7,12 +7,14 @@
 // (owner, 2026-11-20, #393).
 import "@tanstack/react-start/server-only";
 import type { Kysely, Transaction } from "kysely";
+import { afinionAnalyte, afinionUnitAllowed } from "../../lib/afinion.ts";
 import {
   type CatalogueTestId,
   parseCatalogueTestId,
   sameSource,
   type TestSource,
 } from "../../lib/catalogue.ts";
+import { isUcumCode } from "../../lib/ucum.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { SessionUser } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
@@ -53,6 +55,21 @@ function sourceColumns(source: TestSource) {
       const unknown: never = source;
       return unknown;
     }
+  }
+}
+
+/**
+ * Refuses a unit outside the supported UCUM list (`unit_unsupported`), and a unit an Afinion 2
+ * analyte does not allow (`unit_fixed_by_analyte`). The server function's schema checks the same;
+ * this keeps the service safe on its own (#404 review, F1), and the CHECK
+ * `catalogue_tests_unit_ucum` of migration 0028 holds the list in the database.
+ */
+function assertUnitAllowed(test: TestDefinition): void {
+  if (test.unit !== null && !isUcumCode(test.unit)) throw new Refusal("unit_unsupported");
+  if (test.source.kind !== "afinion") return;
+  const entry = afinionAnalyte(test.source.analyte);
+  if (entry !== undefined && !afinionUnitAllowed(entry, test.unit)) {
+    throw new Refusal("unit_fixed_by_analyte");
   }
 }
 
@@ -166,6 +183,7 @@ export async function createTest(
   assertCatalogueAdmin(ctx.actor);
   try {
     return await ctx.db.transaction().execute(async (trx) => {
+      assertUnitAllowed(input);
       await assertNameFree(trx, input.name, null);
       await assertAnalyteFree(trx, input.source, null);
       const row = await trx
@@ -211,7 +229,9 @@ export async function updateTest(
       const testId = parseCatalogueTestId(current.id);
       if (testId === null) throw new Refusal("not_found");
       if (current.retired_at !== null) throw new Refusal("retired");
+      // A used test refuses any unit change with `in_use` first, the more telling refusal.
       await assertChangeAllowed(trx, testId, current, input.test);
+      assertUnitAllowed(input.test);
       await assertNameFree(trx, input.test.name, testId);
       await assertAnalyteFree(trx, input.test.source, testId);
       const fields = changedFields(current, input.test);

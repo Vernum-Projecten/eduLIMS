@@ -6,21 +6,20 @@
 // Afinion 2 analyte that fills its unit, the starter set, refusals at their field, and axe in
 // light, dark and Dutch. Every test a journey adds is invented for it (Q-PRIV-4).
 import { randomBytes } from "node:crypto";
-import { type BrowserContext, expect, type Page, type Route, test } from "@playwright/test";
-import { axe, dutch } from "./admin-users-helpers";
-import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
-import { appUrl } from "./run-env";
-
-const ADMIN = "admin@example.test";
+import { expect, type Page, type Route, test } from "@playwright/test";
+import { axe, dutch, signInAsAdmin } from "./admin-users-helpers";
+import {
+  devLogin,
+  expectHydrated,
+  openDialogWithKeyboard,
+  pressUntilFocused,
+  THEMES_AND_LOCALES,
+  usePreferences,
+} from "./fixtures";
 
 /** A test name no other journey uses, so parallel journeys never meet. */
 function testName(base: string): string {
   return `${base} ${randomBytes(3).toString("hex").toUpperCase()}`;
-}
-
-async function signInAsAdmin(page: Page): Promise<void> {
-  await devLogin(page, ADMIN);
-  await expect(page).toHaveURL(/\/admin$/);
 }
 
 async function openCatalogue(page: Page, q?: string): Promise<void> {
@@ -53,18 +52,13 @@ test("an administrator adds, edits, retires and restores a test with the keyboar
   await openCatalogue(page);
   await expect(page.getByRole("heading", { level: 1, name: "Test catalogue" })).toBeVisible();
 
-  const add = page.getByRole("button", { name: "Add test" });
-  await add.focus();
-  await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: "Add a test" });
-  await expect(dialog.getByLabel("Name")).toBeFocused();
-  // Escape closes the dialog without saving, and focus returns to "Add test".
-  await page.keyboard.press("Escape");
-  await expect(dialog).toHaveCount(0);
-  await expect(add).toBeFocused();
-
-  await page.keyboard.press("Enter");
-  await expect(dialog.getByLabel("Name")).toBeFocused();
+  await openDialogWithKeyboard(
+    page,
+    page.getByRole("button", { name: "Add test" }),
+    dialog,
+    dialog.getByLabel("Name"),
+  );
   await page.keyboard.type(name);
   await page.keyboard.press("Tab");
   await page.keyboard.type("plasma");
@@ -294,23 +288,7 @@ test("a ratio without a unit shows no unit in words (D9; maintainer 2026-11-19)"
   await axe(page);
 });
 
-async function usePreferences(
-  context: BrowserContext,
-  theme: "light" | "dark",
-  locale: "en" | "nl",
-): Promise<void> {
-  await context.addCookies([
-    { name: "EDULIMS_THEME", value: theme, url: appUrl() },
-    { name: "EDULIMS_LOCALE", value: locale, url: appUrl() },
-  ]);
-}
-
-for (const [theme, locale] of [
-  ["light", "en"],
-  ["dark", "en"],
-  ["light", "nl"],
-  ["dark", "nl"],
-] as const) {
+for (const [theme, locale] of THEMES_AND_LOCALES) {
   test(`the catalogue and its form are axe-clean in ${theme}, ${locale} (D9, Q-ACC-1)`, async ({
     page,
     context,

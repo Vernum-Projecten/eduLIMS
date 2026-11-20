@@ -184,17 +184,32 @@ them. A test's unit is a code of the Unified Code for Units of Measure
 (UCUM, <https://ucum.org/ucum>, case-sensitive form), the unit system of
 openEHR's `DV_QUANTITY.units`. The supported codes are a curated list in
 `src/lib/ucum.ts`, with the common laboratory units first and a translated
-common name for each; the server refuses any other code, and a test without
+common name for each. The server function's schema, the service
+(`unit_unsupported`, `unit_fixed_by_analyte`) and the CHECK
+`catalogue_tests_unit_ucum` of migration `0028_catalogue_unit_ucum` each
+refuse any other code; a test checks that the migration's list equals the
+application's, so a new unit comes with a new migration. A test without
 a unit (a ratio) stores none and reaches FerroEHR as UCUM's unity `1`. An
 Afinion 2 test names one of the analytes the analyser reports
 (`src/lib/afinion.ts`, from the vendored protocol and manual); the analyte
 fills in its unit, which stays open to change only for the assays whose unit
-the analyser lets you set (HbA1c, ACR, the Lipid Panel).
+the analyser lets you set (HbA1c, ACR, the Lipid Panel; maintainer,
+2026-11-20, on #404). The User Manual says other units are "available" for
+those assays without naming them, so they take any supported unit, with the
+documented default filled in. Creatinine defaults to mg/dL, from the
+protocol's example 4.1.2; the documents give no other unit for it. Every
+screen shows a unit by its symbol (`unitSymbol` in `src/lib/ucum.ts`:
+`µmol/L` for the code `umol/L`), never the raw code; the catalogue adds the
+common name.
 
 A fresh installation carries a starter set: one active Afinion 2 test per
 analyte with its documented unit, and no correct value (Q-PRIV-4).
 `migrate` in the tools image and `pnpm db:seed` add it to an empty catalogue
 only, so a starter test an administrator retired or renamed never returns.
+The starter names spell out the analyser's abbreviations, and the materials
+are urine for the ACR panel and blood for the rest; both are data that an
+administrator changes in the catalogue like any other test's (maintainer,
+2026-11-20, on #404).
 
 ### The teacher's simulation pages
 

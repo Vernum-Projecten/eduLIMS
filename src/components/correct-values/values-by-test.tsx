@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/empty";
 import { m } from "@/i18n/messages";
 import { formatDate, formatDecimal } from "@/lib/i18n/format";
+import { unitSymbol } from "@/lib/ucum";
 import { removeCorrectValueFn } from "@/server/correct-values/functions";
 import type { CorrectValueEntry, CorrectValuesPage } from "@/server/correct-values/queries";
 import {
@@ -57,7 +58,7 @@ const columns = helper.columns([
     cell: ({ row }) => (
       <span className="whitespace-nowrap tabular-nums">
         {formatDecimal(row.original.value)}
-        {row.original.unit ? ` ${row.original.unit}` : ""}
+        {row.original.unit ? ` ${unitSymbol(row.original.unit)}` : ""}
       </span>
     ),
   }),
@@ -140,7 +141,9 @@ function TestSection({
         <div className="flex min-w-0 flex-col gap-1">
           <h2 id={headingId} className="break-words font-semibold text-lg">
             {test.name}
-            {test.unit && <span className="font-normal text-muted-foreground"> ({test.unit})</span>}
+            {test.unit && (
+              <span className="font-normal text-muted-foreground"> ({unitSymbol(test.unit)})</span>
+            )}
           </h2>
           <p className="text-sm">
             <span className="text-muted-foreground">{m.correct_values_col_limits()}: </span>

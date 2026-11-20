@@ -25,6 +25,7 @@ import { parsePastedRows, SAMPLE_NUMBER_MAX } from "@/lib/correct-values";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
 import { formatDecimal, formatNumber } from "@/lib/i18n/format";
 import { simulationErrorMessage } from "@/lib/i18n/simulation-labels";
+import { unitSymbol } from "@/lib/ucum";
 import { setCorrectValuesFn } from "@/server/correct-values/functions";
 import type { CorrectValueEntry, CorrectValuesPage } from "@/server/correct-values/queries";
 import { correctValuesInvalidation } from "@/server/correct-values/query-options";
@@ -82,7 +83,7 @@ function testOptions(options: Options) {
   return options.map((test) => ({
     value: test.id,
     label: test.unit
-      ? m.correct_values_test_option({ test: test.name, unit: test.unit })
+      ? m.correct_values_test_option({ test: test.name, unit: unitSymbol(test.unit) })
       : test.name,
   }));
 }

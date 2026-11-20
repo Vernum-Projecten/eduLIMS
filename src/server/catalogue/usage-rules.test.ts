@@ -153,10 +153,10 @@ describe("a test a running simulation uses (D9; maintainer 2026-11-19)", () => {
 
 describe("a test without a unit (maintainer 2026-11-19)", () => {
   const RATIO: TestDefinition = {
-    name: "Chol/HDL",
+    name: "Ratio (invented)",
     unit: null,
     material: "blood",
-    source: { kind: "afinion", analyte: "Chol/HDL" },
+    source: { kind: "manual" },
   };
 
   it("is stored with no unit, not an empty one", async () => {
@@ -170,7 +170,7 @@ describe("a test without a unit (maintainer 2026-11-19)", () => {
   it("gets a unit, and loses it again, as a logged change", async () => {
     const ctx = await admin();
     const id = await created(ctx, RATIO);
-    await updateTest(ctx, { testId: id, test: { ...RATIO, unit: "ratio" } });
+    await updateTest(ctx, { testId: id, test: { ...RATIO, unit: "%" } });
     await updateTest(ctx, { testId: id, test: RATIO });
     expect((await stored(ctx.db, id)).unit).toBeNull();
     const fields = (await events(ctx.db)).map((event) => event.metadata);
@@ -181,7 +181,7 @@ describe("a test without a unit (maintainer 2026-11-19)", () => {
     const ctx = await admin();
     const id = await created(ctx, RATIO);
     usages.set(id, "used");
-    expect(await updateTest(ctx, { testId: id, test: { ...RATIO, unit: "ratio" } })).toEqual({
+    expect(await updateTest(ctx, { testId: id, test: { ...RATIO, unit: "%" } })).toEqual({
       ok: false,
       error: "in_use",
     });
@@ -216,7 +216,7 @@ describe("the analyte name of an active Afinion 2 test (maintainer 2026-11-19)",
     expect(
       await updateTest(ctx, {
         testId: id,
-        test: { ...CRP, name: "HbA1c", unit: "%", source: { kind: "afinion", analyte: "CRP" } },
+        test: { ...CRP, name: "HbA1c", unit: "mg/L", source: { kind: "afinion", analyte: "CRP" } },
       }),
     ).toEqual({ ok: false, error: "analyte_taken" });
   });

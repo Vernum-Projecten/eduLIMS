@@ -10,6 +10,7 @@ import { ListTable } from "@/components/simulations/list-table";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { formatDateTime, formatDecimal } from "@/lib/i18n/format";
+import { unitSymbol } from "@/lib/ucum";
 import type { ToleranceChange } from "@/server/tolerances/queries";
 import { labTolerancesQueryOptions } from "@/server/tolerances/query-options";
 
@@ -24,7 +25,7 @@ const testColumn = helper.accessor("testName", {
     <span className="flex flex-col">
       <span className="font-medium break-words">{row.original.testName}</span>
       {row.original.unit ? (
-        <span className="text-muted-foreground text-sm">{row.original.unit}</span>
+        <span className="text-muted-foreground text-sm">{unitSymbol(row.original.unit)}</span>
       ) : null}
     </span>
   ),

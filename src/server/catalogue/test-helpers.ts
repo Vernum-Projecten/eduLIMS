@@ -68,6 +68,7 @@ export function events(database: Kysely<DB>) {
     .selectFrom("audit_event")
     .select([
       "action",
+      "actor_type",
       "actor_id",
       "target_type",
       "target_id",

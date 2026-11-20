@@ -57,6 +57,13 @@ describe("releaseVerdict (S15; UI review of #374, S4)", () => {
     });
   });
 
+  it("names the unit by its symbol, never its UCUM code (#404)", () => {
+    expect(releaseVerdict("5", tolerance, "umol/L").text).toBe(
+      "The value is inside your tolerance of 4 to 6 µmol/L.",
+    );
+    expect(releaseVerdict("5", tolerance, null).text).not.toContain("null");
+  });
+
   it("is unreadable for a value the check cannot read, so nothing is released", () => {
     for (const value of ["1e5", "1234567890", "NaN"]) {
       expect(releaseVerdict(value, tolerance, null)).toEqual({

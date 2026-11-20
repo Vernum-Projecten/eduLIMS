@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Link, useNavigate } from "@tanstack/react-router";
-import { functionalUpdate, useTable } from "@tanstack/react-table";
+import { useTable } from "@tanstack/react-table";
 import { ClipboardListIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { TEST_SOURCE_ICONS, TEST_STATUS_ICONS } from "@/components/catalogue/catalogue-badges";
 import { catalogueColumns } from "@/components/catalogue/catalogue-columns";
 import { DataTable } from "@/components/data-table/data-table";
@@ -12,6 +12,7 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { dataTableFeatures } from "@/components/data-table/features";
+import { SERVER_TABLE_OPTIONS, useHiddenColumns } from "@/components/data-table/use-hidden-columns";
 import { useUrlTable } from "@/components/data-table/use-url-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,12 +27,6 @@ import { m } from "@/i18n/messages";
 import { TEST_SOURCES, TEST_STATUSES } from "@/lib/catalogue";
 import { testSourceLabel, testStatusLabel } from "@/lib/i18n/catalogue-labels";
 import { formatNumber } from "@/lib/i18n/format";
-import { readHiddenColumns } from "@/lib/preferences";
-import {
-  hiddenColumnsCookie,
-  hiddenFromVisibility,
-  visibilityFromHidden,
-} from "@/lib/table-columns";
 import type { CatalogueTestsPage } from "@/server/catalogue/query-options";
 import {
   TEST_PAGE_SIZES,
@@ -109,8 +104,7 @@ export function CatalogueTable({
 }>) {
   const navigate = useNavigate({ from: "/admin/catalogue" });
   const state = useMemo(() => testsTableState(search), [search]);
-  const [hidden, setHidden] = useState(() => readHiddenColumns(TABLE_ID));
-  const columnVisibility = useMemo(() => visibilityFromHidden(hidden), [hidden]);
+  const { columnVisibility, onColumnVisibilityChange } = useHiddenColumns(TABLE_ID);
 
   const urlHandlers = useUrlTable(
     { state: testsTableState, next: nextTestsSearch },
@@ -130,20 +124,10 @@ export function CatalogueTable({
     data: page.rows,
     rowCount: page.total,
     getRowId: (row) => row.id,
-    manualSorting: true,
-    manualFiltering: true,
-    manualPagination: true,
-    enableMultiSort: false,
-    enableSortingRemoval: false,
-    enableRowSelection: false,
+    ...SERVER_TABLE_OPTIONS,
     state: { ...state, columnVisibility },
     ...urlHandlers,
-    onColumnVisibilityChange: (updater) => {
-      const next = hiddenFromVisibility(functionalUpdate(updater, columnVisibility));
-      setHidden(next);
-      // biome-ignore lint/suspicious/noDocumentCookie: the server reads it on the next request; the Cookie Store API is not in every supported browser
-      document.cookie = hiddenColumnsCookie(TABLE_ID, next, window.location.protocol === "https:");
-    },
+    onColumnVisibilityChange,
   });
 
   const status = table.getColumn("status");

@@ -3,27 +3,9 @@
 
 // The translated common names of the supported units (#393, ADR 0011).
 import { describe, expect, it } from "vitest";
-import { paraglideMiddleware } from "@/i18n/server";
 import { UCUM_CODES } from "@/lib/ucum";
-import { defineLocaleCookieServerStrategy } from "./locale-cookie";
+import { inLocale } from "./test-helpers";
 import { ucumName, unitLabel, unitOptions } from "./unit-labels";
-
-// The server entry registers the locale cookie strategy; plain http, as in development.
-defineLocaleCookieServerStrategy(() => false);
-
-/** Runs `fn` inside a request whose locale cookie is `locale`, as the server entry does. */
-async function inLocale<T>(locale: "en" | "nl", fn: () => T): Promise<T> {
-  let result: T | undefined;
-  await paraglideMiddleware(
-    new Request("http://localhost/", { headers: { cookie: `EDULIMS_LOCALE=${locale}` } }),
-    () => {
-      result = fn();
-      return new Response(null);
-    },
-  );
-  if (result === undefined) throw new Error("the middleware did not run the callback");
-  return result;
-}
 
 describe("unit labels (#393)", () => {
   it.each(["en", "nl"] as const)(

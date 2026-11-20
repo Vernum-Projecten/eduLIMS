@@ -83,6 +83,9 @@ function refusalFor(code: CatalogueErrorCode): ServerRefusal<TestForm> {
       return { fields: { name: message } };
     case "analyte_taken":
       return { fields: { analyte: message } };
+    case "unit_unsupported":
+    case "unit_fixed_by_analyte":
+      return { fields: { unit: message } };
     default:
       return { form: message };
   }

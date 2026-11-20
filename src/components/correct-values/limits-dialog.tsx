@@ -25,6 +25,7 @@ import { type AccuracyLimits, LIMIT_KINDS } from "@/lib/correct-values";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
 import { formatDecimal } from "@/lib/i18n/format";
 import { limitKindLabel, simulationErrorMessage } from "@/lib/i18n/simulation-labels";
+import { unitSymbol } from "@/lib/ucum";
 import { setLimitsFn } from "@/server/correct-values/functions";
 import type { SimulationTestEntry } from "@/server/correct-values/queries";
 import { correctValuesInvalidation } from "@/server/correct-values/query-options";
@@ -40,7 +41,7 @@ export interface TestRow extends SimulationTestEntry {
 function limitText(limits: AccuracyLimits, value: string, unit: string | null): string {
   const shown = formatDecimal(value);
   if (limits.kind === "percent") return m.correct_values_limit_percent({ value: shown });
-  return unit ? m.correct_values_limit_absolute({ value: shown, unit }) : shown;
+  return unit ? m.correct_values_limit_absolute({ value: shown, unit: unitSymbol(unit) }) : shown;
 }
 
 /** A test's accuracy limits in words, or "No limits yet" with an icon (D13, WCAG 1.4.1). */

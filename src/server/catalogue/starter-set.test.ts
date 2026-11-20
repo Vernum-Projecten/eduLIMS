@@ -54,7 +54,12 @@ describe("the starter set (#393)", () => {
     expect(rows.find((row) => row.afinion_analyte === "Chol/HDL")?.unit).toBeNull();
     const log = await events(db);
     expect(log).toHaveLength(STARTER_TESTS.length);
-    expect(log.every((row) => row.action === "test_created" && row.actor_id === null)).toBe(true);
+    expect(
+      log.every(
+        (row) =>
+          row.action === "test_created" && row.actor_type === "system" && row.actor_id === null,
+      ),
+    ).toBe(true);
   });
 
   it("adds nothing on a second run, so it is idempotent", async () => {

@@ -74,7 +74,12 @@ export function ucumUnit(code: string): SupportedUcumUnit | undefined {
   return UCUM_UNITS.find((entry) => entry.code === code);
 }
 
-/** Returns the symbol of `code` for the screen; a code outside the list shows as it is. */
-export function ucumSymbol(code: string): string {
+/**
+ * Returns the symbol every screen shows for a unit (`µmol/L` for the code `umol/L`; maintainer
+ * 2026-11-20 on #404), never the raw code; a code outside the list shows as it is, and no unit
+ * (`null`) shows as nothing.
+ */
+export function unitSymbol(code: string | null): string {
+  if (code === null) return "";
   return ucumUnit(code)?.symbol ?? code;
 }

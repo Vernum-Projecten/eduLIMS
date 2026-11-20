@@ -7,10 +7,10 @@ import {
   TestUsageText,
 } from "@/components/catalogue/catalogue-badges";
 import { TestRowActions } from "@/components/catalogue/test-row-actions";
+import { ACTIONS_COLUMN, DateTimeCell } from "@/components/data-table/common-columns";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { m } from "@/i18n/messages";
-import { formatDateTime } from "@/lib/i18n/format";
 import { unitLabel } from "@/lib/i18n/unit-labels";
 import type { CatalogueTestRow } from "@/server/catalogue/queries";
 
@@ -68,17 +68,10 @@ export const catalogueColumns = helper.columns([
     meta: { label: () => m.catalogue_col_updated() },
     enableColumnFilter: false,
     header: ({ column }) => <DataTableColumnHeader column={column} />,
-    cell: ({ row }) => (
-      <time dateTime={row.original.updatedAt} className="whitespace-nowrap">
-        {formatDateTime(row.original.updatedAt)}
-      </time>
-    ),
+    cell: ({ row }) => <DateTimeCell value={row.original.updatedAt} />,
   }),
   helper.display({
-    id: "actions",
-    enableHiding: false,
-    meta: { label: () => m.data_table_actions(), className: "w-12" },
-    header: () => <span className="sr-only">{m.data_table_actions()}</span>,
+    ...ACTIONS_COLUMN,
     cell: ({ row }) => <TestRowActions test={row.original} />,
   }),
 ]);

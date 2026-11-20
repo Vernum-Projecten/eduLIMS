@@ -41,6 +41,12 @@ export const STARTER_TESTS = AFINION_ANALYTES.map((entry) => ({
   ...NAMES[entry.analyte],
 }));
 
+/** Returns whether the catalogue holds any test, a retired one included. */
+async function hasAnyTest(db: Kysely<DB>): Promise<boolean> {
+  const row = await sql<{ one: number }>`select 1 as one from catalogue_tests limit 1`.execute(db);
+  return row.rows.length > 0;
+}
+
 /**
  * Adds the starter set when the catalogue holds no test at all, and returns how many tests it
  * added. A catalogue with any test, a retired one included, is left alone, so a starter test an
@@ -48,14 +54,11 @@ export const STARTER_TESTS = AFINION_ANALYTES.map((entry) => ({
  * the set once. Logs `test_created` per test with the actor `system` (B4).
  */
 export async function seedStarterCatalogue(db: Kysely<DB>): Promise<number> {
+  // NOTE: #404 review, F4; every start runs this, so a filled catalogue is seen without a lock.
+  if (await hasAnyTest(db)) return 0;
   return db.transaction().execute(async (trx) => {
     await sql`lock table catalogue_tests in share row exclusive mode`.execute(trx);
-    const existing = await trx
-      .selectFrom("catalogue_tests")
-      .select("id")
-      .limit(1)
-      .executeTakeFirst();
-    if (existing) return 0;
+    if (await hasAnyTest(trx)) return 0;
     const rows = await trx
       .insertInto("catalogue_tests")
       .values(

@@ -34,6 +34,7 @@ describe("refused changes in the activity log (ASVS V16.3.3, B4)", () => {
     expect(refused).toEqual([
       {
         action: "test_changed",
+        actor_type: "user",
         actor_id: ctx.actor.id,
         target_type: "test",
         target_id: id,

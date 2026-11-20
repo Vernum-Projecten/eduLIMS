@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Locator, type Page, type Response } from "@playwright/test";
+import {
+  type BrowserContext,
+  expect,
+  type Locator,
+  type Page,
+  type Response,
+} from "@playwright/test";
 
 import { appUrl } from "./run-env";
 
@@ -95,4 +101,44 @@ export async function expectNoA11yViolations(page: Page): Promise<void> {
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
   expect(results.violations).toEqual([]);
+}
+
+/** The four looks every screen's axe scan covers: light and dark, in English and in Dutch. */
+export const THEMES_AND_LOCALES = [
+  ["light", "en"],
+  ["dark", "en"],
+  ["light", "nl"],
+  ["dark", "nl"],
+] as const;
+
+/** Sets the theme and language cookies of `context`, as the menus would. */
+export async function usePreferences(
+  context: BrowserContext,
+  theme: "light" | "dark",
+  locale: "en" | "nl",
+): Promise<void> {
+  await context.addCookies([
+    { name: "EDULIMS_THEME", value: theme, url: appUrl() },
+    { name: "EDULIMS_LOCALE", value: locale, url: appUrl() },
+  ]);
+}
+
+/**
+ * Opens a dialog from the focused `opener` with Enter, checks that focus lands on `first` and that
+ * Escape closes it again with focus back on the opener (WCAG 2.4.3), then opens it once more.
+ */
+export async function openDialogWithKeyboard(
+  page: Page,
+  opener: Locator,
+  dialog: Locator,
+  first: Locator,
+): Promise<void> {
+  await opener.focus();
+  await page.keyboard.press("Enter");
+  await expect(first).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(first).toBeFocused();
 }
