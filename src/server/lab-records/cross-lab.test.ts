@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { startSimulation } from "../simulations/state.ts";
-import { NOW, place, setState } from "../simulations/test-helpers.ts";
+import { NOW, place, setState, startable } from "../simulations/test-helpers.ts";
 import { readCorrectionLog } from "./correction-log.ts";
 import { correctPatient } from "./patients.ts";
 import { correctRequest } from "./requests.ts";
@@ -35,6 +35,7 @@ async function open() {
   const patientA = await patientIn(database, w.student, w.labId);
   const requestA = await requestFor(database, w.student, w.labId, patientA, [w.hba1c]);
   await setState(database, w.simulationId, "finished");
+  await startable(database, w.outsideSimulationId);
   const started = await startSimulation(
     database,
     w.outsiderTeacher,

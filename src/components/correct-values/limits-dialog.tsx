@@ -25,6 +25,7 @@ import { type AccuracyLimits, LIMIT_KINDS } from "@/lib/correct-values";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
 import { formatDecimal } from "@/lib/i18n/format";
 import { limitKindLabel, simulationErrorMessage } from "@/lib/i18n/simulation-labels";
+import { cn } from "@/lib/utils";
 import { setLimitsFn } from "@/server/correct-values/functions";
 import type { SimulationTestEntry } from "@/server/correct-values/queries";
 import { correctValuesInvalidation } from "@/server/correct-values/query-options";
@@ -43,14 +44,25 @@ function limitText(limits: AccuracyLimits, value: string, unit: string | null): 
   return unit ? m.correct_values_limit_absolute({ value: shown, unit }) : shown;
 }
 
-/** A test's accuracy limits in words, or "No limits yet" with an icon (D13, WCAG 1.4.1). */
-export function LimitsText({ test }: Readonly<{ test: TestRow }>) {
+/**
+ * A test's accuracy limits in words, or "No limits yet" with an icon (D13, WCAG 1.4.1). While the
+ * simulation is prepared, a test without limits says in text that it blocks the start (#394).
+ */
+export function LimitsText({
+  test,
+  blocksStart,
+}: Readonly<{ test: TestRow; blocksStart: boolean }>) {
   const { limits } = test;
   if (limits === null) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5",
+          blocksStart ? "text-destructive" : "text-muted-foreground",
+        )}
+      >
         <CircleAlertIcon aria-hidden="true" className="size-4 shrink-0" />
-        {m.correct_values_no_limits()}
+        {blocksStart ? m.correct_values_no_limits_blocks() : m.correct_values_no_limits()}
       </span>
     );
   }
@@ -68,7 +80,6 @@ export function LimitsText({ test }: Readonly<{ test: TestRow }>) {
 export function EditLimits({ test }: Readonly<{ test: TestRow }>) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const label = m.correct_values_limits_edit({ test: test.name });
   return (
     <>
       <Button
@@ -76,11 +87,11 @@ export function EditLimits({ test }: Readonly<{ test: TestRow }>) {
         type="button"
         variant="outline"
         size="sm"
-        className="h-auto min-h-8 whitespace-normal text-left"
         onClick={() => setOpen(true)}
       >
         <SlidersHorizontalIcon aria-hidden="true" data-icon="inline-start" />
-        {label}
+        {m.correct_values_limits_set()}
+        <span className="sr-only"> {m.correct_values_limits_for({ test: test.name })}</span>
       </Button>
       <LimitsDialog
         control={{
@@ -153,7 +164,10 @@ function LimitsDialog({ control, test }: Readonly<{ control: DialogControl; test
           <form.AppForm>
             <DialogHeader>
               <DialogTitle>{m.correct_values_limits_title({ test: test.name })}</DialogTitle>
-              <DialogDescription>{m.correct_values_limits_dialog_description()}</DialogDescription>
+              <DialogDescription>
+                {m.correct_values_limits_description()}{" "}
+                {m.correct_values_limits_dialog_description()}
+              </DialogDescription>
             </DialogHeader>
             <form.FormErrors />
             <FieldGroup>

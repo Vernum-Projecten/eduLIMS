@@ -181,3 +181,33 @@ export async function seedControlRequest(lab: SeededLab): Promise<string> {
     await db.destroy();
   }
 }
+
+/**
+ * Puts a fresh copy of the dev student into the lab named `labName` of `simulationId`, which a
+ * teacher created on screen, and returns the account: the start of a simulation needs a student
+ * in a lab (#394), and a journey has no student who signs in to link.
+ */
+export async function seatStudent(simulationId: string, labName: string): Promise<TestAccount> {
+  const student = await copyAccount("student@example.test", "seated-student");
+  const db = database();
+  try {
+    const lab = await db
+      .selectFrom("labs")
+      .select("id")
+      .where("simulation_id", "=", simulationId)
+      .where("name", "=", labName)
+      .executeTakeFirstOrThrow();
+    await db
+      .insertInto("lab_members")
+      .values({
+        simulation_id: simulationId,
+        lab_id: lab.id,
+        user_id: student.id,
+        joined_via: "email",
+      })
+      .execute();
+    return student;
+  } finally {
+    await db.destroy();
+  }
+}

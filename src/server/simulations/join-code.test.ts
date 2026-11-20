@@ -365,7 +365,13 @@ describe("getJoinCode (#288, D11)", () => {
 
 describe("the join code in the simulation's list of labs (#381)", () => {
   async function stateAt(database: Kysely<DB>, w: World, now: Date) {
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId, now);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      now,
+      key.fingerprint,
+    );
     return page?.labs.find((lab) => lab.id === w.labId)?.joinCode;
   }
 
@@ -382,6 +388,12 @@ describe("the join code in the simulation's list of labs (#381)", () => {
     expect(await stateAt(database, w, NOW)).toBe("on");
     expect(await stateAt(database, w, new Date(expiresAt.getTime() - 1))).toBe("on");
     expect(await stateAt(database, w, expiresAt)).toBe("ended");
+  });
+
+  it("is ended once the secret it was made under is rotated (security review of #394)", async () => {
+    const { database, w } = await open();
+    await codeOf(database, w.teacher, w.labId, SETTINGS, joinCodeKey(ROTATED));
+    expect(await stateAt(database, w, NOW)).toBe("ended");
   });
 
   it("is ended once its joins are used up", async () => {

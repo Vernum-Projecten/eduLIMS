@@ -5,7 +5,7 @@
 // the outcome of each pasted line, and how a student came into a lab.
 import { m } from "@/i18n/messages";
 import type { LimitKind } from "@/lib/correct-values";
-import { formatNumber } from "@/lib/i18n/format";
+import { formatList, formatNumber } from "@/lib/i18n/format";
 import { LOGO_MAX_BYTES, LOGO_MAX_SIDE, LOGO_REFUSALS, type LogoRefusal } from "@/lib/lab-logo";
 import type { JoinVia, SimulationState } from "@/lib/simulations";
 import type { SimulationActionError } from "@/server/simulations/access";
@@ -65,6 +65,10 @@ export function simulationErrorMessage(code: SimulationActionError | null): stri
       return m.correct_values_error_value_not_found();
     case "missing_limits":
       return m.simulations_error_missing_limits();
+    case "no_students":
+      return m.simulations_error_no_students();
+    case "no_correct_values":
+      return m.simulations_error_no_correct_values();
     case "running":
       return m.simulations_error_running();
     case "lab_has_students":
@@ -127,7 +131,7 @@ export function missingLimitsMessage(
   if (named.length === 0 || named.length !== testIds.length) {
     return m.simulations_error_missing_limits();
   }
-  return m.simulations_error_missing_limits_named({ tests: named.join(", ") });
+  return m.simulations_error_missing_limits_named({ tests: formatList(named) });
 }
 
 /** Returns the name of a simulation's state (D10, #267). */

@@ -101,3 +101,14 @@ export function formatNumber(
     maximumFractionDigits: Math.max(options.maximumFractionDigits ?? 2, minimum),
   }).format(value);
 }
+
+/**
+ * Joins names as the locale writes a list: "Albumin, Glucose and Urea" in English, "Albumin,
+ * Glucose en Urea" in Dutch (`Intl.ListFormat`, a conjunction).
+ */
+export function formatList(items: readonly string[], options: FormatOptions = {}): string {
+  return new Intl.ListFormat(options.locale ?? getLocale(), {
+    style: "long",
+    type: "conjunction",
+  }).format(items);
+}

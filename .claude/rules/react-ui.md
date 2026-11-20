@@ -44,6 +44,16 @@ locale (`en` or `nl`).
   hard-coded English text. When a screen is built under #384, find the block
   through the `shadcn` MCP server, add only what that screen uses, and move
   its text into the i18n layer.
+- **One page frame** (#384): every page renders `PageFrame`
+  (`src/components/shell/page-frame.tsx`; `Page` is the same component) with
+  its `h1`, one sentence of description, at most one primary `action` and
+  outline or ghost `secondary` actions; the top bar's breadcrumb names where
+  it is, one step per route whose loader returns `crumb`. A layout that swaps
+  the page below it (the simulation's pages, #381) moves focus to the new
+  page's `h1` after a navigation (WCAG 2.4.3).
+- **One menu per row:** a list row carries one `RowActions` `…` menu
+  (`src/components/shell/row-actions.tsx`), never a row of buttons; a dialog
+  opened from an item returns focus to the menu's button.
 - **Compose, do not fork.** Feature components in `src/components/<area>/`
   wrap the `ui/` primitives. Edit a file in `src/components/ui/` only for a
   defect or an accessibility fix, and say so in the PR.

@@ -85,7 +85,7 @@ describe("missingLimitsMessage (maintainer 2026-11-20 on #267)", () => {
 
   it("names the tests without limits", () => {
     expect(missingLimitsMessage(["a", "u"], names)).toBe(
-      "Set the accuracy limits of Albumin, Urea before you start the simulation.",
+      "Set the accuracy limits of Albumin and Urea before you start the simulation.",
     );
   });
 

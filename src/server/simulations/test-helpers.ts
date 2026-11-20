@@ -136,6 +136,41 @@ export async function world(db: Kysely<DB>) {
   };
 }
 
+/**
+ * Gives `simulationId` what its start needs besides a student in a lab (#394): an invented
+ * catalogue test with one correct value and its accuracy limits, written straight to the tables
+ * (test set-up only). Returns the test's id.
+ */
+export async function startable(db: Kysely<DB>, simulationId: string): Promise<string> {
+  const test = await db
+    .insertInto("catalogue_tests")
+    .values({
+      name: `Start check ${newId().slice(-8)}`,
+      unit: "mmol/L",
+      material: "plasma",
+      source: "manual",
+      // Retired, so no list of active tests a test asserts on shows it.
+      retired_at: NOW,
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto("correct_values")
+    .values({ simulation_id: simulationId, test_id: test.id, sample_number: "S-START", value: "1" })
+    .execute();
+  await db
+    .insertInto("simulation_test_limits")
+    .values({
+      simulation_id: simulationId,
+      test_id: test.id,
+      kind: "percent",
+      yellow_limit: "5",
+      red_limit: "10",
+    })
+    .execute();
+  return test.id;
+}
+
 /** The world {@link world} builds. */
 export type World = Awaited<ReturnType<typeof world>>;
 

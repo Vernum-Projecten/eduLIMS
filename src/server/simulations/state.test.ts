@@ -15,7 +15,8 @@ import { createSimulation, deleteSimulation } from "./simulations.ts";
 import { finishSimulation, startSimulation, toSimulationState } from "./state.ts";
 import { findWorkingStudentLab } from "./student-access.ts";
 import { teacherWriteRefusals } from "./test-access.ts";
-import { auditRows, NOW, world } from "./test-helpers.ts";
+import { auditRows, NOW, setState, startable, world } from "./test-helpers.ts";
+import { key } from "./test-join.ts";
 
 const LATER = new Date("2026-11-19T12:00:00Z");
 
@@ -26,15 +27,24 @@ afterEach(async () => {
   db = undefined;
 });
 
+/** The world, its first simulation ready to start: a student in a lab and a correct value. */
 async function open() {
   db = await createTestDb();
-  return { db, w: await world(db) };
+  const w = await world(db);
+  await startable(db, w.simulationId);
+  return { db, w };
 }
 
 describe("starting and finishing a simulation (D10, #267)", () => {
   it("starts a new simulation as prepared", async () => {
     const { db: database, w } = await open();
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page).toMatchObject({ state: "prepared", startedAt: null, finishedAt: null });
   });
 
@@ -45,7 +55,13 @@ describe("starting and finishing a simulation (D10, #267)", () => {
       ok: true,
       value: null,
     });
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page).toMatchObject({
       state: "running",
       startedAt: NOW.toISOString(),
@@ -64,10 +80,60 @@ describe("starting and finishing a simulation (D10, #267)", () => {
       ok: true,
       value: null,
     });
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page).toMatchObject({ state: "finished", finishedAt: LATER.toISOString() });
     const list = await listTeacherSimulations(database, w.teacher.id);
     expect(list.find((row) => row.id === w.simulationId)?.state).toBe("finished");
+  });
+
+  it("refuses a start without a student in any lab with no_students, and logs it (#394)", async () => {
+    const { db: database, w } = await open();
+    await database.deleteFrom("lab_members").where("simulation_id", "=", w.simulationId).execute();
+    const input = { simulationId: w.simulationId };
+    expect(await startSimulation(database, w.teacher, input, NOW)).toEqual({
+      ok: false,
+      error: "no_students",
+    });
+    expect(await auditRows(database, "simulation_started")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "no_students" }),
+    ]);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
+    expect(page).toMatchObject({ state: "prepared", startedAt: null });
+  });
+
+  it("refuses a start without a correct value with no_correct_values, and logs it (#394)", async () => {
+    const { db: database, w } = await open();
+    await database
+      .deleteFrom("correct_values")
+      .where("simulation_id", "=", w.simulationId)
+      .execute();
+    const input = { simulationId: w.simulationId };
+    expect(await startSimulation(database, w.teacher, input, NOW)).toEqual({
+      ok: false,
+      error: "no_correct_values",
+    });
+    expect(await auditRows(database, "simulation_started")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "no_correct_values" }),
+    ]);
+  });
+
+  it("starts once a lab has one student, even beside an empty lab (#394)", async () => {
+    const { db: database, w } = await open();
+    await database.deleteFrom("lab_members").where("lab_id", "=", w.labId).execute();
+    const input = { simulationId: w.simulationId };
+    expect((await startSimulation(database, w.teacher, input, NOW)).ok).toBe(true);
   });
 
   it("refuses a second start, and a start after the finish, with not_prepared", async () => {
@@ -153,7 +219,13 @@ describe("starting and finishing a simulation (D10, #267)", () => {
         metadata: null,
       }),
     ]);
-    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    const page = await getTeacherSimulation(
+      database,
+      w.teacher.id,
+      w.simulationId,
+      NOW,
+      key.fingerprint,
+    );
     expect(page?.state).toBe("prepared");
     for (const testId of [without, second]) {
       await setLimits(
@@ -174,7 +246,8 @@ describe("starting and finishing a simulation (D10, #267)", () => {
     const created = await createSimulation(database, w.teacher, { name: "Empty run" }, NOW);
     if (!created.ok) throw new Error(created.error);
     const input = { simulationId: created.value.simulationId };
-    await startSimulation(database, w.teacher, input, NOW);
+    // Without a student the service refuses the start (no_students), so the state is set here.
+    await setState(database, input.simulationId, "running");
     expect(await deleteSimulation(database, w.teacher, input)).toEqual({
       ok: false,
       error: "running",

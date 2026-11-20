@@ -1,0 +1,1 @@
+- A simulation now starts only with at least one lab that has a student and at least one correct value, besides the accuracy limits of every test with a value; the overview's checklist marks each missing step as blocking the start, and a click on Start takes you to the first one (D10). Labs whose join code was made under a replaced server secret now show the code as ended.

@@ -7,13 +7,14 @@ import type { Kysely } from "kysely";
 import { catalogueTest } from "../correct-values/test-helpers.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { startSimulation } from "../simulations/state.ts";
-import { NOW, type World, world } from "../simulations/test-helpers.ts";
+import { NOW, startable, type World, world } from "../simulations/test-helpers.ts";
 import { setTolerance } from "./actions.ts";
 
 /** The world of the simulation tests with its first simulation running and one test. */
 export async function runningWorld(db: Kysely<DB>): Promise<{ w: World; testId: string }> {
   const w = await world(db);
   const testId = await catalogueTest(db, "Creatinine (invented)");
+  await startable(db, w.simulationId);
   const started = await startSimulation(db, w.teacher, { simulationId: w.simulationId }, NOW);
   if (!started.ok) throw new Error(started.error);
   return { w, testId };
