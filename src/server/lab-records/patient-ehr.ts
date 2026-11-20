@@ -13,7 +13,21 @@ import type { DB } from "../db/schema.gen.ts";
 import { type EhrSubjectRef, ehrStatusFor, patientSubject } from "../openehr/ehr.ts";
 import { failure, type OpenEhrError, type OpenEhrResult, success } from "../openehr/errors.ts";
 import type { OpenEhrClient } from "../openehr/index.ts";
-import { failureCause, logSecurityEvent } from "../security-log.ts";
+import { failureCause, logFailure, logSecurityEvent } from "../security-log.ts";
+
+declare const ehrIdBrand: unique symbol;
+
+/**
+ * The id of a patient's EHR in FerroEHR. Only the `ready` state of {@link ensurePatientEhr}
+ * returns one, so a composition writer that takes an `EhrId` writes only to a resolved EHR.
+ */
+export type EhrId = string & { readonly [ehrIdBrand]: true };
+
+/** Brands an EHR id that FerroEHR's answer schema (`z.uuid()`) or the `uuid` column checked. */
+function asEhrId(value: string): EhrId {
+  // NOTE: no openEHR spec governs this: our own design; both sources are checked UUIDs.
+  return value.toLowerCase() as EhrId;
+}
 
 /** The FerroEHR operations a patient's EHR needs. */
 export type PatientEhrClient = Pick<OpenEhrClient, "getEhrBySubject" | "createEhr">;
@@ -23,7 +37,7 @@ export type PatientEhrClient = Pick<OpenEhrClient, "getEhrBySubject" | "createEh
  * eduLIMS from finding or creating it.
  */
 export type PatientEhrState =
-  | { state: "ready"; ehrId: string }
+  | { state: "ready"; ehrId: EhrId }
   | { state: "pending"; error: OpenEhrError };
 
 /**
@@ -56,30 +70,39 @@ export async function resolveSubjectEhr(
   return success(again.value.ehr_id.value.toLowerCase());
 }
 
-// TODO(#148): the release of a result calls ensurePatientEhr before it writes its composition.
+/** How long {@link ensurePatientEhr} may talk to FerroEHR in all; unbounded when left out. */
+export interface PatientEhrOptions {
+  /** The total budget in milliseconds across the token, the lookup and the create. */
+  budgetMs?: number;
+}
+
 /**
  * Returns the EHR of a patient, finding or creating it in FerroEHR while the patient has none
- * yet, and stores its id. A FerroEHR failure leaves the patient pending and logs
- * `ferroehr_ehr_pending` with the patient's id; it never throws.
+ * yet, and stores its id. A FerroEHR failure, or a call past `budgetMs`, leaves the patient
+ * pending and logs `ferroehr_ehr_pending` with the patient's id.
  *
  * The caller has checked that the actor reaches the patient; this function checks nothing.
  *
  * @throws Error when the patient does not exist, or when it holds another EHR id than the one
  *   its subject resolves to.
  */
+// TODO(#148): the release of a result calls ensurePatientEhr and refuses on `pending`.
 export async function ensurePatientEhr(
   db: Kysely<DB>,
   client: PatientEhrClient,
   patientId: PatientId,
+  options: PatientEhrOptions = {},
 ): Promise<PatientEhrState> {
   const stored = await readEhrId(db, patientId);
-  if (stored !== null) return { state: "ready", ehrId: stored };
-  const resolved = await resolveSubjectEhr(client, patientSubject(patientId));
+  if (stored !== null) return { state: "ready", ehrId: asEhrId(stored) };
+  const resolving = resolveSubjectEhr(client, patientSubject(patientId));
+  const resolved =
+    options.budgetMs === undefined ? await resolving : await within(resolving, options.budgetMs);
   if (!resolved.ok) {
     logEhrPending(patientId, resolved.error);
     return { state: "pending", error: resolved.error };
   }
-  const ehrId = resolved.value;
+  const ehrId = asEhrId(resolved.value);
   const updated = await db
     .updateTable("patients")
     .set({ ehr_id: ehrId })
@@ -91,10 +114,57 @@ export async function ensurePatientEhr(
   // NOTE: no openEHR spec governs this: our own design; a concurrent call stored the id first,
   // and it must be the same EHR, or the subject index is broken and eduLIMS stops.
   const current = await readEhrId(db, patientId);
-  if (current !== ehrId) {
+  if (current === null || asEhrId(current) !== ehrId) {
     throw new Error(`patient ${patientId} holds another EHR than its subject resolves to`);
   }
   return { state: "ready", ehrId };
+}
+
+// NOTE: no openEHR spec governs this: our own design (#364); a registration waits at most 5 s
+// for FerroEHR across the token, the lookup and the create, then answers with a pending EHR.
+export const REGISTRATION_EHR_BUDGET_MS = 5_000;
+
+/**
+ * Returns the EHR state a registration reports, after its transaction committed: `ready`, or
+ * `pending` when FerroEHR failed, ran past {@link REGISTRATION_EHR_BUDGET_MS}, or
+ * {@link ensurePatientEhr} threw, which it logs as `ferroehr_ehr_failed` with ids only.
+ */
+export async function ehrAfterRegistration(
+  db: Kysely<DB>,
+  client: PatientEhrClient,
+  patientId: PatientId,
+  options: PatientEhrOptions = { budgetMs: REGISTRATION_EHR_BUDGET_MS },
+): Promise<PatientEhrState["state"]> {
+  try {
+    return (await ensurePatientEhr(db, client, patientId, options)).state;
+  } catch (error) {
+    // NOTE: #364; the patient is committed, so an error would invite a duplicate; the release
+    // calls ensurePatientEhr again and stops on a mismatch.
+    logFailure("ferroehr_ehr_failed", error, { target_type: "patient", target_id: patientId });
+    return "pending";
+  }
+}
+
+/**
+ * Returns `resolving`, or a `timeout` failure once `budgetMs` has passed. A call past the budget
+ * runs on under its own request timeouts; an EHR it creates is found by its subject next time.
+ */
+async function within(
+  resolving: Promise<OpenEhrResult<string>>,
+  budgetMs: number,
+): Promise<OpenEhrResult<string>> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<OpenEhrResult<string>>((resolve) => {
+    timer = setTimeout(() => {
+      const cause = new DOMException("the EHR budget ran out", "TimeoutError");
+      resolve(failure({ kind: "timeout", target: "ferroehr", cause }));
+    }, budgetMs);
+  });
+  try {
+    return await Promise.race([resolving, expired]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Returns the stored EHR id of a patient, or `null` while it is pending. */

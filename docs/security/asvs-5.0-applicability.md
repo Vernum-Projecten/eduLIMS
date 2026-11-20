@@ -72,8 +72,8 @@ moves a row to `met` in the same pull request.
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 176 |
 | Status met | 103 |
-| Status partial | 55 |
-| Status planned | 10 |
+| Status partial | 56 |
+| Status planned | 9 |
 | Status open | 8 |
 | Status n-a | 169 |
 
@@ -708,8 +708,8 @@ Text: [vendor/asvs/en/0x22-V13-Configuration.md](vendor/asvs/en/0x22-V13-Configu
 
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
-| V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); how eduLIMS authenticates to FerroEHR and FerroBRIDGE is not built yet (S4, S5); FerroBRIDGE 0.0.24 authenticates each MLLP sender by its client certificate, tied to its `[[hl7v2.senders]]` entry, and refuses to start without one; the Afinion 2 has no TLS (Afinion 2 User Manual, 1117346 Rev. A, 2023/02), so its route waits on FerroBRIDGE#1918, plain MLLP bound to the analyser's network address (decided on #131), with the bind address and a host-firewall allow-list of the analysers' fixed addresses; an address is no certificate, so this segment stays the accepted residual risk of ADR 0013 (ADR 0013, `docs/deployment.md`, "The MLLP port"); an identity provider authenticates to the SCIM endpoint with a bearer token per provider that expires after 180 days, hashed, rotated with a one-hour overlap and revocable at once (ADR 0017, owner decision on #45); not short-term, because the providers' SCIM clients take a static secret | review; unit `src/server/scim/tokens.test.ts` | partial |
-| V13.2.2 | 2 | yes | one database role per service (`docker/postgres/init/20-edulims.sh`); containers run non-root with `cap_drop: [ALL]` (`compose.yaml`, `docker/Dockerfile`) | review | met |
+| V13.2.1 | 2 | partly | PostgreSQL with a password per service (`compose.yaml`); eduLIMS authenticates to FerroEHR as the confidential client `edulims-ferroehr` with the OAuth 2.0 client credentials grant and `system/` scopes, a token cached until 30 s before it expires (ADR 0019, `src/server/openehr/token.ts`); how eduLIMS authenticates to FerroBRIDGE is not built yet (S5); FerroBRIDGE 0.0.24 authenticates each MLLP sender by its client certificate, tied to its `[[hl7v2.senders]]` entry, and refuses to start without one; the Afinion 2 has no TLS (Afinion 2 User Manual, 1117346 Rev. A, 2023/02), so its route waits on FerroBRIDGE#1918, plain MLLP bound to the analyser's network address (decided on #131), with the bind address and a host-firewall allow-list of the analysers' fixed addresses; an address is no certificate, so this segment stays the accepted residual risk of ADR 0013 (ADR 0013, `docs/deployment.md`, "The MLLP port"); an identity provider authenticates to the SCIM endpoint with a bearer token per provider that expires after 180 days, hashed, rotated with a one-hour overlap and revocable at once (ADR 0017, owner decision on #45); not short-term, because the providers' SCIM clients take a static secret | review; unit `src/server/scim/tokens.test.ts` | partial |
+| V13.2.2 | 2 | yes | one database role per service (`docker/postgres/init/20-edulims.sh`); containers run non-root with `cap_drop: [ALL]` (`compose.yaml`, `docker/Dockerfile`); eduLIMS's FerroEHR client holds `system/template-*.r` and `system/composition-*.cr`, the latter the bare wildcard by necessity, because an EHR operation names no template and FerroEHR 5.7.0 covers it only with `*` (`smart-app-launch.md`); residual risk: the scope reads and creates EHR, `EHR_STATUS`, `DIRECTORY`, `CONTRIBUTION`, tags and the EHR extract of every EHR, and only COMPOSITION commits are limited, by the system client's `writes` (`eduLIMS-lab.v1`); that 403 and the 403 on an `EHR_STATUS` update are proven in the CI integration lane against a second, test-only template (#364); FerroEHR after 5.7.1 drops `[[authz.system_client]]`, so an upgrade must restore the limit first (`docs/deployment.md`) | review; integration `tests/integration/patient-ehr.test.ts` | met |
 | V13.2.3 | 2 | yes | Compose refuses to start without each password (`${VAR:?}` in `compose.yaml`) | review | met |
 | V13.2.4 | 2 | partly | outbound targets are configured URLs only (`src/server/env.ts`), the B3 health check included (`src/server/integrations/probe.ts`); no egress allowlist at the network level | unit `src/server/integrations/checks.test.ts`, review | partial |
 | V13.2.5 | 2 | partly | the `egress` network is attached only to the services that need it (`compose.yaml`); no proxy allowlist | review | partial |
@@ -855,7 +855,7 @@ Text: [vendor/asvs/en/0x25-V16-Security-Logging-and-Error-Handling.md](vendor/as
 | ID | L | Applies | Where | Verification | Status |
 |---|---|---|---|---|---|
 | V16.5.1 | 2 | partly | errors reach the client as a status and a translated message (`src/server/middleware.ts`); a generic handler for unexpected errors is not proven | review | partial |
-| V16.5.2 | 2 | yes | an unreachable FerroEHR shows an error, never cached data of others (A10, B3) | unit tests with B3 | planned |
+| V16.5.2 | 2 | yes | an unreachable FerroEHR shows an error, never cached data of others (A10, B3); a registration whose EHR FerroEHR does not create within 5 s commits the patient with its EHR pending, says so to the team, logs it with ids only and tries again on the next call, never claiming the EHR exists (#147, #364); the rest of the FerroEHR paths are not built yet | unit `src/server/lab-records/patient-ehr.test.ts`, `src/server/lab-records/patient-ehr-registration.test.ts` | partial |
 | V16.5.3 | 2 | yes | a failed role lookup denies (`sessionRoles` in `src/server/authz.ts`); a refused IdP sign-in revokes sessions | unit `src/server/authz.test.ts`, `src/server/idp-sync.test.ts` | met |
 | V16.5.4 | 3 | no | Level 3, above the L2 target | none | n-a |
 

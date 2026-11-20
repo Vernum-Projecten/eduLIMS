@@ -12,7 +12,7 @@ import { getDb } from "../db/index.ts";
 import { requireRole } from "../middleware.ts";
 import { getOpenEhrClient } from "../openehr/index.ts";
 import { readCorrectionLog } from "./correction-log.ts";
-import { ensurePatientEhr } from "./patient-ehr.ts";
+import { ehrAfterRegistration } from "./patient-ehr.ts";
 import { correctPatient, registerPatient } from "./patients.ts";
 import { listRequestableTests, readLabRecords } from "./queries.ts";
 import { correctRequest, recordRequest } from "./requests.ts";
@@ -45,7 +45,7 @@ export const getRequestableTestsFn = createServerFn({ method: "GET" })
 
 /**
  * Registers a patient from the form in the student's lab (S11), then finds or creates its EHR in
- * FerroEHR; `ehr` is `pending` when FerroEHR did not answer.
+ * FerroEHR within 5 s; `ehr` is `pending` when that failed, and the patient stays registered.
  */
 export const registerPatientFn = createServerFn({ method: "POST" })
   .middleware([student])
@@ -55,8 +55,8 @@ export const registerPatientFn = createServerFn({ method: "POST" })
     if (!result.ok) return result;
     const { patientId } = result.value;
     // NOTE: #147; after the commit, so a FerroEHR outage leaves a registered patient pending.
-    const ehr = await ensurePatientEhr(getDb(), getOpenEhrClient(), patientId);
-    return { ok: true as const, value: { patientId, ehr: ehr.state } };
+    const ehr = await ehrAfterRegistration(getDb(), getOpenEhrClient(), patientId);
+    return { ok: true as const, value: { patientId, ehr } };
   });
 
 /** Corrects a patient of the student's lab until its first result is released (S11). */

@@ -259,9 +259,14 @@ its id, and `patients.ehr_id` stores it, unique across patients. A null
 `ehr_id` means the EHR is pending: FerroEHR did not answer at the
 registration. The registration still commits, the team's confirmation says
 the record is not created yet, and the server logs `ferroehr_ehr_pending`
-with the patient's id and the error's kind and status. The next call that
-needs the EHR tries again: the release of a result (#148) calls the same
-function before it writes a composition. No job retries in the background.
+with the patient's id and the error's kind and status. The registration
+waits at most 5 seconds for FerroEHR in all (token, lookup and create); past
+that, the EHR is pending too. An unexpected error in this step, after the
+commit, is logged as `ferroehr_ehr_failed` and also answers pending, so the
+team never registers the patient twice. The next call that needs the EHR
+tries again: the release of a result (#148) calls the same function, refuses
+while the EHR is pending, and takes the EHR id as the branded type `EhrId`,
+which only a resolved EHR yields. No job retries in the background.
 
 The EHR is created once. A later correction of the patient's details in
 eduLIMS does not rewrite the `EHR_STATUS`: the eduLIMS record is the source of

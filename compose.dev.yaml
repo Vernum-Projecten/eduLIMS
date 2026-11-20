@@ -207,7 +207,10 @@ services:
   # `ferroehr definitions load` stores each file and exits, and leaves a
   # template stored with the same text alone, so it runs on every start
   # (FerroEHR book v5.7.0, installation/config-cli.md). Same namespace and
-  # environment as FerroEHR.
+  # environment as FerroEHR. In this stack only, it also loads the test
+  # template eduLIMS-test-foreign.v1 from docker/ferroehr/test-definitions:
+  # eduLIMS's client does not list it in `writes`, so the integration test
+  # proves FerroEHR refuses a commit of it (#364). compose.yaml never loads it.
   ferroehr-definitions:
     image: ghcr.io/ferrohealth/ferroehr:5.7.0@sha256:44c9268cb8a154df118a10ffe84329633f22923ea2cc54261ff0cea57a2ee7e7
     network_mode: service:keycloak
@@ -221,9 +224,11 @@ services:
       - definitions
       - load
       - /etc/ferroehr/definitions/eduLIMS-lab.v1.opt
+      - /etc/ferroehr/test-definitions/eduLIMS-test-foreign.v1.opt
     environment: *ferroehr-environment
     volumes:
       - ./docker/ferroehr/definitions:/etc/ferroehr/definitions:ro
+      - ./docker/ferroehr/test-definitions:/etc/ferroehr/test-definitions:ro
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true

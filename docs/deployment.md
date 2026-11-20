@@ -168,11 +168,28 @@ The values are yours:
 | `<system-id>` | this CDR's openEHR system identifier, a DNS-style name such as `cdr.lab.example.edu`; choose it once, before the first EHR |
 
 In your identity provider, register the confidential client
-`edulims-ferroehr` with the client credentials grant, make its tokens carry
+`edulims-ferroehr` with the client credentials grant, give it the scopes
+`system/template-*.r` and `system/composition-*.cr`, make its tokens carry
 FerroEHR's audience (`ferroehr` in the file), and set the token profile the
 file's comments name for Entra ID or Keycloak. On Entra ID the token names
 the client by its application (client) ID, so that ID goes into
 `client_id`.
+
+The composition scope is the bare wildcard by necessity: finding and
+creating a patient's EHR names no template, and FerroEHR covers such an
+operation only with `*` (FerroEHR book v5.7.0, `smart-app-launch.md`, "What
+each route requires"). It therefore reaches the EHR, `EHR_STATUS`,
+`DIRECTORY`, `CONTRIBUTION`, the item tags and the EHR extract of every EHR
+for reading and creating. What limits eduLIMS's commits is the system
+client's `writes` (`eduLIMS-lab.v1` only), and the CI integration lane
+proves that FerroEHR refuses this client a composition of another template
+and an `EHR_STATUS` update (#364).
+
+**Before you upgrade FerroEHR past 5.7.1:** the releases after 5.7.1 remove
+`[[authz.system_client]]`, and with it the `writes` limit. Re-establish an
+equal limit in the new FerroEHR's configuration, and run the integration
+lane against it, before you move; until then, keep FerroEHR at 5.7.1 or
+earlier.
 
 Check the file before you start the stack. The check runs the same
 validation FerroEHR runs at start, touches no database, and exits 78 on a
@@ -240,8 +257,10 @@ follows:
    FerroEHR still holds it, and the old compositions name it.
 3. Add the new id to `writes` of the eduLIMS system client
    (`config/ferroehr.toml`, the `FERROEHR__AUTHZ__SYSTEM_CLIENT__0__WRITES`
-   value of `compose.dev.yaml`, and `config/ferroehr.toml.example`), and
-   the matching `system/composition-<id>.cr` scope at the identity provider.
+   value of `compose.dev.yaml`, and `config/ferroehr.toml.example`). The
+   client's `system/composition-*.cr` scope covers every template already, so
+   the identity provider needs no change; `writes` alone limits which
+   templates eduLIMS commits.
 4. On the host, `docker compose up -d --wait` loads the new template before
    FerroEHR starts.
 
