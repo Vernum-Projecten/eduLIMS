@@ -7,6 +7,7 @@
 // light, dark and Dutch, and reflow at 320 px.
 import { randomBytes } from "node:crypto";
 import { type BrowserContext, expect, type Page, type Route, test } from "@playwright/test";
+import { copyAccount } from "./accounts";
 import { axe, dutch } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
@@ -97,6 +98,8 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
 }) => {
   test.setTimeout(120_000);
   const id = suffix();
+  // NOTE: #379; a student of its own, since one in another unfinished simulation cannot be added.
+  const student = await copyAccount("student@example.test", "journey-student");
   const simulation = `Journey simulation ${id}`;
   const alpha = `Alpha ${id}`;
   const beta = `Beta ${id}`;
@@ -157,11 +160,11 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   await page.getByRole("link", { name: `Back to ${simulation}` }).click();
   await openLab(page, alpha);
   await expect(page.getByText("No students in this lab yet", { exact: true })).toBeVisible();
-  await checkList(page, [STUDENT, ...invented, "not-an-address", taken]);
+  await checkList(page, [student.email, ...invented, "not-an-address", taken]);
   await expect(page.getByText("Checked: 6 can be added, 2 cannot.").first()).toBeAttached();
   await expect(outcomeRow(page, "not-an-address")).toContainText("Not added: not an email address");
   await expect(outcomeRow(page, taken)).toContainText(`Not added: already in lab ${beta}`);
-  await expect(outcomeRow(page, STUDENT)).toContainText("Will be added");
+  await expect(outcomeRow(page, student.email)).toContainText("Will be added");
   // The outcome is a preview: nothing waits for Alpha yet.
   await expect(page.getByText("No addresses are waiting", { exact: true })).toBeVisible();
   await axe(page);
@@ -176,11 +179,11 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   // The student signs in elsewhere and is linked to Alpha at sign-in (S10).
   const studentContext = await browser.newContext();
   const studentPage = await studentContext.newPage();
-  await devLogin(studentPage, STUDENT);
+  await devLogin(studentPage, student.email);
   await studentContext.close();
   await page.reload();
   await expect(
-    membersTable(page).getByRole("cell", { name: "Test Student", exact: true }),
+    membersTable(page).getByRole("cell", { name: student.name, exact: true }),
   ).toBeVisible();
   await expect(membersTable(page)).toContainText("By email address");
   await expect(waitingTable(page).getByRole("row")).toHaveCount(6);
@@ -221,19 +224,19 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
 
   // Move the student to Beta with the keyboard alone (WCAG 2.1.1).
   await openLab(page, alpha);
-  const actions = page.getByRole("button", { name: "Actions for Test Student" });
+  const actions = page.getByRole("button", { name: `Actions for ${student.name}` });
   await expectHydrated(actions);
   await actions.focus();
   await page.keyboard.press("Enter");
   const move = page.getByRole("menuitem", { name: "Move to another lab" });
   await pressUntilFocused(page, "ArrowDown", move);
   await page.keyboard.press("Enter");
-  const moveDialog = page.getByRole("dialog", { name: "Move Test Student" });
+  const moveDialog = page.getByRole("dialog", { name: `Move ${student.name}` });
   await expect(moveDialog.getByRole("radio", { name: beta })).toBeChecked();
   await axe(page);
   await pressUntilFocused(page, "Tab", moveDialog.getByRole("button", { name: "Move student" }), 6);
   await page.keyboard.press("Enter");
-  await expect(page.getByText(`Test Student moved to lab ${beta}.`)).toBeVisible();
+  await expect(page.getByText(`${student.name} moved to lab ${beta}.`)).toBeVisible();
   await expect(page.getByText("No students in this lab yet", { exact: true })).toBeVisible();
   await settle(page);
   await expect(
@@ -243,7 +246,7 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   // Remove the student from the simulation with the keyboard alone, after a confirmation.
   await page.getByRole("link", { name: `Back to ${simulation}` }).click();
   await openLab(page, beta);
-  const betaActions = page.getByRole("button", { name: "Actions for Test Student" });
+  const betaActions = page.getByRole("button", { name: `Actions for ${student.name}` });
   await expectHydrated(betaActions);
   await betaActions.focus();
   await page.keyboard.press("Enter");
@@ -251,14 +254,14 @@ test("a teacher prepares a simulation with a lab of six, and the student lands i
   await pressUntilFocused(page, "ArrowDown", remove);
   await page.keyboard.press("Enter");
   const confirm = page.getByRole("alertdialog", {
-    name: "Remove Test Student from the simulation?",
+    name: `Remove ${student.name} from the simulation?`,
   });
   // The safe choice takes the first focus (WCAG 3.3.4).
   await expect(confirm.getByRole("button", { name: "Cancel" })).toBeFocused();
   await axe(page);
   await pressUntilFocused(page, "Tab", confirm.getByRole("button", { name: "Remove student" }));
   await page.keyboard.press("Enter");
-  await expect(page.getByText("Test Student removed from the simulation.")).toBeVisible();
+  await expect(page.getByText(`${student.name} removed from the simulation.`)).toBeVisible();
   await expect(page.getByText("No students in this lab yet", { exact: true })).toBeVisible();
   await settle(page);
   await expect(

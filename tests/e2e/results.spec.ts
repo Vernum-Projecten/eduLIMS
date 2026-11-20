@@ -82,7 +82,7 @@ test("a student measures and releases one result with the keyboard alone (S14, S
   const links = page.getByRole("link", { name: "Set a tolerance" });
   await expect(links).toHaveCount(2);
   for (const link of await links.all()) {
-    await expect(link).toHaveAttribute("href", `/student/tolerances?lab=${world.labId}`);
+    await expect(link).toHaveAttribute("href", "/student/tolerances");
   }
 
   const measure = page.getByRole("button", { name: `Enter measurement for ${name}` });

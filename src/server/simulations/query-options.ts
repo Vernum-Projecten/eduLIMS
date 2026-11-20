@@ -18,7 +18,7 @@ import {
   getAdminSimulationFn,
   getJoinCodeFn,
   getLabPage,
-  getMyLabs,
+  getMyLab,
   getSimulationPage,
   listAdminSimulationsFn,
   listMySimulations,
@@ -107,11 +107,11 @@ export function joinCodeQueryOptions(simulationId: string, labId: string) {
   });
 }
 
-/** The labs the student is in. */
-export function myLabsQueryOptions() {
+/** The student's current lab, or `null`; the server picks it (S10, #379). */
+export function myLabQueryOptions() {
   return queryOptions({
     queryKey: simulationsKeys.student(),
-    queryFn: () => getMyLabs(),
+    queryFn: () => getMyLab(),
     staleTime: STALE_TIME.simulations,
   });
 }
@@ -238,7 +238,7 @@ export function deleteMutationOptions<TInput>(
 }
 
 /**
- * The mutation options of linking the student's waiting addresses (S10): the student's labs are
+ * The mutation options of linking the student's waiting addresses (S10): the student's lab is
  * invalidated once it settles.
  */
 export function linkMyLabsMutationOptions<TValue>(

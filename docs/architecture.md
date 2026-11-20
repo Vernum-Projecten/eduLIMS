@@ -149,7 +149,19 @@ email address a teacher added to a lab is linked to that lab without doing
 anything; eduLIMS sends no email. A student who signs in with another address
 joins with the lab's code (S10; owner, 2026-11-19, O10). There are no roles
 inside a lab: every member may do everything, and eduLIMS records who did
-what. A student can be in several simulations, in one lab of each (S10).
+what. A student takes part in one simulation at a time (owner, 2026-11-20,
+#379): they are in at most one lab whose simulation is prepared or running.
+Every path that puts a student in a lab (the join code, a waiting address
+linked at sign-in or on the overview, a teacher's move) refuses a second one
+with `in_other_simulation`, after it locks the simulation row and then the
+student's user row, and the trigger `lab_members_one_active_simulation`
+(migration `0026_one_active_simulation_per_student`) holds the same rule.
+A pasted address of such a student is refused at its line without naming the
+other simulation. Once that simulation is finished, the student may join
+another. The Student portal shows the student's one current lab, which the
+server picks: the lab of their prepared or running simulation, or else the
+lab of their most recently finished one, read-only, until they join a new
+one. No student page takes a lab in its URL.
 
 Only functions for the teacher role read a correct value or an accuracy
 status, and each has negative tests with a student account (Q-SIM-1).
@@ -587,8 +599,8 @@ A team's records from the paper request form live in the eduLIMS database
 - **The catalogue.** A request reads its tests `FOR SHARE` in id order, so a
   catalogue edit, which holds the test `FOR UPDATE`, serialises with it, and
   a test a request names counts as used (running while its simulation runs).
-- **Screens.** The Student portal's Patients and requests page shows one of
-  the student's labs at a time (`?lab=`, the newest by default), its
+- **Screens.** The Student portal's Patients and requests page shows the
+  student's current lab, which the server picks (#379), its
   patients and its requests with every sample's lab number in groups of
   three, three and four digits. The copy action copies the digits and says
   so in a status region (WCAG 4.1.3). Writing is open only while the
@@ -705,8 +717,8 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
   tolerance; the teachers of the simulation read the same with the released
   measurement marked and the tolerance kept at the release (D11). Neither
   read holds a correct value, a limit or an accuracy status (Q-SIM-1).
-- **Screens.** The Student portal's Measurements and results page shows one
-  of the student's labs at a time (`?lab=`, the newest by default): per
+- **Screens.** The Student portal's Measurements and results page shows the
+  student's current lab, which the server picks (#379): per
   request every requested test with its state as a badge with an icon and
   text, the team's own tolerance, and its measurements in a named,
   keyboard-reachable scroll region. Entry by hand opens a form whose refusal

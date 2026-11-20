@@ -103,8 +103,10 @@ test("a student of another lab sees none of it and cannot open the lab (S13, S10
   await expect(own).toContainText("No tolerance yet");
   await expect(page.getByText(world.lab)).toHaveCount(0);
 
+  // NOTE: #379; a lab id in the URL changes nothing, the server picks the student's own lab.
   await page.goto(`/student/tolerances?lab=${world.labId}`);
-  await expect(page.getByRole("heading", { level: 1, name: "Lab not found" })).toBeVisible();
+  await expect(own).toContainText("No tolerance yet");
+  await expect(page.getByText(world.lab)).toHaveCount(0);
   await expect(page.getByText("4.5")).toHaveCount(0);
   await axe(page);
 });

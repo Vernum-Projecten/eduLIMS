@@ -169,7 +169,7 @@ test("a student joins with the code; a wrong code is refused at the field (S10)"
 }) => {
   expect(alphaCode).toMatch(CODE);
   const form = await joinForm(page, STUDENT);
-  const labs = page.getByRole("region", { name: "Your labs" });
+  const labs = page.getByRole("region", { name: "Your lab" });
   await expect(labs.getByText(ALPHA, { exact: true })).toHaveCount(0);
   await axe(page);
 
@@ -224,7 +224,7 @@ test("a code of another lab of the same simulation is refused at the field (S10,
   await send(page, field);
   await expect(form.getByText("You are already in another lab of this simulation.")).toBeVisible();
   await expect(field).toHaveAttribute("aria-invalid", "true");
-  const labs = page.getByRole("region", { name: "Your labs" });
+  const labs = page.getByRole("region", { name: "Your lab" });
   await expect(labs.getByText(BETA, { exact: true })).toHaveCount(0);
   await expect(labs.getByText(ALPHA, { exact: true })).toBeVisible();
 });
@@ -233,7 +233,7 @@ test("the rate limit stops a student who guesses (S10, ASVS V2.4.1)", async ({ p
   expect(alphaCode).toMatch(CODE);
   const form = await joinForm(page, GUESSER);
   // The guesser is in no lab: the empty state says how a student gets into one.
-  const labs = page.getByRole("region", { name: "Your labs" });
+  const labs = page.getByRole("region", { name: "Your lab" });
   await expect(labs.getByText("You are not in a lab yet", { exact: true })).toBeVisible();
   await expect(labs.getByText(/adds your email address to a lab/)).toBeVisible();
   await expect(labs.getByRole("listitem")).toHaveCount(0);
@@ -353,7 +353,7 @@ test("the overview and the lab page reflow at 320 px without horizontal scrollin
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
   await devLogin(page, STUDENT);
-  await expect(page.getByRole("region", { name: "Your labs" }).getByText(ALPHA)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Your lab" }).getByText(ALPHA)).toBeVisible();
   expect(await overflow()).toBeLessThanOrEqual(0);
   await context.clearCookies();
   await devLogin(page, TEACHER);
@@ -398,7 +398,7 @@ test("a signed-in student whose address a teacher adds lands in the lab from the
   await devLogin(student, WAITING);
   await expect(student).toHaveURL(/\/student$/);
   await expect(
-    student.getByRole("region", { name: "Your labs" }).getByText(BETA, { exact: true }),
+    student.getByRole("region", { name: "Your lab" }).getByText(BETA, { exact: true }),
   ).toHaveCount(0);
 
   // The teacher adds the address to Beta.
@@ -414,7 +414,7 @@ test("a signed-in student whose address a teacher adds lands in the lab from the
 
   // Opening the overview again links the address, with no second sign-in (S10).
   await student.goto("/student");
-  const labs = student.getByRole("region", { name: "Your labs" });
+  const labs = student.getByRole("region", { name: "Your lab" });
   await expect(labs.getByText(BETA, { exact: true })).toBeVisible();
   await expect(student.getByText(`You were added to lab ${BETA} of ${SIMULATION}.`)).toBeVisible();
   await studentContext.close();

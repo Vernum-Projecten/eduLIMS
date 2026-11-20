@@ -5,7 +5,7 @@
 // from the session user's own rows in SQL: a teacher row of the simulation, or the student's
 // place in a lab. Another teacher's simulation and a lab the student is not in read as nothing.
 import "@tanstack/react-start/server-only";
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import { parseLabId, parseSimulationId, type SimulationState } from "../../lib/simulations.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { logNotFound } from "./access.ts";
@@ -267,19 +267,29 @@ export async function getTeacherLab(
   };
 }
 
-/** One lab of the student's overview. */
+/** The student's current lab, which every Student portal page shows (S10, #379). */
 export interface StudentLabRow {
   labId: string;
   labName: string;
   simulationId: string;
   simulationName: string;
+  /** The state of its simulation; a finished one is shown read-only until the next join. */
+  state: SimulationState;
   /** The version of the lab's logo, `null` without one ({@link logoVersion}). */
   logoVersion: string | null;
 }
 
-/** Returns the labs the student is a member of, one per simulation (S10). */
-export async function listStudentLabs(db: Kysely<DB>, userId: string): Promise<StudentLabRow[]> {
-  const rows = await studentLabsQuery(db, userId)
+/**
+ * Returns the student's current lab (S10, owner 2026-11-20 on #379): the lab of their prepared
+ * or running simulation, of which there is at most one, or else the lab of their most recently
+ * finished simulation; `null` when they are in no lab. The server decides; no page asks for a
+ * lab by its id.
+ */
+export async function getCurrentStudentLab(
+  db: Kysely<DB>,
+  userId: string,
+): Promise<StudentLabRow | null> {
+  const row = await studentLabsQuery(db, userId)
     .innerJoin("simulations", "simulations.id", "labs.simulation_id")
     .leftJoin("lab_logos", "lab_logos.lab_id", "labs.id")
     .select([
@@ -288,15 +298,22 @@ export async function listStudentLabs(db: Kysely<DB>, userId: string): Promise<S
       "labs.name as lab_name",
       "simulations.id as simulation_id",
       "simulations.name as simulation_name",
+      "simulations.state",
     ])
-    .orderBy("simulations.created_at", "desc")
-    .orderBy("simulations.id")
-    .execute();
-  return rows.map((row) => ({
+    // NOTE: #379; an unfinished simulation first, then the latest finish, then the newest id, so
+    // the same rows always give the same lab.
+    .orderBy(sql`simulations.state = 'finished'`)
+    .orderBy("simulations.finished_at", (ob) => ob.desc().nullsFirst())
+    .orderBy("simulations.id", "desc")
+    .limit(1)
+    .executeTakeFirst();
+  if (!row) return null;
+  return {
     labId: row.lab_id,
     labName: row.lab_name,
     simulationId: row.simulation_id,
     simulationName: row.simulation_name,
+    state: toSimulationState(row.state),
     logoVersion: logoVersion(row.sha256),
-  }));
+  };
 }

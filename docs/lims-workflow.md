@@ -95,8 +95,10 @@ erDiagram
   address a teacher added to a lab is linked to that lab; eduLIMS sends no
   email. A student who signs in with another address joins with the lab's
   code (S10). There are no roles inside a lab: every member may do
-  everything, and eduLIMS records who did what. A student can be in several
-  simulations, in one lab of each (S10).
+  everything, and eduLIMS records who did what. A student takes part in one
+  simulation at a time: once it is finished, they may join another, and the
+  Student portal shows the finished lab read-only until then (S10; owner,
+  2026-11-20, #379).
 - A result released to the patient's record is final: nobody can change it
   or release another measurement for that requested test (S15; owner,
   2026-11-19, O7). The teacher sees every measurement of a requested test,

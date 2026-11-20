@@ -42,21 +42,21 @@ const ROLE_OF: Record<string, "teacher" | "student" | "admin"> = {
   uploadLabLogoFn: "teacher",
   removeLabLogoFn: "teacher",
   joinLabFn: "student",
-  getMyLabs: "student",
+  getMyLab: "student",
   linkMyLabsFn: "student",
   listAdminSimulationsFn: "admin",
   getAdminSimulationFn: "admin",
 };
 
 /** The functions that take no input: they read the session user's own rows only. */
-const NO_INPUT = new Set(["listMySimulations", "getMyLabs", "linkMyLabsFn"]);
+const NO_INPUT = new Set(["listMySimulations", "getMyLab", "linkMyLabsFn"]);
 
 const READS = new Set([
   "listMySimulations",
   "getSimulationPage",
   "getLabPage",
   "getJoinCodeFn",
-  "getMyLabs",
+  "getMyLab",
   "listAdminSimulationsFn",
   "getAdminSimulationFn",
 ]);

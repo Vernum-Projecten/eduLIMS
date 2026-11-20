@@ -99,10 +99,11 @@ describe("deleting a lab that has a tolerance (maintainer on #352, N1)", () => {
 describe("a student in labs of two simulations (S10)", () => {
   it("reads each own lab, writes only where it runs, and reaches no other lab", async () => {
     const { database, w, testId } = await open();
-    await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
     const outside = { simulationId: w.outsideSimulationId };
     expect((await startSimulation(database, w.outsiderTeacher, outside, NOW)).ok).toBe(true);
     expect((await finishSimulation(database, w.outsiderTeacher, outside, NOW)).ok).toBe(true);
+    // NOTE: #379; beside a running simulation, a second place is only in a finished one.
+    await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
 
     expect((await readStudentTolerances(database, w.student, w.labId))?.state).toBe("running");
     expect((await readStudentTolerances(database, w.student, w.outsideLabId))?.state).toBe(

@@ -9,7 +9,7 @@ import { simulationActionKeys } from "./action-keys";
 vi.mock("@/server/simulations/functions", () => ({
   getAdminSimulationFn: vi.fn(),
   getLabPage: vi.fn(),
-  getMyLabs: vi.fn(),
+  getMyLab: vi.fn(),
   getSimulationPage: vi.fn(),
   listAdminSimulationsFn: vi.fn(),
   listMySimulations: vi.fn(),

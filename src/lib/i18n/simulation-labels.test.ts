@@ -9,6 +9,7 @@ import { EMAIL_LINE_STATUSES } from "@/server/simulations/emails";
 import {
   emailLineLabel,
   isJoinVia,
+  joinErrorMessage,
   joinViaLabel,
   limitKindLabel,
   linkedMessage,
@@ -51,6 +52,27 @@ describe("simulationErrorMessage (D10)", () => {
   it("says a teacher to remove does not teach the simulation, apart from the add refusal", () => {
     expect(simulationErrorMessage("teacher_not_found")).toBe(
       "This person does not teach this simulation.",
+    );
+  });
+});
+
+describe("joinErrorMessage and the line of another simulation (#379)", () => {
+  it("tells the student who typed a code in their own words, naming no other simulation", () => {
+    expect(joinErrorMessage("in_other_simulation")).toBe(
+      "You are already in a lab of a simulation that is not finished. You can join another lab once it is finished.",
+    );
+  });
+
+  it("gives every other join refusal the shared message", () => {
+    expect(joinErrorMessage("invalid_code")).toBe(simulationErrorMessage("invalid_code"));
+  });
+
+  it("tells the teacher about the student, naming no other simulation or teacher", () => {
+    expect(simulationErrorMessage("in_other_simulation")).toBe(
+      "This student is in a lab of another simulation that is not finished yet.",
+    );
+    expect(emailLineLabel({ email: "a@example.test", status: "in_other_simulation" })).toBe(
+      "Not added: this student is in another simulation that is not finished",
     );
   });
 });
@@ -137,26 +159,33 @@ describe("linkedMessage (S10, #290)", () => {
     labName,
     simulationId: "s1",
     simulationName: "Demo simulation",
+    state: "prepared" as const,
     logoVersion: null,
   });
   const aurora = lab("l1", "Lab Aurora");
   const borealis = lab("l2", "Lab Borealis");
 
   it("says nothing when no address was linked", () => {
-    expect(linkedMessage(0, [aurora], [aurora])).toBeNull();
+    expect(linkedMessage(0, aurora, aurora)).toBeNull();
   });
 
   it("names the one lab a link added", () => {
-    expect(linkedMessage(1, [aurora], [aurora, borealis])).toBe(
+    expect(linkedMessage(1, aurora, borealis)).toBe(
       "You were added to lab Lab Borealis of Demo simulation.",
     );
   });
 
   it("counts the labs when more than one was linked", () => {
-    expect(linkedMessage(2, [], [aurora, borealis])).toBe("Labs your teacher added you to: 2.");
+    expect(linkedMessage(2, null, borealis)).toBe("Labs your teacher added you to: 2.");
   });
 
-  it("counts when the labs read again do not show which lab was added", () => {
-    expect(linkedMessage(1, [aurora], [aurora])).toBe("Labs your teacher added you to: 1.");
+  it("counts when the lab read again does not show which lab was added", () => {
+    expect(linkedMessage(1, aurora, aurora)).toBe("Labs your teacher added you to: 1.");
+  });
+
+  it("names the first lab of a student who was in none", () => {
+    expect(linkedMessage(1, null, aurora)).toBe(
+      "You were added to lab Lab Aurora of Demo simulation.",
+    );
   });
 });

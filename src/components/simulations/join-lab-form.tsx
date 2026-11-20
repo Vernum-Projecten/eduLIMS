@@ -11,7 +11,7 @@ import { useSimulationAction } from "@/components/simulations/use-simulation-act
 import { FieldGroup } from "@/components/ui/field";
 import { m } from "@/i18n/messages";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
-import { simulationErrorMessage } from "@/lib/i18n/simulation-labels";
+import { joinErrorMessage } from "@/lib/i18n/simulation-labels";
 import { JOIN_CODE_INPUT_MAX } from "@/lib/join-code";
 import { joinLabFn } from "@/server/simulations/functions";
 import type { JoinOutcome } from "@/server/simulations/join";
@@ -55,7 +55,7 @@ export function JoinLabForm() {
           formApi,
           code === null
             ? { form: m.labs_join_failed() }
-            : { fields: { code: simulationErrorMessage(code) } },
+            : { fields: { code: joinErrorMessage(code) } },
         );
       }
     },
