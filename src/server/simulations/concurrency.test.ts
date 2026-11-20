@@ -111,6 +111,7 @@ describe("parallel writes (S10, #280)", () => {
       .select("outcome")
       .where("action", "=", "lab_member_joined")
       .where("actor_id", "=", newcomer.id)
+      .orderBy("id")
       .execute();
     expect(joined).toEqual([{ outcome: "success" }]);
   });

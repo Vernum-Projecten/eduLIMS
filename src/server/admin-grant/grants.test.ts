@@ -56,7 +56,11 @@ async function stored(database: Kysely<DB>, id: string) {
 }
 
 async function actions(database: Kysely<DB>) {
-  const rows = await database.selectFrom("audit_event").select(["action", "actor_type"]).execute();
+  const rows = await database
+    .selectFrom("audit_event")
+    .select(["action", "actor_type"])
+    .orderBy("id")
+    .execute();
   return rows.map((row) => `${row.action}:${row.actor_type}`);
 }
 
@@ -142,6 +146,7 @@ describe("grantAdmin (#48)", () => {
     const rows = await database
       .selectFrom("audit_event")
       .select(["action", "actor_type", "target_id", "reason_code"])
+      .orderBy("id")
       .execute();
     expect(rows).toEqual([
       {

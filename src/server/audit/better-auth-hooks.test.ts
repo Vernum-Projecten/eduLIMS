@@ -70,6 +70,7 @@ async function events(database: Kysely<DB>, action: AuditAction) {
       "metadata",
     ])
     .where("action", "=", action)
+    .orderBy("id")
     .execute();
 }
 

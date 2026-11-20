@@ -65,6 +65,7 @@ async function pruneRows(database: Kysely<DB>) {
     .selectFrom("audit_event")
     .select(["actor_type", "actor_id", "outcome", "target_type", "reason_code", "metadata"])
     .where("action", "=", "sys_retention_prune")
+    .orderBy("id")
     .execute();
 }
 

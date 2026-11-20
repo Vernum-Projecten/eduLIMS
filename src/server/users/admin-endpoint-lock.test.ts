@@ -150,6 +150,7 @@ function closedRows(database: Kysely<DB>) {
     .selectFrom("audit_event")
     .select(["actor_type", "actor_id", "outcome", "reason_code", "target_id"])
     .where("action", "=", "authz_endpoint_closed")
+    .orderBy("id")
     .execute();
 }
 

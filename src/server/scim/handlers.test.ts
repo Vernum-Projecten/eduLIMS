@@ -108,7 +108,11 @@ describe("the SCIM section", () => {
     expect((await providerSettings(db, "campus"))?.scimExternalIdClaim).toBe("oid");
     await scimHandlers.setExternalIdClaim(admin, { ...PROVIDER, claim: null }, deps);
     expect((await providerSettings(db, "campus"))?.scimExternalIdClaim).toBeNull();
-    const rows = await db.selectFrom("audit_event").select(["action", "metadata"]).execute();
+    const rows = await db
+      .selectFrom("audit_event")
+      .select(["action", "metadata"])
+      .orderBy("id")
+      .execute();
     expect(rows[0]).toMatchObject({
       action: "idp_updated",
       metadata: { fields: ["scim_external_id_claim"], provider_id: "campus" },
