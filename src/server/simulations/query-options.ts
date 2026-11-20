@@ -5,6 +5,7 @@
 // options of each read, and mutation options whose invalidation keys every caller names
 // explicitly. A lab's keys nest under its simulation, so a write to a simulation reaches its labs.
 import {
+  keepPreviousData,
   mutationOptions,
   type QueryClient,
   type QueryKey,
@@ -12,6 +13,7 @@ import {
 } from "@tanstack/react-query";
 import { STALE_TIME } from "../../lib/query-config.ts";
 import type { SimulationActionError, SimulationResult } from "./access.ts";
+import type { ListAdminSimulationsInput } from "./admin-schemas.ts";
 import {
   getAdminSimulationFn,
   getJoinCodeFn,
@@ -35,6 +37,7 @@ export const simulationsKeys = {
   student: () => [...simulationsKeys.all, "student"] as const,
   admin: () => [...simulationsKeys.all, "admin"] as const,
   adminList: () => [...simulationsKeys.admin(), "list"] as const,
+  adminPage: (input: ListAdminSimulationsInput) => [...simulationsKeys.adminList(), input] as const,
   adminDetail: (simulationId: string) =>
     [...simulationsKeys.admin(), "detail", simulationId] as const,
 };
@@ -107,14 +110,23 @@ export function myLabsQueryOptions() {
   });
 }
 
-/** The administrator's read-only list (B5). */
-export function adminSimulationsQueryOptions() {
+/**
+ * One page of the administrator's read-only list (B5, #291), keyed by the search and the page.
+ * While the next page or search loads, the previous page stays on screen; a failure with no
+ * page to show throws to the route's error state.
+ */
+export function adminSimulationsQueryOptions(input: ListAdminSimulationsInput) {
   return queryOptions({
-    queryKey: simulationsKeys.adminList(),
-    queryFn: () => listAdminSimulationsFn(),
+    queryKey: simulationsKeys.adminPage(input),
+    queryFn: () => listAdminSimulationsFn({ data: input }),
     staleTime: STALE_TIME.simulations,
+    placeholderData: keepPreviousData,
+    throwOnError: (_error, query) => query.state.data === undefined,
   });
 }
+
+/** The page of simulations {@link adminSimulationsQueryOptions} returns. */
+export type AdminSimulationsPage = Awaited<ReturnType<typeof listAdminSimulationsFn>>;
 
 /** The administrator's read-only view of one simulation (B5). */
 export function adminSimulationQueryOptions(simulationId: string) {

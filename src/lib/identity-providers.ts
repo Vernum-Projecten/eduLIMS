@@ -81,6 +81,13 @@ export const ACCOUNT_DEPROVISIONED_ERROR = "account_deprovisioned";
 export const SAML_NAMEID_ERROR = "saml_nameid_not_persistent";
 
 /**
+ * Rejection code for a sign-in or a SCIM write whose e-mail address is not plain ASCII but folds
+ * onto an ASCII one when lower-cased (#324), or whose address the sign-in gate cannot read as
+ * the identity provider sent it.
+ */
+export const EMAIL_FOLD_ERROR = "email_fold_collision";
+
+/**
  * Returns a sign-in error code from the `error` search parameter in a stable form: better-auth
  * reports a refused link as `account not linked` on the OIDC callback.
  */

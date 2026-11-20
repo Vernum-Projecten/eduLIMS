@@ -95,6 +95,7 @@ const REASON_LABELS: Readonly<Record<string, () => string>> = {
   access_denied: m.admin_activity_reason_access_denied,
   account_deprovisioned: m.admin_activity_reason_account_deprovisioned,
   address_domain: m.admin_activity_reason_address_domain,
+  email_fold_collision: m.admin_activity_reason_email_fold,
   http_404: m.admin_activity_reason_not_found,
   provider_disabled: m.admin_activity_reason_provider_disabled,
   token_expired: m.admin_activity_reason_token_expired,

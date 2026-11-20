@@ -20,6 +20,56 @@ export function samlNameIdFormats(samlResponse: unknown): string[] {
   return formats;
 }
 
+const XML_ENTITIES: Readonly<Record<string, string>> = {
+  amp: "&",
+  lt: "<",
+  gt: ">",
+  quot: '"',
+  apos: "'",
+};
+
+/** Returns XML character data with its character and predefined entity references resolved. */
+function decodeXmlText(text: string): string | null {
+  const reference = /&(#x[0-9a-fA-F]+|#[0-9]+|[a-z]+);/g;
+  let failed = text.replace(reference, "").includes("&");
+  const decoded = text.replace(reference, (_match, ref: string) => {
+    const code = ref.startsWith("#x")
+      ? Number.parseInt(ref.slice(2), 16)
+      : ref.startsWith("#")
+        ? Number.parseInt(ref.slice(1), 10)
+        : null;
+    if (code === null) {
+      const entity = XML_ENTITIES[ref];
+      if (entity === undefined) failed = true;
+      return entity ?? "";
+    }
+    if (code > 0x10ffff) {
+      failed = true;
+      return "";
+    }
+    return String.fromCodePoint(code);
+  });
+  return failed ? null : decoded;
+}
+
+/**
+ * Returns the text of the subject's `NameID` in a base64 SAMLResponse, exactly as the identity
+ * provider sent it, or `null` when the response has no single plain-text NameID (none, several
+ * different ones, or one with markup or an unknown entity in it).
+ */
+export function samlNameIdValue(samlResponse: unknown): string | null {
+  if (typeof samlResponse !== "string" || samlResponse === "") return null;
+  const xml = Buffer.from(samlResponse, "base64").toString("utf8");
+  const plain = [
+    ...xml.matchAll(
+      /<(?:[A-Za-z_][\w.-]*:)?NameID\b[^>]*>([^<]*)<\/(?:[A-Za-z_][\w.-]*:)?NameID>/g,
+    ),
+  ];
+  if (plain.length !== samlNameIdFormats(samlResponse).length) return null;
+  const [only, ...rest] = [...new Set(plain.map((match) => decodeXmlText(match[1] ?? "")))];
+  return rest.length === 0 && typeof only === "string" ? only : null;
+}
+
 /**
  * Returns whether a SAMLResponse names its subject with the persistent format only. An encrypted
  * or missing NameID counts as not persistent.

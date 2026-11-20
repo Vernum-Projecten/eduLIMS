@@ -8,6 +8,7 @@ import type { Kysely } from "kysely";
 import type { AuditAction, AuditOutcome } from "../audit/events.ts";
 import type { SessionUser } from "../authz.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { countAdminSimulations } from "../simulations/admin-queries.ts";
 import { assertAdmin } from "../users/actions.ts";
 import { roleValuesWith } from "../users/queries.ts";
 
@@ -46,6 +47,8 @@ export interface OverviewEvent {
 /** Everything the overview shows except the integration status, which has its own read. */
 export interface AdminOverview {
   counts: AccountCounts;
+  /** Every simulation, for the tile that links to the read-only list (B5, #291). */
+  simulations: number;
   activity: OverviewEvent[];
   /** The instant of the read; relative times count from it, so SSR and the client agree. */
   readAt: string;
@@ -121,9 +124,10 @@ export async function readAdminOverview(
   now: Date,
 ): Promise<AdminOverview> {
   assertAdmin(ctx.actor);
-  const [counts, activity] = await Promise.all([
+  const [counts, simulations, activity] = await Promise.all([
     accountCounts(ctx.db, now),
+    countAdminSimulations(ctx.db, ctx.actor),
     recentActivity(ctx.db),
   ]);
-  return { counts, activity, readAt: now.toISOString() };
+  return { counts, simulations, activity, readAt: now.toISOString() };
 }

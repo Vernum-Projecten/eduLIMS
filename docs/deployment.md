@@ -511,6 +511,16 @@ lets users set their own address, therefore cannot take over another
 provider's user. To move a user from one provider to another, an
 administrator removes the old eduLIMS account first.
 
+eduLIMS stores every address in lower case. A few non-ASCII letters turn into
+ASCII ones when lower-cased (the Kelvin sign U+212A becomes `k`), so such an
+address would arrive as someone else's plain address. eduLIMS refuses a
+sign-in whose address the provider sent in that form (error code
+`email_fold_collision`, "Your institution's sign-in sent an e-mail address
+eduLIMS cannot accept"), and a SCIM write with one. The OIDC address is the
+ID token's `email` claim; a SAML provider sends an `email` attribute, or
+eduLIMS takes the NameID. An address that stays non-ASCII, such as
+`josé@school.example`, still signs in.
+
 ### Role mapping
 
 eduLIMS knows three roles: `student`, `teacher` and `admin`. Each provider

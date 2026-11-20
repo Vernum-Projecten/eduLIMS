@@ -3,7 +3,9 @@
 
 import "@tanstack/react-start/server-only";
 import type { BetterAuthOptions } from "better-auth";
+import { foldsOntoAscii } from "../lib/email-fold.ts";
 import {
+  EMAIL_FOLD_ERROR,
   NO_ROLE_ERROR,
   PROVIDER_DISABLED_ERROR,
   ROLE_CONFLICT_ERROR,
@@ -15,7 +17,7 @@ import { isAsciiEmail } from "../lib/simulations.ts";
 import { auditRecorderOf, requestIdOf } from "./audit/better-auth-hooks.ts";
 import { auditProvider } from "./audit/events.ts";
 import type { ProviderSettingsView } from "./idp/registry.ts";
-import { hasPersistentNameId } from "./idp/saml-nameid.ts";
+import { hasPersistentNameId, samlNameIdValue } from "./idp/saml-nameid.ts";
 import { TEST_COMPLETE_ERROR, type TestOutcome } from "./idp/test-flow.ts";
 import { type IdpRoles, resolveIdpRoles } from "./idp-roles.ts";
 import {
@@ -82,6 +84,27 @@ function roleClaims(
     return { claims: { roles: profile[settings.roleClaim] }, claimPath: "roles" };
   }
   return { claims: profile, claimPath: settings.roleClaim };
+}
+
+/**
+ * Returns the e-mail address exactly as the provider sent it, read where the sso plugin reads it
+ * (`@better-auth/sso` 1.7.20): the first non-empty `email` claim of the verified ID token, or the
+ * first value of the SAML `email` attribute, else the NameID. `null` when there is none.
+ */
+export function rawEmailOf(
+  method: "sso-oidc" | "sso-saml",
+  profile: Record<string, unknown>,
+  samlResponse: unknown,
+): string | null {
+  const claim = profile["email"];
+  if (method === "sso-oidc") {
+    const found = [claim].flat().find((value) => typeof value === "string" && value.length > 0);
+    return typeof found === "string" ? found : null;
+  }
+  const first: unknown = Array.isArray(claim) ? claim[0] : claim;
+  if (typeof first === "string" && first !== "") return first;
+  // The plugin falls back to the NameID only on a falsy attribute (`attr(…) || extract.nameID`).
+  return first ? null : samlNameIdValue(samlResponse);
 }
 
 function testOutcome(decision: SignInRoles, profile: Record<string, unknown>): TestOutcome {
@@ -164,6 +187,21 @@ export function createIdpRoleSync(options: IdpRoleSyncOptions): ValidateUserInfo
       }
       await refuse(SAML_NAMEID_ERROR);
       return { error: SAML_NAMEID_ERROR, errorDescription: "SAML NameID is not persistent" };
+    }
+    // NOTE: #324 (ASVS V6.8.1); `user.email` is already lower-cased, so the address is judged as
+    // the provider sent it, and one this gate cannot read back to `user.email` is refused too.
+    const rawEmail = rawEmailOf(
+      source.method === "sso-saml" ? "sso-saml" : "sso-oidc",
+      profile,
+      field(ctx.body, "SAMLResponse"),
+    );
+    if (rawEmail === null || rawEmail.toLowerCase() !== user.email || foldsOntoAscii(rawEmail)) {
+      const test = options.testOf ? await options.testOf(ctx, providerId) : null;
+      if (test !== null) {
+        return endTest(test, { outcome: EMAIL_FOLD_ERROR, roles: [], claimNames: [] });
+      }
+      await refuse(EMAIL_FOLD_ERROR);
+      return { error: EMAIL_FOLD_ERROR, errorDescription: "E-mail address not accepted" };
     }
     const fromIdp: IdpRoles = resolveIdpRoles({
       ...roleClaims(settings, profile),

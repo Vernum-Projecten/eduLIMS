@@ -133,10 +133,20 @@ export async function blockUser(
       },
       headers: ctx.headers,
     });
-    return DONE;
   } catch (error) {
     return fromAuthError(error);
   }
+  if (input.until) {
+    // NOTE: better-auth takes the end as a duration and adds it to its own clock, which runs a
+    // little after ctx.now, so the stored end drifted past the close of the day under load.
+    // The end is set to the exact instant here.
+    await ctx.db
+      .updateTable("user")
+      .set({ banExpires: endOfDayIn(input.until) })
+      .where("id", "=", input.userId)
+      .execute();
+  }
+  return DONE;
 }
 
 /** Lifts the block of a user through better-auth's `unban-user`. */
