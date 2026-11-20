@@ -134,10 +134,13 @@ describe("two releases of one requested test (S15)", () => {
     await a.query("begin");
     await a.query(text, values(measurementId));
     await b.query("begin");
-    const raced = b.query(text, values(other));
+    // The expectation attaches before the commit, so the refusal never surfaces as an unhandled rejection.
+    const refused = expect(b.query(text, values(other))).rejects.toThrow(
+      /a released result is final/,
+    );
     await waitForLockWaiters(c.pool, 1);
     await a.query("commit");
-    await expect(raced).rejects.toThrow(/a released result is final/);
+    await refused;
     expect(await releasedCount(c, w)).toBe(1);
   });
 });

@@ -182,7 +182,7 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await grid.fill(`Sample\t${testName}\nS-101\t5,250\nS-102\tlow`);
   await pasteDialog.getByRole("button", { name: "Save values" }).click();
   await expect(preview.getByRole("cell", { name: /^low/ })).toContainText("Enter a number");
-  await expect(preview.getByRole("cell", { name: /^5,250/ })).toContainText("(stored as 5.25)");
+  await expect(preview.getByRole("cell", { name: /^5,250/ })).toContainText("(stored as 5.250)");
   await axe(page);
 
   // The fixed grid is stored in one write; an empty cell is not requested.
