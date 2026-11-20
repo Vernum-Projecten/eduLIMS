@@ -604,6 +604,18 @@ What a SCIM request does in eduLIMS:
   deactivated your account". eduLIMS keeps the user and their records;
   erasing a person is a separate step. `active: true`, or a new
   create with the same `externalId`, lets the user sign in again.
+  eduLIMS 0.1.0 and 0.1.1 did not apply a SCIM `PUT`, `PATCH` or `DELETE`
+  (#365): deactivations, deletions and role changes from the directory were
+  lost, a member removed from a group mapped to `admin` or `teacher` kept
+  that role, and a sign-in does not correct the roles of a user SCIM
+  provisioned. After upgrading from one of them:
+  1. Restart provisioning in the identity provider (a full sync), so it
+     sends what it could not deliver.
+  2. Review the roles of every user shown as "Provisioned by <provider>" on
+     the Users screen against the directory's groups, administrators and
+     teachers first, and correct them by hand. An identity provider may not
+     resend a group removal or a deactivation it already counts as sent, so
+     the full sync alone is not enough.
 - **Sign-in** finds the provisioned user through the directory id: by
   default the account key (the OIDC `sub`, the SAML persistent NameID). When
   the directory sends another value as `externalId`, set "Claim with the
