@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   APP_TIME_ZONE,
+  byCount,
   formatDate,
   formatDateTime,
   formatDecimal,
@@ -94,5 +95,23 @@ describe("formatRelativeTime", () => {
 
   it("says now under a minute", () => {
     expect(formatRelativeTime("2026-11-11T11:59:30Z", from, { locale: "en" })).toBe("now");
+  });
+});
+
+describe("byCount", () => {
+  const one = (count: string) => `${count} request`;
+  const other = (count: string) => `${count} requests`;
+
+  it("takes the singular for one and the plural for zero and more, in English and Dutch", () => {
+    for (const locale of ["en", "nl"] as const) {
+      expect(byCount(1, one, other, { locale })).toBe("1 request");
+      expect(byCount(0, one, other, { locale })).toBe("0 requests");
+      expect(byCount(2, one, other, { locale })).toBe("2 requests");
+    }
+  });
+
+  it("formats the count for the locale", () => {
+    expect(byCount(1200, one, other, { locale: "en" })).toBe("1,200 requests");
+    expect(byCount(1200, one, other, { locale: "nl" })).toBe("1.200 requests");
   });
 });

@@ -27,7 +27,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { m } from "@/i18n/messages";
-import { formatDateTime } from "@/lib/i18n/format";
+import { byCount, formatDateTime } from "@/lib/i18n/format";
 import { sectionOf } from "@/lib/navigation";
 import type { RequestRow } from "@/server/lab-records/queries";
 import {
@@ -111,7 +111,11 @@ const columns = helper.columns([
         </span>
         {row.original.notOffered.length === 0 ? null : (
           <span className="text-muted-foreground text-sm">
-            {m.records_not_offered_count({ count: row.original.notOffered.length })}
+            {byCount(
+              row.original.notOffered.length,
+              (count) => m.records_not_offered_count_one({ count }),
+              (count) => m.records_not_offered_count_other({ count }),
+            )}
           </span>
         )}
       </div>

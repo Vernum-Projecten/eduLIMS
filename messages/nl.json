@@ -1245,7 +1245,6 @@
   "portal_switcher_open": "Wissel van portaal",
   "portal_teacher": "Docentportaal",
   "portal_teacher_intro": "Hier bereid je je simulaties voor, volg je hun labs op het dashboard en beheer je de bepalingen.",
-  "records_actions": "Acties",
   "records_change": "{before} → {after}",
   "records_change_sample_added": "monster {sample} ({material}) met labnummer {number}",
   "records_col_request": "Aanvraag",
@@ -1293,16 +1292,8 @@
   "records_none": "Geen",
   "records_not_offered": "Tests niet in ons pakket",
   "records_not_offered_add": "Test niet in ons pakket toevoegen",
-  "records_not_offered_count": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "match": {
-        "countPlural=one": "1 test niet in ons pakket",
-        "countPlural=other": "{count} tests niet in ons pakket"
-      },
-      "selectors": ["countPlural"]
-    }
-  ],
+  "records_not_offered_count_one": "{count} test niet in ons pakket",
+  "records_not_offered_count_other": "{count} tests niet in ons pakket",
   "records_not_offered_entry": "{name} ({remark})",
   "records_not_offered_help": "Tests die het formulier vraagt maar die je lab niet uitvoert, geschreven zoals op het formulier.",
   "records_not_offered_list": "Tests niet in ons pakket: {tests}",
@@ -1319,7 +1310,6 @@
   "records_patient_birth_help": "Zoals op het formulier. Je browser toont de datum in je eigen notatie.",
   "records_patient_birth_invalid": "Vul de volledige geboortedatum in: dag, maand en jaar.",
   "records_patient_birth_required": "Vul de volledige geboortedatum in: dag, maand en jaar.",
-  "records_patient_correct": "Corrigeer patiënt {name}",
   "records_patient_correct_body": "Pas aan wat afwijkt van het formulier. Je docent ziet elke correctie.",
   "records_patient_correct_title": "Patiënt corrigeren",
   "records_patient_corrected": "Patiënt gecorrigeerd.",
@@ -1334,28 +1324,17 @@
   "records_patient_register_title": "Patiënt registreren",
   "records_patient_registered": "Patiënt geregistreerd.",
   "records_patient_registered_ehr_pending": "Patiënt geregistreerd. Het dossier in FerroEHR is nog niet aangemaakt, omdat FerroEHR niet antwoordde; eduLIMS probeert het opnieuw voordat je een uitslag vrijgeeft.",
-  "records_patient_requests": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "match": {
-        "countPlural=one": "1 aanvraag",
-        "countPlural=other": "{count} aanvragen"
-      },
-      "selectors": ["countPlural"]
-    }
-  ],
+  "records_patient_requests_one": "{count} aanvraag",
+  "records_patient_requests_other": "{count} aanvragen",
   "records_patient_required": "Kies de patiënt van de aanvraag.",
   "records_patient_sex": "Geslacht",
   "records_patient_sex_required": "Kies het geslacht zoals dat op het formulier staat.",
   "records_patients_caption": "Patiënten van {lab}",
   "records_patients_empty_body": "Registreer de eerste patiënt van een aanvraagformulier.",
   "records_patients_empty_title": "Nog geen patiënten",
-  "records_patients_heading": "Patiënten",
-  "records_patients_table": "Tabel met patiënten",
   "records_phone_through": "Uitslag telefonisch doorgeven",
   "records_phone_through_help": "Vink dit aan als het formulier om de uitslag per telefoon vraagt.",
   "records_remarks": "Opmerkingen",
-  "records_request_correct": "Corrigeer aanvraag: {title}",
   "records_request_correct_body": "Pas aan wat afwijkt van het formulier, of voeg een tweede buis toe. Het tijdstip van invoer blijft staan, en je docent ziet elke correctie.",
   "records_request_correct_title": "Aanvraag corrigeren",
   "records_request_corrected": "Aanvraag gecorrigeerd.",
@@ -1377,7 +1356,6 @@
   "records_requests_empty_body": "Leg de eerste aanvraag van een aanvraagformulier vast.",
   "records_requests_empty_title": "Nog geen aanvragen",
   "records_requests_filter": "Je ziet de aanvragen van {name}.",
-  "records_requests_heading": "Aanvragen",
   "records_requests_patient_empty_body": "Gebruik Aanvraag vastleggen om het aanvraagformulier van {name} in te voeren.",
   "records_requests_patient_empty_title": "Nog geen aanvragen voor deze patiënt",
   "records_sample_add": "Monster toevoegen",

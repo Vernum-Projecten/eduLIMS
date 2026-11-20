@@ -1245,7 +1245,6 @@
   "portal_switcher_open": "Switch portal",
   "portal_teacher": "Teacher portal",
   "portal_teacher_intro": "This is where you prepare your simulations, follow their labs on the dashboard and keep the test catalogue.",
-  "records_actions": "Actions",
   "records_change": "{before} → {after}",
   "records_change_sample_added": "sample {sample} ({material}) with lab number {number}",
   "records_col_request": "Request",
@@ -1293,16 +1292,8 @@
   "records_none": "None",
   "records_not_offered": "Tests not offered",
   "records_not_offered_add": "Add a test not offered",
-  "records_not_offered_count": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "match": {
-        "countPlural=one": "1 test not offered",
-        "countPlural=other": "{count} tests not offered"
-      },
-      "selectors": ["countPlural"]
-    }
-  ],
+  "records_not_offered_count_one": "{count} test not offered",
+  "records_not_offered_count_other": "{count} tests not offered",
   "records_not_offered_entry": "{name} ({remark})",
   "records_not_offered_help": "Tests the form asks for that your lab does not offer, written as on the form.",
   "records_not_offered_list": "Tests not offered: {tests}",
@@ -1319,7 +1310,6 @@
   "records_patient_birth_help": "As on the form. Your browser shows the date in your own notation.",
   "records_patient_birth_invalid": "Enter the full date of birth: day, month and year.",
   "records_patient_birth_required": "Enter the full date of birth: day, month and year.",
-  "records_patient_correct": "Correct patient {name}",
   "records_patient_correct_body": "Change what differs from the form. Your teacher sees every correction.",
   "records_patient_correct_title": "Correct the patient",
   "records_patient_corrected": "Patient corrected.",
@@ -1334,28 +1324,17 @@
   "records_patient_register_title": "Register a patient",
   "records_patient_registered": "Patient registered.",
   "records_patient_registered_ehr_pending": "Patient registered. Its record in FerroEHR is not created yet, because FerroEHR did not answer; eduLIMS tries again before a result is released.",
-  "records_patient_requests": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "match": {
-        "countPlural=one": "1 request",
-        "countPlural=other": "{count} requests"
-      },
-      "selectors": ["countPlural"]
-    }
-  ],
+  "records_patient_requests_one": "{count} request",
+  "records_patient_requests_other": "{count} requests",
   "records_patient_required": "Choose the patient of the request.",
   "records_patient_sex": "Sex",
   "records_patient_sex_required": "Choose the sex as it stands on the form.",
   "records_patients_caption": "Patients of {lab}",
   "records_patients_empty_body": "Register the first patient from a request form.",
   "records_patients_empty_title": "No patients yet",
-  "records_patients_heading": "Patients",
-  "records_patients_table": "Table of patients",
   "records_phone_through": "Phone the result through",
   "records_phone_through_help": "Tick this when the form asks for the result by phone.",
   "records_remarks": "Remarks",
-  "records_request_correct": "Correct request: {title}",
   "records_request_correct_body": "Change what differs from the form, or add a second tube. The time of entry stays as it is, and your teacher sees every correction.",
   "records_request_correct_title": "Correct the request",
   "records_request_corrected": "Request corrected.",
@@ -1377,7 +1356,6 @@
   "records_requests_empty_body": "Record the first request from a request form.",
   "records_requests_empty_title": "No requests yet",
   "records_requests_filter": "Showing the requests of {name}.",
-  "records_requests_heading": "Requests",
   "records_requests_patient_empty_body": "Use Record a request to enter the request form of {name}.",
   "records_requests_patient_empty_title": "No requests for this patient yet",
   "records_sample_add": "Add a sample",

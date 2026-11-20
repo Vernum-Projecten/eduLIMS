@@ -101,3 +101,19 @@ export function formatNumber(
     maximumFractionDigits: Math.max(options.maximumFractionDigits ?? 2, minimum),
   }).format(value);
 }
+
+/**
+ * Returns the message for `count` by the plural rule of the locale: `one` for the singular,
+ * `other` for every other count, each given the count formatted for the locale. English and
+ * Dutch have only these two forms.
+ */
+export function byCount(
+  count: number,
+  one: (count: string) => string,
+  other: (count: string) => string,
+  options: FormatOptions = {},
+): string {
+  const locale = options.locale ?? getLocale();
+  const text = formatNumber(count, { locale });
+  return new Intl.PluralRules(locale).select(count) === "one" ? one(text) : other(text);
+}

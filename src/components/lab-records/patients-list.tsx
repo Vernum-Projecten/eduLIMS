@@ -18,7 +18,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { m } from "@/i18n/messages";
-import { formatDate } from "@/lib/i18n/format";
+import { byCount, formatDate } from "@/lib/i18n/format";
 import { sexLabel } from "@/lib/i18n/records-labels";
 import { sectionOf } from "@/lib/navigation";
 import type { PatientRow } from "@/server/lab-records/queries";
@@ -91,7 +91,11 @@ const columns = helper.columns([
         search={{ patient: row.original.id }}
         className="underline underline-offset-4"
       >
-        {m.records_patient_requests({ count: row.original.requests })}
+        {byCount(
+          row.original.requests,
+          (count) => m.records_patient_requests_one({ count }),
+          (count) => m.records_patient_requests_other({ count }),
+        )}
       </Link>
     ),
   }),
