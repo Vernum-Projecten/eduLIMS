@@ -1,11 +1,22 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { CopyIcon } from "lucide-react";
-import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
+import { CheckIcon, CopyIcon } from "lucide-react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
-import { formatLabNumber } from "@/lib/lab-number";
+import { formatLabNumber, spellLabNumber } from "@/lib/lab-number";
+
+/** How long the copy button shows its check mark after a copy. */
+const COPIED_MS = 2000;
 
 /** Announces a short message in the page's one status region (WCAG 4.1.3). */
 type Announce = (message: string) => void;
@@ -41,9 +52,20 @@ export function CopyAnnouncer({ children }: Readonly<{ children: ReactNode }>) {
 export function LabNumber({ value }: Readonly<{ value: string }>) {
   const announce = useContext(AnnounceContext);
   const grouped = formatLabNumber(value);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    // A reset after a fixed time, not a debounce: the check mark only confirms the copy.
+    const reset = setTimeout(() => setCopied(false), COPIED_MS);
+    return () => clearTimeout(reset);
+  }, [copied]);
+  // NOTE: maintainer, 2026-11-20 (#353 review, N3); the name spells the digits one by one, so a
+  // screen reader reads each digit; the button shows only an icon, so WCAG 2.5.3 holds.
+  const name = m.records_lab_number_copy({ number: spellLabNumber(value) });
   async function copy() {
     try {
       await navigator.clipboard.writeText(value);
+      setCopied(true);
       announce?.(m.records_lab_number_copied({ number: grouped }));
     } catch {
       // NOTE: WCAG 4.1.3; a browser that refuses the clipboard is told in the status region,
@@ -58,11 +80,11 @@ export function LabNumber({ value }: Readonly<{ value: string }>) {
         type="button"
         variant="ghost"
         size="icon-sm"
-        aria-label={m.records_lab_number_copy({ number: grouped })}
+        aria-label={name}
         title={m.records_lab_number_copy({ number: grouped })}
         onClick={() => void copy()}
       >
-        <CopyIcon aria-hidden="true" />
+        {copied ? <CheckIcon aria-hidden="true" /> : <CopyIcon aria-hidden="true" />}
       </Button>
     </span>
   );

@@ -27,6 +27,7 @@ import { formatLabNumber } from "@/lib/lab-number";
 import type { CorrectionLog } from "@/server/lab-records/correction-log";
 import type { CorrectionChange } from "@/server/lab-records/corrections";
 import { correctionLogQueryOptions } from "@/server/lab-records/query-options";
+import { ScrollRegion } from "./scroll-region";
 
 const HEADING = "correction-log-heading";
 
@@ -93,52 +94,56 @@ export function CorrectionLogSection({ simulationId }: Readonly<{ simulationId: 
             </EmptyHeader>
           </Empty>
         ) : (
-          <Table>
-            <TableCaption className="sr-only">{m.records_log_heading()}</TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead scope="col">{m.records_log_when()}</TableHead>
-                <TableHead scope="col">{m.records_log_lab()}</TableHead>
-                <TableHead scope="col">{m.records_log_record()}</TableHead>
-                <TableHead scope="col">{m.records_log_by()}</TableHead>
-                <TableHead scope="col">{m.records_log_changes()}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {log.entries.map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell className="whitespace-normal">
-                    {formatDateTime(entry.correctedAt)}
-                  </TableCell>
-                  <TableCell className="whitespace-normal break-words">{entry.labName}</TableCell>
-                  <TableCell className="whitespace-normal break-words">
-                    {entry.target.kind === "patient"
-                      ? m.records_log_patient({ name: entry.target.name })
-                      : m.records_log_request({
-                          numbers: entry.target.labNumbers.map(formatLabNumber).join(", "),
-                        })}
-                  </TableCell>
-                  <TableCell className="whitespace-normal break-words">
-                    {entry.correctedBy ?? m.records_log_gone()}
-                  </TableCell>
-                  <TableCell className="whitespace-normal break-words">
-                    <ul className="flex flex-col gap-1">
-                      {entry.changes.map((change, index) => (
-                        <li
-                          // biome-ignore lint/suspicious/noArrayIndexKey: a stored change list never reorders.
-                          key={index}
-                          className="break-words"
-                        >
-                          <span className="font-medium">{correctionFieldLabel(change.field)}:</span>{" "}
-                          {changeText(change, log.testNames)}
-                        </li>
-                      ))}
-                    </ul>
-                  </TableCell>
+          <ScrollRegion label={m.records_log_table()}>
+            <Table>
+              <TableCaption className="sr-only">{m.records_log_heading()}</TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">{m.records_log_when()}</TableHead>
+                  <TableHead scope="col">{m.records_log_lab()}</TableHead>
+                  <TableHead scope="col">{m.records_log_record()}</TableHead>
+                  <TableHead scope="col">{m.records_log_by()}</TableHead>
+                  <TableHead scope="col">{m.records_log_changes()}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {log.entries.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="whitespace-normal">
+                      <time dateTime={entry.correctedAt}>{formatDateTime(entry.correctedAt)}</time>
+                    </TableCell>
+                    <TableCell className="whitespace-normal break-words">{entry.labName}</TableCell>
+                    <TableCell className="whitespace-normal break-words">
+                      {entry.target.kind === "patient"
+                        ? m.records_log_patient({ name: entry.target.name })
+                        : m.records_log_request({
+                            numbers: entry.target.labNumbers.map(formatLabNumber).join(", "),
+                          })}
+                    </TableCell>
+                    <TableCell className="whitespace-normal break-words">
+                      {entry.correctedBy ?? m.records_log_gone()}
+                    </TableCell>
+                    <TableCell className="whitespace-normal break-words">
+                      <ul className="flex flex-col gap-1">
+                        {entry.changes.map((change, index) => (
+                          <li
+                            // biome-ignore lint/suspicious/noArrayIndexKey: a stored change list never reorders.
+                            key={index}
+                            className="break-words"
+                          >
+                            <span className="font-medium">
+                              {correctionFieldLabel(change.field)}:
+                            </span>{" "}
+                            {changeText(change, log.testNames)}
+                          </li>
+                        ))}
+                      </ul>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollRegion>
         )}
         {log.truncated ? (
           <p className="mt-2 text-muted-foreground text-sm">{m.records_log_truncated()}</p>

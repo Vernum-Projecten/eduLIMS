@@ -103,3 +103,31 @@ export function correctionFieldLabel(field: CorrectionChange["field"]): string {
     }
   }
 }
+
+/** A field of the request form a refusal can be shown at. */
+export type RequestRefusalField = "testIds" | "patientId" | "requester" | "samples";
+
+/** The field of the request form each refusal is about (WCAG 3.3.1). */
+const REQUEST_REFUSAL_FIELD: Partial<Record<RecordsActionError, RequestRefusalField>> = {
+  test_not_found: "testIds",
+  test_retired: "testIds",
+  patient_not_found: "patientId",
+  requester_required: "requester",
+  sample_not_found: "samples",
+};
+
+/**
+ * Returns a refusal of the request form at the field it is about, or at the top of the form
+ * when it is about none, in the shape `applyServerRefusal` takes.
+ */
+export function requestRefusal(code: RecordsActionError | null): {
+  form?: string;
+  fields?: Partial<Record<RequestRefusalField, string>>;
+} {
+  const message = recordsErrorMessage(code);
+  const field = code === null ? undefined : REQUEST_REFUSAL_FIELD[code];
+  if (field === undefined) return { form: message };
+  const fields: Partial<Record<RequestRefusalField, string>> = {};
+  fields[field] = message;
+  return { fields };
+}

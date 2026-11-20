@@ -20,7 +20,8 @@ import {
 import { FieldGroup, FieldLegend, FieldSet } from "@/components/ui/field";
 import { m } from "@/i18n/messages";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
-import { requestKindLabel } from "@/lib/i18n/records-labels";
+import { formatDate } from "@/lib/i18n/format";
+import { requestKindLabel, requestRefusal } from "@/lib/i18n/records-labels";
 import { formatLabNumber } from "@/lib/lab-number";
 import {
   RECORD_SAMPLE_NUMBER_MAX,
@@ -31,8 +32,9 @@ import {
 } from "@/lib/lab-records";
 import { correctRequestFn, recordRequestFn } from "@/server/lab-records/functions";
 import type { LabRecords, RequestableTest, RequestRow } from "@/server/lab-records/queries";
+import { recordsErrorCode } from "@/server/lab-records/query-options";
 import { type RequestForm, requestFormSchema } from "@/server/lab-records/schemas";
-import { recordsRefusal, useRecordsAction } from "./use-records-action";
+import { useRecordsAction } from "./use-records-action";
 
 /** Returns a new row key; only called from an event handler or a dialog's first render. */
 function newRowKey(): string {
@@ -93,7 +95,9 @@ export function RequestDialog({
   const labId = records.labId;
   const editing = useArrayEditing();
   const record = useRecordsAction(recordRequestFn, labId, (value) =>
-    m.records_request_recorded({ count: String(value.samples.length) }),
+    value.samples.length === 1
+      ? m.records_request_recorded_one()
+      : m.records_request_recorded_other({ count: String(value.samples.length) }),
   );
   const correct = useRecordsAction(correctRequestFn, labId, (outcome) =>
     outcome.changed === 0 ? m.records_nothing_changed() : m.records_request_corrected(),
@@ -105,7 +109,7 @@ export function RequestDialog({
         label: m.records_patient_option({
           name: patient.name,
           identifier: patient.identifier,
-          birth: patient.dateOfBirth,
+          birth: formatDate(patient.dateOfBirth),
         }),
       })),
     [records.patients],
@@ -155,7 +159,7 @@ export function RequestDialog({
           await record.mutateAsync({ ...fields, kind: "control", samples });
         }
       } catch (error) {
-        applyServerRefusal(formApi, { form: recordsRefusal(error) });
+        applyServerRefusal(formApi, requestRefusal(recordsErrorCode(error)));
         return;
       }
       formApi.reset(emptyForm());
@@ -225,6 +229,7 @@ export function RequestDialog({
                 {(field) => (
                   <field.TextField
                     label={m.records_requester()}
+                    description={m.records_requester_help()}
                     maxLength={REQUESTER_MAX}
                     autoComplete="off"
                   />
@@ -265,64 +270,64 @@ export function RequestDialog({
                           const item = m.records_sample_position({ position });
                           const labNumber = row.sampleId ? labNumbers.get(row.sampleId) : undefined;
                           return (
-                            <li
-                              key={row.key}
-                              className="flex flex-col gap-2 rounded-lg border p-3"
-                              aria-label={item}
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="font-medium text-sm">{item}</span>
-                                {labNumber ? (
-                                  <span className="text-sm">
-                                    {m.records_lab_number()}{" "}
-                                    <span className="font-mono tabular-nums">
-                                      {formatLabNumber(labNumber)}
+                            <li key={row.key}>
+                              <FieldSet className="gap-2 rounded-lg border p-3">
+                                <FieldLegend variant="label" className="mb-0">
+                                  {item}
+                                </FieldLegend>
+                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                  {labNumber ? (
+                                    <span className="text-sm">
+                                      {m.records_lab_number()}{" "}
+                                      <span className="font-mono tabular-nums">
+                                        {formatLabNumber(labNumber)}
+                                      </span>
                                     </span>
-                                  </span>
-                                ) : (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon-sm"
-                                    aria-label={m.form_array_remove({ item })}
-                                    disabled={rows.length === 1}
-                                    onClick={() => {
-                                      const neighbour = rows[index + 1] ?? rows[index - 1];
-                                      samples.removeValue(index);
-                                      editing.announce(m.form_array_removed({ item }));
-                                      editing.focus(
-                                        neighbour
-                                          ? `${base}${neighbour.key}-number`
-                                          : `${base}add-sample`,
-                                      );
-                                    }}
-                                  >
-                                    <Trash2Icon aria-hidden="true" />
-                                  </Button>
-                                )}
-                              </div>
-                              <div className="grid gap-3 sm:grid-cols-2">
-                                <form.AppField name={`samples[${index}].sampleNumber`}>
-                                  {(field) => (
-                                    <field.TextField
-                                      id={`${base}${row.key}-number`}
-                                      label={m.records_sample_number()}
-                                      maxLength={RECORD_SAMPLE_NUMBER_MAX}
-                                      autoComplete="off"
-                                      spellCheck={false}
-                                    />
+                                  ) : (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon-sm"
+                                      aria-label={m.form_array_remove({ item })}
+                                      disabled={rows.length === 1}
+                                      onClick={() => {
+                                        const neighbour = rows[index + 1] ?? rows[index - 1];
+                                        samples.removeValue(index);
+                                        editing.announce(m.form_array_removed({ item }));
+                                        editing.focus(
+                                          neighbour
+                                            ? `${base}${neighbour.key}-number`
+                                            : `${base}add-sample`,
+                                        );
+                                      }}
+                                    >
+                                      <Trash2Icon aria-hidden="true" />
+                                    </Button>
                                   )}
-                                </form.AppField>
-                                <form.AppField name={`samples[${index}].material`}>
-                                  {(field) => (
-                                    <field.TextField
-                                      label={m.records_sample_material()}
-                                      maxLength={SAMPLE_MATERIAL_MAX}
-                                      autoComplete="off"
-                                    />
-                                  )}
-                                </form.AppField>
-                              </div>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  <form.AppField name={`samples[${index}].sampleNumber`}>
+                                    {(field) => (
+                                      <field.TextField
+                                        id={`${base}${row.key}-number`}
+                                        label={m.records_sample_number()}
+                                        maxLength={RECORD_SAMPLE_NUMBER_MAX}
+                                        autoComplete="off"
+                                        spellCheck={false}
+                                      />
+                                    )}
+                                  </form.AppField>
+                                  <form.AppField name={`samples[${index}].material`}>
+                                    {(field) => (
+                                      <field.TextField
+                                        label={m.records_sample_material()}
+                                        maxLength={SAMPLE_MATERIAL_MAX}
+                                        autoComplete="off"
+                                      />
+                                    )}
+                                  </form.AppField>
+                                </div>
+                              </FieldSet>
                             </li>
                           );
                         })}

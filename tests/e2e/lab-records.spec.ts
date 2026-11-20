@@ -9,13 +9,26 @@ import { randomBytes } from "node:crypto";
 import { expect, type Page, type Route, test } from "@playwright/test";
 import { axe, dutch, signedInElsewhere } from "./admin-users-helpers";
 import { devLogin, expectHydrated } from "./fixtures";
-import { seedLabRecords } from "./lab-records-seed";
+import {
+  seedControlRequest,
+  seedForeignLab,
+  seedLabRecords,
+  seedSecondLab,
+} from "./lab-records-seed";
 import { appUrl } from "./run-env";
 
 const LAB_NUMBER = /^\d{3} \d{3} \d{4}$/;
 
 function suffix(): string {
   return randomBytes(3).toString("hex").toUpperCase();
+}
+
+/** Asserts that the page scrolls only vertically (WCAG 1.4.10). */
+async function expectNoPageOverflow(page: Page): Promise<void> {
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
 }
 
 async function openRecords(page: Page): Promise<void> {
@@ -40,14 +53,27 @@ test("a team registers a patient, records and corrects a request, and copies a l
   await expect(page.getByText("No patients yet", { exact: true })).toBeVisible();
   await axe(page);
 
-  // Registering: the missing fields are named at their fields.
-  await page.getByRole("button", { name: "Register a patient" }).click();
+  // The dialog gives the focus back to the button that opened it (WCAG 2.4.3).
+  const register = page.getByRole("button", { name: "Register a patient" });
   const patientDialog = page.getByRole("dialog", { name: "Register a patient" });
+  await register.click();
+  await page.keyboard.press("Escape");
+  await expect(patientDialog).toHaveCount(0);
+  await expect(register).toBeFocused();
+  await register.click();
+  await patientDialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(register).toBeFocused();
+
+  // Registering: the missing fields are named at their fields, and focus goes to the first.
+  await register.click();
   await patientDialog.getByRole("button", { name: "Register a patient" }).click();
   await expect(
     patientDialog.getByText("Enter the patient's name as it stands on the form."),
   ).toBeVisible();
-  await expect(patientDialog.getByText("Enter the date of birth.")).toBeVisible();
+  await expect(patientDialog.getByLabel("Name")).toBeFocused();
+  await expect(
+    patientDialog.getByText("Enter the full date of birth: day, month and year."),
+  ).toBeVisible();
   await axe(page);
   await patientDialog.getByLabel("Name").fill("Bo Invented");
 
@@ -70,26 +96,45 @@ test("a team registers a patient, records and corrects a request, and copies a l
   await birth.fill("1984-02-03");
   await patientDialog.getByRole("button", { name: "Register a patient" }).click();
   await expect(patientDialog).toHaveCount(0);
+  await expect(register).toBeFocused();
   await expect(page.getByRole("rowheader", { name: "Bo Invented" })).toBeVisible();
+  // The date of birth shows in the reader's notation (en-US here).
+  await expect(page.getByRole("cell", { name: /1984/ }).locator("time")).toHaveAttribute(
+    "datetime",
+    "1984-02-03",
+  );
 
   // Recording a request with one sample: the server gives the lab number.
-  await page.getByRole("button", { name: "Record a request" }).click();
+  const record = page.getByRole("button", { name: "Record a request" });
   const requestDialog = page.getByRole("dialog", { name: "Record a request" });
+  await record.click();
+  await page.keyboard.press("Escape");
+  await expect(record).toBeFocused();
+  await record.click();
+  await requestDialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(record).toBeFocused();
+  await record.click();
   await requestDialog.getByRole("combobox", { name: "Patient" }).click();
   await page.getByRole("option", { name: /Bo Invented/ }).click();
   await requestDialog.getByLabel("Requester").fill("Dr. Invented");
   await requestDialog.getByRole("checkbox", { name: new RegExp(seeded.test) }).check();
-  await requestDialog.getByLabel("Sample number").fill("E2E-001");
-  await requestDialog.getByLabel("Material").fill("plasma");
+  const first = requestDialog.getByRole("group", { name: "Sample 1" });
+  await first.getByLabel("Sample number").fill("E2E-001");
+  await first.getByLabel("Material").fill("plasma");
   await requestDialog.getByRole("button", { name: "Record a request" }).click();
   await expect(requestDialog).toHaveCount(0);
+  await expect(record).toBeFocused();
   const card = page.getByRole("article", { name: "Request for Bo Invented" });
   await expect(card).toBeVisible();
   const samples = card.getByRole("table", { name: "Samples of Request for Bo Invented" });
   const copy = samples.getByRole("button", { name: /^Copy lab number / });
+  // The name spells the digits one by one (maintainer, 2026-11-20).
   const label = (await copy.getAttribute("aria-label")) ?? "";
-  const grouped = label.replace("Copy lab number ", "");
+  expect(label).toMatch(/^Copy lab number (\d ){9}\d$/);
+  const digits = label.replace("Copy lab number ", "").replaceAll(" ", "");
+  const grouped = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
   expect(grouped).toMatch(LAB_NUMBER);
+  await expect(samples.getByText(grouped, { exact: true })).toBeVisible();
 
   // The copy action puts the digits on the clipboard and says so in the status region.
   await copy.click();
@@ -100,15 +145,18 @@ test("a team registers a patient, records and corrects a request, and copies a l
   expect(copied).toBe(grouped.replaceAll(" ", ""));
 
   // Correcting the request with the keyboard: a second tube gets its own lab number.
-  await card.getByRole("button", { name: "Correct request: Request for Bo Invented" }).focus();
+  const correct = card.getByRole("button", { name: "Correct request: Request for Bo Invented" });
+  await correct.focus();
   await page.keyboard.press("Enter");
   const correction = page.getByRole("dialog", { name: "Correct the request" });
   await correction.getByRole("button", { name: "Add a sample" }).click();
-  await expect(correction.getByLabel("Sample number").nth(1)).toBeFocused();
+  const second = correction.getByRole("group", { name: "Sample 2" });
+  await expect(second.getByLabel("Sample number")).toBeFocused();
   await page.keyboard.type("E2E-001");
-  await correction.getByLabel("Material").nth(1).fill("plasma");
+  await second.getByLabel("Material").fill("plasma");
   await correction.getByRole("button", { name: "Save the correction" }).click();
   await expect(correction).toHaveCount(0);
+  await expect(correct).toBeFocused();
   await expect(samples.getByRole("button", { name: /^Copy lab number / })).toHaveCount(2);
 
   // A control request has no patient (S16).
@@ -117,8 +165,9 @@ test("a team registers a patient, records and corrects a request, and copies a l
   await control.getByRole("radio", { name: "Control sample" }).check();
   await expect(control.getByRole("combobox", { name: "Patient" })).toHaveCount(0);
   await control.getByRole("checkbox", { name: new RegExp(seeded.test) }).check();
-  await control.getByLabel("Sample number").fill("QC-LOW");
-  await control.getByLabel("Material").fill("control material");
+  const qc = control.getByRole("group", { name: "Sample 1" });
+  await qc.getByLabel("Sample number").fill("QC-LOW");
+  await qc.getByLabel("Material").fill("control material");
   await control.getByRole("button", { name: "Record a request" }).click();
   await expect(control).toHaveCount(0);
   await expect(page.getByRole("article", { name: "Control sample" })).toBeVisible();
@@ -140,6 +189,17 @@ test("a team registers a patient, records and corrects a request, and copies a l
     await axe(page);
   }
 
+  // At 320 px the page scrolls only vertically; the tables scroll in their own regions.
+  await page.context().addCookies([
+    { name: "EDULIMS_THEME", value: "light", url: appUrl() },
+    { name: "EDULIMS_LOCALE", value: "en", url: appUrl() },
+  ]);
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 2, name: "Requests" })).toBeVisible();
+  await expectNoPageOverflow(page);
+  await axe(page);
+
   // The teacher reads the correction on the simulation page.
   const teacher = await signedInElsewhere(browser, "teacher@example.test");
   await teacher.goto(`/teacher/simulations/${seeded.simulationId}`);
@@ -150,6 +210,11 @@ test("a team registers a patient, records and corrects a request, and copies a l
   await expect(
     log.getByRole("cell", { name: /^Request with lab number \d{3} \d{3} \d{4}/ }),
   ).toBeVisible();
+  await axe(teacher);
+  await teacher.setViewportSize({ width: 320, height: 800 });
+  await teacher.reload();
+  await expect(teacher.getByRole("table", { name: "Corrections" })).toBeVisible();
+  await expectNoPageOverflow(teacher);
   await axe(teacher);
   await teacher.context().close();
 });
@@ -178,4 +243,68 @@ test("the records page shows an error state and its retry loads it again (#268)"
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(heading).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 2, name: "Patients" })).toBeVisible();
+});
+
+test("a refused clipboard says so in the status region (WCAG 4.1.3)", async ({ page }) => {
+  const seeded = await seedLabRecords(suffix());
+  const labNumber = await seedControlRequest(seeded);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: () => Promise.reject(new Error("denied")) },
+    });
+  });
+  await devLogin(page, seeded.student.email);
+  await openRecords(page);
+  const copy = page.getByRole("button", { name: `Copy lab number ${[...labNumber].join(" ")}` });
+  await expectHydrated(copy);
+  await copy.click();
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "The lab number could not be copied. Type it from the screen." }),
+  ).toBeVisible();
+  await axe(page);
+});
+
+test("a student in two labs switches with ?lab=, and a foreign lab falls back to the newest (S10)", async ({
+  page,
+}) => {
+  const id = suffix();
+  const seeded = await seedLabRecords(id);
+  const second = await seedSecondLab(seeded.student.id, id);
+  const foreign = await seedForeignLab(id);
+  await devLogin(page, seeded.student.email);
+  await openRecords(page);
+  const picker = page.getByRole("navigation", { name: "Your labs" });
+  const newest = picker.getByRole("link", { name: `${second.lab}, in ${second.simulation}` });
+  const older = picker.getByRole("link", { name: `${seeded.lab}, in ${seeded.simulation}` });
+  // With no ?lab=, the newest lab shows.
+  await expect(newest).toHaveAttribute("aria-current", "page");
+  await expect(older).not.toHaveAttribute("aria-current", "page");
+  await older.click();
+  await expect(page).toHaveURL(new RegExp(`lab=${seeded.labId}`));
+  await expect(older).toHaveAttribute("aria-current", "page");
+  await axe(page);
+  // A lab the student is not in shows the newest of their own labs, and nothing of that lab.
+  await page.goto(`/student/patients?lab=${foreign}`);
+  await expect(newest).toHaveAttribute("aria-current", "page");
+  await expect(page.getByText(`Foreign lab ${id}`)).toHaveCount(0);
+});
+
+test("a finished simulation reads but takes no new records (#267)", async ({ page }) => {
+  const seeded = await seedLabRecords(suffix(), "finished");
+  await seedControlRequest(seeded);
+  await devLogin(page, seeded.student.email);
+  await page.goto("/student/patients");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Patients and requests" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "The simulation is not running" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Register a patient" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Record a request" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /^Correct request:/ })).toBeDisabled();
+  await expect(page.getByRole("article", { name: "Control sample" })).toBeVisible();
+  await axe(page);
 });

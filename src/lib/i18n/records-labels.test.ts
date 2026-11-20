@@ -11,6 +11,7 @@ import {
   correctionFieldLabel,
   recordsErrorMessage,
   requestKindLabel,
+  requestRefusal,
   sexLabel,
 } from "./records-labels";
 
@@ -32,6 +33,20 @@ describe("the records labels (#268)", () => {
     distinct(PATIENT_SEXES.map(sexLabel));
     distinct(REQUEST_KINDS.map(requestKindLabel));
     expect(requestKindLabel("control")).toBe("Control sample");
+  });
+
+  it("put a request refusal at the field it is about, else at the top (WCAG 3.3.1)", () => {
+    expect(requestRefusal("test_retired")).toEqual({
+      fields: { testIds: "A chosen test is retired and cannot be requested." },
+    });
+    expect(requestRefusal("test_not_found").fields).toHaveProperty("testIds");
+    expect(requestRefusal("patient_not_found").fields).toHaveProperty("patientId");
+    expect(requestRefusal("requester_required").fields).toHaveProperty("requester");
+    expect(requestRefusal("sample_not_found").fields).toHaveProperty("samples");
+    expect(requestRefusal("released")).toEqual({
+      form: "A result is released, so this can no longer be corrected.",
+    });
+    expect(requestRefusal(null)).toEqual({ form: "Saving failed. Try again." });
   });
 
   it("name every field a correction can change", () => {

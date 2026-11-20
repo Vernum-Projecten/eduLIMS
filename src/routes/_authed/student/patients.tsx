@@ -10,6 +10,7 @@ import { portalPageTitle } from "@/components/portal/portal-pages";
 import { Page } from "@/components/shell/page-header";
 import { PageSkeleton } from "@/components/shell/page-skeleton";
 import { RouteErrorState } from "@/components/shell/route-error";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Empty,
   EmptyDescription,
@@ -84,8 +85,11 @@ function PatientsPage() {
                   search={{ lab: row.labId }}
                   aria-current={row.labId === lab.labId ? "page" : undefined}
                   className={cn(
-                    "rounded-md border px-3 py-1.5 text-sm",
-                    row.labId === lab.labId && "border-primary bg-accent font-medium",
+                    buttonVariants({
+                      variant: row.labId === lab.labId ? "secondary" : "outline",
+                      size: "sm",
+                    }),
+                    row.labId === lab.labId && "font-semibold underline underline-offset-4",
                   )}
                 >
                   {m.records_lab_choice({ lab: row.labName, simulation: row.simulationName })}
