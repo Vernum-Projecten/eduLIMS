@@ -51,7 +51,8 @@ type Correction = "patient" | "request";
 const TEACHER_OUTCOME: Record<TeacherWrite, unknown> = {
   finish: { ok: true, value: null },
   move: { ok: true, value: null },
-  delete: { ok: false, error: "has_students" },
+  // NOTE: #352; a lab's deletion is refused with the lab's own code.
+  delete: { ok: false, error: "lab_has_students" },
 };
 
 const CORRECTION_OUTCOME: Record<TeacherWrite, RecordsResult<{ changed: number }>> = {

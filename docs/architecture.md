@@ -246,6 +246,7 @@ and all students of a year take part in it. The service is
 | `simulation_removals` | the students a teacher removed, so a lab's code does not let them back in |
 | `correct_values` | the correct value per simulation, sample number and catalogue test, never per lab; one per sample number (regardless of case) and test; the value as `numeric`, never a float (D10) |
 | `simulation_test_limits` | per simulation and test, the kind of limit (a percentage of the correct value or an absolute distance) and the yellow and red limits (D13) |
+| `lab_tolerances` | a lab's own tolerance per catalogue test: a lower and an upper limit as `numeric`, the lower not above the upper; every change is a new row, never an update, and the newest row of a lab and test is the one in force (S13, #269) |
 | `lab_join_codes`, `lab_join_attempts` | the join code of a lab, stored only as an HMAC with its key's fingerprint, and the wrong-code counters per student and per client IP, stored only as keyed hashes (#288) |
 
 Every foreign key to a simulation or a lab cascades on delete, and a
@@ -283,6 +284,23 @@ student's place and a waiting address point at their lab through the pair
   (`missing_limits`), and no function removes limits, so a running
   simulation never holds a test with a value and no limits (maintainer,
   2026-11-20).
+- **Tolerances.** The service is `src/server/tolerances/`. A member of the
+  lab sets a tolerance through `findWorkingStudentLab`, so only while the
+  simulation runs, and the lab row is locked so its members write one at a
+  time. A first tolerance for a retired test is refused. Every change is a
+  new row with an activity-log row of ids only (`lab_tolerance_set`, never a
+  limit), and no function removes one, so the release (S15, #270) can name
+  the row in force. The student's page lists the active catalogue with the
+  lab's own current tolerances; the teachers of the simulation see the
+  tolerance in force per test and every change, newest first, 50 to a page.
+  `findWorkingStudentLab` locks the student's `lab_members` row as well, so a
+  write that waited behind a removal or a move of the student finds no place
+  in the lab. A test with a tolerance counts as used in the catalogue (its
+  unit is fixed), and a lab with a tolerance cannot be deleted
+  (`has_records`; maintainer on #352). No write rate limit applies, since the
+  draft names none. The one check, `checkTolerance` in
+  `src/lib/tolerance.ts`, compares a value with the limits as decimals, and a
+  value equal to a limit is inside (S13).
 - **The email list.** A teacher pastes the addresses of a lab's members. The
   server classifies each line (invalid, repeated, already in this lab, in
   another lab of the simulation, new) and stores the new ones; no answer
@@ -613,8 +631,9 @@ than the limit for a caller who is not signed in (ASVS 5.0 V5.2.1, V15.2.2).
 | GET payload of a server function (the `payload` query parameter) | Node's 16 KiB limit on the request line and headers | 431 from Node's HTTP parser, before eduLIMS runs |
 | Body to a better-auth endpoint under `/api/auth/*` (sign-in, sign-out) | 64 KiB, declared and as it streams (#350) | 411 for a malformed `Content-Length`, 413 over the limit |
 | SAML form post (`/api/auth/sso/saml2/*`: the ACS and single logout) | 128 KiB, declared and as it streams (#350) | as above |
-| SCIM request (`/api/auth/scim/v2/*`) | 1 MiB, declared and as it streams (#45, #350) | as above, as a SCIM error (RFC 7644 §3.12) |
-| Body to any other server route or page (`/api/health`, `/api/ready`, the lab logo, every page) | none: 0 bytes (#350) | as above |
+| SCIM request (`/api/auth/scim/v2/*`) | 1 MiB, declared in the middleware, as it streams in the SCIM gate after its token check and rate limit (#45, #350) | as above, as a SCIM error (RFC 7644 §3.12) |
+| Body to any other server route or page (`/api/health`, `/api/ready`, the lab logo, every page) | none: 0 bytes, a chunked body refused at once (#350) | as above |
+| A chunked GET or HEAD, to any route | refused at once (#350) | 413 |
 
 **The JSON limit** comes from the largest input any server function takes:
 the pasted list of a lab's member addresses, 500 lines of 320 characters
@@ -639,8 +658,8 @@ another path.
 
 The JSON and the form refusals are empty responses with `Connection: close`, so Node closes
 the socket instead of reading and discarding the refused body to keep the
-connection alive. Each refusal writes an `input_validation_fail` line to the
-security log; [deployment.md](deployment.md#keeping-the-log-on-the-host-bounded)
+connection alive. A refusal writes an `input_validation_fail` line to the
+security log, one per client and reason in a minute (below); [deployment.md](deployment.md#keeping-the-log-on-the-host-bounded)
 says how to keep a flood of them from filling the host.
 
 A GET payload never reaches Start above 16 KiB: Node answers 431 first. An
@@ -670,14 +689,25 @@ largest body it legitimately takes:
   (its ServiceProviderConfig says `bulk.supported: false`), and its largest
   body is a Group of its 1,000-member maximum: 418 KB with a `$ref` and a
   256-character `display` per member. A PATCH that adds 1,000 members is
-  49 KB.
+  49 KB. The middleware checks only the declared length of a SCIM request;
+  the SCIM gate counts the body, after the token check and the rate limit,
+  so a caller without a token is limited before a byte of its body is read
+  (maintainer decision on #350).
 - **Every other route, 0 bytes:** the health and ready checks and the logo
-  are GET routes, and no page takes a body.
+  are GET routes, and no page takes a body. A chunked body to one of them is
+  refused at once, unread.
 
-A body without a `Content-Length` is counted to the limit, not refused with
-411 as a server function's is: identity providers and directories send these
-bodies, and their framing is not eduLIMS's to choose. The count is the same
-one the JSON check uses (`fitsIn`), and the SCIM gate's own cap uses it too.
+The family comes from the raw path of the request URL, still
+percent-encoded, which is the path the better-auth router and the SCIM gate
+match. A prefix spelled with escapes (`/api/auth/s%73o/saml2/…`) falls to the
+64 KiB family, so a body only ever meets the smaller limit. A GET or HEAD
+with `Transfer-Encoding` is refused on every route.
+
+A body without a `Content-Length` to the better-auth and SAML endpoints is
+counted to the limit, not refused with 411 as a server function's is:
+identity providers send these bodies, and their framing is not eduLIMS's to
+choose. The count is the same one the JSON check uses (`fitsIn`), and the
+SCIM gate's cap uses it too.
 Over the limit the count cancels its clone and the body without waiting for
 the source: the locale middleware (`src/server-entry.ts`) holds a clone that
 nobody reads, and the source stops only when every clone is cancelled, so a
@@ -686,6 +716,13 @@ the body unread, so a client that keeps sending may see a TCP reset before it
 reads the 413.
 Every refusal sends `Connection: close` and writes an `input_validation_fail`
 line with the family as `kind` and the proxy's `request_id`.
+
+The JSON, form and route refusals share one log
+(`src/server/body-refusal-log.ts`): one line per client and reason in a
+minute, with `refused_count` for the refusals it stands for. The client is
+the address behind `EDULIMS_TRUSTED_PROXIES`; without a trusted proxy every
+client shares one window. The window is the `RefusalDeduper` the SCIM log
+uses for refused tokens.
 
 **No server-wide `maxRequestBodySize`.** srvx 1.0.8 and Nitro
 3.0.261103-rc offer one, and srvx counts the streamed bytes, so it holds for a

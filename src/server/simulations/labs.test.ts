@@ -166,7 +166,9 @@ describe("deleteLab (#280)", () => {
   it("refuses a lab with a student in it, logged, and deletes nothing (#300 review, S3)", async () => {
     const { database, w } = await open();
     const result = await deleteLab(database, w.teacher, { labId: w.labId });
-    expect(result).toEqual({ ok: false, error: "has_students" });
+    // NOTE: #352; a lab's own refusal code, so the screen and the log name the lab, not the
+    // simulation.
+    expect(result).toEqual({ ok: false, error: "lab_has_students" });
     const members = await database
       .selectFrom("lab_members")
       .select("user_id")
@@ -176,7 +178,7 @@ describe("deleteLab (#280)", () => {
     expect(await auditRows(database, "lab_deleted")).toEqual([
       expect.objectContaining({
         outcome: "refused",
-        reason_code: "has_students",
+        reason_code: "lab_has_students",
         target_id: w.labId,
       }),
     ]);
@@ -187,7 +189,7 @@ describe("deleteLab (#280)", () => {
     for (const labId of [w.labId, w.otherLabId]) {
       expect(await deleteLab(database, w.teacher, { labId })).toEqual({
         ok: false,
-        error: "has_students",
+        error: "lab_has_students",
       });
     }
     expect(await deleteSimulation(database, w.teacher, { simulationId: w.simulationId })).toEqual({

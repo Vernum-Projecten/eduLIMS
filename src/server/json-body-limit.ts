@@ -6,8 +6,7 @@
 // so a request middleware checks it first: the declared length, then the body itself, counted
 // as it streams from a clone and cut off once it passes the limit. Start then reads the other
 // branch of the clone, which holds no more than the counted bytes.
-import { toRequestId } from "./audit/events.ts";
-import { logSecurityEvent } from "./security-log.ts";
+import { logBodyRefusal } from "./body-refusal-log.ts";
 
 // NOTE: #347; the largest input, a pasted list of 500 lines of 320 characters (D10), serializes to
 // at most 808 KB of printable text; only control characters or U+2028 in bulk pass 1 MiB.
@@ -80,10 +79,9 @@ export async function jsonBodyRefusal(
 }
 
 /**
- * Returns the refusal response of {@link jsonBodyRefusal} and logs it with the request id the
- * reverse proxy set, or `null`. The response
- * closes the connection, so the server does not read and discard the refused body to keep the
- * connection alive (RFC 9112 §9.6).
+ * Returns the refusal response of {@link jsonBodyRefusal} and logs it through the deduplicated
+ * body refusal log, or `null`. The response closes the connection, so the server does not read
+ * and discard the refused body to keep the connection alive (RFC 9112 §9.6).
  */
 export async function refuseJsonBody(
   request: Request,
@@ -91,12 +89,9 @@ export async function refuseJsonBody(
 ): Promise<Response | null> {
   const status = await jsonBodyRefusal(request, limit);
   if (status === null) return null;
-  // NOTE: #357; a request middleware runs before any session middleware, so no user is known.
-  logSecurityEvent("warn", "input_validation_fail", {
-    outcome: "refused",
+  logBodyRefusal(request, {
     reason: status === 411 ? "json_length_missing" : "json_too_large",
     status,
-    request_id: toRequestId(request.headers.get("x-request-id")),
   });
   return new Response(null, { status, headers: BODY_REFUSAL_HEADERS });
 }

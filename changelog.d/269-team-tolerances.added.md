@@ -1,0 +1,1 @@
+- A lab sets its own tolerance per test on the Student portal's Tolerances page: a lower and an upper limit, entered while the simulation runs and changeable during it. eduLIMS suggests no limit and shows no other lab's. Every change is kept and logged, and the teachers of the simulation see each lab's tolerances with their changes on the lab's page.

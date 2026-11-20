@@ -11,10 +11,11 @@ import {
   SAML_BODY_MAX,
   SCIM_BODY_MAX,
 } from "../../src/server/route-body-limit";
-import { rawChunkedPost, rawPost } from "./raw-http";
+import { rawChunkedPost, rawPost, rawRequest } from "./raw-http";
 import { appUrl } from "./run-env";
 
 interface Family {
+  readonly name: string;
   readonly family: RouteBodyFamily;
   readonly path: string;
   readonly limit: number;
@@ -23,31 +24,41 @@ interface Family {
 
 const FAMILIES: readonly Family[] = [
   {
+    name: "auth",
     family: "auth",
     path: "/api/auth/sign-out",
     limit: AUTH_BODY_MAX,
     type: "application/json",
   },
   {
+    name: "SAML ACS",
     family: "saml",
     path: "/api/auth/sso/saml2/sp/acs/keycloak-saml",
     limit: SAML_BODY_MAX,
     type: "application/x-www-form-urlencoded",
   },
   {
+    name: "SAML single logout",
+    family: "saml",
+    path: "/api/auth/sso/saml2/sp/slo/keycloak-saml",
+    limit: SAML_BODY_MAX,
+    type: "application/x-www-form-urlencoded",
+  },
+  {
+    name: "SCIM",
     family: "scim",
     path: "/api/auth/scim/v2/Users",
     limit: SCIM_BODY_MAX,
     type: "application/scim+json",
   },
-  { family: "none", path: "/api/health", limit: 0, type: "text/plain" },
+  { name: "health", family: "none", path: "/api/health", limit: 0, type: "text/plain" },
 ];
 
 const STATUS_413 = /^HTTP\/1\.1 413\b/;
 const CLOSE = /\r\nconnection: close\r\n/i;
 
-for (const { family, path, limit, type } of FAMILIES) {
-  test.describe(`the ${family} routes`, () => {
+for (const { name, path, limit, type } of FAMILIES) {
+  test.describe(`the ${name} route`, () => {
     test("let a body of exactly the limit reach the route (V5.2.1)", async ({ request }) => {
       const response = await request.post(path, {
         headers: { Origin: appUrl(), "Content-Type": type },
@@ -91,6 +102,26 @@ test("reads no more than a declared length that is shorter than the body (V5.2.1
   const result = await rawPost("/api/health", { "Content-Type": "text/plain" }, 1, 4 * 1024 * 1024);
   expect(result.status).toMatch(STATUS_413);
   expect(result.closedEarly).toBe(true);
+});
+
+for (const page of ["/", "/student"]) {
+  test(`refuses a POST with a body to the page ${page} with 413 (V5.2.1)`, async () => {
+    const result = await rawPost(page, { "Content-Type": "text/plain" }, 10);
+    expect(result.status).toMatch(STATUS_413);
+    expect(result.answer).toMatch(CLOSE);
+  });
+}
+
+test("refuses a GET that declares a body over the limit with 413 (V5.2.1)", async () => {
+  const result = await rawRequest("GET", "/", {}, { declared: 10 }, 10);
+  expect(result.status).toMatch(STATUS_413);
+  expect(result.answer).toMatch(CLOSE);
+});
+
+test("refuses a chunked GET with 413 without reading it (V15.2.2)", async () => {
+  const result = await rawRequest("GET", "/api/auth/get-session", {}, "chunked", 10);
+  expect(result.status).toMatch(STATUS_413);
+  expect(result.answer).toMatch(CLOSE);
 });
 
 test("answers a SCIM refusal as a SCIM error (RFC 7644 §3.12)", async ({ request }) => {

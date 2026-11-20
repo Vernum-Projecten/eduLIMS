@@ -37,9 +37,9 @@ const formBodyLimitMiddleware = createMiddleware().server(({ next, request, hand
 
 /** Refuses a body to a server route or page before the route reads it, when it is too large. */
 const routeBodyLimitMiddleware = createMiddleware().server(
-  async ({ next, request, pathname, handlerType }) => {
+  async ({ next, request, handlerType }) => {
     if (handlerType === "serverFn") return next();
-    return (await refuseRouteBody(request, pathname)) ?? next();
+    return (await refuseRouteBody(request)) ?? next();
   },
 );
 
