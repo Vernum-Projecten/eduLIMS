@@ -611,7 +611,7 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
 |---|---|
 | `measurements` | every measurement of a requested test: its sample, the value as `numeric` within the bounds of a correct value, where it came from (`manual`, `afinion`, `epoch_upload`), who entered it (none for an analyser) and the database clock at the insert |
 | `request_tests` | the release, on the requested test itself: one row per requested test, so at most one released measurement |
-| `result_ehr_writes` | per released measurement of a patient request, the write of its Final composition to FerroEHR: `pending` or `written`, the contribution `uid` that keys the write, the version id FerroEHR gave it, the attempts, the last error as a code and the time of the next attempt (#148) |
+| `result_ehr_writes` | per released measurement of a patient request, the write of its Final composition to FerroEHR: `pending` or `written`, the contribution `uid` that keys the write, the version id FerroEHR gave it, the attempts, the last error as a code, the time of the next attempt and the lease of the attempt that holds it (#148, #382) |
 
 - **Kept as they arrived.** A trigger refuses any change to a measurement and
   any direct delete; only its lab's cascade removes one. A correction never
@@ -667,14 +667,26 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
   error. A retry after a lost answer therefore finds the one composition and
   never writes a second.
 - **Pending, retried, never skipped.** A failed write (FerroEHR unreachable,
-  a refusal, a result it cannot build yet) stays `pending` with its error
-  code and pauses 2^n minutes after the n-th failure, at most an hour. The
-  app container retries due rows every minute
-  (`src/server/plugins/result-ehr-writes.ts`), leasing each row for 5
-  minutes, so replicas do not write one row at once; a write that lands late
-  still marks its row. Each failure logs `ferroehr_result_pending` with the
-  measurement id and the code, never a value. A written row never changes
-  again (a trigger), as the released result never does.
+  a refusal, a result it cannot build yet, a release row that is gone) stays
+  `pending` with its error code and pauses 2^(n-1) minutes after the n-th
+  failure, at most 60 minutes, whatever the code; the exponent is clamped
+  before the multiply, so no count of attempts overflows the interval
+  (#382). The app container retries due rows every minute
+  (`src/server/plugins/result-ehr-writes.ts`). Each attempt leases its row
+  for 5 minutes just before it talks to FerroEHR (`lease_id`), and records
+  its outcome only while it still holds that lease, so a run that outlasts
+  its lease changes nothing and replicas never count one attempt twice. A
+  pending write logs `ferroehr_result_pending` (or `ferroehr_result_failed`
+  for an error that escaped) with the measurement id and the code, never a
+  value, and only when its error code changes; `ferroehr_result_written`
+  logs once. A written row never changes again (a trigger), as the
+  released result never does.
+- **What reaches FerroEHR, and what stays.** The composition carries the
+  sample number and the material as the team typed them from the form. They
+  are fictional by S11, and students are told not to type real data. A delete
+  of a lab or a simulation removes its `result_ehr_writes` rows with the
+  measurements, while FerroEHR keeps the compositions, as it keeps the EHRs
+  of a deleted simulation's patients (#367).
 - **The device.** FerroEHR accepts eduLIMS's compositions only as a device
   act whose composer names the device. A result entered by hand names the
   fixed device `eduLIMS manual entry` (identifier `manual`), with no person
