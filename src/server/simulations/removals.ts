@@ -28,6 +28,24 @@ export async function recordRemoval(
     .execute();
 }
 
+/**
+ * Returns when a teacher last removed `userId` from the simulation, or `null` when nobody did or a
+ * teacher added them since.
+ */
+export async function removedAt(
+  trx: Kysely<DB>,
+  simulationId: string,
+  userId: string,
+): Promise<Date | null> {
+  const row = await trx
+    .selectFrom("simulation_removals")
+    .select("removed_at")
+    .where("simulation_id", "=", simulationId)
+    .where("user_id", "=", userId)
+    .executeTakeFirst();
+  return row ? row.removed_at : null;
+}
+
 /** Returns whether a teacher removed `userId` from the simulation and nobody added them since. */
 export async function wasRemoved(
   trx: Kysely<DB>,

@@ -272,7 +272,8 @@ student's place and a waiting address point at their lab through the pair
   who is already in another lab of that simulation is deleted, and the
   refusal is logged once. A teacher's removal wins over a waiting address:
   a student with a removal record in the simulation links nothing there,
-  each refusal is logged with the reason `removed`, and the address keeps
+  the refusal is logged with the reason `removed` once per removal (the
+  link result counts it every time), and the address keeps
   waiting, because it may belong to a classmate whose own sign-in still
   links through it (#330). Only an account whose role set is {student} and
   whose address is plain ASCII links: lower-casing folds some other letters

@@ -269,3 +269,63 @@ describe("a removed student and a waiting address the removal kept (#330)", () =
     );
   });
 });
+
+const LATER = new Date(NOW.getTime() + 86_400_000);
+
+async function verify(database: Kysely<DB>, userId: string) {
+  await database
+    .updateTable("user")
+    .set({ emailVerified: true })
+    .where("id", "=", userId)
+    .execute();
+}
+
+async function removedRefusals(database: Kysely<DB>) {
+  const rows = await auditRows(database, "lab_member_joined");
+  return rows.filter((row) => row.reason_code === "removed");
+}
+
+describe("the removed refusal is logged once per removal (#330)", () => {
+  it("two sign-ins after a removal write one row, and both count the refusal", async () => {
+    const opened = await open();
+    const { database } = opened;
+    const student = await removedWhileWaiting(opened, "twice");
+    await verify(database, student.id);
+    const refusedOnce = { linked: 0, refused: 1, failed: 0 };
+    expect(await linkWaitingAddresses(database, student.id, NOW)).toEqual(refusedOnce);
+    expect(await linkWaitingAddresses(database, student.id, LATER)).toEqual(refusedOnce);
+    expect(await removedRefusals(database)).toHaveLength(1);
+  });
+
+  it("a new removal after the address was added again gives the next sign-in a new row", async () => {
+    const opened = await open();
+    const { database, w } = opened;
+    const student = await removedWhileWaiting(opened, "again");
+    await verify(database, student.id);
+    await linkWaitingAddresses(database, student.id, NOW);
+    await database.deleteFrom("lab_member_emails").where("email", "=", student.email).execute();
+    const added = await addEmails(
+      database,
+      w.teacher,
+      { labId: w.third, emails: [student.email] },
+      NOW,
+    );
+    expect(added.ok && added.value.added).toBe(1);
+    expect((await linkWaitingAddresses(database, student.id, NOW)).linked).toBe(1);
+    const removed = await removeMember(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId, userId: student.id },
+      LATER,
+    );
+    expect(removed).toEqual({ ok: true, value: null });
+    // An address that waits for the account after the second removal, as point 3 of #330 has it.
+    await wait(database, w.simulationId, w.otherLabId, student.email);
+    expect(await linkWaitingAddresses(database, student.id, LATER)).toEqual({
+      linked: 0,
+      refused: 1,
+      failed: 0,
+    });
+    expect(await removedRefusals(database)).toHaveLength(2);
+  });
+});
