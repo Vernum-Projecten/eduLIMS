@@ -722,7 +722,7 @@
     },
     {
       "name": "system/composition-*.cr",
-      "description": "SMART on openEHR: create and read EHRs and compositions (FerroEHR). The bare wildcard by necessity: an EHR operation names no template, and FerroEHR v5.7.0 covers it only with * (smart-app-launch.md, What each route requires); the system client's writes limits commits to eduLIMS-lab.v1 (#364).",
+      "description": "SMART on openEHR: create and read EHRs and compositions in FerroEHR. A bare wildcard, because an EHR operation names no template; FerroEHR's writes limit keeps compositions to eduLIMS-lab.v1 (#364).",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
