@@ -217,7 +217,8 @@ export function JoinCodePanel({
       </div>
       <div className="flex flex-col gap-4 rounded-lg border p-4">
         <CodeStatus state={state} />
-        {!state.enabled && (
+        {!state.enabled && state.finished && <p>{m.labs_code_finished()}</p>}
+        {!state.enabled && !state.finished && (
           <JoinCodeSettingsForm
             label={m.labs_code_form()}
             submit={m.labs_code_enable()}

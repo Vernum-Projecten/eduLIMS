@@ -21,6 +21,7 @@ import {
   type SimulationResult,
   withLab,
 } from "./access.ts";
+import { stateOf } from "./state.ts";
 
 /**
  * The keys of join codes: `hash` turns a normalised code into its stored HMAC (hex);
@@ -74,7 +75,11 @@ export interface NewJoinCode {
 
 /** The state of a lab's join code on the lab page; the code itself is never in it. */
 export type JoinCodeView =
-  | { enabled: false }
+  | {
+      enabled: false;
+      /** The simulation is finished, so no code can be turned on (review of #392). */
+      finished: boolean;
+    }
   | {
       enabled: true;
       createdAt: string;
@@ -107,6 +112,18 @@ async function writeCode(
   mode: "enabled" | "regenerated",
 ): Promise<SimulationResult<NewJoinCode>> {
   return withLab(db, actor, input.labId, async (trx, lab) => {
+    // NOTE: coordinator on #399; a finished simulation takes no new student, so it gets no code.
+    if ((await stateOf(trx, lab.simulationId)) === "finished") {
+      await recordAudit(trx, {
+        action: `lab_join_code_${mode}`,
+        actor: { type: "user", id: actor.id },
+        outcome: "refused",
+        reason: "simulation_finished",
+        target: { type: "lab", id: lab.labId },
+        metadata: { simulation_id: lab.simulationId },
+      });
+      return refused("simulation_finished");
+    }
     const existing = await lockCodeRow(trx, lab);
     if (mode === "enabled" && existing) return refused("join_code_exists");
     if (mode === "regenerated" && !existing) return refused("join_code_off");
@@ -147,7 +164,8 @@ async function writeCode(
 
 /**
  * Turns on the join code of a lab whose simulation the actor teaches and returns the new code,
- * once; a lab whose code is already on is `join_code_exists`.
+ * once; a lab whose code is already on is `join_code_exists`, and a lab of a finished simulation
+ * is `simulation_finished`, logged.
  *
  * @throws AuthError 403 without the app role teacher.
  */
@@ -163,7 +181,8 @@ export function enableJoinCode(
 
 /**
  * Replaces the join code of a lab with a new one, with new settings and no uses; the old code
- * stops working at once. A lab whose code is off is `join_code_off`.
+ * stops working at once. A lab whose code is off is `join_code_off`, and a lab of a finished
+ * simulation is `simulation_finished`, logged.
  *
  * @throws AuthError 403 without the app role teacher.
  */
@@ -225,9 +244,11 @@ export async function getJoinCode(
   const row = await db
     .selectFrom("labs")
     .innerJoin("simulation_teachers as mine", "mine.simulation_id", "labs.simulation_id")
+    .innerJoin("simulations", "simulations.id", "labs.simulation_id")
     .leftJoin("lab_join_codes", "lab_join_codes.lab_id", "labs.id")
     .select([
       "labs.id",
+      "simulations.state",
       "lab_join_codes.created_at",
       "lab_join_codes.expires_at",
       "lab_join_codes.uses",
@@ -243,7 +264,7 @@ export async function getJoinCode(
   }
   const { created_at: createdAt, expires_at: expiresAt, uses, max_uses: maxUses } = row;
   if (createdAt === null || expiresAt === null || uses === null || maxUses === null) {
-    return { enabled: false };
+    return { enabled: false, finished: row.state === "finished" };
   }
   return {
     enabled: true,

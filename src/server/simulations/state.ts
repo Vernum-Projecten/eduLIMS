@@ -150,7 +150,8 @@ export function startSimulation(
 
 /**
  * Finishes a running simulation the actor teaches. Labs stop working; the correct values stay
- * changeable. Another state is refused with `not_running`, logged.
+ * changeable. Its labs' join codes are deleted, with their count on the log row (review of
+ * #392). Another state is refused with `not_running`, logged.
  */
 export function finishSimulation(
   db: Kysely<DB>,
@@ -173,7 +174,19 @@ export function finishSimulation(
       .set({ state: "finished", finished_at: now })
       .where("id", "=", simulationId)
       .execute();
-    await recordAudit(trx, { ...event, outcome: "success" });
+    // NOTE: maintainer on the review of #392 (N2); a finished simulation takes no new student, so
+    // its labs' codes go, under the simulation lock that every code write takes first.
+    const codes = await trx
+      .deleteFrom("lab_join_codes")
+      .where("lab_id", "in", (eb) =>
+        eb.selectFrom("labs").select("labs.id").where("labs.simulation_id", "=", simulationId),
+      )
+      .executeTakeFirst();
+    await recordAudit(trx, {
+      ...event,
+      outcome: "success",
+      metadata: { count: Number(codes.numDeletedRows) },
+    });
     return done(null);
   });
 }

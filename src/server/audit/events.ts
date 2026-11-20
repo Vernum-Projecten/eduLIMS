@@ -246,7 +246,8 @@ export const auditMetadataSchema = z.strictObject({
   logo_change: z.enum(["added", "replaced", "removed"]).optional(),
   /**
    * How many addresses a `lab_emails_added` stored, or a `lab_member_moved` or
-   * `lab_member_removed` dropped from waiting (#330): a count, never an address.
+   * `lab_member_removed` dropped from waiting (#330): a count, never an address; or how many
+   * join codes a `simulation_finished` deleted (review of #392), never a code.
    */
   count: z.number().int().min(0).optional(),
   /** The term and the most joins a teacher chose for a lab's join code (#288); never the code. */
