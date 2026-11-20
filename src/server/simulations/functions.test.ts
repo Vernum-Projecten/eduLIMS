@@ -47,12 +47,7 @@ const ROLE_OF: Record<string, "teacher" | "student" | "admin"> = {
 };
 
 /** The functions that take no input: they read the session user's own rows only. */
-const NO_INPUT = new Set([
-  "listMySimulations",
-  "getMyLabs",
-  "linkMyLabsFn",
-  "listAdminSimulationsFn",
-]);
+const NO_INPUT = new Set(["listMySimulations", "getMyLabs", "linkMyLabsFn"]);
 
 const READS = new Set([
   "listMySimulations",

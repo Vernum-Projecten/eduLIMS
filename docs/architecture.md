@@ -329,7 +329,15 @@ student's place and a waiting address point at their lab through the pair
   code once no student is in it, and a simulation only while no student is in
   one of its labs; the teacher moves or removes the students first.
 - **The administrator** reads each simulation with its teachers' names and
-  its labs with their member counts, and nothing else (B5).
+  its labs with their member counts, and nothing else (B5). The list in
+  Admin → Simulations is paged and searched by name on the server, newest
+  first with the id as the tie-breaker; the page size comes from a fixed
+  allow-list and the search takes LIKE wildcards literally. A simulation
+  whose teachers all lost the app role teacher (the same rule as the
+  last-teacher guard) carries a "No active teacher" marker in the list and on
+  its detail page, so an administrator can restore a role at the identity
+  provider or in Users and roles (#291). The overview has one tile with the
+  number of simulations.
 - **The activity log** records every write with ids and codes only:
   `simulation_*` and `lab_*` actions, a count for a pasted list, never an
   address or a name.

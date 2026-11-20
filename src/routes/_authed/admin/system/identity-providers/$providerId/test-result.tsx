@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { authClient } from "@/lib/auth-client";
 import { rolesLabel } from "@/lib/i18n/labels";
-import { parseProviderId, SAML_NAMEID_ERROR } from "@/lib/identity-providers";
+import { EMAIL_FOLD_ERROR, parseProviderId, SAML_NAMEID_ERROR } from "@/lib/identity-providers";
 import { portalNavigation } from "@/lib/navigation";
 import { isRole } from "@/lib/roles";
 import { identityProviderTestQueryOptions } from "@/server/idp/query-options";
@@ -60,6 +60,8 @@ function outcomeText(outcome: TestOutcome): string {
       return m.idp_test_outcome_conflict();
     case SAML_NAMEID_ERROR:
       return m.idp_test_outcome_nameid();
+    case EMAIL_FOLD_ERROR:
+      return m.idp_test_outcome_email_fold();
     default:
       return m.idp_test_outcome_no_role();
   }
@@ -90,7 +92,8 @@ function Result({ providerId, test }: Readonly<{ providerId: string; test: strin
   const refused =
     data.outcome.outcome === "role_conflict" ||
     data.outcome.outcome === "no_edulims_role" ||
-    data.outcome.outcome === SAML_NAMEID_ERROR;
+    data.outcome.outcome === SAML_NAMEID_ERROR ||
+    data.outcome.outcome === EMAIL_FOLD_ERROR;
   const Icon = refused ? CircleAlertIcon : CircleCheckIcon;
   return (
     <div className="flex max-w-2xl flex-col gap-6">

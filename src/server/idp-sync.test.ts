@@ -4,6 +4,7 @@
 import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  EMAIL_FOLD_ERROR,
   NO_ROLE_ERROR,
   PROVIDER_DISABLED_ERROR,
   providerIdOf,
@@ -109,7 +110,10 @@ function oauth(
   user: Data["user"] = { email: "u@example.test" },
 ): Data {
   const method = providerId === "keycloak-saml" ? "sso-saml" : "sso-oidc";
-  return { user, source: { action, method, sso: { providerId, profile } } };
+  // better-auth always hands the gate an address, the lower case of the one in the profile.
+  user.email ??= "u@example.test";
+  const sent = "email" in profile ? profile : { email: user.email, ...profile };
+  return { user, source: { action, method, sso: { providerId, profile: sent } } };
 }
 
 describe("createIdpRoleSync", () => {
@@ -406,13 +410,51 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
     expect(data.user["roleSource"]).toBe("local");
   });
 
-  it("never grants or verifies a non-ASCII address, such as one with a KELVIN SIGN (S4 of #300)", async () => {
-    const hasWaitingLabAddress = vi.fn(async () => true);
-    const { sync, ctx } = authoritative({ hasWaitingLabAddress });
-    const data = oauth("create-user", "entra", { roles: [] }, { email: "Kelvin@example.test" });
-    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
-    expect(hasWaitingLabAddress).not.toHaveBeenCalled();
-    expect(data.user["role"]).toBeUndefined();
+  // NOTE: #324; better-auth hands the gate the lower case of what the provider sent, so the fold
+  // shows only in the profile. The unfolded payload is a unit test of the helpers (email-fold).
+  it.each([
+    ["the ID token", "entra"],
+    ["the SAML attribute", "keycloak-saml"],
+  ])(
+    "refuses a KELVIN SIGN address in %s before any lab or grant lookup (#324)",
+    async (_where, id) => {
+      const hasWaitingLabAddress = vi.fn(async () => true);
+      const consumeAdminGrant = vi.fn(async () => true);
+      const lines = await logged(async () => {
+        const { ctx } = setup();
+        const settings = provider(id, id === "entra" ? "oidc" : "saml", "roles", {
+          emailAuthoritative: true,
+        });
+        const sync = createIdpRoleSync({
+          settingsOf: async () => settings,
+          hasWaitingLabAddress,
+          consumeAdminGrant,
+        });
+        const data = oauth(
+          "create-user",
+          id,
+          { email: id === "entra" ? "\u212aim@example.test" : ["\u212aim@example.test"] },
+          { email: "kim@example.test" },
+        );
+        expect(await sync(data, ctx)).toMatchObject({ error: EMAIL_FOLD_ERROR });
+        expect(data.user["role"]).toBeUndefined();
+        expect(data.user.emailVerified).toBeUndefined();
+      });
+      expect(hasWaitingLabAddress).not.toHaveBeenCalled();
+      expect(consumeAdminGrant).not.toHaveBeenCalled();
+      expect(events(lines, "authn_login_fail")).toEqual([
+        expect.objectContaining({ reason: EMAIL_FOLD_ERROR, provider: id }),
+      ]);
+      expect(lines.join("")).not.toMatch(/example\.test|\u212a/i);
+    },
+  );
+
+  it("refuses a sign-in whose address it cannot read back from the profile (#324)", async () => {
+    const { sync, ctx } = authoritative();
+    const data = oauth("create-user", "entra", { email: "other@example.test" });
+    expect(await sync(data, ctx)).toMatchObject({ error: EMAIL_FOLD_ERROR });
+    const missing = oauth("sign-in", "entra", { email: [] }, { id: "u1", email: "u@example.test" });
+    expect(await sync(missing, ctx)).toMatchObject({ error: EMAIL_FOLD_ERROR });
   });
 
   // NOTE: #311 finding 3 (maintainer, 2026-11-19); the verified flag follows the provider, and
@@ -427,15 +469,6 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
     );
     expect(await sync(data, ctx)).toBeUndefined();
     expect(data.user.emailVerified).toBe(true);
-  });
-
-  it("never consumes a pending admin grant for a KELVIN SIGN address (#311 finding 3)", async () => {
-    const consumeAdminGrant = vi.fn(async () => true);
-    const { sync, ctx } = authoritative({ consumeAdminGrant });
-    const data = oauth("create-user", "entra", {}, { email: "\u212aim@example.test" });
-    expect(await sync(data, ctx)).toMatchObject({ error: NO_ROLE_ERROR });
-    expect(consumeAdminGrant).not.toHaveBeenCalled();
-    expect(data.user["role"]).toBeUndefined();
   });
 
   it("refuses jos\u00e9@school.example on the student grant and the admin grant (#311)", async () => {
@@ -524,11 +557,12 @@ describe("first start, email trust and the test sign-in (#46, #48)", () => {
       recordTest,
     });
     const { ctx } = setup();
-    const data = oauth("create-user", "entra", {
-      sub: "s",
-      roles: ["edulims-teacher"],
-      email: "e",
-    });
+    const data = oauth(
+      "create-user",
+      "entra",
+      { sub: "s", roles: ["edulims-teacher"], email: "e@example.test" },
+      { email: "e@example.test" },
+    );
     expect(await sync(data, ctx)).toMatchObject({ error: "idp_test_complete" });
     expect(recordTest).toHaveBeenCalledWith("t".repeat(32), {
       outcome: "idp",
@@ -596,11 +630,12 @@ describe("the security log of the sign-in gate (ASVS V16.3.1, V16.2.5)", () => {
       recordTest: async () => undefined,
     });
     const { ctx } = setup();
-    const data = oauth("create-user", "entra", {
-      sub: "subject-1",
-      roles: ["edulims-teacher"],
-      email: "claim@example.test",
-    });
+    const data = oauth(
+      "create-user",
+      "entra",
+      { sub: "subject-1", roles: ["edulims-teacher"], email: "claim@example.test" },
+      { email: "claim@example.test" },
+    );
     expect(await sync(data, ctx)).toMatchObject({ error: "idp_test_complete" });
     expect(events(lines, "idp_test_sign_in")).toEqual([
       expect.objectContaining({

@@ -5,8 +5,8 @@
 import { describe, expect, it } from "vitest";
 import { providerIdOf, SAML_NAMEID_ERROR } from "../../lib/identity-providers.ts";
 import { parseRoleMap } from "../idp-roles.ts";
-import { createIdpRoleSync } from "../idp-sync.ts";
-import { hasPersistentNameId, samlNameIdFormats } from "./saml-nameid.ts";
+import { createIdpRoleSync, rawEmailOf } from "../idp-sync.ts";
+import { hasPersistentNameId, samlNameIdFormats, samlNameIdValue } from "./saml-nameid.ts";
 import { samlResponse } from "./test-saml.ts";
 import { PERSISTENT_NAME_ID } from "./validate.ts";
 
@@ -39,6 +39,61 @@ describe("samlNameIdFormats", () => {
   });
 });
 
+/** A base64 SAMLResponse whose subject holds the given NameID elements. */
+function withNameIds(...nameIds: string[]): string {
+  const subject = nameIds.map(
+    (text) => `<saml:NameID Format="${PERSISTENT_NAME_ID}">${text}</saml:NameID>`,
+  );
+  return Buffer.from(`<saml:Assertion>${subject.join("")}</saml:Assertion>`).toString("base64");
+}
+
+describe("samlNameIdValue (#324)", () => {
+  it("reads the NameID as sent, with its character and entity references resolved", () => {
+    expect(samlNameIdValue(samlResponse(PERSISTENT_NAME_ID))).toBe("subject-1");
+    expect(samlNameIdValue(withNameIds("&#x212A;im@example.test"))).toBe("Kim@example.test");
+    expect(samlNameIdValue(withNameIds("&#8490;im&amp;co&lt;&gt;&quot;&apos;"))).toBe(
+      "Kim&co<>\"'",
+    );
+    expect(samlNameIdValue(withNameIds("same", "same"))).toBe("same");
+  });
+
+  it.each([
+    ["no response", undefined],
+    ["an empty response", ""],
+    ["no NameID", Buffer.from("<saml:EncryptedID/>").toString("base64")],
+    ["two different NameIDs", withNameIds("a", "b")],
+    ["markup inside the NameID", withNameIds("<![CDATA[a]]>")],
+    ["an unknown entity", withNameIds("&nbsp;a")],
+    ["a bare ampersand", withNameIds("a&b")],
+    ["a reference past Unicode", withNameIds("&#x110000;")],
+  ])("gives no address for %s", (_case, response) => {
+    expect(samlNameIdValue(response)).toBeNull();
+  });
+});
+
+describe("rawEmailOf (#324)", () => {
+  const response = withNameIds("&#x212A;im@example.test");
+
+  it("reads the first non-empty email claim of an ID token", () => {
+    expect(rawEmailOf("sso-oidc", { email: "A@example.test" }, undefined)).toBe("A@example.test");
+    expect(rawEmailOf("sso-oidc", { email: ["", "B@example.test"] }, undefined)).toBe(
+      "B@example.test",
+    );
+    expect(rawEmailOf("sso-oidc", { email: 7 }, undefined)).toBeNull();
+    expect(rawEmailOf("sso-oidc", {}, response)).toBeNull();
+  });
+
+  it("reads the first SAML email value, else the NameID, as the sso plugin does", () => {
+    expect(rawEmailOf("sso-saml", { email: ["C@example.test", "x"] }, response)).toBe(
+      "C@example.test",
+    );
+    expect(rawEmailOf("sso-saml", { email: "D@example.test" }, response)).toBe("D@example.test");
+    expect(rawEmailOf("sso-saml", { email: [""] }, response)).toBe("Kim@example.test");
+    expect(rawEmailOf("sso-saml", {}, response)).toBe("Kim@example.test");
+    expect(rawEmailOf("sso-saml", { email: [{ v: 1 }] }, response)).toBeNull();
+  });
+});
+
 describe("the sign-in gate (L8)", () => {
   type Sync = ReturnType<typeof createIdpRoleSync>;
 
@@ -68,7 +123,7 @@ describe("the sign-in gate (L8)", () => {
       source: {
         action: "create-user",
         method: "sso-saml",
-        sso: { providerId: "campus-saml", profile: { Role: ["staff"] } },
+        sso: { providerId: "campus-saml", profile: { Role: ["staff"], email: ["t@example.test"] } },
       },
     };
   }
