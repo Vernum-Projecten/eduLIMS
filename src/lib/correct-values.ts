@@ -75,7 +75,8 @@ export type GridProblem =
       text: string;
     }
   | { kind: "row"; row: number; reason: "sample_number" | "repeated_sample" | "columns" }
-  | { kind: "cell"; row: number; column: number; reason: "number" };
+  | { kind: "cell"; row: number; column: number; reason: "number" }
+  | { kind: "grid"; reason: "too_long" | "too_many_columns" };
 
 /** A pasted grid as it reads: its tests by column, its samples by row, and every cell as text. */
 export interface PastedGrid {
@@ -91,6 +92,20 @@ export interface PastedGrid {
 /** How much of an unknown test name a problem quotes, so the teacher finds the column. */
 const QUOTE_MAX = 40;
 
+// NOTE: no requirement governs this bound: our own design (security review of #408, N1). Room
+// for CORRECT_VALUES_BATCH_MAX values with long sample numbers, and no more for the preview.
+/** The most characters a pasted grid takes. */
+export const GRID_TEXT_MAX = 100_000;
+
+/** Format and control characters (bidi marks among them) a quoted name never shows. */
+const INVISIBLE = /[\p{Cf}\p{Cc}]/gu;
+
+/** Returns an unknown test name as a problem quotes it: visible characters, at most 40. */
+function quote(name: string): string {
+  const visible = name.replace(INVISIBLE, "");
+  return visible.length > QUOTE_MAX ? `${visible.slice(0, QUOTE_MAX)}…` : visible;
+}
+
 function splitLine(line: string, separator: string): string[] {
   return line.split(separator).map((cell) => cell.trim());
 }
@@ -105,11 +120,20 @@ function splitLine(line: string, separator: string): string[] {
  * schema to check and convert.
  */
 export function parsePastedGrid(text: string, tests: readonly PasteTest[]): PastedGrid {
-  const lines = text.split(/\r\n|\r|\n/).filter((line) => line.trim() !== "");
   const grid: PastedGrid = { columns: [], samples: [], rows: [], problems: [] };
+  // Over the caps nothing is read: the preview stays cheap, and the paste names the cap.
+  if (text.length > GRID_TEXT_MAX) {
+    grid.problems.push({ kind: "grid", reason: "too_long" });
+    return grid;
+  }
+  const lines = text.split(/\r\n|\r|\n/).filter((line) => line.trim() !== "");
   const [head, ...body] = lines;
   if (head === undefined) return grid;
   const separator = head.includes("\t") ? "\t" : ";";
+  if (splitLine(head, separator).length - 1 > tests.length) {
+    grid.problems.push({ kind: "grid", reason: "too_many_columns" });
+    return grid;
+  }
   const byName = new Map(tests.map((test) => [test.name.trim().toLowerCase(), test.id]));
   const seenTests = new Set<string>();
   splitLine(head, separator)
@@ -123,8 +147,7 @@ export function parsePastedGrid(text: string, tests: readonly PasteTest[]): Past
       if (name === "") {
         grid.problems.push({ kind: "header", column, reason: "empty_test", text: "" });
       } else if (testId === null) {
-        const quoted = name.length > QUOTE_MAX ? `${name.slice(0, QUOTE_MAX)}…` : name;
-        grid.problems.push({ kind: "header", column, reason: "unknown_test", text: quoted });
+        grid.problems.push({ kind: "header", column, reason: "unknown_test", text: quote(name) });
       } else if (repeated) {
         grid.problems.push({ kind: "header", column, reason: "repeated_test", text: "" });
       } else {

@@ -9,6 +9,7 @@ import { m } from "@/i18n/messages";
 import { CONTROL_OR_FORMAT } from "@/lib/catalogue";
 import {
   CORRECT_VALUES_BATCH_MAX,
+  GRID_TEXT_MAX,
   type GridProblem,
   LIMIT_KINDS,
   type PasteTest,
@@ -108,6 +109,10 @@ export function gridProblemMessage(problem: GridProblem): string {
       return m.correct_values_grid_columns();
     case "number":
       return m.correct_values_number_invalid();
+    case "too_long":
+      return m.correct_values_grid_too_long({ max: String(GRID_TEXT_MAX) });
+    case "too_many_columns":
+      return m.correct_values_grid_too_many_columns();
     default: {
       const unknown: never = problem;
       return unknown;
@@ -125,6 +130,12 @@ export function gridPasteSchema(tests: readonly PasteTest[]) {
   return z.object({
     text: z.string().superRefine((text, ctx) => {
       const { rows, problems } = parsePastedGrid(text, tests);
+      // A cap names itself at the field: the preview has nothing to mark.
+      const cap = problems.find((problem) => problem.kind === "grid");
+      if (cap) {
+        ctx.addIssue({ code: "custom", message: gridProblemMessage(cap) });
+        return;
+      }
       if (problems.length > 0) {
         ctx.addIssue({
           code: "custom",

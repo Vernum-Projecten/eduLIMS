@@ -6,6 +6,7 @@ import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CircleAlertIcon, ClipboardPasteIcon } from "lucide-react";
 import { type ReactNode, useMemo, useRef, useState } from "react";
+import type { GridStatus } from "@/components/correct-values/values-grid";
 import { useAppForm } from "@/components/form/app-form";
 import { ScrollRegion } from "@/components/lab-records/scroll-region";
 import { PAGE_TITLE_ID } from "@/components/shell/page-header";
@@ -32,8 +33,9 @@ import {
 } from "@/components/ui/table";
 import { m } from "@/i18n/messages";
 import { type GridProblem, type PastedGrid, parsePastedGrid } from "@/lib/correct-values";
+import { parseDecimal } from "@/lib/decimal";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
-import { formatNumber } from "@/lib/i18n/format";
+import { type FormatOptions, formatDecimal, formatNumber } from "@/lib/i18n/format";
 import { missingLimitsMessage, simulationErrorMessage } from "@/lib/i18n/simulation-labels";
 import { setCorrectValuesFn } from "@/server/correct-values/functions";
 import {
@@ -58,6 +60,32 @@ function savedMessage(outcome: { added: number; changed: number; unchanged: numb
     changed: formatNumber(outcome.changed),
     unchanged: formatNumber(outcome.unchanged),
   });
+}
+
+/**
+ * Returns a pasted value as it will be stored and shown, when that reads otherwise than the
+ * pasted text: "1,5" is stored as 1.5, and in Dutch "1.234" shows as 1,234 (security review of
+ * #408, S1). `null` when the two read the same or the text is no number.
+ */
+export function storedText(raw: string, options: FormatOptions = {}): string | null {
+  const parsed = parseDecimal(raw);
+  if (parsed === null) return null;
+  const shown = formatDecimal(parsed, options);
+  return shown === raw ? null : shown;
+}
+
+/** One pasted value, and beside it the value it will be stored as when the two differ. */
+function PastedValue({ raw }: Readonly<{ raw: string }>) {
+  const stored = storedText(raw);
+  if (stored === null) return <>{raw}</>;
+  return (
+    <>
+      {raw}{" "}
+      <span className="text-muted-foreground">
+        {m.correct_values_grid_stored_as({ value: stored })}
+      </span>
+    </>
+  );
 }
 
 /** How many pasted rows the preview shows; the paste itself takes them all. */
@@ -89,9 +117,18 @@ function PastePreview({
   for (const problem of grid.problems) {
     if (problem.kind === "header") header.set(problem.column, problem);
     else if (problem.kind === "row") rows.set(problem.row, problem);
-    else cells.set(`${problem.row}:${problem.column}`, problem);
+    else if (problem.kind === "cell") cells.set(`${problem.row}:${problem.column}`, problem);
   }
-  const shown = grid.samples.slice(0, PREVIEW_ROWS);
+  // The first rows, and every later row with a problem, so each problem shows (WCAG 3.3.1).
+  const marked = new Set(
+    grid.problems.flatMap((problem) =>
+      problem.kind === "row" || problem.kind === "cell" ? [problem.row] : [],
+    ),
+  );
+  const shown = grid.samples
+    .map((sample, index) => ({ sample, row: index + 1 }))
+    .filter(({ row }) => row <= PREVIEW_ROWS || marked.has(row));
+  const hidden = grid.samples.length - shown.length;
   return (
     <ScrollRegion label={m.correct_values_grid_preview()}>
       <Table>
@@ -118,12 +155,10 @@ function PastePreview({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {shown.map((sample, index) => {
-            const row = index + 1;
+          {shown.map(({ sample, row }) => {
             const problem = rows.get(row);
             return (
-              // biome-ignore lint/suspicious/noArrayIndexKey: a pasted row is its position.
-              <TableRow key={index}>
+              <TableRow key={row}>
                 <TableHead scope="row" className="whitespace-normal align-top">
                   {sample.sampleNumber || "–"}
                   {problem && <Problem>{gridProblemMessage(problem)}</Problem>}
@@ -136,7 +171,7 @@ function PastePreview({
                       key={cellIndex}
                       className="whitespace-normal align-top tabular-nums"
                     >
-                      {sample.cells[cellIndex] ?? ""}
+                      <PastedValue raw={sample.cells[cellIndex] ?? ""} />
                       {cell && <Problem>{gridProblemMessage(cell)}</Problem>}
                     </TableCell>
                   );
@@ -146,11 +181,9 @@ function PastePreview({
           })}
         </TableBody>
       </Table>
-      {grid.samples.length > PREVIEW_ROWS && (
+      {hidden > 0 && (
         <p className="p-2 text-muted-foreground text-sm">
-          {m.correct_values_grid_preview_more({
-            count: formatNumber(grid.samples.length - PREVIEW_ROWS),
-          })}
+          {m.correct_values_grid_preview_more({ count: formatNumber(hidden) })}
         </p>
       )}
     </ScrollRegion>
@@ -166,7 +199,7 @@ function PastePreview({
  */
 export function useGridPaste(
   simulationId: string,
-  onSaved: (message: string) => void,
+  onSaved: (status: GridStatus) => void,
 ): { button: ReactNode; dialog: ReactNode } {
   const [open, setOpen] = useState(false);
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -201,7 +234,7 @@ function GridPasteDialog({
 }: Readonly<{
   simulationId: string;
   open: boolean;
-  onSaved: (message: string) => void;
+  onSaved: (status: GridStatus) => void;
   onOpenChange: (open: boolean) => void;
   onCloseAutoFocus: (event: Event) => void;
 }>) {
@@ -214,7 +247,7 @@ function GridPasteDialog({
   const save = useSimulationAction(
     simulationMutationOptions(queryClient, call, correctValuesInvalidation.values(simulationId)),
     {
-      success: savedMessage,
+      success: null,
       toastErrors: false,
     },
   );
@@ -227,7 +260,7 @@ function GridPasteDialog({
       const { rows } = parsePastedGrid(value.text, tests);
       try {
         const outcome = await save.mutateAsync({ simulationId, rows });
-        onSaved(savedMessage(outcome));
+        onSaved({ message: savedMessage(outcome) });
       } catch (error) {
         const code = simulationErrorCode(error);
         const names = new Map(tests.map((test) => [test.id, test.name]));

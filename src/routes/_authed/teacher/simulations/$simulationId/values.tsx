@@ -3,14 +3,15 @@
 
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { EyeOffIcon } from "lucide-react";
+import { EyeOffIcon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
 import { useGridPaste } from "@/components/correct-values/grid-paste";
-import { ValuesGrid } from "@/components/correct-values/values-grid";
+import { type GridStatus, ValuesGrid } from "@/components/correct-values/values-grid";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { PageFrame } from "@/components/shell/page-frame";
 import { RouteErrorState } from "@/components/shell/route-error";
 import { simulationSubpageTitle } from "@/components/simulations/not-found";
+import { Button } from "@/components/ui/button";
 import { m } from "@/i18n/messages";
 import { correctValuesQueryOptions } from "@/server/correct-values/query-options";
 import { simulationPageQueryOptions } from "@/server/simulations/query-options";
@@ -52,13 +53,35 @@ function ValuesPending() {
  * from a spreadsheet, then edited cell by cell. Teacher-scoped: a student never reaches this page
  * or its data (Q-SIM-1).
  */
+/** Takes a clear back; the grid then says so in the same status line (WCAG 3.3.4). */
+function UndoButton({ undo }: Readonly<{ undo: () => Promise<void> }>) {
+  const [pending, setPending] = useState(false);
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={pending}
+      onClick={() => {
+        setPending(true);
+        void undo().finally(() => setPending(false));
+      }}
+    >
+      <Undo2Icon aria-hidden="true" data-icon="inline-start" />
+      {m.correct_values_grid_undo()}
+    </Button>
+  );
+}
+
 function ValuesPage() {
   const { simulationId } = Route.useParams();
   const { data: page } = useSuspenseQuery(correctValuesQueryOptions(simulationId));
-  // What the last save or paste did, in the page itself: the toasts sit below a dialog's
-  // overlay, so a status line on the page says it too (WCAG 4.1.3).
-  const [saved, setSaved] = useState("");
-  const paste = useGridPaste(simulationId, setSaved);
+  // What the last save, clear or paste did, in the page's one status line (WCAG 4.1.3): each
+  // gets its own key, so a repeat of the same words is announced again.
+  const [status, setStatus] = useState<{ key: number; value: GridStatus } | null>(null);
+  const show = (value: GridStatus) =>
+    setStatus((previous) => ({ key: (previous?.key ?? 0) + 1, value }));
+  const paste = useGridPaste(simulationId, show);
   return (
     <PageFrame
       title={m.simulation_nav_values()}
@@ -70,10 +93,11 @@ function ValuesPage() {
         <EyeOffIcon aria-hidden="true" className="size-4 shrink-0" />
         {m.correct_values_secret()}
       </p>
-      <p role="status" className="text-sm empty:hidden">
-        {saved}
-      </p>
-      <ValuesGrid simulationId={simulationId} emptyAction={paste.button} onSaved={setSaved} />
+      <div role="status" className="flex min-h-8 flex-wrap items-center gap-2 text-sm">
+        {status && <span key={status.key}>{status.value.message}</span>}
+        {status?.value.undo && <UndoButton undo={status.value.undo} />}
+      </div>
+      <ValuesGrid simulationId={simulationId} emptyAction={paste.button} onSaved={show} />
       {paste.dialog}
     </PageFrame>
   );
