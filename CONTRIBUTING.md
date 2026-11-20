@@ -71,7 +71,8 @@ The database tests and the browser tests run on a real PostgreSQL 18, so
 they need the dev stack (`pnpm dev:db`). Every run creates a database of its
 own next to `edulims_test` (`pnpm test`) or `edulims_e2e` (`pnpm test:e2e`),
 named `<base>_<run id>`, and drops it at the end, so runs in parallel
-worktrees never meet. `pnpm test` migrates its database once, and every test
+worktrees never meet. `pnpm test` migrates its database once and copies it for each
+worker, and every test
 runs in a transaction that is rolled back. `pnpm test:e2e` migrates and seeds
 its database before the app starts, on a port of its own derived from the
 run id (between 20000 and 29999, below the ephemeral ports the system hands
