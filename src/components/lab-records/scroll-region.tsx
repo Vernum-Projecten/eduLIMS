@@ -10,11 +10,13 @@ const SCROLL_REGION =
 
 /** A keyboard-reachable scroll region around a table, named by its heading. */
 export function ScrollRegion({
+  id,
   label,
   children,
-}: Readonly<{ label: string; children: ReactNode }>) {
+}: Readonly<{ id?: string; label: string; children: ReactNode }>) {
   return (
     <section
+      id={id}
       aria-label={label}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable region must be reachable by keyboard (WCAG 2.1.1).
       tabIndex={0}

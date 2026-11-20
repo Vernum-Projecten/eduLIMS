@@ -227,7 +227,7 @@ dialog that returns focus to its opener.
 |---|---|---|---|
 | Overview | `/teacher/simulations/$id` | the state and the checklist of the preparation: labs and students, correct values, accuracy limits, the start; each step done or missing, linked to its page | Start or Finish |
 | Labs | `…/labs` | the labs with their logos, students, waiting addresses and the state of their join code; a lab opens its page `…/labs/$labId` | Create lab |
-| Correct values | `…/values` | one table per test: its correct values per sample number, with the test's accuracy limits above it | Add correct value (Paste rows is secondary) |
+| Correct values | `…/values` | one grid: sample numbers as rows, the tests as columns with their accuracy limits in the header, the correct value in each cell (an empty cell is not requested); pasted from a spreadsheet through one all-or-nothing write of the correct-value service, then edited cell by cell (#401) | Paste values |
 | Dashboard | `/teacher/dashboard` | the portal's one dashboard of the running simulation (#271, #386); the navigation links there | none |
 | Corrections | `…/corrections` | the correction log of every lab | none |
 | Settings | `…/settings` | the name, the co-teachers, deleting the simulation | none |

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from "vitest";
-import { parseLimitKind, parsePastedRows } from "./correct-values.ts";
+import { GRID_TEXT_MAX, parseLimitKind, parsePastedGrid } from "./correct-values.ts";
 
 const GLUCOSE = "0190a000-0000-7000-8000-000000000001";
 const UREA = "0190a000-0000-7000-8000-000000000002";
@@ -11,53 +11,91 @@ const TESTS = [
   { id: UREA, name: "Urea" },
 ];
 
-describe("parsePastedRows (D10)", () => {
-  it("reads tab-separated lines copied from a spreadsheet, the test by name in any case", () => {
-    expect(parsePastedRows("S-001\tglucose\t5,2\nS-002\tUREA\t7.1", TESTS)).toEqual({
-      rows: [
-        { sampleNumber: "S-001", testId: GLUCOSE, value: "5,2" },
-        { sampleNumber: "S-002", testId: UREA, value: "7.1" },
-      ],
-      problems: [],
-    });
-  });
-
-  it("reads semicolon-separated lines and skips blank lines, keeping line numbers", () => {
-    const { rows, problems } = parsePastedRows(
-      "\n S-001 ; Glucose ; 5.2 \r\n\r\nS-003;Urea;x",
-      TESTS,
-    );
-    expect(rows).toEqual([{ sampleNumber: "S-001", testId: GLUCOSE, value: "5.2" }]);
-    expect(problems).toEqual([{ line: 4, reason: "number", text: "" }]);
-  });
-
-  it("names each line that does not read, and why", () => {
-    const text = [
-      "S-001\tGlucose",
-      "S-002\tAlbumin\t1",
-      "\tGlucose\t1",
-      `${"S".repeat(41)}\tGlucose\t1`,
-      "S\u0007\tGlucose\t1",
-      "S-006\tGlucose\t1",
-      "s-006\tglucose\t2",
-    ].join("\n");
-    expect(parsePastedRows(text, TESTS).problems).toEqual([
-      { line: 1, reason: "columns", text: "" },
-      { line: 2, reason: "unknown_test", text: "Albumin" },
-      { line: 3, reason: "sample_number", text: "" },
-      { line: 4, reason: "sample_number", text: "" },
-      { line: 5, reason: "sample_number", text: "" },
-      { line: 7, reason: "repeated", text: "" },
+describe("parsePastedGrid (D10, #401)", () => {
+  it("reads a tab-separated grid: tests by name in any case, samples by row, values by cell", () => {
+    const grid = parsePastedGrid("Sample\tglucose\tUREA\nS-1\t5,2\t7.1\nS-2\t6\t\n", TESTS);
+    expect(grid.problems).toEqual([]);
+    expect(grid.columns).toEqual([
+      { text: "glucose", testId: GLUCOSE },
+      { text: "UREA", testId: UREA },
+    ]);
+    expect(grid.rows).toEqual([
+      { sampleNumber: "S-1", testId: GLUCOSE, value: "5,2" },
+      { sampleNumber: "S-1", testId: UREA, value: "7.1" },
+      { sampleNumber: "S-2", testId: GLUCOSE, value: "6" },
     ]);
   });
 
+  it("reads semicolons, skips blank lines and an empty cell, which is not requested", () => {
+    const grid = parsePastedGrid("Sample;Glucose;Urea\n\nS-1;;4\n", TESTS);
+    expect(grid.problems).toEqual([]);
+    expect(grid.rows).toEqual([{ sampleNumber: "S-1", testId: UREA, value: "4" }]);
+    expect(grid.samples).toEqual([{ sampleNumber: "S-1", cells: ["", "4"] }]);
+  });
+
+  it("refuses an unknown, an empty and a repeated test at its header, never creating one", () => {
+    // Four test columns stay under the column cap with four tests in the catalogue.
+    const four = [...TESTS, { id: "t-3", name: "Albumin III" }, { id: "t-4", name: "Albumin IV" }];
+    const grid = parsePastedGrid(`Sample\tAlbumin\t\tGlucose\tglucose\nS-1\t1\t2\t3\t4`, four);
+    expect(grid.problems).toEqual([
+      { kind: "header", column: 1, reason: "unknown_test", text: "Albumin" },
+      { kind: "header", column: 2, reason: "empty_test", text: "" },
+      { kind: "header", column: 4, reason: "repeated_test", text: "" },
+    ]);
+    expect(grid.rows).toEqual([{ sampleNumber: "S-1", testId: GLUCOSE, value: "3" }]);
+  });
+
+  it("refuses a bad sample number, a repeated sample and a row wider than the header", () => {
+    const long = "S".repeat(41);
+    const grid = parsePastedGrid(`Sample\tGlucose\n${long}\t1\nS-1\t2\ns-1\t3\nS-2\t4\t5`, TESTS);
+    expect(grid.problems).toEqual([
+      { kind: "row", row: 1, reason: "sample_number" },
+      { kind: "row", row: 3, reason: "repeated_sample" },
+      { kind: "row", row: 4, reason: "columns" },
+    ]);
+    expect(grid.rows).toEqual([{ sampleNumber: "S-1", testId: GLUCOSE, value: "2" }]);
+  });
+
+  it("refuses a value that is no number at its cell", () => {
+    const grid = parsePastedGrid("Sample\tGlucose\tUrea\nS-1\t5\tlow", TESTS);
+    expect(grid.problems).toEqual([{ kind: "cell", row: 1, column: 2, reason: "number" }]);
+  });
+
   it("quotes at most 40 characters of an unknown test name", () => {
-    const { problems } = parsePastedRows(`S-1\t${"X".repeat(60)}\t1`, TESTS);
-    expect(problems[0]?.text).toBe(`${"X".repeat(40)}…`);
+    const name = "X".repeat(60);
+    const [problem] = parsePastedGrid(`Sample\t${name}`, TESTS).problems;
+    expect(problem).toEqual({
+      kind: "header",
+      column: 1,
+      reason: "unknown_test",
+      text: `${"X".repeat(40)}…`,
+    });
+  });
+
+  it("quotes an unknown test name without format or control characters (security review of #408)", () => {
+    const [problem] = parsePastedGrid("Sample\tAlb\u202Eumin\u200B", TESTS).problems;
+    expect(problem).toEqual({ kind: "header", column: 1, reason: "unknown_test", text: "Albumin" });
+  });
+
+  it("refuses a paste longer than its cap, reading nothing", () => {
+    const grid = parsePastedGrid(`Sample\tGlucose\n${"S".repeat(GRID_TEXT_MAX)}`, TESTS);
+    expect(grid.problems).toEqual([{ kind: "grid", reason: "too_long" }]);
+    expect(grid.rows).toEqual([]);
+  });
+
+  it("refuses more test columns than the catalogue has tests", () => {
+    const grid = parsePastedGrid("Sample\tGlucose\tUrea\tExtra\nS-1\t1\t2\t3", TESTS);
+    expect(grid.problems).toEqual([{ kind: "grid", reason: "too_many_columns" }]);
+    expect(grid.rows).toEqual([]);
   });
 
   it("reads nothing from an empty paste", () => {
-    expect(parsePastedRows("  \n\n", TESTS)).toEqual({ rows: [], problems: [] });
+    expect(parsePastedGrid("  \n\n", TESTS)).toEqual({
+      columns: [],
+      samples: [],
+      rows: [],
+      problems: [],
+    });
   });
 });
 

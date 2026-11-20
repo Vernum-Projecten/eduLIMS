@@ -9,10 +9,11 @@ import { m } from "@/i18n/messages";
 import { CONTROL_OR_FORMAT } from "@/lib/catalogue";
 import {
   CORRECT_VALUES_BATCH_MAX,
+  GRID_TEXT_MAX,
+  type GridProblem,
   LIMIT_KINDS,
-  type PasteProblem,
   type PasteTest,
-  parsePastedRows,
+  parsePastedGrid,
   SAMPLE_NUMBER_MAX,
 } from "@/lib/correct-values";
 import { compareDecimals, isNegativeDecimal, parseDecimal } from "@/lib/decimal";
@@ -91,38 +92,62 @@ export const correctValueIdInput = z.object({ simulationId: id, correctValueId: 
 /** The correct values of one simulation. */
 export const correctValuesPageInput = z.object({ simulationId: id });
 
-/** Returns the translated message of one pasted line the parser could not read. */
-export function pasteProblemMessage(problem: PasteProblem): string {
-  const line = String(problem.line);
+/** Returns the translated message of one part of a pasted grid that does not read (#401). */
+export function gridProblemMessage(problem: GridProblem): string {
   switch (problem.reason) {
-    case "columns":
-      return m.correct_values_paste_columns({ line });
     case "unknown_test":
-      return m.correct_values_paste_unknown_test({ line, test: problem.text });
+      return m.correct_values_grid_unknown_test({ test: problem.text });
+    case "empty_test":
+      return m.correct_values_grid_empty_test();
+    case "repeated_test":
+      return m.correct_values_grid_repeated_test();
     case "sample_number":
-      return m.correct_values_paste_sample_number({ line, max: String(SAMPLE_NUMBER_MAX) });
+      return m.correct_values_grid_sample_number({ max: String(SAMPLE_NUMBER_MAX) });
+    case "repeated_sample":
+      return m.correct_values_grid_repeated_sample();
+    case "columns":
+      return m.correct_values_grid_columns();
     case "number":
-      return m.correct_values_paste_number({ line });
-    case "repeated":
-      return m.correct_values_paste_repeated({ line });
+      return m.correct_values_number_invalid();
+    case "too_long":
+      return m.correct_values_grid_too_long({ max: String(GRID_TEXT_MAX) });
+    case "too_many_columns":
+      return m.correct_values_grid_too_many_columns();
     default: {
-      const unknown: never = problem.reason;
+      const unknown: never = problem;
       return unknown;
     }
   }
 }
 
 /**
- * The paste form (D10): lines of a sample number, a test name and a value, separated by a tab or
- * a semicolon. Every line that does not read is reported at the field, naming its line, so the
- * teacher fixes it there; the lines that read become the rows of {@link setCorrectValuesInput}.
+ * The paste of a grid (D10, #401): the first row names the tests, the first column the sample
+ * numbers. When a part does not read, the field says how many and the preview marks each one at
+ * its header, row or cell; the cells that read become the rows of {@link setCorrectValuesInput},
+ * stored all or nothing.
  */
-export function pasteFormSchema(tests: readonly PasteTest[]) {
+export function gridPasteSchema(tests: readonly PasteTest[]) {
   return z.object({
     text: z.string().superRefine((text, ctx) => {
-      const { rows, problems } = parsePastedRows(text, tests);
-      if (rows.length === 0 && problems.length === 0) {
-        ctx.addIssue({ code: "custom", message: m.correct_values_paste_required() });
+      const { rows, problems } = parsePastedGrid(text, tests);
+      // A cap names itself at the field: the preview has nothing to mark.
+      const cap = problems.find((problem) => problem.kind === "grid");
+      if (cap) {
+        ctx.addIssue({ code: "custom", message: gridProblemMessage(cap) });
+        return;
+      }
+      if (problems.length > 0) {
+        ctx.addIssue({
+          code: "custom",
+          message:
+            problems.length === 1
+              ? m.correct_values_grid_problems_one()
+              : m.correct_values_grid_problems_other({ count: String(problems.length) }),
+        });
+        return;
+      }
+      if (rows.length === 0) {
+        ctx.addIssue({ code: "custom", message: m.correct_values_grid_required() });
       }
       if (rows.length > CORRECT_VALUES_BATCH_MAX) {
         ctx.addIssue({
@@ -130,13 +155,10 @@ export function pasteFormSchema(tests: readonly PasteTest[]) {
           message: m.correct_values_too_many({ max: String(CORRECT_VALUES_BATCH_MAX) }),
         });
       }
-      for (const problem of problems) {
-        ctx.addIssue({ code: "custom", message: pasteProblemMessage(problem) });
-      }
     }),
   });
 }
-export type PasteForm = z.input<ReturnType<typeof pasteFormSchema>>;
+export type GridPasteForm = z.input<ReturnType<typeof gridPasteSchema>>;
 
 const limitsBase = z.object({
   kind: z.enum(LIMIT_KINDS, { error: () => m.correct_values_limit_kind_required() }),
