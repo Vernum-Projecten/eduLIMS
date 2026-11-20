@@ -77,6 +77,7 @@ interface Header {
   width: number;
   height: number;
   colourType: number;
+  bitDepth: number;
 }
 
 /** Reads the 13 bytes of IHDR, or `null` when a field breaks §11.2.1. */
@@ -95,7 +96,7 @@ function readHeader(view: DataView, start: number): Header | null {
   if (!depths?.includes(bitDepth) || compression !== 0 || filter !== 0 || interlace > 1) {
     return null;
   }
-  return { width, height, colourType };
+  return { width, height, colourType, bitDepth };
 }
 
 /**
@@ -107,6 +108,7 @@ export function filterPng(bytes: Uint8Array): ImageCheck {
   const kept: Uint8Array[] = [PNG_SIGNATURE];
   let header: Header | null = null;
   let paletteSize = 0;
+  let paletteSeen = false;
   const ancillary = new Set<string>();
   let dataSeen = false;
   let dataEnded = false;
@@ -144,9 +146,14 @@ export function filterPng(bytes: Uint8Array): ImageCheck {
       case "IHDR":
         return malformed("png_order");
       case "PLTE":
-        if (paletteSize > 0 || dataSeen) return malformed("png_order");
+        if (paletteSeen || dataSeen) return malformed("png_order");
         if (header.colourType === 0 || header.colourType === 4) return malformed("png_plte");
         if (length === 0 || length > 768 || length % 3 !== 0) return malformed("png_plte");
+        paletteSeen = true;
+        // §11.2.3: a palette image has at most 2^bitDepth entries; a truecolour image's
+        // suggested palette is not needed to render it, so it is dropped.
+        if (header.colourType !== 3) break;
+        if (length / 3 > 2 ** header.bitDepth) return malformed("png_plte");
         paletteSize = length / 3;
         kept.push(chunk);
         break;

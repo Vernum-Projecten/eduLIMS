@@ -57,6 +57,38 @@ function entropyEnd(bytes: Uint8Array, start: number): number {
   return -1;
 }
 
+/**
+ * Returns whether a DQT, DHT or DRI payload (its length field first) holds its tables and nothing
+ * else, so no other data rides along in a kept segment:
+ *
+ * - DRI (B.2.4.4) is exactly 4 bytes: the length and the restart interval.
+ * - DQT (B.2.4.1) is one or more tables of `Pq/Tq` and 64 8-bit values; `Pq` is 0, as an 8-bit
+ *   frame requires, and `Tq` names table 0 to 3.
+ * - DHT (B.2.4.2) is one or more tables of `Tc/Th`, the 16 code counts and as many values as the
+ *   counts add up to (at most 256); `Tc` is 0 or 1 and `Th` names table 0 to 3.
+ */
+export function tablesFit(marker: number, payload: Uint8Array): boolean {
+  if (marker === DRI) return payload.length === 4;
+  let at = 2;
+  while (at < payload.length) {
+    const kind = payload[at] ?? 0;
+    const tableClass = kind >> 4;
+    const table = kind & 0x0f;
+    if (table > 3) return false;
+    if (marker === DQT) {
+      if (tableClass !== 0) return false;
+      at += 1 + 64;
+    } else {
+      if (tableClass > 1 || at + 17 > payload.length) return false;
+      let values = 0;
+      for (let length = 1; length <= 16; length += 1) values += payload[at + length] ?? 0;
+      if (values === 0 || values > 256) return false;
+      at += 17 + values;
+    }
+  }
+  return at === payload.length && payload.length > 2;
+}
+
 /** Returns a marker segment written again: the marker without fill bytes, then its payload. */
 function segment(marker: number, payload: Uint8Array): Uint8Array {
   return concat([Uint8Array.of(0xff, marker), payload]);
@@ -118,6 +150,7 @@ export function filterJpeg(bytes: Uint8Array): ImageCheck {
       frame = read;
       kept.push(segment(marker, payload));
     } else if (TABLES.has(marker)) {
+      if (!tablesFit(marker, payload)) return malformed("jpeg_table");
       kept.push(segment(marker, payload));
     } else if (marker === SOS) {
       if (frame === null) return malformed("jpeg_no_frame");

@@ -364,21 +364,28 @@ The lab logo is an upload, held to the upload rules of the security baseline
 - **How it is made safe:** a small filter in `src/server/logo/` reads the
   PNG chunks (every CRC checked) or the JPEG marker segments and writes the
   file again with only what a browser needs to render it: for a PNG the
-  critical chunks, transparency and the fixed-size colour chunks; for a JPEG
-  the frame, the tables, the restart interval, the scans and the fixed Adobe
-  segment. EXIF, XMP, IPTC, ICC profiles, text and time chunks and comments
-  are dropped, and so is anything after the end of the image. The pixels are
-  copied, never decoded or re-encoded. A photo loses its EXIF orientation and
-  its colour profile with the rest.
+  critical chunks (a palette only for a palette image, with at most
+  2^bit-depth entries), transparency and the fixed-size colour chunks; for a
+  JPEG the frame, the quantisation and Huffman tables and the restart
+  interval (each must consume its segment exactly), the scans and the fixed
+  Adobe segment. EXIF, XMP, IPTC, ICC profiles, text and time chunks,
+  comments and a truecolour image's suggested palette are dropped, and so is
+  anything after the end of the image. The pixels are copied, never decoded
+  or re-encoded. A photo loses its EXIF orientation and its colour profile
+  with the rest.
 - **Where it lives:** `lab_logos` in the eduLIMS database, one row per lab
-  with the bytes, the type, the size, the dimensions and the SHA-256, and no
-  file name. It goes with its lab, and the database backup covers it.
+  with the bytes, the type, the size, the dimensions and the SHA-256 (a CHECK
+  holds it equal to `sha256(content)`), and no file name. It goes with its
+  lab, and the database backup covers it.
 - **Who changes it:** a teacher of the lab's simulation, through
   `uploadLabLogoFn` and `removeLabLogoFn`, under the lock of the simulation
   row. Every change and every refused file writes `lab_logo_changed` with
   ids and codes only. A form to any server function is refused before its
-  body is read when it declares no length or more than 528 KiB
-  (`src/server/form-body-limit.ts`).
+  body is read when it declares no length or more than 528 KiB, and the
+  refusal closes the connection so Node does not read the rest
+  (`src/server/form-body-limit.ts`). A logo can be changed in a finished
+  simulation, the same as a lab's name: it carries no result (maintainer on
+  #346).
 - **Who reads it:** `GET /api/labs/$labId/logo` answers a member of the lab
   and a teacher of its simulation, in the same query that reads the logo,
   with the stored type, `nosniff`, `Content-Disposition: inline` with a name

@@ -32,7 +32,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       "lab_logos_dimensions",
       sql`width between 1 and ${sql.lit(LOGO_MAX_SIDE)} and height between 1 and ${sql.lit(LOGO_MAX_SIDE)}`,
     )
-    .addCheckConstraint("lab_logos_sha256", sql`octet_length(sha256) = 32`)
+    .addCheckConstraint("lab_logos_sha256", sql`sha256 = sha256(content)`)
     .execute();
 }
 

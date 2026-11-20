@@ -70,7 +70,11 @@ describe("formBodyRefusal (V5.2.1)", () => {
       restore();
     }
     expect(response?.status).toBe(413);
+    expect(response?.headers.get("connection")).toBe("close");
     expect(await response?.text()).toBe("");
+    const missing = refuseFormBody(post({ "content-type": MULTIPART }));
+    expect(missing?.status).toBe(411);
+    expect(missing?.headers.get("connection")).toBe("close");
     expect(lines.map((line) => JSON.parse(line))).toEqual([
       expect.objectContaining({
         event: "input_validation_fail",

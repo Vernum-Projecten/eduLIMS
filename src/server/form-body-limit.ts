@@ -38,5 +38,10 @@ export function refuseFormBody(request: Request): Response | null {
     reason: status === 411 ? "form_length_missing" : "form_too_large",
     status,
   });
-  return new Response(null, { status, headers: { "Cache-Control": "no-store" } });
+  // NOTE: security review of #349; without `Connection: close` Node drains the unread body to
+  // keep the connection alive, so a refused 200 MiB form is still read whole.
+  return new Response(null, {
+    status,
+    headers: { "Cache-Control": "no-store", Connection: "close" },
+  });
 }

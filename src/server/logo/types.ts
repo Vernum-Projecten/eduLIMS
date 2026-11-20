@@ -21,6 +21,7 @@ export type MalformedAt =
   | "jpeg_segment_length"
   | "jpeg_frame"
   | "jpeg_scan"
+  | "jpeg_table"
   | "jpeg_no_frame"
   | "jpeg_no_scan"
   | "jpeg_no_eoi";

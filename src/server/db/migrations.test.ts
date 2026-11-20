@@ -555,7 +555,6 @@ describe("migrations", () => {
     const lab = await sql<{ id: string }>`insert into labs (simulation_id, name)
         values (${simulationId}, 'Logo lab') returning id`.execute(database);
     const labId = lab.rows[0]?.id;
-    const hash = sql`decode(repeat('00', 32), 'hex')`;
     const logo = (fields: {
       type?: string;
       content?: ReturnType<typeof sql>;
@@ -563,10 +562,13 @@ describe("migrations", () => {
       width?: number;
       height?: number;
       sha?: ReturnType<typeof sql>;
-    }) =>
-      inSavepoint(sql`insert into lab_logos (lab_id, content, media_type, byte_size, width, height, sha256)
-          values (${labId}, ${fields.content ?? sql`'\\x0102'::bytea`}, ${fields.type ?? "image/png"},
-            ${fields.size ?? 2}, ${fields.width ?? 1}, ${fields.height ?? 1}, ${fields.sha ?? hash})`);
+    }) => {
+      const content = fields.content ?? sql`'\\x0102'::bytea`;
+      return inSavepoint(sql`insert into lab_logos (lab_id, content, media_type, byte_size, width, height, sha256)
+          values (${labId}, ${content}, ${fields.type ?? "image/png"},
+            ${fields.size ?? 2}, ${fields.width ?? 1}, ${fields.height ?? 1},
+            ${fields.sha ?? sql`sha256(${content})`})`);
+    };
     await expect(logo({ type: "image/svg+xml" })).rejects.toThrow(/lab_logos_media_type/);
     await expect(logo({ size: 3 })).rejects.toThrow(/lab_logos_byte_size/);
     await expect(logo({ content: sql`'\\x'::bytea`, size: 0 })).rejects.toThrow(
@@ -578,6 +580,8 @@ describe("migrations", () => {
     await expect(logo({ width: 1025 })).rejects.toThrow(/lab_logos_dimensions/);
     await expect(logo({ height: 0 })).rejects.toThrow(/lab_logos_dimensions/);
     await expect(logo({ sha: sql`'\\x00'::bytea` })).rejects.toThrow(/lab_logos_sha256/);
+    // A hash of 32 bytes that is not the hash of the content (N3, the review of #346).
+    await expect(logo({ sha: sql`sha256('\\x0103'::bytea)` })).rejects.toThrow(/lab_logos_sha256/);
     await logo({
       content: sql`decode(repeat('00', 524288), 'hex')`,
       size: 524_288,
