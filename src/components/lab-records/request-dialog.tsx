@@ -117,10 +117,16 @@ export function RequestDialog({
   const testOptions = useMemo(() => {
     const named = request?.tests ?? [];
     const all = [...tests, ...named.filter((t) => !tests.some((test) => test.id === t.id))];
-    return all.map((test) => ({
-      value: test.id,
-      label: test.unit ? m.records_test_option({ test: test.name, unit: test.unit }) : test.name,
-    }));
+    // NOTE: S12 (maintainer on #268); a correction never removes a requested test, so the
+    // screen offers no way to: a test already on the request stays ticked and cannot be cleared.
+    return all.map((test) => {
+      const kept = named.some((t) => t.id === test.id);
+      return {
+        value: test.id,
+        label: test.unit ? m.records_test_option({ test: test.name, unit: test.unit }) : test.name,
+        ...(kept ? { disabled: true, description: m.records_test_kept() } : {}),
+      };
+    });
   }, [tests, request]);
   const initial = useMemo(() => (request ? formOf(request) : emptyForm()), [request]);
   const labNumbers = new Map<string, string>(
@@ -237,7 +243,11 @@ export function RequestDialog({
               </form.AppField>
               <form.AppField name="testIds">
                 {(field) => (
-                  <field.CheckboxGroupField label={m.records_tests()} options={testOptions} />
+                  <field.CheckboxGroupField
+                    label={m.records_tests()}
+                    description={request ? m.records_tests_correction_help() : undefined}
+                    options={testOptions}
+                  />
                 )}
               </form.AppField>
               <form.AppField name="phoneThrough">

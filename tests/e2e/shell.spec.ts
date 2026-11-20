@@ -103,19 +103,14 @@ test("a section shows its coming-soon state, and the breadcrumb and title follow
 }) => {
   await signInAs(page, "student");
   const nav = page.getByRole("navigation", { name: "Main menu" });
-  // NOTE: #273; the coming-soon state needs a section that is still a placeholder.
-  await nav.getByRole("link", { name: "Measurements and results" }).click();
+  // NOTE: #273; the coming-soon state needs a section that is still a placeholder (#152 builds it).
+  await nav.getByRole("link", { name: "Upload" }).click();
 
-  await expect(page).toHaveURL(/\/student\/results$/);
-  await expect(page).toHaveTitle("Measurements and results | Student portal | eduLIMS");
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Measurements and results" }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/student\/upload$/);
+  await expect(page).toHaveTitle("Upload | Student portal | eduLIMS");
+  await expect(page.getByRole("heading", { level: 1, name: "Upload" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Coming soon" })).toBeVisible();
-  await expect(nav.getByRole("link", { name: "Measurements and results" })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
+  await expect(nav.getByRole("link", { name: "Upload" })).toHaveAttribute("aria-current", "page");
   await expect(nav.getByRole("link", { name: "Overview" })).not.toHaveAttribute(
     "aria-current",
     "page",
@@ -123,7 +118,7 @@ test("a section shows its coming-soon state, and the breadcrumb and title follow
 
   const breadcrumb = page.getByRole("navigation", { name: "Breadcrumb" });
   await expect(breadcrumb.getByRole("link", { name: "Student portal" })).toBeVisible();
-  await expect(breadcrumb).toContainText("Measurements and results");
+  await expect(breadcrumb).toContainText("Upload");
   await expectNoA11yViolations(page);
 
   await breadcrumb.getByRole("link", { name: "Student portal" }).click();

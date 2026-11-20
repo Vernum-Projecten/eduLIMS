@@ -149,6 +149,15 @@ test("a team registers a patient, records and corrects a request, and copies a l
   await correct.focus();
   await page.keyboard.press("Enter");
   const correction = page.getByRole("dialog", { name: "Correct the request" });
+  // A correction never removes a requested test (maintainer on #268): it stays ticked and fixed.
+  const requested = correction.getByRole("checkbox", { name: new RegExp(seeded.test) });
+  await expect(requested).toBeChecked();
+  await expect(requested).toBeDisabled();
+  await expect(correction.getByText("On the request; a correction keeps it.")).toBeVisible();
+  await expect(
+    correction.getByText("A correction can add a test, never remove one.", { exact: false }),
+  ).toBeVisible();
+  await axe(page);
   await correction.getByRole("button", { name: "Add a sample" }).click();
   const second = correction.getByRole("group", { name: "Sample 2" });
   await expect(second.getByLabel("Sample number")).toBeFocused();
