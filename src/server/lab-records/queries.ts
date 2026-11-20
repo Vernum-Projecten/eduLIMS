@@ -60,6 +60,8 @@ export interface RequestRow {
 /** The records of one lab: its patients and its requests. */
 export interface LabRecords {
   labId: string;
+  /** Whether the lab's simulation runs, so the team can write (D10, #267). */
+  running: boolean;
   patients: PatientRow[];
   requests: RequestRow[];
 }
@@ -97,6 +99,11 @@ export async function readLabRecords(
     logRecordsProbe(actor.id, "lab", labId);
     return null;
   }
+  const simulation = await db
+    .selectFrom("simulations")
+    .select("state")
+    .where("id", "=", lab.simulationId)
+    .executeTakeFirstOrThrow();
   const patients = await db
     .selectFrom("patients")
     .innerJoin("lab_members", (join) =>
@@ -167,6 +174,7 @@ export async function readLabRecords(
           .execute();
   return {
     labId: lab.labId,
+    running: simulation.state === "running",
     patients: patients.map((row) => ({
       id: stored(parsePatientId(row.id), "patient id"),
       name: row.name,

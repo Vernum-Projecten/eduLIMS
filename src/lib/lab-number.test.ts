@@ -9,6 +9,7 @@ import {
   formatLabNumber,
   isLabNumber,
   LAB_NUMBER_LENGTH,
+  spellLabNumber,
   withCheckDigit,
 } from "./lab-number.ts";
 
@@ -84,5 +85,9 @@ describe("a lab number", () => {
 
   it("reads aloud in groups of three, three and four", () => {
     expect(formatLabNumber("1234567890")).toBe("123 456 7890");
+  });
+
+  it("spells digit by digit for a screen reader", () => {
+    expect(spellLabNumber("1234567890")).toBe("1 2 3 4 5 6 7 8 9 0");
   });
 });

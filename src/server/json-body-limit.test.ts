@@ -206,6 +206,22 @@ describe("refuseJsonBody", () => {
     ]);
   });
 
+  it("logs the request id the reverse proxy set, and leaves out a malformed one (#357)", async () => {
+    const lines: string[] = [];
+    const restore = setSecurityLogWriter((line) => lines.push(line));
+    try {
+      await refuseJsonBody(jsonPost(101, { "x-request-id": "req-357" }), 100);
+      await refuseJsonBody(jsonPost(101, { "x-request-id": "not an id" }), 100);
+    } finally {
+      restore();
+    }
+    const parsed: unknown[] = lines.map((line): unknown => JSON.parse(line));
+    expect(parsed).toEqual([
+      expect.objectContaining({ request_id: "req-357" }),
+      expect.not.objectContaining({ request_id: expect.anything() as unknown }),
+    ]);
+  });
+
   it("lets a body within the limit through without a log line", async () => {
     const lines: string[] = [];
     const restore = setSecurityLogWriter((line) => lines.push(line));

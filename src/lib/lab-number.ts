@@ -72,3 +72,11 @@ export function withCheckDigit(body: string): string {
 export function formatLabNumber(value: string): string {
   return `${value.slice(0, 3)} ${value.slice(3, 6)} ${value.slice(6)}`;
 }
+
+/**
+ * Returns a lab number with a space between every digit ("1 2 3 4 5 6 7 8 9 0"), so a screen
+ * reader reads it digit by digit instead of as one large number.
+ */
+export function spellLabNumber(value: string): string {
+  return [...value].join(" ");
+}
