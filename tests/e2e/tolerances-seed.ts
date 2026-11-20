@@ -8,6 +8,7 @@ import { Kysely, PostgresDialect, sql } from "kysely";
 import { Pool } from "pg";
 import type { DB } from "../../src/server/db/schema.gen.ts";
 import { copyAccount, type TestAccount } from "./accounts";
+import { finishRunning } from "./running-simulation";
 
 /** What {@link seedTolerances} stored. */
 export interface ToleranceWorld {
@@ -48,6 +49,8 @@ export async function seedTolerances(suffix: string): Promise<ToleranceWorld> {
         .select("id")
         .where("email", "=", "teacher@example.test")
         .executeTakeFirstOrThrow();
+      // NOTE: #386; one running simulation at a time, so an earlier journey's one is finished.
+      await finishRunning(trx);
       const { id: simulationId } = await trx
         .insertInto("simulations")
         .values({

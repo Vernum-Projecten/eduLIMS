@@ -9,7 +9,13 @@ import type { Kysely } from "kysely";
 import { parseSimulationId, type SimulationState } from "../../lib/simulations.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { assertTeacher, logNotFound, type SimulationActor } from "./access.ts";
-import { type StartRefusal, startRefusal, testsWithoutLimits, toSimulationState } from "./state.ts";
+import {
+  anotherRunning,
+  type StartRefusal,
+  startRefusal,
+  testsWithoutLimits,
+  toSimulationState,
+} from "./state.ts";
 
 /** The preparation of one simulation: counts per step and the start's verdict. */
 export interface SimulationReadiness {
@@ -69,7 +75,7 @@ export async function getSimulationReadiness(
     logNotFound(actor.id, "simulation", simulationId);
     return null;
   }
-  const [labs, values, missing] = await Promise.all([
+  const [labs, values, missing, otherRunning] = await Promise.all([
     db
       .selectFrom("labs")
       .select((eb) => [
@@ -96,6 +102,7 @@ export async function getSimulationReadiness(
       .where("simulation_id", "=", id)
       .executeTakeFirstOrThrow(),
     testsWithoutLimits(db, id),
+    anotherRunning(db, id),
   ]);
   const names =
     missing.length === 0
@@ -122,6 +129,10 @@ export async function getSimulationReadiness(
     },
     values: { count: Number(values.values), tests: Number(values.tests) },
     missingLimits: names.map((row) => ({ id: row.id, name: row.name })),
-    startRefusal: startRefusal(state, missing),
+    startRefusal: startRefusal({
+      state,
+      missingLimits: missing,
+      anotherRunning: state === "prepared" && otherRunning,
+    }),
   };
 }

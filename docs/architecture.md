@@ -200,8 +200,8 @@ The checklist reads `getSimulationReadinessFn`
 (`src/server/simulations/readiness.ts`): counts per step and the start's
 verdict from `startRefusal`, the one rule the start itself applies, so Start
 is enabled only when the server would accept it and the checklist names the
-same reason it would refuse with (`missing_limits`, `not_prepared`, and any
-reason the start gains later). Every page's loader reads through the
+same reason it would refuse with (`not_prepared`, `another_running`,
+`missing_limits`). Every page's loader reads through the
 teacher-scoped functions, so a teacher of another simulation gets not found
 on each of them (D11).
 
@@ -370,7 +370,11 @@ student's place and a waiting address point at their lab through the pair
   The lab's work goes through `findWorkingStudentLab`, which also requires
   a running simulation: a prepared or finished simulation takes no work.
 - **State.** A teacher of the simulation starts a prepared simulation and
-  finishes a running one, behind a confirmation; no step goes back. A start
+  finishes a running one, behind a confirmation; no step goes back. Only one
+  simulation runs at a time (owner, 2026-11-20, #386): a start while another
+  runs is refused with `another_running`, which names no other simulation,
+  and the partial unique index `simulations_one_running` (migration
+  `0030_one_running_simulation`) holds the rule when two starts race. A start
   is refused while a test with a correct value has no limits, and the
   refusal names those tests; a running simulation is never deleted
   (maintainer, 2026-11-20 on #267). The correct values and the limits stay

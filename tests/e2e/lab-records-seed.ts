@@ -11,6 +11,7 @@ import { Pool } from "pg";
 import { withCheckDigit } from "../../src/lib/lab-number.ts";
 import type { DB } from "../../src/server/db/schema.gen.ts";
 import { copyAccount, type TestAccount } from "./accounts";
+import { finishRunning } from "./running-simulation";
 
 /** What {@link seedLabRecords} stored. */
 export interface SeededLab {
@@ -48,6 +49,8 @@ async function labWith(
     .where("email", "=", "teacher@example.test")
     .executeTakeFirstOrThrow();
   const started = new Date(createdAt.getTime() + 60_000);
+  // NOTE: #386; one running simulation at a time, so an earlier journey's one is finished.
+  if (state === "running") await finishRunning(db);
   const { id: simulationId } = await db
     .insertInto("simulations")
     .values({
@@ -121,7 +124,10 @@ export async function seedSecondLab(
   }
 }
 
-/** Stores a lab of another student, which the journey's student is not in, and returns its id. */
+/**
+ * Stores a lab of another student in a finished simulation, which the journey's student is not
+ * in, and returns its id. Finished, since only one simulation runs at a time (#386).
+ */
 export async function seedForeignLab(suffix: string): Promise<string> {
   const other = await copyAccount("student@example.test", "records-other");
   const db = database();
@@ -131,7 +137,7 @@ export async function seedForeignLab(suffix: string): Promise<string> {
       other.id,
       `Foreign ${suffix}`,
       `Foreign lab ${suffix}`,
-      "running",
+      "finished",
       new Date(),
     );
     return labId;

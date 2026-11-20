@@ -50,20 +50,33 @@ async function valueFor(database: Kysely<DB>, w: World, testId: string, sampleNu
   if (!set.ok) throw new Error(set.error);
 }
 
-describe("startRefusal (#267, #381)", () => {
-  it("allows a prepared simulation with every limit set", () => {
-    expect(startRefusal("prepared", [])).toBeNull();
+describe("startRefusal (#267, #381, #386)", () => {
+  const prepared = { state: "prepared", missingLimits: [], anotherRunning: false } as const;
+
+  it("allows a prepared simulation with every limit set and no other running", () => {
+    expect(startRefusal(prepared)).toBeNull();
   });
 
   it("refuses a prepared simulation with a test without limits, naming the test", () => {
-    expect(startRefusal("prepared", ["t-1"])).toEqual({
+    expect(startRefusal({ ...prepared, missingLimits: ["t-1"] })).toEqual({
       error: "missing_limits",
       testIds: ["t-1"],
     });
   });
 
+  it("refuses a prepared simulation while another runs, before the limits (#386)", () => {
+    expect(startRefusal({ ...prepared, anotherRunning: true })).toEqual({
+      error: "another_running",
+    });
+    expect(startRefusal({ ...prepared, missingLimits: ["t-1"], anotherRunning: true })).toEqual({
+      error: "another_running",
+    });
+  });
+
   it.each(["running", "finished"] as const)("refuses a %s simulation as not prepared", (state) => {
-    expect(startRefusal(state, ["t-1"])).toEqual({ error: "not_prepared" });
+    expect(startRefusal({ state, missingLimits: ["t-1"], anotherRunning: true })).toEqual({
+      error: "not_prepared",
+    });
   });
 });
 
@@ -155,6 +168,21 @@ describe("getSimulationReadiness (D10, #381)", () => {
       finishedAt: NOW.toISOString(),
       startRefusal: { error: "not_prepared" },
     });
+  });
+
+  it("shows another_running while another teacher's simulation runs, naming none (#386)", async () => {
+    const { database, w } = await open();
+    const other = await startSimulation(
+      database,
+      w.outsiderTeacher,
+      { simulationId: w.outsideSimulationId },
+      NOW,
+    );
+    expect(other.ok).toBe(true);
+    const readiness = await getSimulationReadiness(database, w.teacher, w.simulationId);
+    expect(readiness?.startRefusal).toEqual({ error: "another_running" });
+    expect(JSON.stringify(readiness)).not.toContain(w.outsideSimulationId);
+    expect(JSON.stringify(readiness)).not.toContain("Other simulation");
   });
 
   const forbidden: [string, (w: World) => Person][] = [

@@ -12,6 +12,7 @@ import { copyAccount } from "./accounts";
 import { axe, dutch } from "./admin-users-helpers";
 import { devLogin, expectHydrated, pressUntilFocused } from "./fixtures";
 import { appUrl } from "./run-env";
+import { finishRunningSimulations } from "./running-simulation";
 
 const TEACHER = "teacher@example.test";
 
@@ -83,6 +84,8 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   const id = suffix();
   const testName = `Glucose ${id}`;
   const simulation = `Values journey ${id}`;
+  // NOTE: #386; one simulation runs at a time, and this journey starts its own.
+  await finishRunningSimulations();
   await devLogin(page, TEACHER);
   await expect(page).toHaveURL(/\/teacher$/);
   await addCatalogueTest(page, testName);

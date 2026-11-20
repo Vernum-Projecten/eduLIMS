@@ -15,7 +15,7 @@ import { createSimulation, deleteSimulation } from "./simulations.ts";
 import { finishSimulation, startSimulation, toSimulationState } from "./state.ts";
 import { findWorkingStudentLab } from "./student-access.ts";
 import { teacherWriteRefusals } from "./test-access.ts";
-import { auditRows, NOW, world } from "./test-helpers.ts";
+import { auditRows, NOW, setState, world } from "./test-helpers.ts";
 
 const LATER = new Date("2026-11-19T12:00:00Z");
 
@@ -213,6 +213,55 @@ describe("starting and finishing a simulation (D10, #267)", () => {
       call: (database, _w, actor, target) =>
         finishSimulation(database, actor, { simulationId: target }, LATER),
       target: (w) => ({ type: "simulation", id: w.simulationId }),
+    });
+  });
+});
+
+describe("one running simulation at a time (D11, owner 2026-11-20, #386)", () => {
+  it("refuses a start while another teacher's simulation runs, logs it, and names none", async () => {
+    const { db: database, w } = await open();
+    const other = { simulationId: w.outsideSimulationId };
+    expect((await startSimulation(database, w.outsiderTeacher, other, NOW)).ok).toBe(true);
+    const refusedStart = await startSimulation(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId },
+      LATER,
+    );
+    expect(refusedStart).toEqual({ ok: false, error: "another_running" });
+    expect(JSON.stringify(refusedStart)).not.toContain(w.outsideSimulationId);
+    const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
+    expect(page).toMatchObject({ state: "prepared", startedAt: null });
+    expect(await auditRows(database, "simulation_started")).toEqual([
+      expect.objectContaining({ outcome: "success", target_id: w.outsideSimulationId }),
+      expect.objectContaining({
+        outcome: "refused",
+        reason_code: "another_running",
+        target_id: w.simulationId,
+      }),
+    ]);
+  });
+
+  it("lets the next simulation start once the running one is finished", async () => {
+    const { db: database, w } = await open();
+    const other = { simulationId: w.outsideSimulationId };
+    await startSimulation(database, w.outsiderTeacher, other, NOW);
+    await finishSimulation(database, w.outsiderTeacher, other, LATER);
+    const start = await startSimulation(
+      database,
+      w.teacher,
+      { simulationId: w.simulationId },
+      LATER,
+    );
+    expect(start).toEqual({ ok: true, value: null });
+  });
+
+  it("is held by the database: a second running row is a unique violation", async () => {
+    const { db: database, w } = await open();
+    await setState(database, w.outsideSimulationId, "running");
+    await expect(setState(database, w.simulationId, "running")).rejects.toMatchObject({
+      code: "23505",
+      constraint: "simulations_one_running",
     });
   });
 });
