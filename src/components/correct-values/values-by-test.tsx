@@ -4,7 +4,7 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ClipboardPasteIcon, PencilIcon, PlusIcon, TargetIcon, Trash2Icon } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import {
   AddCorrectValueDialog,
   ChangeValueDialog,
@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -104,7 +105,10 @@ function groupsOf(page: CorrectValuesPage): TestGroup[] {
  * it (D10, D13, #381): a value per sample number, entered once for every lab and changeable in
  * every state. Teacher-scoped: the query behind it refuses every other caller (Q-SIM-1).
  */
-export function ValuesByTest({ simulationId }: Readonly<{ simulationId: string }>) {
+export function ValuesByTest({
+  simulationId,
+  emptyAction,
+}: Readonly<{ simulationId: string; emptyAction: ReactNode }>) {
   const { data: page, isFetching } = useSuspenseQuery(correctValuesQueryOptions(simulationId));
   const groups = useMemo(() => groupsOf(page), [page]);
   if (groups.length === 0) {
@@ -117,13 +121,20 @@ export function ValuesByTest({ simulationId }: Readonly<{ simulationId: string }
           <EmptyTitle>{m.correct_values_empty_title()}</EmptyTitle>
           <EmptyDescription>{m.correct_values_empty_next()}</EmptyDescription>
         </EmptyHeader>
+        <EmptyContent>{emptyAction}</EmptyContent>
       </Empty>
     );
   }
   return (
     <div className="flex flex-col gap-10">
       {groups.map(({ test, rows }) => (
-        <TestSection key={test.id} test={test} rows={rows} busy={isFetching} />
+        <TestSection
+          key={test.id}
+          test={test}
+          rows={rows}
+          busy={isFetching}
+          prepared={page.state === "prepared"}
+        />
       ))}
     </div>
   );
@@ -133,7 +144,8 @@ function TestSection({
   test,
   rows,
   busy,
-}: Readonly<{ test: TestRow; rows: ValueRow[]; busy: boolean }>) {
+  prepared,
+}: Readonly<{ test: TestRow; rows: ValueRow[]; busy: boolean; prepared: boolean }>) {
   const headingId = `test-${test.id}`;
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
@@ -147,7 +159,7 @@ function TestSection({
           </h2>
           <p className="text-sm">
             <span className="text-muted-foreground">{m.correct_values_col_limits()}: </span>
-            <LimitsText test={test} />
+            <LimitsText test={test} blocksStart={prepared} />
           </p>
         </div>
         <EditLimits test={test} />
@@ -164,38 +176,54 @@ function TestSection({
   );
 }
 
-/** The page's actions: entering one value is primary, pasting rows secondary (#384). */
-export function CorrectValueActions({
-  simulationId,
-  primary,
-}: Readonly<{ simulationId: string; primary: boolean }>) {
+/**
+ * Returns whether the simulation has any test with a value or limits yet: with none, the empty
+ * state holds the one action and the page's header none (#384).
+ */
+export function useHasCorrectValues(simulationId: string): boolean {
+  const { data: page } = useSuspenseQuery(correctValuesQueryOptions(simulationId));
+  return page.tests.length > 0;
+}
+
+/**
+ * The page's primary action, entering one value, and its dialog (#384). The page shows `button`
+ * in its header once a test has a value and in the empty state before, and `dialog` once, so the
+ * first value saved neither closes the dialog nor drops focus: it returns to whichever button is
+ * on screen, else to the page's `h1` (WCAG 2.4.3).
+ */
+export function useAddCorrectValue(simulationId: string): { button: ReactNode; dialog: ReactNode } {
   const { data: page } = useSuspenseQuery(correctValuesQueryOptions(simulationId));
   const [adding, setAdding] = useState(false);
-  const [pasting, setPasting] = useState(false);
   const addRef = useRef<HTMLButtonElement>(null);
+  return {
+    button: (
+      <Button ref={addRef} type="button" onClick={() => setAdding(true)}>
+        <PlusIcon aria-hidden="true" data-icon="inline-start" />
+        {m.correct_values_add_open()}
+      </Button>
+    ),
+    dialog: (
+      <AddCorrectValueDialog
+        control={{
+          open: adding,
+          onOpenChange: setAdding,
+          onCloseAutoFocus: (event) => {
+            event.preventDefault();
+            (addRef.current ?? document.getElementById(PAGE_TITLE_ID))?.focus();
+          },
+        }}
+        simulationId={simulationId}
+        options={page.options}
+      />
+    ),
+  };
+}
+
+/** The page's secondary action: paste rows from a spreadsheet, in a dialog. */
+export function PasteCorrectValues({ simulationId }: Readonly<{ simulationId: string }>) {
+  const { data: page } = useSuspenseQuery(correctValuesQueryOptions(simulationId));
+  const [pasting, setPasting] = useState(false);
   const pasteRef = useRef<HTMLButtonElement>(null);
-  if (primary) {
-    return (
-      <>
-        <Button ref={addRef} type="button" onClick={() => setAdding(true)}>
-          <PlusIcon aria-hidden="true" data-icon="inline-start" />
-          {m.correct_values_add_open()}
-        </Button>
-        <AddCorrectValueDialog
-          control={{
-            open: adding,
-            onOpenChange: setAdding,
-            onCloseAutoFocus: (event) => {
-              event.preventDefault();
-              addRef.current?.focus();
-            },
-          }}
-          simulationId={simulationId}
-          options={page.options}
-        />
-      </>
-    );
-  }
   return (
     <>
       <Button ref={pasteRef} type="button" variant="outline" onClick={() => setPasting(true)}>

@@ -60,7 +60,14 @@ export const getSimulationPage = createServerFn({ method: "GET" })
   .middleware([teacher])
   .validator(simulationIdInput)
   .handler(async ({ data, context }) => {
-    const page = await getTeacherSimulation(getDb(), context.user.id, data.simulationId);
+    const { fingerprint } = serverJoinCodeKey();
+    const page = await getTeacherSimulation(
+      getDb(),
+      context.user.id,
+      data.simulationId,
+      new Date(),
+      fingerprint,
+    );
     if (!page) throw notFound();
     return page;
   });

@@ -79,23 +79,75 @@ export async function testsWithoutLimits(
  * simulation at a time, #386) joins the code union and keeps this shape.
  */
 export interface StartRefusal {
-  error: Extract<SimulationActionError, "not_prepared" | "missing_limits">;
+  error: Extract<
+    SimulationActionError,
+    "not_prepared" | "no_students" | "no_correct_values" | "missing_limits"
+  >;
   testIds?: readonly string[];
 }
 
+/** What the start of a simulation depends on, read in one place for the start and the overview. */
+export interface StartFacts {
+  state: SimulationState;
+  /** The students in all labs of the simulation together. */
+  students: number;
+  /** The correct values of the simulation. */
+  correctValues: number;
+  /** The tests with a correct value but no accuracy limits, by id. */
+  missingLimits: readonly string[];
+}
+
 /**
- * Returns why a simulation in `state`, whose tests `missingLimits` have a correct value but no
- * accuracy limits, cannot start, or `null` when it can. The start and the overview's checklist
- * both ask this one rule, so the checklist shows the reason the start would give (#381).
+ * Returns why a simulation cannot start, or `null` when it can. The start and the overview's
+ * checklist both ask this one rule, so the checklist shows the reason the start would give
+ * (#381). The first reason that holds wins: the state, then a student in a lab, then a correct
+ * value, then the limits of every test with one.
  */
-export function startRefusal(
-  state: SimulationState,
-  missingLimits: readonly string[],
-): StartRefusal | null {
-  if (state !== "prepared") return { error: "not_prepared" };
+export function startRefusal(facts: StartFacts): StartRefusal | null {
+  if (facts.state !== "prepared") return { error: "not_prepared" };
+  // NOTE: owner via coordinator 2026-11-20 on #394; a lab with a student and a correct value first.
+  if (facts.students === 0) return { error: "no_students" };
+  if (facts.correctValues === 0) return { error: "no_correct_values" };
   // NOTE: maintainer 2026-11-20 on #267; every test with a correct value has its limits first.
-  if (missingLimits.length > 0) return { error: "missing_limits", testIds: missingLimits };
+  if (facts.missingLimits.length > 0) {
+    return { error: "missing_limits", testIds: facts.missingLimits };
+  }
   return null;
+}
+
+/**
+ * Reads the {@link StartFacts} of a simulation in `state`. Inside the start's transaction it runs
+ * under the simulation lock, which every write of a member, a value or a limit takes too, so the
+ * answer holds until the start commits.
+ */
+export async function startFacts(
+  db: Kysely<DB>,
+  simulationId: SimulationId,
+  state: SimulationState,
+): Promise<StartFacts> {
+  // One query after the other: inside a transaction they share one connection.
+  // NOTE: security review of #403 (N2); the places are locked FOR SHARE, after the simulation
+  // row: an account deletion locks the student's places first and no simulation row, so a start
+  // that waits on it counts without the deleted student.
+  const places = await db
+    .selectFrom("lab_members")
+    .select("user_id")
+    .where("simulation_id", "=", simulationId)
+    .orderBy("user_id")
+    .forShare()
+    .execute();
+  const values = await db
+    .selectFrom("correct_values")
+    .select((eb) => eb.fn.countAll<string>().as("n"))
+    .where("simulation_id", "=", simulationId)
+    .executeTakeFirstOrThrow();
+  const missingLimits = await testsWithoutLimits(db, simulationId);
+  return {
+    state,
+    students: places.length,
+    correctValues: Number(values.n),
+    missingLimits,
+  };
 }
 
 /**
@@ -119,8 +171,7 @@ export function startSimulation(
       target: { type: "simulation", id: simulationId },
     } as const;
     const state = await stateOf(trx, simulationId);
-    const missing = state === "prepared" ? await testsWithoutLimits(trx, simulationId) : [];
-    const blocked = startRefusal(state, missing);
+    const blocked = startRefusal(await startFacts(trx, simulationId, state));
     if (blocked !== null) {
       await recordAudit(trx, { ...event, outcome: "refused", reason: blocked.error });
       return refused(blocked.error, blocked.testIds);

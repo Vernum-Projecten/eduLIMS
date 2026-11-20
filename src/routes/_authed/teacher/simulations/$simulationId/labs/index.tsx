@@ -6,7 +6,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { DataTableSkeleton } from "@/components/data-table/data-table";
 import { PageFrame } from "@/components/shell/page-frame";
 import { RouteErrorState } from "@/components/shell/route-error";
-import { CreateLab, LabsTable } from "@/components/simulations/labs-section";
+import { LabsTable, useCreateLab } from "@/components/simulations/labs-section";
 import { simulationSubpageTitle } from "@/components/simulations/not-found";
 import { m } from "@/i18n/messages";
 import { simulationPageQueryOptions } from "@/server/simulations/query-options";
@@ -46,13 +46,16 @@ function LabsPending() {
 function LabsPage() {
   const { simulationId } = Route.useParams();
   const { data: page, isFetching } = useSuspenseQuery(simulationPageQueryOptions(simulationId));
+  const create = useCreateLab(page.id);
   return (
     <PageFrame
       title={m.simulation_nav_labs()}
       description={m.labs_description()}
-      action={<CreateLab simulationId={page.id} />}
+      // With no lab yet, the empty state holds the one action instead (#384).
+      action={page.labs.length > 0 ? create.button : undefined}
     >
-      <LabsTable page={page} busy={isFetching} />
+      <LabsTable page={page} busy={isFetching} emptyAction={create.button} />
+      {create.dialog}
     </PageFrame>
   );
 }
