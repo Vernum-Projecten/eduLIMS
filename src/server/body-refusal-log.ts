@@ -13,7 +13,7 @@ import { logSecurityEvent } from "./security-log.ts";
 /** One refusal of a request body, in the codes the security log takes. */
 export interface BodyRefusal {
   readonly reason: string;
-  readonly status: 411 | 413;
+  readonly status: 411 | 413 | 429;
   /** The route family of a server route refusal. */
   readonly kind?: string;
 }

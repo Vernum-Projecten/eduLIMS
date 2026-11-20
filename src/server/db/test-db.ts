@@ -21,6 +21,7 @@ import { Client } from "pg";
 import { inject } from "vitest";
 import { TEST_DATABASE_LOCK_KEY } from "./advisory-locks.ts";
 import type { DB } from "./schema.gen.ts";
+import { DEFAULT_TEST_DATABASE_URL } from "./test-run-database.ts";
 
 declare module "vitest" {
   export interface ProvidedContext {
@@ -28,9 +29,6 @@ declare module "vitest" {
     testDatabaseUrls: string[];
   }
 }
-
-/** The database the run databases sit next to: the dev stack of compose.dev.yaml. */
-export const DEFAULT_TEST_DATABASE_URL = "postgres://edulims:edulims@127.0.0.1:5432/edulims_test";
 
 /**
  * The URL whose server, user and password every run uses, and next to whose database it creates

@@ -389,6 +389,20 @@ address on the lab network passes the bind address, the allow-list and
 FerroBRIDGE's address binding alike, and a host on the plain MLLP path can
 read or alter a result. ADR 0013 records this.
 
+## The Epoch 2 readers
+
+Register every Epoch 2 reader in the Admin portal (Analysers and
+integrations) before a simulation starts: model, serial number, location,
+the route "Excel upload" and the status "In use". Type the serial number exactly as Gen5 writes it in the
+`Reader Serial Number:` cell of an export. eduLIMS refuses a Gen5 upload
+whose reader is not registered this way (`reader_not_registered`), and a
+released Epoch 2 result names the reader by its serial number from the
+register, never from the file (maintainer on #400).
+
+The server reads at most 2 Gen5 uploads of one student and 4 in all at once,
+and refuses the next with 429. Both caps count per server process: a
+deployment that runs several eduLIMS replicas allows that many per replica.
+
 ## Migrations
 
 `edulims-migrate` runs before the server on every `docker compose up`: the

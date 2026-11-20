@@ -29,6 +29,10 @@ import { codeOf, context } from "../simulations/test-join.ts";
 import { handWrittenSources } from "../test-source-files.ts";
 import { setTolerance } from "../tolerances/actions.ts";
 import { readStudentTolerances } from "../tolerances/queries.ts";
+import { linkGen5Upload } from "../upload/linking.ts";
+import { readGen5Upload } from "../upload/reads.ts";
+import { AIR_FILE, gen5Fixture, registerReader } from "../upload/test-helpers.ts";
+import { storeGen5Upload } from "../upload/uploads.ts";
 import {
   catalogueTest,
   SECRET_RED,
@@ -115,6 +119,9 @@ const STUDENT_REACHABLE: Record<string, string> = {
   "src/server/simulations/functions.ts#linkMyLabsFn": "serialised below",
   "src/server/tolerances/functions.ts#getMyTolerancesFn": "serialised below",
   "src/server/tolerances/functions.ts#setToleranceFn": "serialised below",
+  "src/server/upload/functions.ts#getGen5UploadFn": "serialised below",
+  "src/server/upload/functions.ts#linkGen5UploadFn": "serialised below",
+  "src/server/upload/functions.ts#uploadGen5Fn": "serialised below",
 };
 
 /** What must never appear in a student's response: the secrets in every written form. */
@@ -368,6 +375,57 @@ describe("the responses to a student, serialised (D10, Q-SIM-1, R-13)", () => {
       const text = JSON.stringify(response);
       for (const needle of NEEDLES) expect(text).not.toContain(needle);
     }
+  });
+
+  it("carries no secret in an upload, its link or its read (#156)", async () => {
+    const { database, w, testId } = await open();
+    const epoch = await database
+      .insertInto("catalogue_tests")
+      .values({
+        name: "Glucose by plate (invented)",
+        unit: "mmol/L",
+        material: "plasma",
+        source: "epoch_upload",
+        epoch_calculated_by: "team",
+      })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    const patient = await registerPatient(database, w.student, { labId: w.labId, ...PATIENT });
+    if (!patient.ok) throw new Error(patient.error);
+    const recorded = await recordRequest(database, w.student, {
+      kind: "patient",
+      labId: w.labId,
+      patientId: patient.value.patientId,
+      requester: "Dr. Invented",
+      phoneThrough: false,
+      remarks: null,
+      testIds: [epoch.id],
+      samples: [{ sampleNumber: "S-001", material: "plasma" }],
+    });
+    if (!recorded.ok) throw new Error(recorded.error);
+    const labNumber = recorded.value.samples[0]?.labNumber ?? "";
+    await registerReader(database);
+    const stored = await storeGen5Upload(database, w.student, {
+      labId: w.labId,
+      fileName: AIR_FILE,
+      bytes: gen5Fixture(),
+    });
+    if (!stored.ok) throw new Error(stored.error);
+    const request = { labId: w.labId, uploadId: stored.value.uploadId };
+    const refused = await linkGen5Upload(database, w.student, {
+      ...request,
+      links: [{ well: "A1", labNumber }],
+      results: [{ labNumber, testId, value: "1.5" }],
+    });
+    expect(refused).toMatchObject({ ok: false, error: "results_refused" });
+    const linked = await linkGen5Upload(database, w.student, {
+      ...request,
+      links: [{ well: "A1", labNumber }],
+      results: [{ labNumber, testId: epoch.id, value: "1.5" }],
+    });
+    expect(linked.ok).toBe(true);
+    const read = await readGen5Upload(database, w.student, request);
+    for (const response of [stored, refused, linked, read]) expectClean(response, testId);
   });
 
   it("carries no secret in the administrator's read-only view either (B5)", async () => {

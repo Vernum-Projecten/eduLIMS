@@ -200,6 +200,7 @@ function seam(database: Kysely<DB>, w: ResultsWorld, overrides: Partial<NewMeasu
       value: "12.5",
       source: "afinion",
       recordedBy: null,
+      auditActor: { type: "system" },
       ...overrides,
     }),
   );
@@ -254,6 +255,30 @@ describe("the seam of the analyser routes (security review of #370, S3)", () => 
       .where("action", "=", "lab_measurement_recorded")
       .execute();
     expect(rows).toEqual([{ actor_type: "system", actor_id: null }]);
+  });
+
+  it("logs the actor it is given, apart from the stored student (security review of #400, N1)", async () => {
+    const { database, w } = await open();
+    const classmate = w.labStudents[1] ?? w.student;
+    const result = await seam(database, w, {
+      testId: w.hba1c,
+      sampleId: w.first.id,
+      source: "manual",
+      recordedBy: w.student.id,
+      auditActor: { type: "user", id: classmate.id },
+    });
+    expect(result.ok).toBe(true);
+    const stored = await database
+      .selectFrom("measurements")
+      .select("recorded_by")
+      .executeTakeFirstOrThrow();
+    expect(stored.recorded_by).toBe(w.student.id);
+    const rows = await database
+      .selectFrom("audit_event")
+      .select(["actor_type", "actor_id"])
+      .where("action", "=", "lab_measurement_recorded")
+      .execute();
+    expect(rows).toEqual([{ actor_type: "user", actor_id: classmate.id }]);
   });
 
   it("refuses a measurement whose source is not the test's own, logged (D9)", async () => {
@@ -324,6 +349,7 @@ describe("the seam of the analyser routes (security review of #370, S3)", () => 
         sampleId: w.first.id,
         source: "manual",
         recordedBy: w.student.id,
+        auditActor: { type: "user", id: w.student.id },
       }),
     ).toEqual({ ok: false, error: "released" });
     expect((await refusals(database)).map((row) => row.reason_code)).toEqual(["released"]);

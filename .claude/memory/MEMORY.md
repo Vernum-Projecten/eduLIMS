@@ -77,6 +77,9 @@ adding one, and update it instead of duplicating.
 - [Sub-workers on Opus](sub-workers-on-opus.md): the orchestrator may run on
   the most capable model; every sub-worker it spawns runs on Opus, set on the
   spawn; owner 2026-11-19
+- [Main green before stopping](main-green-before-stop.md): GitHub Actions
+  and the SonarCloud gate on main pass before work stops; Sonar is not a
+  required check, so check it; owner 2026-11-20
 - [Clean up worktrees](clean-up-worktrees.md): remove each worktree and its
   branches as soon as its PR merges or its agent finishes; owner 2026-11-12
 

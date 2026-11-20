@@ -116,10 +116,7 @@ function requestOf(ctx: ActionContext): { requestId?: string } {
 function refusal(ctx: ActionContext, event: Refusal, reason: string): Promise<void> {
   const actor = { type: "user", id: ctx.actor.id } as const;
   const common = { actor, outcome: "refused", reason, ...requestOf(ctx) } as const;
-  const logged: AuditEvent =
-    event.action === "session_revoked"
-      ? { action: event.action, target: event.target, ...common }
-      : { action: event.action, target: event.target, ...common };
+  const logged: AuditEvent = { ...event, ...common };
   return recordCommittedAudit(ctx.db, logged);
 }
 

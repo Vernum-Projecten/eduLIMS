@@ -166,7 +166,7 @@ export type RequestCorrection = { labId: string; requestId: string } & RequestFi
 
 /** Returns the sorted copy of `ids`. */
 function sorted(ids: Iterable<string>): string[] {
-  return [...ids].sort();
+  return [...ids].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 /** Returns the sample changes of a correction, or the first sample id the request does not hold. */

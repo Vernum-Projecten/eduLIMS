@@ -40,6 +40,14 @@ import {
   writeState,
 } from "./ehr-write-lease.ts";
 
+/** What a released measurement records of the device that measured it. */
+export interface ReleasedMeasurementDevice {
+  id: MeasurementId;
+  source: MeasurementSource;
+  /** The register's serial number of the reader of the measurement's Gen5 upload (#156, #400). */
+  readerSerialNumber: string | null;
+}
+
 /** Where a released result stands in the patient's record, as the release reports it. */
 export type ResultEhrState = PatientRecordState;
 
@@ -49,7 +57,7 @@ export interface ResultWriteDeps {
   client: PatientEhrClient & LabResultClient;
   settings: LabResultWriteSettings;
   /** Returns the device of a released measurement; {@link deviceOfSource} when left out. */
-  resolveDevice?: (measurement: { id: MeasurementId; source: MeasurementSource }) => ResultDevice;
+  resolveDevice?: (measurement: ReleasedMeasurementDevice) => ResultDevice;
 }
 
 // NOTE: no openEHR spec governs these: our own design (#148). The release waits at most 5 s for
@@ -180,8 +188,13 @@ async function loadRelease(db: Kysely<DB>, measurementId: MeasurementId) {
     .innerJoin("requests as r", "r.id", "m.request_id")
     .innerJoin("samples as s", "s.id", "m.sample_id")
     .innerJoin("catalogue_tests as t", "t.id", "m.test_id")
+    .leftJoin("uploads as u", (join) =>
+      join.onRef("u.id", "=", "m.upload_id").onRef("u.lab_id", "=", "m.lab_id"),
+    )
+    .leftJoin("analysers as a", "a.id", "u.analyser_id")
     .select([
       "m.source",
+      "a.serial_number as reader_serial_number",
       "m.recorded_at",
       sql<string>`m.value::text`.as("value"),
       "r.id as request_id",
@@ -200,17 +213,20 @@ async function loadRelease(db: Kysely<DB>, measurementId: MeasurementId) {
 }
 
 /**
- * Returns the device of a measurement from its source alone (D9): `manual`, or the analyser
- * without its serial number, which a measurement does not record yet.
+ * Returns the device of a measurement (D9): `manual`, the Epoch 2 by the reader's serial number
+ * of its Gen5 upload (#156), or the Afinion 2 without its serial number, which an Afinion
+ * measurement does not record yet.
  */
-export function deviceOfSource(measurement: { source: MeasurementSource }): ResultDevice {
-  // TODO(#158): the Afinion 2 route records the analyser's serial number, and TODO(#152) the
-  // Epoch 2 upload; until then such a result stays pending with `build:no_device_identifier`.
+export function deviceOfSource(
+  measurement: Pick<ReleasedMeasurementDevice, "source" | "readerSerialNumber">,
+): ResultDevice {
+  // TODO(#158): the Afinion 2 route records the analyser's serial number; until then such a
+  // result stays pending with `build:no_device_identifier`.
   switch (measurement.source) {
     case "afinion":
       return { kind: "afinion_2", serialNumber: null };
     case "epoch_upload":
-      return { kind: "epoch_2", serialNumber: null };
+      return { kind: "epoch_2", serialNumber: measurement.readerSerialNumber };
     case "manual":
       return { kind: "manual" };
     default: {
@@ -277,7 +293,11 @@ async function writeUnderLease(
       test: { name: row.name, analyte: row.afinion_analyte ?? row.name, unit: row.unit },
       value: row.value,
       measuredAt: row.recorded_at.toISOString(),
-      device: (deps.resolveDevice ?? deviceOfSource)({ id: measurementId, source }),
+      device: (deps.resolveDevice ?? deviceOfSource)({
+        id: measurementId,
+        source,
+        readerSerialNumber: row.reader_serial_number,
+      }),
       releasedAt: row.released_at.toISOString(),
     },
     deps.settings,
