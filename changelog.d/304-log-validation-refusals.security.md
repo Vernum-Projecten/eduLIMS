@@ -1,0 +1,1 @@
+- Input that a server function refuses at validation is logged as one `input_validation_fail` line with the function, the refused fields and their codes, and the user id, never the value; the answer to the caller is unchanged (#304).

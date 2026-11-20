@@ -55,10 +55,12 @@ export const SECURITY_LOG_FIELDS = [
   "direction",
   "variables",
   "cause",
+  "server_fn",
+  "issues",
 ] as const;
 export type SecurityLogField = (typeof SECURITY_LOG_FIELDS)[number];
 
-/** One field value: an id or a code, a count, or a list of codes (`fields`, `cause`). */
+/** One field value: an id or a code, a count, or a list of codes (`fields`, `cause`, `issues`). */
 export type SecurityLogValue = string | number | readonly string[];
 
 /** The fields of one line; a field left `undefined` is left out. */
