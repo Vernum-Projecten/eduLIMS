@@ -123,6 +123,7 @@ describe("seedDevAccountSimulations", () => {
         "in",
         ours.map((row) => row.id),
       )
+      .orderBy("id")
       .execute();
     expect(events.map((event) => event.action).sort()).toEqual([
       "simulation_created",

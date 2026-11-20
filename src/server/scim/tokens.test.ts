@@ -209,7 +209,7 @@ describe("token lifetime (owner decision on #45)", () => {
     });
     await revokeScimToken(admin(), "campus", at(1));
     expect(await inspectScimToken(db, token, at(2))).toMatchObject({ reason: "token_revoked" });
-    expect(await db.selectFrom("audit_event").select("action").execute()).toEqual([
+    expect(await db.selectFrom("audit_event").select("action").orderBy("id").execute()).toEqual([
       { action: "scim_token_created" },
       { action: "scim_token_revoked" },
     ]);
