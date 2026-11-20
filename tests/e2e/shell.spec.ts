@@ -261,7 +261,9 @@ test("the theme menu switches <html class> and the choice renders on the server"
   await page.reload();
   await expect(html).toHaveClass(/\bdark\b/);
 
-  await page.getByRole("button", { name: "Theme: Dark" }).click();
+  const theme = page.getByRole("button", { name: "Theme: Dark" });
+  await expectHydrated(theme);
+  await theme.click();
   await page.getByRole("menuitemradio", { name: "Light" }).click();
   await expect(html).toHaveClass(/\blight\b/);
   await expect(html).not.toHaveClass(/\bdark\b/);

@@ -6,7 +6,7 @@
 // mocks `openDatabase` (src/server/cli/host.ts) with `harness.open` and calls
 // `installCliHarness()`.
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, expect, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, vi } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { invalidateProviderCache } from "../idp/registry.ts";
@@ -44,6 +44,11 @@ export const PERSONAL = /example\.test|Test (Teacher|Admin|Student)|@/;
 /** Registers the hooks: a host environment, a fresh capture before each test, cleanup after. */
 export function installCliHarness(): void {
   let restoreLog: (() => void) | undefined;
+  // The CLI's import graph (better-auth among it) loads once per file, here under the hook's
+  // 10 s, so a loaded host no longer spends the first case's 5 s on it (#320).
+  beforeAll(async () => {
+    await import("../cli.ts");
+  });
   beforeEach(() => {
     for (const key of ["DATABASE_URL", "BETTER_AUTH_URL", "EDULIMS_DATA_KEY"] as const) {
       vi.stubEnv(key, VALID_ENV[key]);

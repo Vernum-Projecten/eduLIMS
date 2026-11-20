@@ -35,9 +35,13 @@ function run(command: string): Promise<Run> {
   });
 }
 
-/** A command that writes `text` to stdout, as the seed writes its summary. */
+/**
+ * A command that writes `text` to stdout, as the seed writes its summary. A shell builtin, so a
+ * case starts one Node.js process (the setup runner), not one per step: on a loaded host each
+ * start took seconds and the cases outlived their 5 s (#320).
+ */
 function prints(text: string): string {
-  return `node -e "process.stdout.write('${text}\\n')"`;
+  return `printf '%s\\n' '${text}'`;
 }
 
 /** A setup step that runs `command` within a bound far above what it needs. */
@@ -68,7 +72,7 @@ describe("the e2e web server command (#192)", () => {
   });
 
   it("starts no server when a setup step fails, and names the step", async () => {
-    const fails = `node -e "process.exit(3)"`;
+    const fails = "exit 3";
     const result = await run(
       setupThenServe([step(prints("seed summary")), step(fails)], prints("serving")),
     );
@@ -83,7 +87,7 @@ describe("the e2e web server command (#192)", () => {
 
   it("logs the time each setup step took (#248)", async () => {
     const result = await run(setupThenServe([step(prints("seed summary"))], prints("serving")));
-    expect(result.stderr).toMatch(/e2e setup: "node -e .*" took \d+\.\d s\.\n/);
+    expect(result.stderr).toMatch(/e2e setup: "printf .*" took \d+\.\d s\.\n/);
   });
 
   it("stops a step that outlives its bound, names it, and starts no server (#248)", async () => {

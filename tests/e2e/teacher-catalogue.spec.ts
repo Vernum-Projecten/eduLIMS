@@ -73,6 +73,10 @@ test("a teacher adds, edits, retires and restores a test with the keyboard (D9, 
   // The calculator shows for an Epoch 2 test only, and the analyte does not (D9, S4).
   await expect(dialog.getByLabel("Analyte name on the Afinion 2")).toHaveCount(0);
   const team = dialog.getByRole("radio", { name: "The lab calculates" });
+  // The select hands focus back to its trigger after its close animation, and the calculator
+  // renders after the change: a Tab before both moves from the wrong place (#321).
+  await expect(source).toBeFocused();
+  await expect(team).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(team).toBeFocused();
   await page.keyboard.press("Space");
@@ -229,10 +233,14 @@ test("a second active Afinion 2 test with the same analyte is refused at its fie
   await signInAsTeacher(page);
   await openCatalogue(page);
   const dialog = page.getByRole("dialog", { name: "Add a test" });
-  for (const [name, typed] of [
+  const tests = [
     [testName("HbA1c"), analyte],
     [testName("HbA1c again"), analyte.toLowerCase()],
-  ] as const) {
+  ] as const;
+  for (const [index, [name, typed]] of tests.entries()) {
+    // The first test is saved once its dialog has closed; until then the open dialog hides the
+    // page's "Add test", and the second test would be typed into the closing dialog (#321).
+    if (index > 0) await expect(dialog).toHaveCount(0);
     await page.getByRole("button", { name: "Add test" }).click();
     await dialog.getByLabel("Name").fill(name);
     await dialog.getByLabel("Unit").fill("%");
