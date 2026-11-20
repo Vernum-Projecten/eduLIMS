@@ -46,7 +46,7 @@ describe("0028_catalogue_unit_ucum", () => {
   it("reverts, and applies again", async () => {
     const database = await createTestDb();
     db = database;
-    const down = await createMigrator(database).migrateTo("0026_one_active_simulation_per_student");
+    const down = await createMigrator(database).migrateTo("0027_gen5_uploads");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
       ["0028_catalogue_unit_ucum", "Success"],
     ]);

@@ -697,7 +697,8 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
 
 | Table | What it holds |
 |---|---|
-| `measurements` | every measurement of a requested test: its sample, the value as `numeric` within the bounds of a correct value, where it came from (`manual`, `afinion`, `epoch_upload`), who entered it (none for an analyser) and the database clock at the insert |
+| `measurements` | every measurement of a requested test: its sample, the value as `numeric` within the bounds of a correct value, where it came from (`manual`, `afinion`, `epoch_upload`), who entered it (a student for entry by hand and an Epoch 2 result, none for the Afinion 2), the Gen5 upload of an `epoch_upload` measurement, and the database clock at the insert |
+| `uploads`, `upload_wells` | a lab's Gen5 uploads (S4, #156): the uploader, the database clock at the upload, the registered analyser the file's serial number names and the wavelength from the header, and per well its absorbance and the sample of the same lab it is linked to; the links of an upload are set once, with the time and the student who set them, and nothing of an upload changes or goes before its lab |
 | `request_tests` | the release, on the requested test itself: one row per requested test, so at most one released measurement |
 | `result_ehr_writes` | per released measurement of a patient request, the write of its Final composition to FerroEHR: `pending` or `written`, the contribution `uid` that keys the write, the version id FerroEHR gave it, the attempts, the last error as a code, the time of the next attempt and the lease of the attempt that holds it (#148, #382) |
 
@@ -734,8 +735,36 @@ the eduLIMS database (S14, S15, #270). The service is `src/server/results/`.
   test is released, checks the sample, and parses and bounds the value
   (`value_invalid`). An analyser result that arrives after the release still
   lands and shows, and the release stays final (maintainer on #370). Every
-  refusal writes an activity-log row; an analyser's measurement has no
+  refusal writes an activity-log row; an Afinion measurement has no
   student (a CHECK), and its time is the database clock (a trigger).
+- **The Epoch 2 upload (#156).** `uploadGen5Fn` checks the student's place
+  in the lab, parses the file, and stores the 96 values and the reader's
+  serial number in `uploads` and `upload_wells`, with an `upload_complete`
+  row; a refused file stores nothing but its `upload_validation_fail` row.
+  The file's reader must be an Epoch 2 reader in use in the analyser
+  register (route "Excel upload"); an unknown serial number, or `manual`,
+  is refused `reader_not_registered`, and the upload stores the analyser's
+  id, so the result write takes the serial number from the register
+  (maintainer on #400).
+  `linkGen5UploadFn` then links wells to samples by lab number
+  (`checkPlateLinks`, with the lab's samples read through the student's own
+  `lab_members` row in the same query) and turns each result the team
+  entered for a test the team calculates into a measurement of source
+  `epoch_upload` that names its upload and the student who entered it (from
+  the session), all in one transaction with an `upload_linked` row. The wells
+  a result came from are the upload's wells linked to its sample. A test
+  eduLIMS calculates takes no entered result until #278.
+- **Links are set once (maintainer on #400).** An upload is linked in one
+  call and never again (`already_linked`), so its links and the results that
+  came from them stay as the team made them. A team that missed a well
+  uploads the file again and links the new upload; its measurements are
+  added beside the first ones (S14). One plate is one wavelength and one
+  test, so a link takes at most 96 results.
+- **No cap on parses at once (maintainer on #400).** The form limit bounds
+  each upload's body, and the parse is synchronous, so one server process
+  parses one file at a time. The result write names the reader by the upload's serial
+  number in the register (`deviceOfSource`). Nothing of an upload reaches FerroEHR; only a
+  released result does.
 - **FerroEHR (#148).** Before the release, `ensureReleaseEhr` finds or
   creates the patient's EHR (`ensurePatientEhr`, at most 5 seconds); while it
   stays pending, the release is refused `ehr_pending` with an activity-log
@@ -946,6 +975,7 @@ than the limit for a caller who is not signed in (ASVS 5.0 V5.2.1, V15.2.2).
 |---|---|---|
 | JSON body to a server function | 1 MiB, declared and as it streams | 411 without a `Content-Length`, 413 over the limit |
 | Form body to a server function (multipart or URL-encoded) | the largest lab logo (512 KiB) plus 16 KiB for its fields, declared (#292) | 411 without a `Content-Length`, 413 over the limit |
+| Form body to the Gen5 upload's server function (`uploadGen5Fn`) | the largest Gen5 export (5 MiB) plus the same 16 KiB, declared (owner, 2026-11-20 on #156) | as above |
 | GET payload of a server function (the `payload` query parameter) | Node's 16 KiB limit on the request line and headers | 431 from Node's HTTP parser, before eduLIMS runs |
 | Body to a better-auth endpoint under `/api/auth/*` (sign-in, sign-out) | 64 KiB, declared and as it streams (#350) | 411 for a malformed `Content-Length`, 413 over the limit |
 | SAML form post (`/api/auth/sso/saml2/*`: the ACS and single logout) | 128 KiB, declared and as it streams (#350) | as above |
@@ -973,6 +1003,27 @@ another path.
 
 **The form limit** (#292) checks only the declared length: a form without a
 `Content-Length` or above the limit is refused before Start reads it.
+
+**The Gen5 upload's form limit** (#156) follows from the owner's limit for a
+file upload, 5 MB (2026-11-20), read as 5 MiB (5,242,880 bytes). The form
+carries the file and the lab's id; the 16 KiB beside the file hold the id
+field, the file's part headers with its name, the multipart boundaries and
+Start's own context field, as for the logo. The middleware compares the path of
+the call with the function's own `url`, so only that one function can get
+5,259,264 bytes and every other form keeps the logo's limit. It gets them only
+from a caller with a valid session (`gateGen5Upload`,
+`src/server/upload/upload-gate.ts`; security review of #400, S1): an
+anonymous call keeps the logo's limit, so its body is refused unread. A
+signed-in caller also needs a free slot: at most 2 uploads of one user and 4
+in the process are read at once, and the next is refused 429 with
+`Connection: close` before its body is read (our own design). Four uploads in
+flight bound the buffered bodies to about 21 MiB. Both caps count per server
+process, so a deployment of several replicas allows as many per replica. The parser then
+refuses a file over 5 MiB before it reads anything else, and an archive that
+declares more than 40 MiB unpacked before it unpacks any entry
+([the Gen5 export contract](gen5-export.md)). The parse is synchronous, so
+one server process parses one file at a time; it runs after the membership
+check and outside the writing transaction, so no lock waits on it.
 
 The JSON and the form refusals are empty responses with `Connection: close`, so Node closes
 the socket instead of reading and discarding the refused body to keep the
