@@ -3,7 +3,13 @@
 
 // The translated names of the test catalogue (D9, #266).
 import { m } from "@/i18n/messages";
-import type { EpochCalculator, TestSource, TestSourceKind, TestStatus } from "@/lib/catalogue";
+import type {
+  EpochCalculator,
+  TestSource,
+  TestSourceKind,
+  TestStatus,
+  TestUsage,
+} from "@/lib/catalogue";
 
 /** Returns the name of where a test's measurements come from. */
 export function testSourceLabel(source: TestSourceKind): string {
@@ -60,6 +66,25 @@ export function testStatusLabel(status: TestStatus): string {
       return m.catalogue_status_retired();
     default: {
       const unknown: never = status;
+      return unknown;
+    }
+  }
+}
+
+/**
+ * Returns how simulations use a test, in words, or `null` for an unused test (D9, #267): the
+ * status cell shows it beside the status, so a teacher sees a lock before the edit dialog.
+ */
+export function testUsageLabel(usage: TestUsage): string | null {
+  switch (usage) {
+    case "unused":
+      return null;
+    case "used":
+      return m.catalogue_usage_used();
+    case "running":
+      return m.catalogue_usage_running();
+    default: {
+      const unknown: never = usage;
       return unknown;
     }
   }

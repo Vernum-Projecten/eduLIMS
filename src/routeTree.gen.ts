@@ -26,17 +26,13 @@ import { Route as AuthedAdminActivityRouteImport } from './routes/_authed/admin/
 import { Route as AuthedAdminIntegrationsRouteImport } from './routes/_authed/admin/integrations'
 import { Route as AuthedAdminUsersRouteImport } from './routes/_authed/admin/users'
 import { Route as AuthedStudentIndexRouteImport } from './routes/_authed/student/index'
-import { Route as AuthedStudentGradesRouteImport } from './routes/_authed/student/grades'
-import { Route as AuthedStudentPracticalsRouteImport } from './routes/_authed/student/practicals'
+import { Route as AuthedStudentPatientsRouteImport } from './routes/_authed/student/patients'
 import { Route as AuthedStudentResultsRouteImport } from './routes/_authed/student/results'
-import { Route as AuthedStudentSamplesRouteImport } from './routes/_authed/student/samples'
-import { Route as AuthedStudentSubmissionsRouteImport } from './routes/_authed/student/submissions'
+import { Route as AuthedStudentTolerancesRouteImport } from './routes/_authed/student/tolerances'
+import { Route as AuthedStudentUploadRouteImport } from './routes/_authed/student/upload'
 import { Route as AuthedTeacherIndexRouteImport } from './routes/_authed/teacher/index'
 import { Route as AuthedTeacherCatalogueRouteImport } from './routes/_authed/teacher/catalogue'
-import { Route as AuthedTeacherGradingRouteImport } from './routes/_authed/teacher/grading'
-import { Route as AuthedTeacherKpiDashboardRouteImport } from './routes/_authed/teacher/kpi-dashboard'
-import { Route as AuthedTeacherPracticalsRouteImport } from './routes/_authed/teacher/practicals'
-import { Route as AuthedTeacherResultsRouteImport } from './routes/_authed/teacher/results'
+import { Route as AuthedTeacherDashboardRouteImport } from './routes/_authed/teacher/dashboard'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthedAdminSimulationsIndexRouteImport } from './routes/_authed/admin/simulations/index'
 import { Route as AuthedAdminSimulationsSimulationIdRouteImport } from './routes/_authed/admin/simulations/$simulationId'
@@ -135,14 +131,9 @@ const AuthedStudentIndexRoute = AuthedStudentIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedStudentRoute,
 } as any)
-const AuthedStudentGradesRoute = AuthedStudentGradesRouteImport.update({
-  id: '/grades',
-  path: '/grades',
-  getParentRoute: () => AuthedStudentRoute,
-} as any)
-const AuthedStudentPracticalsRoute = AuthedStudentPracticalsRouteImport.update({
-  id: '/practicals',
-  path: '/practicals',
+const AuthedStudentPatientsRoute = AuthedStudentPatientsRouteImport.update({
+  id: '/patients',
+  path: '/patients',
   getParentRoute: () => AuthedStudentRoute,
 } as any)
 const AuthedStudentResultsRoute = AuthedStudentResultsRouteImport.update({
@@ -150,17 +141,16 @@ const AuthedStudentResultsRoute = AuthedStudentResultsRouteImport.update({
   path: '/results',
   getParentRoute: () => AuthedStudentRoute,
 } as any)
-const AuthedStudentSamplesRoute = AuthedStudentSamplesRouteImport.update({
-  id: '/samples',
-  path: '/samples',
+const AuthedStudentTolerancesRoute = AuthedStudentTolerancesRouteImport.update({
+  id: '/tolerances',
+  path: '/tolerances',
   getParentRoute: () => AuthedStudentRoute,
 } as any)
-const AuthedStudentSubmissionsRoute =
-  AuthedStudentSubmissionsRouteImport.update({
-    id: '/submissions',
-    path: '/submissions',
-    getParentRoute: () => AuthedStudentRoute,
-  } as any)
+const AuthedStudentUploadRoute = AuthedStudentUploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => AuthedStudentRoute,
+} as any)
 const AuthedTeacherIndexRoute = AuthedTeacherIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -171,25 +161,9 @@ const AuthedTeacherCatalogueRoute = AuthedTeacherCatalogueRouteImport.update({
   path: '/catalogue',
   getParentRoute: () => AuthedTeacherRoute,
 } as any)
-const AuthedTeacherGradingRoute = AuthedTeacherGradingRouteImport.update({
-  id: '/grading',
-  path: '/grading',
-  getParentRoute: () => AuthedTeacherRoute,
-} as any)
-const AuthedTeacherKpiDashboardRoute =
-  AuthedTeacherKpiDashboardRouteImport.update({
-    id: '/kpi-dashboard',
-    path: '/kpi-dashboard',
-    getParentRoute: () => AuthedTeacherRoute,
-  } as any)
-const AuthedTeacherPracticalsRoute = AuthedTeacherPracticalsRouteImport.update({
-  id: '/practicals',
-  path: '/practicals',
-  getParentRoute: () => AuthedTeacherRoute,
-} as any)
-const AuthedTeacherResultsRoute = AuthedTeacherResultsRouteImport.update({
-  id: '/results',
-  path: '/results',
+const AuthedTeacherDashboardRoute = AuthedTeacherDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AuthedTeacherRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -282,16 +256,12 @@ export interface FileRoutesByFullPath {
   '/admin/activity': typeof AuthedAdminActivityRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/admin/users': typeof AuthedAdminUsersRouteWithChildren
-  '/student/grades': typeof AuthedStudentGradesRoute
-  '/student/practicals': typeof AuthedStudentPracticalsRoute
+  '/student/patients': typeof AuthedStudentPatientsRoute
   '/student/results': typeof AuthedStudentResultsRoute
-  '/student/samples': typeof AuthedStudentSamplesRoute
-  '/student/submissions': typeof AuthedStudentSubmissionsRoute
+  '/student/tolerances': typeof AuthedStudentTolerancesRoute
+  '/student/upload': typeof AuthedStudentUploadRoute
   '/teacher/catalogue': typeof AuthedTeacherCatalogueRoute
-  '/teacher/grading': typeof AuthedTeacherGradingRoute
-  '/teacher/kpi-dashboard': typeof AuthedTeacherKpiDashboardRoute
-  '/teacher/practicals': typeof AuthedTeacherPracticalsRoute
-  '/teacher/results': typeof AuthedTeacherResultsRoute
+  '/teacher/dashboard': typeof AuthedTeacherDashboardRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/': typeof AuthedAdminIndexRoute
   '/student/': typeof AuthedStudentIndexRoute
@@ -321,16 +291,12 @@ export interface FileRoutesByTo {
   '/admin/activity': typeof AuthedAdminActivityRoute
   '/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/admin/users': typeof AuthedAdminUsersRouteWithChildren
-  '/student/grades': typeof AuthedStudentGradesRoute
-  '/student/practicals': typeof AuthedStudentPracticalsRoute
+  '/student/patients': typeof AuthedStudentPatientsRoute
   '/student/results': typeof AuthedStudentResultsRoute
-  '/student/samples': typeof AuthedStudentSamplesRoute
-  '/student/submissions': typeof AuthedStudentSubmissionsRoute
+  '/student/tolerances': typeof AuthedStudentTolerancesRoute
+  '/student/upload': typeof AuthedStudentUploadRoute
   '/teacher/catalogue': typeof AuthedTeacherCatalogueRoute
-  '/teacher/grading': typeof AuthedTeacherGradingRoute
-  '/teacher/kpi-dashboard': typeof AuthedTeacherKpiDashboardRoute
-  '/teacher/practicals': typeof AuthedTeacherPracticalsRoute
-  '/teacher/results': typeof AuthedTeacherResultsRoute
+  '/teacher/dashboard': typeof AuthedTeacherDashboardRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin': typeof AuthedAdminIndexRoute
   '/student': typeof AuthedStudentIndexRoute
@@ -365,16 +331,12 @@ export interface FileRoutesById {
   '/_authed/admin/activity': typeof AuthedAdminActivityRoute
   '/_authed/admin/integrations': typeof AuthedAdminIntegrationsRoute
   '/_authed/admin/users': typeof AuthedAdminUsersRouteWithChildren
-  '/_authed/student/grades': typeof AuthedStudentGradesRoute
-  '/_authed/student/practicals': typeof AuthedStudentPracticalsRoute
+  '/_authed/student/patients': typeof AuthedStudentPatientsRoute
   '/_authed/student/results': typeof AuthedStudentResultsRoute
-  '/_authed/student/samples': typeof AuthedStudentSamplesRoute
-  '/_authed/student/submissions': typeof AuthedStudentSubmissionsRoute
+  '/_authed/student/tolerances': typeof AuthedStudentTolerancesRoute
+  '/_authed/student/upload': typeof AuthedStudentUploadRoute
   '/_authed/teacher/catalogue': typeof AuthedTeacherCatalogueRoute
-  '/_authed/teacher/grading': typeof AuthedTeacherGradingRoute
-  '/_authed/teacher/kpi-dashboard': typeof AuthedTeacherKpiDashboardRoute
-  '/_authed/teacher/practicals': typeof AuthedTeacherPracticalsRoute
-  '/_authed/teacher/results': typeof AuthedTeacherResultsRoute
+  '/_authed/teacher/dashboard': typeof AuthedTeacherDashboardRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/_authed/admin/': typeof AuthedAdminIndexRoute
   '/_authed/student/': typeof AuthedStudentIndexRoute
@@ -409,16 +371,12 @@ export interface FileRouteTypes {
     | '/admin/activity'
     | '/admin/integrations'
     | '/admin/users'
-    | '/student/grades'
-    | '/student/practicals'
+    | '/student/patients'
     | '/student/results'
-    | '/student/samples'
-    | '/student/submissions'
+    | '/student/tolerances'
+    | '/student/upload'
     | '/teacher/catalogue'
-    | '/teacher/grading'
-    | '/teacher/kpi-dashboard'
-    | '/teacher/practicals'
-    | '/teacher/results'
+    | '/teacher/dashboard'
     | '/api/auth/$'
     | '/admin/'
     | '/student/'
@@ -448,16 +406,12 @@ export interface FileRouteTypes {
     | '/admin/activity'
     | '/admin/integrations'
     | '/admin/users'
-    | '/student/grades'
-    | '/student/practicals'
+    | '/student/patients'
     | '/student/results'
-    | '/student/samples'
-    | '/student/submissions'
+    | '/student/tolerances'
+    | '/student/upload'
     | '/teacher/catalogue'
-    | '/teacher/grading'
-    | '/teacher/kpi-dashboard'
-    | '/teacher/practicals'
-    | '/teacher/results'
+    | '/teacher/dashboard'
     | '/api/auth/$'
     | '/admin'
     | '/student'
@@ -491,16 +445,12 @@ export interface FileRouteTypes {
     | '/_authed/admin/activity'
     | '/_authed/admin/integrations'
     | '/_authed/admin/users'
-    | '/_authed/student/grades'
-    | '/_authed/student/practicals'
+    | '/_authed/student/patients'
     | '/_authed/student/results'
-    | '/_authed/student/samples'
-    | '/_authed/student/submissions'
+    | '/_authed/student/tolerances'
+    | '/_authed/student/upload'
     | '/_authed/teacher/catalogue'
-    | '/_authed/teacher/grading'
-    | '/_authed/teacher/kpi-dashboard'
-    | '/_authed/teacher/practicals'
-    | '/_authed/teacher/results'
+    | '/_authed/teacher/dashboard'
     | '/api/auth/$'
     | '/_authed/admin/'
     | '/_authed/student/'
@@ -654,18 +604,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedStudentIndexRouteImport
       parentRoute: typeof AuthedStudentRoute
     }
-    '/_authed/student/grades': {
-      id: '/_authed/student/grades'
-      path: '/grades'
-      fullPath: '/student/grades'
-      preLoaderRoute: typeof AuthedStudentGradesRouteImport
-      parentRoute: typeof AuthedStudentRoute
-    }
-    '/_authed/student/practicals': {
-      id: '/_authed/student/practicals'
-      path: '/practicals'
-      fullPath: '/student/practicals'
-      preLoaderRoute: typeof AuthedStudentPracticalsRouteImport
+    '/_authed/student/patients': {
+      id: '/_authed/student/patients'
+      path: '/patients'
+      fullPath: '/student/patients'
+      preLoaderRoute: typeof AuthedStudentPatientsRouteImport
       parentRoute: typeof AuthedStudentRoute
     }
     '/_authed/student/results': {
@@ -675,18 +618,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedStudentResultsRouteImport
       parentRoute: typeof AuthedStudentRoute
     }
-    '/_authed/student/samples': {
-      id: '/_authed/student/samples'
-      path: '/samples'
-      fullPath: '/student/samples'
-      preLoaderRoute: typeof AuthedStudentSamplesRouteImport
+    '/_authed/student/tolerances': {
+      id: '/_authed/student/tolerances'
+      path: '/tolerances'
+      fullPath: '/student/tolerances'
+      preLoaderRoute: typeof AuthedStudentTolerancesRouteImport
       parentRoute: typeof AuthedStudentRoute
     }
-    '/_authed/student/submissions': {
-      id: '/_authed/student/submissions'
-      path: '/submissions'
-      fullPath: '/student/submissions'
-      preLoaderRoute: typeof AuthedStudentSubmissionsRouteImport
+    '/_authed/student/upload': {
+      id: '/_authed/student/upload'
+      path: '/upload'
+      fullPath: '/student/upload'
+      preLoaderRoute: typeof AuthedStudentUploadRouteImport
       parentRoute: typeof AuthedStudentRoute
     }
     '/_authed/teacher/': {
@@ -703,32 +646,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedTeacherCatalogueRouteImport
       parentRoute: typeof AuthedTeacherRoute
     }
-    '/_authed/teacher/grading': {
-      id: '/_authed/teacher/grading'
-      path: '/grading'
-      fullPath: '/teacher/grading'
-      preLoaderRoute: typeof AuthedTeacherGradingRouteImport
-      parentRoute: typeof AuthedTeacherRoute
-    }
-    '/_authed/teacher/kpi-dashboard': {
-      id: '/_authed/teacher/kpi-dashboard'
-      path: '/kpi-dashboard'
-      fullPath: '/teacher/kpi-dashboard'
-      preLoaderRoute: typeof AuthedTeacherKpiDashboardRouteImport
-      parentRoute: typeof AuthedTeacherRoute
-    }
-    '/_authed/teacher/practicals': {
-      id: '/_authed/teacher/practicals'
-      path: '/practicals'
-      fullPath: '/teacher/practicals'
-      preLoaderRoute: typeof AuthedTeacherPracticalsRouteImport
-      parentRoute: typeof AuthedTeacherRoute
-    }
-    '/_authed/teacher/results': {
-      id: '/_authed/teacher/results'
-      path: '/results'
-      fullPath: '/teacher/results'
-      preLoaderRoute: typeof AuthedTeacherResultsRouteImport
+    '/_authed/teacher/dashboard': {
+      id: '/_authed/teacher/dashboard'
+      path: '/dashboard'
+      fullPath: '/teacher/dashboard'
+      preLoaderRoute: typeof AuthedTeacherDashboardRouteImport
       parentRoute: typeof AuthedTeacherRoute
     }
     '/api/auth/$': {
@@ -874,20 +796,18 @@ const AuthedAdminRouteWithChildren = AuthedAdminRoute._addFileChildren(
 )
 
 interface AuthedStudentRouteChildren {
-  AuthedStudentGradesRoute: typeof AuthedStudentGradesRoute
-  AuthedStudentPracticalsRoute: typeof AuthedStudentPracticalsRoute
+  AuthedStudentPatientsRoute: typeof AuthedStudentPatientsRoute
   AuthedStudentResultsRoute: typeof AuthedStudentResultsRoute
-  AuthedStudentSamplesRoute: typeof AuthedStudentSamplesRoute
-  AuthedStudentSubmissionsRoute: typeof AuthedStudentSubmissionsRoute
+  AuthedStudentTolerancesRoute: typeof AuthedStudentTolerancesRoute
+  AuthedStudentUploadRoute: typeof AuthedStudentUploadRoute
   AuthedStudentIndexRoute: typeof AuthedStudentIndexRoute
 }
 
 const AuthedStudentRouteChildren: AuthedStudentRouteChildren = {
-  AuthedStudentGradesRoute: AuthedStudentGradesRoute,
-  AuthedStudentPracticalsRoute: AuthedStudentPracticalsRoute,
+  AuthedStudentPatientsRoute: AuthedStudentPatientsRoute,
   AuthedStudentResultsRoute: AuthedStudentResultsRoute,
-  AuthedStudentSamplesRoute: AuthedStudentSamplesRoute,
-  AuthedStudentSubmissionsRoute: AuthedStudentSubmissionsRoute,
+  AuthedStudentTolerancesRoute: AuthedStudentTolerancesRoute,
+  AuthedStudentUploadRoute: AuthedStudentUploadRoute,
   AuthedStudentIndexRoute: AuthedStudentIndexRoute,
 }
 
@@ -897,10 +817,7 @@ const AuthedStudentRouteWithChildren = AuthedStudentRoute._addFileChildren(
 
 interface AuthedTeacherRouteChildren {
   AuthedTeacherCatalogueRoute: typeof AuthedTeacherCatalogueRoute
-  AuthedTeacherGradingRoute: typeof AuthedTeacherGradingRoute
-  AuthedTeacherKpiDashboardRoute: typeof AuthedTeacherKpiDashboardRoute
-  AuthedTeacherPracticalsRoute: typeof AuthedTeacherPracticalsRoute
-  AuthedTeacherResultsRoute: typeof AuthedTeacherResultsRoute
+  AuthedTeacherDashboardRoute: typeof AuthedTeacherDashboardRoute
   AuthedTeacherIndexRoute: typeof AuthedTeacherIndexRoute
   AuthedTeacherSimulationsIndexRoute: typeof AuthedTeacherSimulationsIndexRoute
   AuthedTeacherSimulationsSimulationIdIndexRoute: typeof AuthedTeacherSimulationsSimulationIdIndexRoute
@@ -909,10 +826,7 @@ interface AuthedTeacherRouteChildren {
 
 const AuthedTeacherRouteChildren: AuthedTeacherRouteChildren = {
   AuthedTeacherCatalogueRoute: AuthedTeacherCatalogueRoute,
-  AuthedTeacherGradingRoute: AuthedTeacherGradingRoute,
-  AuthedTeacherKpiDashboardRoute: AuthedTeacherKpiDashboardRoute,
-  AuthedTeacherPracticalsRoute: AuthedTeacherPracticalsRoute,
-  AuthedTeacherResultsRoute: AuthedTeacherResultsRoute,
+  AuthedTeacherDashboardRoute: AuthedTeacherDashboardRoute,
   AuthedTeacherIndexRoute: AuthedTeacherIndexRoute,
   AuthedTeacherSimulationsIndexRoute: AuthedTeacherSimulationsIndexRoute,
   AuthedTeacherSimulationsSimulationIdIndexRoute:

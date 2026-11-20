@@ -5,15 +5,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { portalPageTitle, SectionPlaceholder } from "@/components/portal/portal-pages";
 import { portalNavigation, sectionOf } from "@/lib/navigation";
 
-export const Route = createFileRoute("/_authed/student/submissions")({
+export const Route = createFileRoute("/_authed/student/patients")({
   head: () => ({
     meta: [
-      { title: portalPageTitle(portalNavigation("student"), sectionOf("student", "submissions")) },
+      { title: portalPageTitle(portalNavigation("student"), sectionOf("student", "patients")) },
     ],
   }),
   component: Page,
 });
 
 function Page() {
-  return <SectionPlaceholder section={sectionOf("student", "submissions")} />;
+  return <SectionPlaceholder section={sectionOf("student", "patients")} />;
 }

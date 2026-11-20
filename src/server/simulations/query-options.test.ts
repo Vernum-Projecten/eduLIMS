@@ -17,6 +17,7 @@ import type { SimulationResult } from "./access.ts";
 import {
   deleteMutationOptions,
   linkMyLabsMutationOptions,
+  refusedTestIds,
   SimulationActionRefused,
   simulationErrorCode,
   simulationInvalidation,
@@ -176,8 +177,26 @@ describe("simulationMutationOptions (explicit invalidation keys)", () => {
     expect(invalidatedKeys(queryClient)).toContain(JSON.stringify(simulationsKeys.detail(ONE)));
   });
 
-  it("maps a server error to no refusal code", () => {
+  it("carries the tests a missing_limits refusal names to the caller (#267)", async () => {
+    const call = vi.fn(
+      async (): Promise<SimulationResult> => ({
+        ok: false,
+        error: "missing_limits",
+        testIds: [ONE, TWO],
+      }),
+    );
+    const { error } = await runMutation(
+      queryClient,
+      simulationMutationOptions(queryClient, call, []),
+      { simulationId: ONE },
+    );
+    expect(simulationErrorCode(error)).toBe("missing_limits");
+    expect(refusedTestIds(error)).toEqual([ONE, TWO]);
+  });
+
+  it("maps a server error to no refusal code and no tests", () => {
     expect(simulationErrorCode(new Error("500"))).toBeNull();
+    expect(refusedTestIds(new Error("500"))).toEqual([]);
   });
 });
 

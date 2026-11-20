@@ -6,9 +6,10 @@
 // place in a lab. Another teacher's simulation and a lab the student is not in read as nothing.
 import "@tanstack/react-start/server-only";
 import type { Kysely } from "kysely";
-import { parseLabId, parseSimulationId } from "../../lib/simulations.ts";
+import { parseLabId, parseSimulationId, type SimulationState } from "../../lib/simulations.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { logNotFound } from "./access.ts";
+import { toSimulationState } from "./state.ts";
 import { studentLabsQuery } from "./student-access.ts";
 
 /** One simulation of the teacher's list. */
@@ -16,6 +17,7 @@ export interface TeacherSimulationRow {
   id: string;
   name: string;
   createdAt: string;
+  state: SimulationState;
   labs: number;
   members: number;
   teachers: number;
@@ -33,6 +35,7 @@ export async function listTeacherSimulations(
       "s.id",
       "s.name",
       "s.created_at",
+      "s.state",
       eb
         .selectFrom("labs")
         .select((lb) => lb.fn.countAll<string>().as("n"))
@@ -57,17 +60,23 @@ export async function listTeacherSimulations(
     id: row.id,
     name: row.name,
     createdAt: row.created_at.toISOString(),
+    state: toSimulationState(row.state),
     labs: Number(row.labs ?? 0),
     members: Number(row.members ?? 0),
     teachers: Number(row.teachers ?? 0),
   }));
 }
 
-/** The teacher's page of one simulation: its labs and its teachers. */
+/** The teacher's page of one simulation: its state, its labs and its teachers. */
 export interface TeacherSimulationPage {
   id: string;
   name: string;
   createdAt: string;
+  state: SimulationState;
+  /** When a teacher started it, on the server's clock; `null` while it is prepared. */
+  startedAt: string | null;
+  /** When a teacher finished it; `null` until then. */
+  finishedAt: string | null;
   teachers: { userId: string; name: string; email: string }[];
   labs: { id: string; name: string; members: number; waiting: number }[];
 }
@@ -90,7 +99,7 @@ export async function getTeacherSimulation(
   const simulation = await db
     .selectFrom("simulations as s")
     .innerJoin("simulation_teachers as mine", "mine.simulation_id", "s.id")
-    .select(["s.id", "s.name", "s.created_at"])
+    .select(["s.id", "s.name", "s.created_at", "s.state", "s.started_at", "s.finished_at"])
     .where("s.id", "=", id)
     .where("mine.user_id", "=", userId)
     .executeTakeFirst();
@@ -132,6 +141,9 @@ export async function getTeacherSimulation(
     id: simulation.id,
     name: simulation.name,
     createdAt: simulation.created_at.toISOString(),
+    state: toSimulationState(simulation.state),
+    startedAt: simulation.started_at?.toISOString() ?? null,
+    finishedAt: simulation.finished_at?.toISOString() ?? null,
     teachers: teachers.map((row) => ({ userId: row.id, name: row.name, email: row.email })),
     labs: labs.map((row) => ({
       id: row.id,

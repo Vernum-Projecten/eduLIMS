@@ -37,6 +37,12 @@ export const EDULIMS_AUDIT_ACTIONS = [
   "simulation_deleted",
   "simulation_teacher_added",
   "simulation_teacher_removed",
+  "simulation_started",
+  "simulation_finished",
+  "simulation_value_set",
+  "simulation_value_changed",
+  "simulation_value_removed",
+  "simulation_limits_set",
   "lab_created",
   "lab_renamed",
   "lab_deleted",
@@ -209,6 +215,10 @@ export const auditMetadataSchema = z.strictObject({
   sessions_ended: z.number().int().min(0).optional(),
   /** The simulation a `lab_*` event belongs to (D10). */
   simulation_id: z.uuid().optional(),
+  /** The catalogue test a `simulation_value_*` or `simulation_limits_set` event is about (D10). */
+  test_id: z.uuid().optional(),
+  /** The correct value a `simulation_value_*` event is about: its id, never the value (D10). */
+  correct_value_id: z.uuid().optional(),
   /** The person a `simulation_teacher_*` or `lab_member_*` event is about: an id only. */
   user_id: z.string().min(1).max(128).optional(),
   /** The lab a `lab_member_moved` took the student from. */

@@ -23,6 +23,8 @@ const ROLE_OF: Record<string, "teacher" | "student" | "admin"> = {
   createSimulationFn: "teacher",
   renameSimulationFn: "teacher",
   deleteSimulationFn: "teacher",
+  startSimulationFn: "teacher",
+  finishSimulationFn: "teacher",
   addTeacherFn: "teacher",
   removeTeacherFn: "teacher",
   createLabFn: "teacher",

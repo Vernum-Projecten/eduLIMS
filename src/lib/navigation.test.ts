@@ -52,15 +52,8 @@ describe("navigationFor (B1: a user sees only the screens of their role)", () =>
   it("lists the agreed sections per portal", () => {
     const ids = (role: "student" | "teacher" | "admin") =>
       portalNavigation(role).sections.map((section) => section.id);
-    expect(ids("student")).toEqual(["practicals", "samples", "results", "submissions", "grades"]);
-    expect(ids("teacher")).toEqual([
-      "simulations",
-      "practicals",
-      "results",
-      "grading",
-      "kpi-dashboard",
-      "catalogue",
-    ]);
+    expect(ids("student")).toEqual(["patients", "tolerances", "results", "upload"]);
+    expect(ids("teacher")).toEqual(["simulations", "dashboard", "catalogue"]);
     expect(ids("admin")).toEqual(["users", "simulations", "integrations", "activity", "system"]);
   });
 
@@ -74,7 +67,14 @@ describe("navigationFor (B1: a user sees only the screens of their role)", () =>
 
 describe("sectionOf", () => {
   it("returns the section of a portal", () => {
-    expect(sectionOf("teacher", "grading").to).toBe("/teacher/grading");
+    expect(sectionOf("teacher", "dashboard").to).toBe("/teacher/dashboard");
+  });
+
+  it("gives a student the sections of the lab's work (S4, S5, S11 to S15)", () => {
+    expect(sectionOf("student", "patients").to).toBe("/student/patients");
+    expect(sectionOf("student", "tolerances").to).toBe("/student/tolerances");
+    expect(sectionOf("student", "results").to).toBe("/student/results");
+    expect(sectionOf("student", "upload").to).toBe("/student/upload");
   });
 
   it("gives the teacher and the administrator a simulations section (D10, B5)", () => {
@@ -95,7 +95,7 @@ describe("portalOfPath (the URL decides the portal, ADR 0012)", () => {
   it.each([
     ["/teacher", "teacher"],
     ["/teacher/", "teacher"],
-    ["/teacher/grading", "teacher"],
+    ["/teacher/dashboard", "teacher"],
     ["/admin/users", "admin"],
     ["/student/does-not-exist", "student"],
   ])("puts %s in the %s portal", (path, role) => {
@@ -109,9 +109,9 @@ describe("portalOfPath (the URL decides the portal, ADR 0012)", () => {
 
 describe("breadcrumbFor", () => {
   it("names the portal and the section", () => {
-    const crumb = breadcrumbFor("/student/samples");
+    const crumb = breadcrumbFor("/student/tolerances");
     expect(crumb?.portal.role).toBe("student");
-    expect(crumb?.page.label()).toBe("Samples");
+    expect(crumb?.page.label()).toBe("Tolerances");
   });
 
   it("names the overview on a portal's home, with or without a trailing slash", () => {

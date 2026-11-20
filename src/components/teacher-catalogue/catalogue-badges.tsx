@@ -4,14 +4,21 @@
 import {
   ArchiveIcon,
   CircleCheckIcon,
+  CirclePlayIcon,
   FileSpreadsheetIcon,
   KeyboardIcon,
+  LockIcon,
   type LucideIcon,
   NetworkIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { TestSource, TestSourceKind, TestStatus } from "@/lib/catalogue";
-import { testSourceDetail, testSourceLabel, testStatusLabel } from "@/lib/i18n/catalogue-labels";
+import type { TestSource, TestSourceKind, TestStatus, TestUsage } from "@/lib/catalogue";
+import {
+  testSourceDetail,
+  testSourceLabel,
+  testStatusLabel,
+  testUsageLabel,
+} from "@/lib/i18n/catalogue-labels";
 
 /** The icon of each test status, beside its text (WCAG 1.4.1). */
 export const TEST_STATUS_ICONS: Record<TestStatus, LucideIcon> = {
@@ -34,6 +41,28 @@ export function TestStatusBadge({ status }: Readonly<{ status: TestStatus }>) {
       <Icon aria-hidden="true" data-icon="inline-start" />
       {testStatusLabel(status)}
     </Badge>
+  );
+}
+
+/** The icon of each way simulations use a test, beside its text (WCAG 1.4.1). */
+export const TEST_USAGE_ICONS: Record<Exclude<TestUsage, "unused">, LucideIcon> = {
+  used: LockIcon,
+  running: CirclePlayIcon,
+};
+
+/**
+ * How simulations use a test, as an icon and text below its status (D9, #267), so a teacher sees
+ * which settings are fixed before opening the edit dialog. An unused test shows nothing.
+ */
+export function TestUsageText({ usage }: Readonly<{ usage: TestUsage }>) {
+  const label = testUsageLabel(usage);
+  if (usage === "unused" || label === null) return null;
+  const Icon = TEST_USAGE_ICONS[usage];
+  return (
+    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+      <Icon aria-hidden="true" className="size-4" />
+      {label}
+    </span>
   );
 }
 
