@@ -8,8 +8,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TestFormDialog } from "@/components/catalogue/test-form-dialog";
 import { useAppForm } from "@/components/form/app-form";
-import { TestFormDialog } from "@/components/teacher-catalogue/test-form-dialog";
 import { parseCatalogueTestId, type TestUsage } from "@/lib/catalogue";
 import type { CatalogueTestRow } from "@/server/catalogue/queries";
 
@@ -137,13 +137,13 @@ describe("the test form locks what the usage fixes (D9; maintainer 2026-11-19)",
 
   it("locks nothing of an unused test", () => {
     const dialog = openDialog(row("unused", epoch));
-    expect(readOnly(within(dialog).getByLabelText("Unit (optional)"))).toBe(false);
+    expect(readOnly(within(dialog).getByLabelText("Unit"))).toBe(false);
     expect(readOnly(within(dialog).getByLabelText("Material"))).toBe(false);
   });
 
   it("locks the unit and the source of a used test, with the reason, and leaves the rest", () => {
     const dialog = openDialog(row("used", epoch));
-    const unit = within(dialog).getByLabelText("Unit (optional)");
+    const unit = within(dialog).getByLabelText("Unit");
     expect(readOnly(unit)).toBe(true);
     expect(description(unit)).toContain("Fixed while a simulation uses this test.");
     expect(
@@ -163,7 +163,9 @@ describe("the test form locks what the usage fixes (D9; maintainer 2026-11-19)",
 
   it("names only its own source's settings in the description of a used Afinion 2 test", () => {
     const dialog = openDialog(row("used", { kind: "afinion", analyte: "CRP" }));
-    expect(readOnly(within(dialog).getByLabelText("Analyte name on the Afinion 2"))).toBe(true);
+    expect(
+      readOnly(within(dialog).getByRole("combobox", { name: "Analyte on the Afinion 2" })),
+    ).toBe(true);
     expect(description(dialog)).toContain(
       "A simulation uses this test: you can change its name and material, but not its unit, source or analyte name.",
     );
@@ -180,5 +182,32 @@ describe("the test form locks what the usage fixes (D9; maintainer 2026-11-19)",
       ),
     ).toBe(true);
     expect(readOnly(within(dialog).getByLabelText("Name"))).toBe(false);
+  });
+});
+
+describe("the analyte decides whether the unit can change (#393)", () => {
+  it("fixes the unit of an analyte the Afinion 2 sends in one unit, with the reason", () => {
+    const dialog = openDialog({
+      ...row("unused", { kind: "afinion", analyte: "CRP" }),
+      unit: "mg/L",
+    });
+    const unit = within(dialog).getByLabelText("Unit");
+    expect(readOnly(unit)).toBe(true);
+    expect(description(unit)).toContain("The Afinion 2 sends this analyte in this unit only.");
+  });
+
+  it("leaves the unit of an analyte whose unit the analyser sets open to change", () => {
+    const dialog = openDialog({
+      ...row("unused", { kind: "afinion", analyte: "HbA1c" }),
+      unit: "%",
+    });
+    const unit = within(dialog).getByLabelText("Unit");
+    expect(readOnly(unit)).toBe(false);
+    expect(description(unit)).toContain("Filled in from the analyte.");
+  });
+
+  it("shows the unit with its common name, and No unit for none", () => {
+    const dialog = openDialog({ ...row("unused", { kind: "manual" }), unit: null });
+    expect((within(dialog).getByLabelText("Unit") as HTMLInputElement).value).toBe("No unit");
   });
 });

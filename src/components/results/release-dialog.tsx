@@ -23,6 +23,7 @@ import { m } from "@/i18n/messages";
 import { formatDecimal } from "@/lib/i18n/format";
 import { releaseVerdict, resultsErrorMessage } from "@/lib/i18n/results-labels";
 import { formatLabNumber } from "@/lib/lab-number";
+import { unitSymbol } from "@/lib/ucum";
 import type { ResultsActionError } from "@/server/results/access";
 import { releaseResultFn } from "@/server/results/functions";
 import type {
@@ -94,7 +95,7 @@ export function ReleaseDialog({
       onDone: onReleased,
     },
   );
-  const unit = test.unit ?? "";
+  const unit = unitSymbol(test.unit);
   const limits = {
     lower: formatDecimal(tolerance.lower),
     upper: formatDecimal(tolerance.upper),

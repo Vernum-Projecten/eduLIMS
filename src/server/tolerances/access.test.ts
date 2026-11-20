@@ -10,14 +10,13 @@ import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { deleteLab } from "../simulations/labs.ts";
 import { removeMember } from "../simulations/members.ts";
-import { finishSimulation, startSimulation } from "../simulations/state.ts";
 import {
   auditRows,
   NOW,
   notFoundLine,
   place,
   securityLines,
-  startable,
+  setState,
 } from "../simulations/test-helpers.ts";
 import { setTolerance } from "./actions.ts";
 import { readStudentTolerances } from "./queries.ts";
@@ -106,10 +105,8 @@ describe("deleting a lab that has a tolerance (maintainer on #352, N1)", () => {
 describe("a student in labs of two simulations (S10)", () => {
   it("reads each own lab, writes only where it runs, and reaches no other lab", async () => {
     const { database, w, testId } = await open();
-    const outside = { simulationId: w.outsideSimulationId };
-    await startable(database, w.outsideSimulationId);
-    expect((await startSimulation(database, w.outsiderTeacher, outside, NOW)).ok).toBe(true);
-    expect((await finishSimulation(database, w.outsiderTeacher, outside, NOW)).ok).toBe(true);
+    // NOTE: #386; one simulation runs at a time, so the other one ran before and is finished.
+    await setState(database, w.outsideSimulationId, "finished");
     // NOTE: #379; beside a running simulation, a second place is only in a finished one.
     await place(database, w.outsideSimulationId, w.outsideLabId, w.student.id);
 

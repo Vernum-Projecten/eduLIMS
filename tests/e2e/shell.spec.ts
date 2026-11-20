@@ -17,11 +17,17 @@ const PORTALS = {
   },
   teacher: {
     heading: "Teacher portal",
-    sections: ["Simulations", "Dashboard", "Test catalogue"],
+    sections: ["Simulations", "Dashboard"],
   },
   admin: {
     heading: "Admin portal",
-    sections: ["Users and roles", "Simulations", "Analysers and integrations", "Activity log"],
+    sections: [
+      "Users and roles",
+      "Test catalogue",
+      "Simulations",
+      "Analysers and integrations",
+      "Activity log",
+    ],
   },
 } as const;
 type PortalRole = keyof typeof PORTALS;
@@ -356,7 +362,14 @@ test.describe("axe in both themes", () => {
       await setThemeCookie(context, theme);
       await signInAs(page, "teacher");
       await page.goto("/teacher/dashboard");
-      await expect(page.getByRole("heading", { level: 2, name: "Coming soon" })).toBeVisible();
+      // NOTE: #386; the dashboard is a placeholder while a simulation of the teacher runs, and
+      // an empty state otherwise; other journeys start and finish simulations in parallel.
+      await expect(
+        page.getByRole("heading", {
+          level: 2,
+          name: /^(Coming soon|No simulation is running|The running simulation is not one of yours)$/,
+        }),
+      ).toBeVisible();
       await expectNoA11yViolations(page);
     });
   }

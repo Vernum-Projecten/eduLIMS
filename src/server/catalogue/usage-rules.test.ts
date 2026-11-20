@@ -26,7 +26,7 @@ vi.mock("./in-use.ts", () => ({
 }));
 
 const setup = catalogueTestDb();
-const teacher = setup.teacher;
+const admin = setup.admin;
 
 beforeEach(() => usages.clear());
 
@@ -34,7 +34,7 @@ afterEach(() => setup.destroy());
 
 describe("a test a simulation uses (D9, #266 acceptance criterion)", () => {
   it("cannot have its unit changed", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     usages.set(id, "used");
     expect(await updateTest(ctx, { testId: id, test: { ...CRP, unit: "mg/dL" } })).toEqual({
@@ -45,7 +45,7 @@ describe("a test a simulation uses (D9, #266 acceptance criterion)", () => {
   });
 
   it("cannot have its source or its analyte changed", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     usages.set(id, "used");
     for (const source of [
@@ -60,7 +60,7 @@ describe("a test a simulation uses (D9, #266 acceptance criterion)", () => {
   });
 
   it("can still switch who calculates and change its name and material (D9)", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, GLUCOSE);
     usages.set(id, "used");
     const result = await updateTest(ctx, {
@@ -76,14 +76,14 @@ describe("a test a simulation uses (D9, #266 acceptance criterion)", () => {
   });
 
   it("can be retired", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     usages.set(id, "used");
     expect(await retireTest(ctx, { testId: id })).toEqual({ ok: true, testId: id });
   });
 
   it("shows as in use in the list", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx);
     usages.set(id, "used");
     const page = await readTestPage(ctx, {});
@@ -91,7 +91,7 @@ describe("a test a simulation uses (D9, #266 acceptance criterion)", () => {
   });
 
   it("lets its material and who calculates change outside a running simulation", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, GLUCOSE);
     usages.set(id, "used");
     const result = await updateTest(ctx, {
@@ -108,7 +108,7 @@ describe("a test a simulation uses (D9, #266 acceptance criterion)", () => {
 
 describe("a test a running simulation uses (D9; maintainer 2026-11-19)", () => {
   it("cannot have its material changed", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, GLUCOSE);
     usages.set(id, "running");
     expect(await updateTest(ctx, { testId: id, test: { ...GLUCOSE, material: "serum" } })).toEqual({
@@ -119,7 +119,7 @@ describe("a test a running simulation uses (D9; maintainer 2026-11-19)", () => {
   });
 
   it("cannot switch who calculates", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, GLUCOSE);
     usages.set(id, "running");
     expect(
@@ -131,7 +131,7 @@ describe("a test a running simulation uses (D9; maintainer 2026-11-19)", () => {
   });
 
   it("still refuses a unit change as in_use, and accepts a new name", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, GLUCOSE);
     usages.set(id, "running");
     expect(await updateTest(ctx, { testId: id, test: { ...GLUCOSE, unit: "mg/dL" } })).toEqual({
@@ -144,7 +144,7 @@ describe("a test a running simulation uses (D9; maintainer 2026-11-19)", () => {
   });
 
   it("can be retired", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, GLUCOSE);
     usages.set(id, "running");
     expect(await retireTest(ctx, { testId: id })).toEqual({ ok: true, testId: id });
@@ -153,14 +153,14 @@ describe("a test a running simulation uses (D9; maintainer 2026-11-19)", () => {
 
 describe("a test without a unit (maintainer 2026-11-19)", () => {
   const RATIO: TestDefinition = {
-    name: "Chol/HDL",
+    name: "Ratio (invented)",
     unit: null,
     material: "blood",
-    source: { kind: "afinion", analyte: "Chol/HDL" },
+    source: { kind: "manual" },
   };
 
   it("is stored with no unit, not an empty one", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, RATIO);
     expect((await stored(ctx.db, id)).unit).toBeNull();
     const page = await readTestPage(ctx, {});
@@ -168,9 +168,9 @@ describe("a test without a unit (maintainer 2026-11-19)", () => {
   });
 
   it("gets a unit, and loses it again, as a logged change", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, RATIO);
-    await updateTest(ctx, { testId: id, test: { ...RATIO, unit: "ratio" } });
+    await updateTest(ctx, { testId: id, test: { ...RATIO, unit: "%" } });
     await updateTest(ctx, { testId: id, test: RATIO });
     expect((await stored(ctx.db, id)).unit).toBeNull();
     const fields = (await events(ctx.db)).map((event) => event.metadata);
@@ -178,10 +178,10 @@ describe("a test without a unit (maintainer 2026-11-19)", () => {
   });
 
   it("keeps having no unit while a simulation uses it", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const id = await created(ctx, RATIO);
     usages.set(id, "used");
-    expect(await updateTest(ctx, { testId: id, test: { ...RATIO, unit: "ratio" } })).toEqual({
+    expect(await updateTest(ctx, { testId: id, test: { ...RATIO, unit: "%" } })).toEqual({
       ok: false,
       error: "in_use",
     });
@@ -190,7 +190,7 @@ describe("a test without a unit (maintainer 2026-11-19)", () => {
 
 describe("the analyte name of an active Afinion 2 test (maintainer 2026-11-19)", () => {
   it("is refused when another active Afinion 2 test has it, in any case", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     await created(ctx);
     expect(
       await createTest(ctx, {
@@ -205,7 +205,7 @@ describe("the analyte name of an active Afinion 2 test (maintainer 2026-11-19)",
   });
 
   it("is refused on an edit that takes another test's analyte", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     await created(ctx);
     const id = await created(ctx, {
       ...CRP,
@@ -216,13 +216,13 @@ describe("the analyte name of an active Afinion 2 test (maintainer 2026-11-19)",
     expect(
       await updateTest(ctx, {
         testId: id,
-        test: { ...CRP, name: "HbA1c", unit: "%", source: { kind: "afinion", analyte: "CRP" } },
+        test: { ...CRP, name: "HbA1c", unit: "mg/L", source: { kind: "afinion", analyte: "CRP" } },
       }),
     ).toEqual({ ok: false, error: "analyte_taken" });
   });
 
   it("is free again once the other test is retired, and refused on its restore", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     const old = await created(ctx);
     await retireTest(ctx, { testId: old });
     await created(ctx, { ...CRP, name: "CRP (new)" });
@@ -233,7 +233,7 @@ describe("the analyte name of an active Afinion 2 test (maintainer 2026-11-19)",
   });
 
   it("does not bind a test of another source", async () => {
-    const ctx = await teacher();
+    const ctx = await admin();
     await created(ctx);
     const result = await createTest(ctx, {
       ...CRP,

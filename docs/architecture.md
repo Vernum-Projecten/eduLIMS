@@ -41,7 +41,7 @@ Every design decision can be checked against these principles.
 | Principle | Consequence for the design |
 |---|---|
 | Privacy by design | The patients of a simulation are fictional (W5). The patient's record in FerroEHR carries the fictional details the team registers (S11, O9). No student or teacher is ever an EHR subject, and no name, student number or email address of a student or a teacher reaches FerroEHR (Q-PRIV-1). |
-| Record once, at the source | Afinion results arrive through HL7; Epoch values through an Excel upload. Per test the teacher sets the source in the test catalogue: the Afinion 2, the Epoch 2 upload, or entry by hand; a result calculated from other results is a test with entry by hand (D9). |
+| Record once, at the source | Afinion results arrive through HL7; Epoch values through an Excel upload. Per test the administrator sets the source in the test catalogue: the Afinion 2, the Epoch 2 upload, or entry by hand; a result calculated from other results is a test with entry by hand (D9). |
 | Open standards | HL7 v2 for the Afinion 2; openEHR archetypes and templates for measurement data. |
 | Traceability | Every measurement links through its sample number to device, sample, patient and team (Q-TRACE-1). |
 | The students are the analysts | eduLIMS gives a student no hint (W7): no screen and no server response for a student holds a correct value, an accuracy status or another team's work (Q-SIM-1). The one check is the warning against the team's own tolerance (S15). |
@@ -63,7 +63,7 @@ out of scope: eduLIMS holds no grades (W2, W6).
 |---|---|---|---|---|
 | Afinion 2 → FerroBRIDGE | analyser → integration layer | HL7 v2 over MLLP (TCP/IP, Ethernet); FerroBRIDGE 0.0.24 accepts MLLP only over TLS with a client certificate per `[[hl7v2.senders]]` entry, and the Afinion 2 has none (Afinion 2 User Manual, 1117346 Rev. A, 2023/02) | configuration: FerroBRIDGE's IP address and port on the device; HL7 to openEHR mapping; waits on the FerroBRIDGE release with address-bound plain MLLP for devices ([FerroBRIDGE#1918](https://github.com/FerroHEALTH/FerroBRIDGE/issues/1918), decided on #131), then that lane bound to the analyser's fixed address, with the port bound to the lab-facing address (`FERROBRIDGE_MLLP_BIND_HOST`) and a host-firewall allow-list of the analysers' fixed addresses ([deployment](deployment.md#the-mllp-port), [ADR 0013](adr/0013-internal-transport-security.md)) | Must |
 | FerroBRIDGE → FerroEHR | integration layer → CDR | openEHR REST (ITS-REST 1.1.0) | mapping to the template `eduLIMS-lab` | Must |
-| Epoch 2 / Gen5 → eduLIMS | Gen5 PC → web app | Excel file (the Gen5 export: a header block and a 96-well grid of absorbance values at one wavelength) | upload by drag and drop, parser and layout validation in the student portal; eduLIMS loads the values and shows the plate, and the team links wells to samples (S4); per test the teacher chooses in the test catalogue whether the team calculates the concentration or eduLIMS does (D9, O5) | Must |
+| Epoch 2 / Gen5 → eduLIMS | Gen5 PC → web app | Excel file (the Gen5 export: a header block and a 96-well grid of absorbance values at one wavelength) | upload by drag and drop, parser and layout validation in the student portal; eduLIMS loads the values and shows the plate, and the team links wells to samples (S4); per test the administrator chooses in the test catalogue whether the team calculates the concentration or eduLIMS does (D9, O5) | Must |
 | eduLIMS → FerroEHR (write) | web app → CDR | openEHR REST, compositions, as the SMART on openEHR backend service `edulims-ferroehr` (client credentials, `system/` scopes) | write a released result to the patient's record as a composition (S15, [ADR 0019](adr/0019-smart-backend-service.md)); a released result is final (S15); where a measurement lives before its release is a design matter, with the proposal in [The LIMS workflow](lims-workflow.md#who-owns-what-and-where-it-lives) | Must |
 | eduLIMS → FerroEHR (read) | web app → CDR | AQL 1.1, named stored queries under the same backend-service identity | queries for the measurements of a team's samples (S5, [ADR 0019](adr/0019-smart-backend-service.md)); a result finds its team through the lab number the team enters as the patient ID on the analyser (S5, S12) | Must |
 | eduLIMS ↔ identity provider | web app → the institution's identity provider (Microsoft Entra ID or Keycloak) | OpenID Connect, authorization code flow with PKCE | an OIDC client registered by the institution; roles through app roles, groups or realm roles ([ADR 0010](adr/0010-vendor-neutral-oidc-entra-and-keycloak.md)) | Must |
@@ -89,7 +89,7 @@ layout strictly and rejects a file in another layout with a clear message
 (S4); [The Gen5 export contract](gen5-export.md) pins the layout, the file
 limits and the refusals. eduLIMS loads the 96 values and shows the plate, as a real LIMS does,
 and the team says which well holds which sample (owner, 2026-11-19, O5,
-R-06). Who calculates the concentration is the teacher's choice per test in the
+R-06). Who calculates the concentration is set per test in the
 test catalogue (D9): the team, by its own procedure, or eduLIMS, from the
 standards and blanks the team marked on the plate. When eduLIMS calculates,
 it subtracts the blank and fits a straight line through the standards. A
@@ -126,8 +126,8 @@ and is enforced on the server for every request (Q-SEC-1, Q-SEC-2).
 | Role | Portal | May | Sees |
 |---|---|---|---|
 | Student | Student portal (`/student`) | with the team: register patients, record requests and samples, set tolerances, upload the Epoch export, measure again, release results | the work of their own team only; never a correct value, an accuracy status or another team's work |
-| Teacher | Teacher portal (`/teacher`) | manage the test catalogue, prepare a simulation with its labs (name, logo and the members' email addresses) and its correct values, add other teachers to it, set the accuracy limits, follow the teams | every lab of their own simulations (the ones they created or were added to): times, measurements, released results, accuracy, and the teams' tolerances with their changes |
-| Administrator | Admin portal (`/admin`) | manage users and roles; manage analysers and the FerroEHR and FerroBRIDGE integrations | logs, integration status, analyser usage; the simulations with their teachers, their labs and the number of members, read-only, and nothing of a lab's work and no correct value (B5, a Should) |
+| Teacher | Teacher portal (`/teacher`) | choose tests from the test catalogue, prepare a simulation with its labs (name, logo and the members' email addresses) and its correct values, add other teachers to it, set the accuracy limits, follow the teams | every lab of their own simulations (the ones they created or were added to): times, measurements, released results, accuracy, and the teams' tolerances with their changes |
+| Administrator | Admin portal (`/admin`) | manage users and roles; manage the test catalogue (D9, #393); manage analysers and the FerroEHR and FerroBRIDGE integrations | logs, integration status, analyser usage; the simulations with their teachers, their labs and the number of members, read-only, and nothing of a lab's work and no correct value (B5, a Should) |
 
 A user may hold teacher and administrator together; student is never combined
 with another role. The roles are a set, not a ranking: each one keeps only
@@ -174,6 +174,42 @@ one. No student page takes a lab in its URL.
 Only functions for the teacher role read a correct value or an accuracy
 status, and each has negative tests with a student account (Q-SIM-1).
 
+### The test catalogue
+
+An administrator manages the test catalogue in Admin → Test catalogue
+(`/admin/catalogue`; owner, 2026-11-20, #393). Every simulation uses the one
+catalogue; a teacher sees its active tests as the options of a simulation's
+correct values (id, name and unit only) and changes none of them. A test's unit is a code of the Unified Code for Units of Measure
+(UCUM, <https://ucum.org/ucum>, case-sensitive form), the unit system of
+openEHR's `DV_QUANTITY.units`. The supported codes are a curated list in
+`src/lib/ucum.ts`, with the common laboratory units first and a translated
+common name for each. The server function's schema, the service
+(`unit_unsupported`, `unit_fixed_by_analyte`) and the CHECK
+`catalogue_tests_unit_ucum` of migration `0028_catalogue_unit_ucum` each
+refuse any other code; a test checks that the migration's list equals the
+application's, so a new unit comes with a new migration. A test without
+a unit (a ratio) stores none and reaches FerroEHR as UCUM's unity `1`. An
+Afinion 2 test names one of the analytes the analyser reports
+(`src/lib/afinion.ts`, from the vendored protocol and manual); the analyte
+fills in its unit, which stays open to change only for the assays whose unit
+the analyser lets you set (HbA1c, ACR, the Lipid Panel; maintainer,
+2026-11-20, on #404). The User Manual says other units are "available" for
+those assays without naming them, so they take any supported unit, with the
+documented default filled in. Creatinine defaults to mg/dL, from the
+protocol's example 4.1.2; the documents give no other unit for it. Every
+screen shows a unit by its symbol (`unitSymbol` in `src/lib/ucum.ts`:
+`µmol/L` for the code `umol/L`), never the raw code; the catalogue adds the
+common name.
+
+A fresh installation carries a starter set: one active Afinion 2 test per
+analyte with its documented unit, and no correct value (Q-PRIV-4).
+`migrate` in the tools image and `pnpm db:seed` add it to an empty catalogue
+only, so a starter test an administrator retired or renamed never returns.
+The starter names spell out the analyser's abbreviations, and the materials
+are urine for the ACR panel and blood for the rest; both are data that an
+administrator changes in the catalogue like any other test's (maintainer,
+2026-11-20, on #404).
+
 ### The teacher's simulation pages
 
 A simulation in the Teacher portal is a layout with its own pages, in the
@@ -202,9 +238,10 @@ count in one statement, so one snapshot: counts per step and the start's
 verdict from `startRefusal` (`state.ts`), the one rule the start itself
 applies. A start needs a prepared simulation, at least one lab with at least
 one student, at least one correct value and the accuracy limits of every test
-with a value (owner, 2026-11-20 on #394); the refusals are `not_prepared`,
-`no_students`, `no_correct_values` and `missing_limits`, each logged, and a
-reason the start gains later keeps the same shape. While one holds, Start
+with a value (owner, 2026-11-20 on #394), and no other simulation running
+(owner, 2026-11-20 on #386); the refusals, in this order, are `not_prepared`,
+`another_running`, `no_students`, `no_correct_values` and `missing_limits`,
+each logged. While one holds, Start
 stays focusable with `aria-disabled`, says why beside it, and a click sends
 focus to the first step that blocks it. Every page's loader reads through the
 teacher-scoped functions, so a teacher of another simulation gets not found
@@ -212,7 +249,8 @@ on each of them (D11).
 
 ### Core process
 
-1. Before a simulation, the teacher manages the test catalogue (D9) and
+1. An administrator sets up the test catalogue once (D9, #393); every
+   simulation uses it. Before a simulation, the teacher chooses its tests and
    prepares the simulation: its name, its labs with their names, logos and
    the email addresses of their members, and the correct value per test and
    sample number, once per simulation and for every lab (D10). The teacher
@@ -375,7 +413,11 @@ student's place and a waiting address point at their lab through the pair
   The lab's work goes through `findWorkingStudentLab`, which also requires
   a running simulation: a prepared or finished simulation takes no work.
 - **State.** A teacher of the simulation starts a prepared simulation and
-  finishes a running one, behind a confirmation; no step goes back. A start
+  finishes a running one, behind a confirmation; no step goes back. Only one
+  simulation runs at a time (owner, 2026-11-20, #386): a start while another
+  runs is refused with `another_running`, which names no other simulation,
+  and the partial unique index `simulations_one_running` (migration
+  `0030_one_running_simulation`) holds the rule when two starts race. A start
   is refused while a test with a correct value has no limits, and the
   refusal names those tests; a running simulation is never deleted
   (maintainer, 2026-11-20 on #267). The correct values and the limits stay

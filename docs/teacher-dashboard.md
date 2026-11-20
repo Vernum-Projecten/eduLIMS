@@ -18,6 +18,13 @@ is a working draft. Two of its
 the next iteration (O1 and O3), and nothing is built on them. This page
 states no layout beyond what the requirements state.
 
+## Which simulation it shows
+
+Only one simulation runs at a time (owner, 2026-11-20, #386), and the
+dashboard shows that one, with no picker. With no simulation running, or with
+one the teacher does not teach, it shows an empty state that says so and
+links to the teacher's simulations.
+
 ## What the dashboard shows
 
 The measures are G-01 and G-03 in

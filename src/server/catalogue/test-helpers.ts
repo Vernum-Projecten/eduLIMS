@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Shared set-up of the catalogue service's database tests: invented tests, invented
-// @example.test teachers, and the reads the tests assert on. Test support only.
+// @example.test administrators, and the reads the tests assert on. Test support only.
 import type { Kysely } from "kysely";
 import type { CatalogueTestId } from "../../lib/catalogue.ts";
 import type { Role } from "../../lib/roles.ts";
@@ -37,7 +37,7 @@ export function catalogueTestDb() {
   let db: Kysely<DB> | undefined;
   return {
     /** Returns a context for a caller with `roles`, a user row unless the set is empty. */
-    async teacher(key = "teacher", roles: readonly Role[] = ["teacher"], now = NOW) {
+    async admin(key = "admin", roles: readonly Role[] = ["admin"], now = NOW) {
       db ??= await createTestDb();
       // The user table refuses an empty role set, so a caller without a role is a session user.
       const actor = roles.length === 0 ? { id: key, roles } : await person(db, key, roles);
@@ -54,12 +54,21 @@ export function catalogueTestDb() {
   };
 }
 
+/**
+ * Returns `actor` with the admin role added, a teacher-admin, who may change the catalogue
+ * (#393); the user row keeps its own roles, which the service never reads.
+ */
+export function asAdmin<T extends { roles: readonly Role[] }>(actor: T): T {
+  return { ...actor, roles: [...actor.roles.filter((role) => role !== "admin"), "admin"] };
+}
+
 /** The activity-log rows of the catalogue, oldest first. */
 export function events(database: Kysely<DB>) {
   return database
     .selectFrom("audit_event")
     .select([
       "action",
+      "actor_type",
       "actor_id",
       "target_type",
       "target_id",

@@ -55,6 +55,8 @@ describe("0025_result_ehr_write_lease", () => {
         written_at = now(), lease_id = null`.execute(database);
     const down = await createMigrator(database).migrateTo("0024_result_ehr_writes");
     expect(down.results?.map((r) => [r.migrationName, r.status])).toEqual([
+      ["0030_one_running_simulation", "Success"],
+      ["0028_catalogue_unit_ucum", "Success"],
       ["0027_gen5_uploads", "Success"],
       ["0026_one_active_simulation_per_student", "Success"],
       ["0025_result_ehr_write_lease", "Success"],

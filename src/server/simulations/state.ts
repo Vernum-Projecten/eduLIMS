@@ -5,7 +5,7 @@
 // the simulation starts and finishes it, at the server's time (Q-SIM-2). Labs work only while it
 // runs; the correct values stay changeable in every state.
 import "@tanstack/react-start/server-only";
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import {
   parseSimulationState,
   type SimulationId,
@@ -74,14 +74,28 @@ export async function testsWithoutLimits(
 }
 
 /**
+ * Returns whether a simulation other than `simulationId` runs (D11, #386: one at a time). It
+ * says nothing about which one, so no refusal names another teacher's simulation.
+ */
+export async function anotherRunning(db: Kysely<DB>, simulationId: SimulationId): Promise<boolean> {
+  const row = await db
+    .selectFrom("simulations")
+    .select("id")
+    .where("state", "=", "running")
+    .where("id", "<>", simulationId)
+    .limit(1)
+    .executeTakeFirst();
+  return row !== undefined;
+}
+
+/**
  * Why a simulation cannot start yet: a refusal code of {@link startSimulation}, and for
- * `missing_limits` the tests it is about. A new reason the start gains (such as one running
- * simulation at a time, #386) joins the code union and keeps this shape.
+ * `missing_limits` the tests it is about.
  */
 export interface StartRefusal {
   error: Extract<
     SimulationActionError,
-    "not_prepared" | "no_students" | "no_correct_values" | "missing_limits"
+    "not_prepared" | "another_running" | "no_students" | "no_correct_values" | "missing_limits"
   >;
   testIds?: readonly string[];
 }
@@ -95,16 +109,20 @@ export interface StartFacts {
   correctValues: number;
   /** The tests with a correct value but no accuracy limits, by id. */
   missingLimits: readonly string[];
+  /** Whether another simulation runs (#386). */
+  anotherRunning: boolean;
 }
 
 /**
  * Returns why a simulation cannot start, or `null` when it can. The start and the overview's
  * checklist both ask this one rule, so the checklist shows the reason the start would give
- * (#381). The first reason that holds wins: the state, then a student in a lab, then a correct
- * value, then the limits of every test with one.
+ * (#381). The first reason that holds wins: the state, then another running simulation (only one
+ * runs at a time, owner 2026-11-20, #386), then a student in a lab, then a correct value, then
+ * the limits of every test with one.
  */
 export function startRefusal(facts: StartFacts): StartRefusal | null {
   if (facts.state !== "prepared") return { error: "not_prepared" };
+  if (facts.anotherRunning) return { error: "another_running" };
   // NOTE: owner via coordinator 2026-11-20 on #394; a lab with a student and a correct value first.
   if (facts.students === 0) return { error: "no_students" };
   if (facts.correctValues === 0) return { error: "no_correct_values" };
@@ -147,12 +165,53 @@ export async function startFacts(
     students: places.length,
     correctValues: Number(values.n),
     missingLimits,
+    anotherRunning: await anotherRunning(db, simulationId),
   };
 }
 
+/** The partial unique index of migration 0030: at most one running simulation (#386). */
+const ONE_RUNNING_INDEX = "simulations_one_running";
+
+/** Returns whether `error` is the unique violation of the one-running index of migration 0030. */
+export function isOneRunningViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    Reflect.get(error, "code") === "23505" &&
+    Reflect.get(error, "constraint") === ONE_RUNNING_INDEX
+  );
+}
+
 /**
- * Starts a prepared simulation the actor teaches. Every test with a correct value needs its
- * accuracy limits first (`missing_limits`, with the ids of the tests without them; maintainer,
+ * Sets the simulation running inside a savepoint, and returns `false` when the index of
+ * migration 0030 refuses it: another start committed after this one's check (#386). The
+ * savepoint keeps the transaction usable, so the refusal is logged in it.
+ */
+async function markRunning(
+  trx: Kysely<DB>,
+  simulationId: SimulationId,
+  now: Date,
+): Promise<boolean> {
+  await sql`savepoint simulation_start`.execute(trx);
+  try {
+    await trx
+      .updateTable("simulations")
+      .set({ state: "running", started_at: now })
+      .where("id", "=", simulationId)
+      .execute();
+  } catch (error) {
+    if (!isOneRunningViolation(error)) throw error;
+    await sql`rollback to savepoint simulation_start`.execute(trx);
+    return false;
+  }
+  await sql`release savepoint simulation_start`.execute(trx);
+  return true;
+}
+
+/**
+ * Starts a prepared simulation the actor teaches. Only one simulation runs at a time
+ * (`another_running`, owner 2026-11-20 on #386); the index of migration 0030 holds it when two
+ * starts race. Every test with a correct value needs its accuracy limits first (`missing_limits`, with the ids of the tests without them; maintainer,
  * 2026-11-20 on #267). The catalogue tests its correct values name
  * are locked `FOR SHARE` until the start commits, so a catalogue edit that a running simulation
  * forbids waits for the start and is then refused (D9). Another state is refused with
@@ -189,11 +248,10 @@ export function startSimulation(
       .orderBy("id")
       .forShare()
       .execute();
-    await trx
-      .updateTable("simulations")
-      .set({ state: "running", started_at: now })
-      .where("id", "=", simulationId)
-      .execute();
+    if (!(await markRunning(trx, simulationId, now))) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: "another_running" });
+      return refused("another_running");
+    }
     await recordAudit(trx, { ...event, outcome: "success" });
     return done(null);
   });

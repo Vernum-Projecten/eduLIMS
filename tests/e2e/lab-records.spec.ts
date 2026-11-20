@@ -282,7 +282,9 @@ test("a student shows the lab of their running simulation, with no picker and no
   // One simulation at a time: the first one is finished before the student joins the second.
   const seeded = await seedLabRecords(id, "finished");
   const second = await seedSecondLab(seeded.student.id, id);
-  const foreign = await seedForeignLab(id);
+  // R-01: a classmate's lab in the same running simulation, and a lab of a finished one.
+  const foreign = await seedForeignLab(id, second.simulationId);
+  const finishedForeign = await seedForeignLab(`${id}-F`);
   await devLogin(page, seeded.student.email);
   await openRecords(page);
   const current = page.getByText(`${second.lab}, in ${second.simulation}`, { exact: true });
@@ -291,7 +293,7 @@ test("a student shows the lab of their running simulation, with no picker and no
   await expect(page.getByText(`${seeded.lab}, in ${seeded.simulation}`)).toHaveCount(0);
   await axe(page);
   // A lab id in the URL changes nothing: the server picks the lab.
-  for (const lab of [seeded.labId, foreign]) {
+  for (const lab of [seeded.labId, foreign, finishedForeign]) {
     await page.goto(`/student/patients?lab=${lab}`);
     await expect(current).toBeVisible();
     await expect(page.getByText(`Foreign lab ${id}`)).toHaveCount(0);

@@ -7,6 +7,7 @@
 import type { Pool, PoolClient } from "pg";
 import { afterEach, describe, expect, it } from "vitest";
 import { retireTest, updateTest } from "../catalogue/actions.ts";
+import { asAdmin } from "../catalogue/test-helpers.ts";
 import { type CommittedTestDb, createCommittedTestDb } from "../db/test-committed-db.ts";
 import { finishSimulation, startSimulation } from "../simulations/state.ts";
 import { findWorkingStudentLab } from "../simulations/student-access.ts";
@@ -57,7 +58,7 @@ describe("a start and a catalogue edit at once (D9, #267)", () => {
     const start = startSimulation(db, w.teacher, { simulationId: w.simulationId }, NOW);
     await waitForLockWaiters(pool, 1);
     const edit = updateTest(
-      { db, actor: w.coTeacher, now: NOW },
+      { db, actor: asAdmin(w.coTeacher), now: NOW },
       {
         testId,
         test: {
@@ -147,7 +148,7 @@ describe("a first value and a retirement at once (D9, #341 review S4)", () => {
     holder = await pool.connect();
     await holder.query("begin");
     await holder.query("lock table audit_event in share mode");
-    const retire = retireTest({ db, actor: w.coTeacher, now: NOW }, { testId });
+    const retire = retireTest({ db, actor: asAdmin(w.coTeacher), now: NOW }, { testId });
     await waitForLockWaiters(pool, 1);
     const value = setCorrectValues(
       db,

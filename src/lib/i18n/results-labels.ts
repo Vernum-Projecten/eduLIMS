@@ -8,6 +8,7 @@ import { m } from "@/i18n/messages";
 import { formatDecimal } from "@/lib/i18n/format";
 import type { MeasurementSource, PatientRecordState, RequestedTestState } from "@/lib/results";
 import { checkMeasuredValue, type ToleranceCheck } from "@/lib/tolerance";
+import { unitSymbol } from "@/lib/ucum";
 import type { ResultsActionError } from "@/server/results/access";
 
 /** Returns the translated message of a refusal; `null` (no refusal code) is a failure. */
@@ -139,7 +140,7 @@ export function releaseVerdict(
   const limits = {
     lower: formatDecimal(tolerance.lower),
     upper: formatDecimal(tolerance.upper),
-    unit: unit ?? "",
+    unit: unitSymbol(unit),
   };
   const warning = toleranceWarning(check, limits);
   return warning === null

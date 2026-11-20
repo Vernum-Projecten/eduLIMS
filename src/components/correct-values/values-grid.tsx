@@ -44,6 +44,7 @@ import { parseDecimal } from "@/lib/decimal";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
 import { formatDecimal } from "@/lib/i18n/format";
 import { missingLimitsMessage, simulationErrorMessage } from "@/lib/i18n/simulation-labels";
+import { unitSymbol } from "@/lib/ucum";
 import { removeCorrectValueFn, setCorrectValuesFn } from "@/server/correct-values/functions";
 import type { CorrectValueEntry, CorrectValuesPage } from "@/server/correct-values/queries";
 import {
@@ -243,7 +244,10 @@ export function ValuesGrid({
                 <TableHead key={test.id} scope="col" className="min-w-40 whitespace-normal">
                   <span className="font-semibold">{test.name}</span>
                   {test.unit && (
-                    <span className="font-normal text-muted-foreground"> ({test.unit})</span>
+                    <span className="font-normal text-muted-foreground">
+                      {" "}
+                      ({unitSymbol(test.unit)})
+                    </span>
                   )}
                 </TableHead>
               ))}
@@ -321,7 +325,7 @@ export function ValuesGrid({
                           tabIndex={current.row === row && current.column === column ? 0 : -1}
                           aria-label={`${name}: ${
                             entry
-                              ? `${formatDecimal(entry.value)}${test.unit ? ` ${test.unit}` : ""}`
+                              ? `${formatDecimal(entry.value)}${test.unit ? ` ${unitSymbol(test.unit)}` : ""}`
                               : m.correct_values_grid_no_value()
                           }`}
                           className="w-full justify-start tabular-nums"
@@ -333,7 +337,7 @@ export function ValuesGrid({
                           onKeyDown={(event) => onKeyDown(event, at)}
                         >
                           {entry ? (
-                            `${formatDecimal(entry.value)}${test.unit ? ` ${test.unit}` : ""}`
+                            `${formatDecimal(entry.value)}${test.unit ? ` ${unitSymbol(test.unit)}` : ""}`
                           ) : (
                             <span aria-hidden="true" className="text-muted-foreground">
                               –
@@ -408,7 +412,7 @@ function CellEditor({
     const input = document.getElementById(fieldId);
     if (input instanceof HTMLInputElement) input.select();
   }, [fieldId]);
-  const unit = test.unit ? ` ${test.unit}` : "";
+  const unit = test.unit ? ` ${unitSymbol(test.unit)}` : "";
   const initial = { value: entry ? formatDecimal(entry.value) : "" };
   const form = useAppForm({
     defaultValues: initial,

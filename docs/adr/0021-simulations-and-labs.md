@@ -140,6 +140,19 @@ line. The primary key (simulation, student) stays: it keeps one lab per
 simulation, finished simulations included. The Student portal shows one lab
 without a picker, and the server resolves it.
 
+## Amendment: one running simulation at a time (2026-11-20)
+
+The owner decided on #386 that only one simulation runs at a time: a
+simulation is usually held once a year, so two at once make no sense, and the
+teacher dashboard shows the one running simulation without a picker. Prepared
+and finished simulations exist next to it (next year's being prepared, last
+year's kept). The start refuses a second running simulation with
+`another_running`, logged, and names no other simulation or teacher. The
+partial unique index `simulations_one_running` (migration
+`0030_one_running_simulation`) holds the rule as the last line: when two
+starts race, the second waits for the first and its update fails on the
+index, which the start turns into the same refusal inside a savepoint.
+
 ## References
 
 - [Requirements](../requirements.md): S10, D10, D15, B2 (dropped), B5, O10

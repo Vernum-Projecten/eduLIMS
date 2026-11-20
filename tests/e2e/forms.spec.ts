@@ -47,16 +47,18 @@ function testGroup(page: Page, position: number): Locator {
   return request(page).getByRole("group", { name: `Test ${position}`, exact: true });
 }
 
-test("the forms page has its title, one h1 and two named forms (#61)", async ({ page }) => {
+test("the forms page has its title, one h1 and three named forms (#61, #404)", async ({ page }) => {
   const response = await page.goto("/dev/forms");
   expect(response?.status()).toBe(200);
   await expect(page).toHaveTitle("Form foundation | eduLIMS");
   await expect(page.getByRole("heading", { level: 1, name: "Form foundation" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2 })).toHaveText([
     "Request editor",
+    "A searchable select: the unit",
     "Every field",
   ]);
   await expect(page.getByRole("form", { name: "Request editor" })).toBeVisible();
+  await expect(page.getByRole("form", { name: "A searchable select: the unit" })).toBeVisible();
   await expect(page.getByRole("form", { name: "Every field" })).toBeVisible();
 });
 

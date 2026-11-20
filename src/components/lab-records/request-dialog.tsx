@@ -30,6 +30,7 @@ import {
   REQUESTER_MAX,
   SAMPLE_MATERIAL_MAX,
 } from "@/lib/lab-records";
+import { unitSymbol } from "@/lib/ucum";
 import { correctRequestFn, recordRequestFn } from "@/server/lab-records/functions";
 import type { LabRecords, RequestableTest, RequestRow } from "@/server/lab-records/queries";
 import { recordsErrorCode } from "@/server/lab-records/query-options";
@@ -123,7 +124,9 @@ export function RequestDialog({
       const kept = named.some((t) => t.id === test.id);
       return {
         value: test.id,
-        label: test.unit ? m.records_test_option({ test: test.name, unit: test.unit }) : test.name,
+        label: test.unit
+          ? m.records_test_option({ test: test.name, unit: unitSymbol(test.unit) })
+          : test.name,
         ...(kept ? { disabled: true, description: m.records_test_kept() } : {}),
       };
     });
