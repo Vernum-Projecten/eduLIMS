@@ -22,7 +22,13 @@ export interface CorrectionEntry {
   id: string;
   labId: string;
   labName: string;
-  target: { kind: "patient"; patientId: string } | { kind: "request"; requestId: string };
+  /**
+   * The record it is about, named for the teacher (maintainer, 2026-11-20): a patient by its
+   * fictional name (S11), a request by the lab numbers of its samples in the order recorded.
+   */
+  target:
+    | { kind: "patient"; patientId: string; name: string }
+    | { kind: "request"; requestId: string; labNumbers: string[] };
   /** The name of the student who corrected, or `null` when the account is gone. */
   correctedBy: string | null;
   /** ISO 8601, from the database clock. */
@@ -41,11 +47,19 @@ export interface CorrectionLog {
 
 /** Returns what a correction is about; the `record_corrections_target` CHECK holds exactly one. */
 function correctionTarget(
-  patientId: string | null,
-  requestId: string | null,
+  row: { patient_id: string | null; patient_name: string | null; request_id: string | null },
+  labNumbers: ReadonlyMap<string, string[]>,
 ): CorrectionEntry["target"] {
-  if (patientId !== null) return { kind: "patient", patientId };
-  if (requestId !== null) return { kind: "request", requestId };
+  if (row.patient_id !== null && row.patient_name !== null) {
+    return { kind: "patient", patientId: row.patient_id, name: row.patient_name };
+  }
+  if (row.request_id !== null) {
+    return {
+      kind: "request",
+      requestId: row.request_id,
+      labNumbers: labNumbers.get(row.request_id) ?? [],
+    };
+  }
   throw new Error("the database holds a correction about nothing");
 }
 
@@ -71,11 +85,13 @@ export async function readCorrectionLog(
           .leftJoin("record_corrections", "record_corrections.simulation_id", "simulations.id")
           .leftJoin("labs", "labs.id", "record_corrections.lab_id")
           .leftJoin("user", "user.id", "record_corrections.corrected_by")
+          .leftJoin("patients", "patients.id", "record_corrections.patient_id")
           .select([
             "record_corrections.id",
             "record_corrections.lab_id",
             "labs.name as lab_name",
             "record_corrections.patient_id",
+            "patients.name as patient_name",
             "record_corrections.request_id",
             "record_corrections.corrected_at",
             "record_corrections.changes",
@@ -91,14 +107,33 @@ export async function readCorrectionLog(
     logNotFound(actor.id, "simulation", simulationId);
     return null;
   }
+  const shown = rows.slice(0, CORRECTION_LOG_MAX);
+  const requestIds = shown.flatMap((row) => (row.request_id === null ? [] : [row.request_id]));
+  const samples =
+    requestIds.length === 0
+      ? []
+      : await db
+          .selectFrom("samples")
+          .select(["request_id", "lab_number"])
+          .where("request_id", "in", [...new Set(requestIds)])
+          .orderBy("created_at")
+          .orderBy("id")
+          .execute();
+  const labNumbers = new Map<string, string[]>();
+  for (const sample of samples) {
+    labNumbers.set(sample.request_id, [
+      ...(labNumbers.get(sample.request_id) ?? []),
+      sample.lab_number,
+    ]);
+  }
   const entries: CorrectionEntry[] = [];
-  for (const row of rows.slice(0, CORRECTION_LOG_MAX)) {
+  for (const row of shown) {
     // The left join gives one row of nulls for a simulation without corrections.
     if (row.id === null) continue;
     if (row.lab_id === null || row.lab_name === null || row.corrected_at === null) {
       throw new Error("the database holds a correction without its lab");
     }
-    const target = correctionTarget(row.patient_id, row.request_id);
+    const target = correctionTarget(row, labNumbers);
     entries.push({
       id: row.id,
       labId: row.lab_id,

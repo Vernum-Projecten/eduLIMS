@@ -466,6 +466,15 @@ A team's records from the paper request form live in the eduLIMS database
 - **The catalogue.** A request reads its tests `FOR SHARE` in id order, so a
   catalogue edit, which holds the test `FOR UPDATE`, serialises with it, and
   a test a request names counts as used (running while its simulation runs).
+- **Screens.** The Student portal's Patients and requests page shows one of
+  the student's labs at a time (`?lab=`, the newest by default), its
+  patients and its requests with every sample's lab number in groups of
+  three, three and four digits. The copy action copies the digits and says
+  so in a status region (WCAG 4.1.3). Writing is open only while the
+  simulation runs. The date of birth is the browser's native date input,
+  shown in the reader's locale and sent as `YYYY-MM-DD`. The correction log
+  is a section of the teacher's simulation page; it names a patient by its
+  fictional name and a request by its samples' lab numbers.
 - **FerroEHR.** Registering a patient returns the subject of its EHR (the
   form's details and the patient's id, nothing about the lab or a student);
   #147 creates the EHR from it after the transaction commits.

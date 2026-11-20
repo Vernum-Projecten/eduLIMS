@@ -9,7 +9,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { DB } from "../db/schema.gen.ts";
 import { createTestDb } from "../db/test-db.ts";
 import { AuthError } from "../middleware.ts";
-import { securityLines } from "../simulations/test-helpers.ts";
+import { finishSimulation } from "../simulations/state.ts";
+import { NOW, securityLines } from "../simulations/test-helpers.ts";
 import { readCorrectionLog } from "./correction-log.ts";
 import { correctPatient } from "./patients.ts";
 import { listRequestableTests, readLabRecords } from "./queries.ts";
@@ -53,6 +54,15 @@ describe("readLabRecords (S10, S11, S12)", () => {
         samples: recorded.samples.map((sample) => ({ ...sample, material: "whole blood" })),
       },
     ]);
+  });
+
+  it("says whether the simulation runs, and still reads once it finished (#267)", async () => {
+    const { db: database, w } = await open();
+    expect((await readLabRecords(database, w.student, w.labId))?.running).toBe(true);
+    await finishSimulation(database, w.teacher, { simulationId: w.simulationId }, NOW);
+    const records = await readLabRecords(database, w.student, w.labId);
+    expect(records?.running).toBe(false);
+    expect(records?.patients).toHaveLength(1);
   });
 
   it("marks a patient and a request locked once a result is released", async () => {
@@ -132,7 +142,7 @@ describe("readCorrectionLog (S11, S12, D10)", () => {
         expect.objectContaining({
           labId: w.labId,
           labName: "Pipette Pilots",
-          target: { kind: "patient", patientId },
+          target: { kind: "patient", patientId, name: "Ada Corrected" },
           correctedBy: "Test student-1",
           changes: [{ field: "name", before: PATIENT.name, after: "Ada Corrected" }],
         }),
@@ -158,6 +168,14 @@ describe("readCorrectionLog (S11, S12, D10)", () => {
     });
     const log = await readCorrectionLog(database, w.teacher, w.simulationId);
     expect(log?.testNames).toEqual({ [w.hba1c]: "HbA1c (invented)", [w.crp]: "CRP (invented)" });
+    // A request is named by the lab numbers of its samples (maintainer, 2026-11-20).
+    expect(log?.entries.map((entry) => entry.target)).toEqual([
+      {
+        kind: "request",
+        requestId: recorded.requestId,
+        labNumbers: recorded.samples.map((sample) => sample.labNumber),
+      },
+    ]);
   });
 
   it("returns an empty log for a simulation without corrections", async () => {
