@@ -25,7 +25,7 @@ const INTEGRATION_STATUS_SPEC = /admin-integrations\.spec\.ts$/;
 const SCIM_SPEC = /admin-scim\.spec\.ts$/;
 // The journeys that need a running simulation: only one runs at a time (#386).
 const RUNNING_SIMULATION_SPECS =
-  /(correct-values|lab-records|one-running-simulation|results|tolerances)\.spec\.ts$/;
+  /(correct-values|gen5-upload|lab-records|one-running-simulation|results|tolerances)\.spec\.ts$/;
 
 // The web server's setup, each step with its own bound (#248). Measured on CI and on a loaded
 // developer machine (load average 10 on 18 cores): the run database 1 to 1.5 s, `pnpm db:reset`
