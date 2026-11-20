@@ -202,7 +202,7 @@ export function createAuth(env: Env, database: AuthDatabase = getPool()) {
         },
       }),
       ssoGuards(db),
-      adminEndpointLock(),
+      adminEndpointLock({ trustedProxies: env.EDULIMS_TRUSTED_PROXIES }),
       // Simulations and labs (ADR 0021): the link of waiting addresses at sign-in (S10).
       labSignInLink(db),
       // Answers 501 when SCIM cannot run here; rate limit, size cap and activity log (#45).

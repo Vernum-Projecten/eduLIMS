@@ -7,6 +7,7 @@ import type { Kysely } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Auth } from "../auth.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { RefusalDeduper } from "../scim/audit.ts";
 import { CLOSED_AUTH_PATHS, HTTP_CLOSED_AUTH_PATHS } from "./admin-endpoint-lock.ts";
 import { authOnTestDb, createUser, signIn } from "./test-helpers.ts";
 
@@ -179,14 +180,43 @@ describe("a call to a closed endpoint is logged (#356 review, S1, V16.3.2)", () 
     ]);
   });
 
-  it("logs a call without a session as anonymous", async () => {
+  it("logs a call without a session as anonymous, with no target (second review, S4)", async () => {
     const { auth, database, victimId } = await setup();
     await expect(
       auth.api.setRole({ body: { userId: victimId, role: "teacher" }, headers: new Headers() }),
     ).rejects.toMatchObject({ statusCode: 404 });
     expect(await closedRows(database)).toEqual([
-      expect.objectContaining({ actor_type: "anonymous", actor_id: null, target_id: victimId }),
+      expect.objectContaining({ actor_type: "anonymous", actor_id: null, target_id: null }),
     ]);
+  });
+
+  it("logs many anonymous calls of one client in a minute as one row (second review, S4)", async () => {
+    const { auth, database, victimId } = await setup();
+    for (let call = 0; call < 5; call += 1) {
+      const response = await auth.handler(
+        request("/admin/set-role", "POST", new Headers(), { userId: victimId, role: "admin" }),
+      );
+      expect(response.status).toBe(404);
+    }
+    const rows = await database
+      .selectFrom("audit_event")
+      .select(["actor_type", "target_id", "metadata"])
+      .where("action", "=", "authz_endpoint_closed")
+      .orderBy("id")
+      .execute();
+    expect(rows).toEqual([
+      { actor_type: "anonymous", target_id: null, metadata: { refused_count: 1 } },
+    ]);
+  });
+});
+
+describe("the deduplication of anonymous calls (second review of #356, S4)", () => {
+  it("counts the calls left out in the next row of the same client", () => {
+    const deduper = new RefusalDeduper(60_000);
+    expect(deduper.next("ip:unknown", 0)).toBe(1);
+    expect(deduper.next("ip:unknown", 1_000)).toBeNull();
+    expect(deduper.next("ip:unknown", 2_000)).toBeNull();
+    expect(deduper.next("ip:unknown", 60_000)).toBe(3);
   });
 });
 

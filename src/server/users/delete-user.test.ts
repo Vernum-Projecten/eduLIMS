@@ -12,12 +12,7 @@ import { setSecurityLogWriter } from "../security-log.ts";
 import { createLab } from "../simulations/labs.ts";
 import { createSimulation } from "../simulations/simulations.ts";
 import { NOW } from "../simulations/test-helpers.ts";
-import {
-  deleteUser,
-  isOnlyTeacherOfASimulation,
-  LAST_ADMIN,
-  ONLY_SIMULATION_TEACHER,
-} from "./delete-user.ts";
+import { deleteUser, isOnlyTeacherOfASimulation, ONLY_SIMULATION_TEACHER } from "./delete-user.ts";
 import { authOnTestDb, createUser, signedInActor, signIn } from "./test-helpers.ts";
 
 let db: Kysely<DB> | undefined;
@@ -262,8 +257,8 @@ describe("deleteUser keeps an administrator (maintainer, 2026-11-20, #318)", () 
     const { auth, db: database, admin } = await setup();
     const lastId = await createUser(auth, "last-admin@example.test", ["admin"]);
     await signIn(auth, "last-admin@example.test");
-    // The caller was blocked after signing in, so the target is the only administrator left who
-    // is not blocked (#356 review, S3).
+    // The caller was blocked after signing in: a blocked administrator acts no more, so the
+    // only administrator left who is not blocked keeps everything (#356, S2 and S3).
     await database
       .updateTable("user")
       .set({ banned: true, banExpires: null })
@@ -271,11 +266,15 @@ describe("deleteUser keeps an administrator (maintainer, 2026-11-20, #318)", () 
       .execute();
     const before = await rowsOf(database, lastId);
     expect(before).toEqual({ user: 1, accounts: 1, sessions: 1 });
-    expect(await deleteUser(admin, { userId: lastId })).toEqual({ ok: false, error: LAST_ADMIN });
+    await expect(deleteUser(admin, { userId: lastId })).rejects.toThrow(AuthError);
     expect(await rowsOf(database, lastId)).toEqual(before);
     expect(await events(database, "session_revoked")).toEqual([]);
     expect(await events(database, "user_deleted")).toEqual([
-      expect.objectContaining({ target_id: lastId, outcome: "refused", reason_code: LAST_ADMIN }),
+      expect.objectContaining({
+        target_id: lastId,
+        outcome: "refused",
+        reason_code: "not_an_admin",
+      }),
     ]);
   });
 

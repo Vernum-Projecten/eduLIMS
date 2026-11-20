@@ -9,6 +9,8 @@ import "@tanstack/react-start/server-only";
 import type { BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { auditRecorderOf, requestIdOf } from "../audit/better-auth-hooks.ts";
+import { clientIpOf } from "../client-ip.ts";
+import { RefusalDeduper } from "../scim/audit.ts";
 
 /**
  * The better-auth paths that answer 404 over HTTP and on `auth.api`. The admin plugin's
@@ -48,12 +50,30 @@ function userIdOf(body: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 && value.length <= 128 ? value : undefined;
 }
 
+function headersOf(ctx: unknown): Headers | undefined {
+  const field = (value: unknown, key: string): unknown =>
+    typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
+  const headers = field(ctx, "headers") ?? field(field(ctx, "request"), "headers");
+  return headers instanceof Headers ? headers : undefined;
+}
+
+/** What {@link adminEndpointLock} reads the client address with. */
+export interface AdminEndpointLockOptions {
+  /** `EDULIMS_TRUSTED_PROXIES`: without one, every anonymous caller is one client. */
+  trustedProxies: readonly string[];
+  /** Remembers the anonymous clients logged in the current minute; one per plugin by default. */
+  deduper?: RefusalDeduper;
+}
+
 /**
  * Returns the plugin that refuses {@link CLOSED_AUTH_PATHS} with 404, over HTTP and on
- * `auth.api`, and records each call as a refused `authz_endpoint_closed` row with the caller's
- * id when there is a session (ASVS V16.3.2).
+ * `auth.api`, and records each call as a refused `authz_endpoint_closed` row (ASVS V16.3.2). A
+ * signed-in caller's row carries their id and the user the call named; an anonymous caller's row
+ * carries no target and is written once per client per minute, with the calls it stands for in
+ * `refused_count`, so anonymous calls cannot fill the log (second review of #356, S4).
  */
-export function adminEndpointLock() {
+export function adminEndpointLock(options: AdminEndpointLockOptions) {
+  const deduper = options.deduper ?? new RefusalDeduper(60_000);
   return {
     id: "edulims-admin-endpoint-lock",
     hooks: {
@@ -62,16 +82,33 @@ export function adminEndpointLock() {
           matcher: (ctx) => isClosed(ctx.path),
           handler: createAuthMiddleware(async (ctx) => {
             const session = await getSessionFromCtx(ctx);
-            const target = userIdOf(ctx.body);
             const requestId = requestIdOf(ctx);
-            await auditRecorderOf(ctx.context)?.record({
+            const recorder = auditRecorderOf(ctx.context);
+            const common = {
               action: "authz_endpoint_closed",
-              actor: session ? { type: "user", id: session.user.id } : { type: "anonymous" },
               outcome: "refused",
               reason: ENDPOINT_CLOSED,
-              ...(target ? { target: { type: "user", id: target } } : {}),
               ...(requestId ? { requestId } : {}),
-            });
+            } as const;
+            if (session) {
+              const target = userIdOf(ctx.body);
+              await recorder?.record({
+                ...common,
+                actor: { type: "user", id: session.user.id },
+                ...(target ? { target: { type: "user", id: target } } : {}),
+              });
+            } else {
+              const headers = headersOf(ctx);
+              const ip = headers ? clientIpOf(headers, options.trustedProxies) : null;
+              const count = deduper.next(`ip:${ip ?? "unknown"}`);
+              if (count !== null) {
+                await recorder?.record({
+                  ...common,
+                  actor: { type: "anonymous" },
+                  metadata: { refused_count: count },
+                });
+              }
+            }
             throw new APIError("NOT_FOUND", { code: "not_found", message: "Not Found" });
           }),
         },

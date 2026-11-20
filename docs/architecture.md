@@ -361,9 +361,14 @@ student's place and a waiting address point at their lab through the pair
   and in the same order, before they read the target and count
   (`src/server/users/administrators.ts`, #345, #356). A blocked administrator
   does not count, so two of them, or one and a deletion, never leave eduLIMS
-  without an administrator who can sign in. Under the same locks each of
-  them checks that the acting administrator still holds the role, and
-  refuses with 403 when not. The local role edit
+  without an administrator who can sign in; a deprovisioned administrator
+  does not count either (maintainer, second review of #356). Under the same
+  locks each of them checks that the acting administrator still holds the
+  role and is neither blocked nor deprovisioned, and refuses with 403 when
+  not. The global lock order is simulations, administrators, other users:
+  `removeTeacher` takes the administrator locks after the simulation lock
+  and before the teachers' rows. The session read ends a session of a
+  blocked user, so a sign-in that raced a block keeps none. The local role edit
   and `admin revoke` end the sessions of a user who loses a role, each with
   a `session_revoked` row, so their next request signs in with the new set.
   The rule binds eduLIMS's own paths only: an identity provider stays

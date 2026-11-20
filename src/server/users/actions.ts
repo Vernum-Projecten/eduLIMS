@@ -18,7 +18,7 @@ import {
   validateRoleSet,
   validateRoleValue,
 } from "../../lib/roles.ts";
-import type { AuditEvent } from "../audit/events.ts";
+import { type AuditEvent, toRequestId } from "../audit/events.ts";
 import { recordAudit, recordCommittedAudit } from "../audit/record.ts";
 import type { Auth } from "../auth.ts";
 import { hasRole, type SessionUser } from "../authz.ts";
@@ -106,13 +106,20 @@ type Refusal =
   | { action: "user_banned" | "authz_role_change"; target: { type: "user"; id: string } }
   | { action: "session_revoked"; target: { type: "session"; id: string } };
 
+/** Returns the request id of the administrator's request, as `requestId` fields to spread. */
+function requestOf(ctx: ActionContext): { requestId?: string } {
+  const requestId = toRequestId(ctx.headers.get("x-request-id"));
+  return requestId ? { requestId } : {};
+}
+
 /** Records a refused action of the administrator in the activity log (A09, B4). */
 function refusal(ctx: ActionContext, event: Refusal, reason: string): Promise<void> {
   const actor = { type: "user", id: ctx.actor.id } as const;
+  const common = { actor, outcome: "refused", reason, ...requestOf(ctx) } as const;
   const logged: AuditEvent =
     event.action === "session_revoked"
-      ? { action: event.action, target: event.target, actor, outcome: "refused", reason }
-      : { action: event.action, target: event.target, actor, outcome: "refused", reason };
+      ? { action: event.action, target: event.target, ...common }
+      : { action: event.action, target: event.target, ...common };
   return recordCommittedAudit(ctx.db, logged);
 }
 
@@ -166,7 +173,7 @@ export async function blockUser(
   // the last-administrator rule and the ban share one transaction and its locks.
   const outcome = await ctx.db.transaction().execute(async (trx): Promise<LockedOutcome> => {
     const locks = await lockForRoleChange(trx, input.userId);
-    if (!actorIsAdministrator(locks, ctx.actor.id)) return ACTOR_NOT_ADMIN;
+    if (!actorIsAdministrator(locks, ctx.actor.id, ctx.now)) return ACTOR_NOT_ADMIN;
     if (!locks.user) return refused("not_found");
     if (holdsAdmin(locks.user.role) && (await isLastAdministrator(trx, input.userId, ctx.now))) {
       return refused(LAST_ADMIN);
@@ -188,6 +195,7 @@ export async function blockUser(
         outcome: "success",
         target: { type: "session", id: session.id },
         reason: "user_banned",
+        ...requestOf(ctx),
       });
     }
     await recordAudit(trx, {
@@ -195,6 +203,7 @@ export async function blockUser(
       actor,
       outcome: "success",
       target,
+      ...requestOf(ctx),
       ...(banExpires ? { metadata: { ban_expires_at: banExpires.toISOString() } } : {}),
     });
     return DONE;
@@ -321,7 +330,7 @@ export async function setLocalRoles(
     // NOTE: #345; the administrators are locked in id order before the target, as deleteUser
     // does, so two administrators who take the role from each other cannot both pass.
     const locks = await lockForRoleChange(trx, input.userId);
-    if (!actorIsAdministrator(locks, ctx.actor.id)) return ACTOR_NOT_ADMIN;
+    if (!actorIsAdministrator(locks, ctx.actor.id, ctx.now)) return ACTOR_NOT_ADMIN;
     const { user } = locks;
     if (!user) return refused("not_found");
     if (!isLocallyEditable(parseRoleSource(user.role_source))) return refused("roles_not_local");
@@ -345,6 +354,7 @@ export async function setLocalRoles(
       actor: { type: "user", id: ctx.actor.id },
       outcome: "success",
       target,
+      ...requestOf(ctx),
       metadata: {
         roles: role,
         ...(previous.ok ? { previous_roles: formatRoles(previous.roles) } : {}),
@@ -353,7 +363,12 @@ export async function setLocalRoles(
     // NOTE: maintainer decision on #345; a removed role ends the live sessions, as `admin revoke`
     // does, so the next request signs in with the new set.
     if (previous.ok && previous.roles.some((held) => !validated.roles.includes(held))) {
-      await revokeSessionsForRoleChange(trx, input.userId, { type: "user", id: ctx.actor.id });
+      await revokeSessionsForRoleChange(
+        trx,
+        input.userId,
+        { type: "user", id: ctx.actor.id },
+        requestOf(ctx).requestId,
+      );
     }
     return DONE;
   });

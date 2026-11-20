@@ -115,7 +115,7 @@ async function deleteInTransaction(
   await lockTaughtSimulations(trx, userId);
   const locks = await lockForRoleChange(trx, userId);
   // NOTE: #356 review (N3); the actor's role is judged again under the locks, not from the session.
-  if (!actorIsAdministrator(locks, actor.id)) return { ok: false, error: NOT_AN_ADMIN };
+  if (!actorIsAdministrator(locks, actor.id, now)) return { ok: false, error: NOT_AN_ADMIN };
   const { user } = locks;
   if (!user) return { ok: false, error: "not_found" };
   if (await isOnlyTeacherOfASimulation(trx, userId)) {

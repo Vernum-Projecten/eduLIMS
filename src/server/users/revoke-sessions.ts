@@ -21,6 +21,7 @@ export async function revokeSessionsForRoleChange(
   trx: Kysely<DB>,
   userId: string,
   actor: AuditActor,
+  requestId?: string,
 ): Promise<void> {
   const sessions = await trx
     .deleteFrom("session")
@@ -34,6 +35,7 @@ export async function revokeSessionsForRoleChange(
       outcome: "success",
       target: { type: "session", id: session.id },
       reason: ROLES_CHANGED,
+      ...(requestId ? { requestId } : {}),
     });
   }
 }

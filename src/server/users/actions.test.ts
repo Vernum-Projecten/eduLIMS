@@ -197,19 +197,19 @@ describe("blockUser (owner decision on #32)", () => {
     expect(row.banned).toBe(true);
   });
 
-  it("never blocks the last administrator who is not blocked, and logs it (#356 review, S3)", async () => {
+  it("never lets a blocked actor block the last administrator, and logs it (#356, S2 and S3)", async () => {
     const { auth, db: database, admin } = await setup();
     const target = await createUser(auth, "other-admin@example.test", ["teacher", "admin"]);
     await signIn(auth, "other-admin@example.test");
+    // The actor was blocked while the request ran: a blocked administrator acts no more (S2).
     await database
       .updateTable("user")
       .set({ banned: true, banExpires: null })
       .where("id", "=", admin.actor.id)
       .execute();
-    expect(await blockUser(admin, { userId: target, reason: "x", until: "" })).toEqual({
-      ok: false,
-      error: "last_admin",
-    });
+    await expect(blockUser(admin, { userId: target, reason: "x", until: "" })).rejects.toThrow(
+      AuthError,
+    );
     const row = await database
       .selectFrom("user")
       .select("banned")
@@ -218,7 +218,11 @@ describe("blockUser (owner decision on #32)", () => {
     expect(row.banned).toBe(false);
     expect(await sessionsOf(database, target)).toHaveLength(1);
     expect(await events(database, "user_banned")).toEqual([
-      expect.objectContaining({ outcome: "refused", reason_code: "last_admin", target_id: target }),
+      expect.objectContaining({
+        outcome: "refused",
+        reason_code: "not_an_admin",
+        target_id: target,
+      }),
     ]);
   });
 
@@ -235,6 +239,43 @@ describe("blockUser (owner decision on #32)", () => {
     );
     expect(await events(database, "user_banned")).toEqual([
       expect.objectContaining({ outcome: "refused", reason_code: "not_an_admin" }),
+    ]);
+  });
+
+  it("refuses a deprovisioned actor with 403 (second review of #356, N3)", async () => {
+    const { auth, db: database, admin } = await setup();
+    const target = await createUser(auth, "target@example.test", ["student"]);
+    await database
+      .updateTable("user")
+      .set({ deprovisioned_at: new Date() })
+      .where("id", "=", admin.actor.id)
+      .execute();
+    await expect(blockUser(admin, { userId: target, reason: "x", until: "" })).rejects.toThrow(
+      AuthError,
+    );
+    expect(await events(database, "user_banned")).toEqual([
+      expect.objectContaining({ outcome: "refused", reason_code: "not_an_admin" }),
+    ]);
+  });
+
+  it("carries the request id on every row it writes (second review of #356, N1)", async () => {
+    const { auth, db: database, admin } = await setup();
+    const target = await createUser(auth, "target@example.test", ["student"]);
+    await signIn(auth, "target@example.test");
+    const headers = new Headers(admin.headers);
+    headers.set("x-request-id", "req-block-1");
+    await blockUser({ ...admin, headers }, { userId: target, reason: "x", until: "" });
+    await blockUser({ ...admin, headers }, { userId: admin.actor.id, reason: "x", until: "" });
+    const rows = await database
+      .selectFrom("audit_event")
+      .select(["action", "outcome", "request_id"])
+      .where("action", "in", ["user_banned", "session_revoked"])
+      .orderBy("id")
+      .execute();
+    expect(rows).toEqual([
+      { action: "session_revoked", outcome: "success", request_id: "req-block-1" },
+      { action: "user_banned", outcome: "success", request_id: "req-block-1" },
+      { action: "user_banned", outcome: "refused", request_id: "req-block-1" },
     ]);
   });
 
@@ -416,17 +457,16 @@ describe("setLocalRoles (hybrid role ownership, owner decision on #32)", () => {
   it("never takes the admin role from the last administrator, and logs the refusal (#345)", async () => {
     const { auth, db: database, admin } = await setup();
     const target = await createUser(auth, "target@example.test", ["teacher", "admin"]);
-    // The actor was blocked while their request was on its way, so the target is the last
-    // administrator who is not blocked (#356 review, S3).
+    // The actor was blocked while their request was on its way: a blocked administrator acts no
+    // more, so the last administrator who is not blocked keeps the role (#356, S2 and S3).
     await database
       .updateTable("user")
       .set({ banned: true, banExpires: null })
       .where("id", "=", admin.actor.id)
       .execute();
-    expect(await setLocalRoles(admin, { userId: target, roles: ["teacher"] })).toEqual({
-      ok: false,
-      error: "last_admin",
-    });
+    await expect(setLocalRoles(admin, { userId: target, roles: ["teacher"] })).rejects.toThrow(
+      AuthError,
+    );
     const row = await database
       .selectFrom("user")
       .select("role")
@@ -434,7 +474,11 @@ describe("setLocalRoles (hybrid role ownership, owner decision on #32)", () => {
       .executeTakeFirstOrThrow();
     expect(row.role).toBe("teacher,admin");
     expect(await events(database, "authz_role_change")).toEqual([
-      expect.objectContaining({ outcome: "refused", reason_code: "last_admin", target_id: target }),
+      expect.objectContaining({
+        outcome: "refused",
+        reason_code: "not_an_admin",
+        target_id: target,
+      }),
     ]);
   });
 

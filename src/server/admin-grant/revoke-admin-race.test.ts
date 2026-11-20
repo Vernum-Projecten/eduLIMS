@@ -15,7 +15,7 @@ import { parseEnv } from "../env.ts";
 import { AuthError } from "../middleware.ts";
 import { createTestAuth } from "../test-auth.ts";
 import { VALID_ENV } from "../test-env.ts";
-import { type AdminActionResult, blockUser, setLocalRoles } from "../users/actions.ts";
+import { blockUser, setLocalRoles } from "../users/actions.ts";
 import { isBlocked, NOT_AN_ADMIN } from "../users/administrators.ts";
 import { type DeleteUserResult, deleteUser, LAST_ADMIN } from "../users/delete-user.ts";
 import { insertSignedInUser } from "../users/test-helpers.ts";
@@ -149,6 +149,7 @@ describe("a revocation and a deletion of the last two administrators (#345)", ()
     );
     expect(revoked).toEqual({ ok: true, kind: "revoked" });
     expect(deleted).toBeInstanceOf(AuthError);
+    expect(deleted).toMatchObject({ status: 403 });
     expect(await administrators(db)).toEqual([second.id]);
     expect(await stateOf(db, second.id)).toEqual(before);
     expect(await refusals(db)).toEqual([
@@ -197,6 +198,7 @@ describe("two administrators who take the admin role from each other (#345)", ()
     );
     expect(one).toEqual({ ok: true });
     expect(two).toBeInstanceOf(AuthError);
+    expect(two).toMatchObject({ status: 403 });
     expect(await administrators(db)).toEqual([first.id]);
     expect(await stateOf(db, first.id)).toEqual(before);
     expect(await refusals(db)).toEqual([
@@ -219,6 +221,7 @@ describe("two administrators who take the admin role from each other (#345)", ()
     );
     expect(revoked).toEqual({ ok: true, kind: "revoked" });
     expect(edited).toBeInstanceOf(AuthError);
+    expect(edited).toMatchObject({ status: 403 });
     expect(await administrators(db)).toEqual([first.id]);
   });
 });
@@ -234,21 +237,27 @@ async function unblocked(db: Kysely<DB>) {
 }
 
 describe("two administrators who block each other (#356 review, S3)", () => {
-  it("one block wins and the other is refused with last_admin", async () => {
+  it("one block wins and the other, whose actor is now blocked, is refused with 403", async () => {
     const { database, db, first, second, contextOf } = await world();
     const block = (actor: string, target: string) => () =>
       blockUser(contextOf(actor), { userId: target, reason: "Forced order", until: "" });
-    const [one, two] = await inUserOrder<AdminActionResult, AdminActionResult>(
+    const [one, two] = await inUserOrder(
       database,
       first.id,
       block(first.id, second.id),
-      block(second.id, first.id),
+      settled(block(second.id, first.id)),
     );
     expect(one).toEqual({ ok: true });
-    expect(two).toEqual({ ok: false, error: LAST_ADMIN });
+    expect(two).toBeInstanceOf(AuthError);
+    expect(two).toMatchObject({ status: 403 });
     expect(await unblocked(db)).toEqual([first.id]);
     expect(await refusals(db)).toEqual([
-      { action: "user_banned", actor_type: "user", reason_code: LAST_ADMIN, target_id: first.id },
+      {
+        action: "user_banned",
+        actor_type: "user",
+        reason_code: NOT_AN_ADMIN,
+        target_id: first.id,
+      },
     ]);
   });
 });

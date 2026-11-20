@@ -304,6 +304,22 @@ describe("revokeAdmin (#48)", () => {
     expect((await stored(database, "a1"))?.role).toBe("admin");
   });
 
+  it("counts a deprovisioned administrator as gone (second review of #356, N3)", async () => {
+    const database = await setup();
+    await user(database, "a1", "admin");
+    await user(database, "b1", "admin");
+    await database
+      .updateTable("user")
+      .set({ deprovisioned_at: NOW })
+      .where("id", "=", "b1")
+      .execute();
+    expect(await revokeAdmin(database, { email: "a1@example.test", now: NOW })).toEqual({
+      ok: false,
+      error: "last_admin",
+    });
+    expect((await stored(database, "a1"))?.role).toBe("admin");
+  });
+
   it("counts an administrator whose block has ended (#356 review, S3)", async () => {
     const database = await setup();
     await user(database, "a1", "admin");

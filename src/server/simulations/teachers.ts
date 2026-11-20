@@ -10,6 +10,7 @@ import { validateRoleValue } from "../../lib/roles.ts";
 import { normalizeEmail } from "../../lib/simulations.ts";
 import { recordAudit } from "../audit/record.ts";
 import type { DB } from "../db/schema.gen.ts";
+import { lockAdministrators } from "../users/administrators.ts";
 import {
   done,
   refused,
@@ -96,6 +97,9 @@ export async function removeTeacher(
 ): Promise<SimulationResult> {
   try {
     return await withSimulation(db, actor, input.simulationId, async (trx, simulationId) => {
+      // NOTE: second review of #356 (S1); the lock order is simulations, administrators, other
+      // users, so a teacher-administrator's row never makes this wait on a role change or block.
+      await lockAdministrators(trx);
       const teachers = await trx
         .selectFrom("simulation_teachers")
         .innerJoin("user", "user.id", "simulation_teachers.user_id")

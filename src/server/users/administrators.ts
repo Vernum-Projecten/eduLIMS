@@ -30,14 +30,26 @@ export interface AdministratorRow {
   id: string;
   banned: boolean | null;
   banExpires: Date | null;
+  deprovisioned_at: Date | null;
 }
 
-/** Returns whether `row` is blocked at `now`: banned, with no end or an end after `now`. */
-export function isBlocked(
-  row: Pick<AdministratorRow, "banned" | "banExpires">,
-  now: Date,
-): boolean {
-  return row.banned === true && (row.banExpires === null || row.banExpires > now);
+/**
+ * Returns whether `row` is blocked at `now`: banned, with no end or an end at or after `now`, as
+ * the admin plugin judges a sign-in (`banExpires` not yet passed).
+ */
+export function isBlocked(row: { banned?: unknown; banExpires?: unknown }, now: Date): boolean {
+  if (row.banned !== true) return false;
+  if (row.banExpires === null || row.banExpires === undefined) return true;
+  const end = row.banExpires instanceof Date ? row.banExpires : new Date(String(row.banExpires));
+  return Number.isNaN(end.getTime()) || end.getTime() >= now.getTime();
+}
+
+/**
+ * Returns whether the administrator `row` can act at `now`: not blocked, and not deprovisioned by
+ * the directory (maintainer decision on the second review of #356, N3).
+ */
+export function isAvailable(row: AdministratorRow, now: Date): boolean {
+  return !isBlocked(row, now) && row.deprovisioned_at === null;
 }
 
 /**
@@ -49,7 +61,7 @@ export function isBlocked(
 export async function lockAdministrators(trx: Kysely<DB>): Promise<AdministratorRow[]> {
   return trx
     .selectFrom("user")
-    .select(["id", "banned", "banExpires"])
+    .select(["id", "banned", "banExpires", "deprovisioned_at"])
     .where("role", "in", ADMIN_ROLE_VALUES)
     .orderBy("id")
     .forNoKeyUpdate()
@@ -80,14 +92,18 @@ export async function lockForRoleChange(trx: Kysely<DB>, userId: string): Promis
   return { administrators, user };
 }
 
-/** Returns whether `actorId` holds the admin role under the locks of {@link lockForRoleChange}. */
-export function actorIsAdministrator(locks: RoleChangeLocks, actorId: string): boolean {
-  return locks.administrators.some((row) => row.id === actorId);
+/**
+ * Returns whether `actorId` holds the admin role under the locks of {@link lockForRoleChange} and
+ * is available at `now` ({@link isAvailable}): a blocked or deprovisioned actor acts no more.
+ */
+export function actorIsAdministrator(locks: RoleChangeLocks, actorId: string, now: Date): boolean {
+  return locks.administrators.some((row) => row.id === actorId && isAvailable(row, now));
 }
 
 /**
- * Returns whether no administrator but `userId` is left who is not blocked at `now`, read again
- * under the locks, so an administrator who joined while the target row was awaited counts too.
+ * Returns whether no administrator but `userId` is left who is available at `now`
+ * ({@link isAvailable}), read again under the locks, so an administrator who joined while the
+ * target row was awaited counts too.
  */
 export async function isLastAdministrator(
   trx: Kysely<DB>,
@@ -95,5 +111,5 @@ export async function isLastAdministrator(
   now: Date,
 ): Promise<boolean> {
   const rows = await lockAdministrators(trx);
-  return !rows.some((row) => row.id !== userId && !isBlocked(row, now));
+  return !rows.some((row) => row.id !== userId && isAvailable(row, now));
 }
