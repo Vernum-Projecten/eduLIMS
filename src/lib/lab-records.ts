@@ -70,6 +70,8 @@ export const SAMPLE_MATERIAL_MAX = 40;
 export const REQUEST_TESTS_MAX = 20;
 /** The most samples one request records. */
 export const REQUEST_SAMPLES_MAX = 10;
+// NOTE: no requirement governs these bounds: our own design, accepted on #405 (2026-11-20); the
+// CHECKs of migration 0029 hold the two text bounds.
 /** The most characters the name of a test not offered takes, as for a catalogue test (#398). */
 export const NOT_OFFERED_NAME_MAX = 80;
 /** The most characters the remark on a test not offered takes, as for the requester (#398). */

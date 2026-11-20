@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { defineConfig, devices } from "@playwright/test";
-import { E2E_SECRETS, runDatabaseUrl, runOutputDir, runPort } from "./tests/e2e/run-env.ts";
+import {
+  E2E_SECRETS,
+  keycloakOrigin,
+  runDatabaseUrl,
+  runOutputDir,
+  runPort,
+} from "./tests/e2e/run-env.ts";
 import { setupThenServe, webServerTimeout } from "./tests/e2e/web-server-command.ts";
 
 // E2E runs the production build (`pnpm build` first) against a database of its own on a port
@@ -47,8 +53,7 @@ const appEnv = {
   // `pnpm db:seed` registers the dev Keycloak with this key when Keycloak runs (pnpm dev:db);
   // without it the providers are skipped (CI).
   EDULIMS_DATA_KEY: E2E_SECRETS.EDULIMS_DATA_KEY,
-  EDULIMS_IDP_PRIVATE_ORIGINS:
-    process.env["EDULIMS_E2E_KEYCLOAK_ORIGIN"] ?? "http://localhost:8180",
+  EDULIMS_IDP_PRIVATE_ORIGINS: keycloakOrigin(),
   // Nothing listens on this run's integration port, except while the integration status journey
   // runs its stub there (tests/e2e/integration-stub.ts, #227).
   FERROEHR_BASE_URL: `${INTEGRATIONS}/ferroehr/rest/openehr/v1`,
