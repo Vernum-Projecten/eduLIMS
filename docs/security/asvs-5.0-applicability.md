@@ -71,8 +71,8 @@ moves a row to `met` in the same pull request.
 | All ASVS 5.0.0 requirements | 345 |
 | Level 1 and 2 (the target) | 253 |
 | Applicable (yes or partly) | 174 |
-| Status met | 96 |
-| Status partial | 56 |
+| Status met | 97 |
+| Status partial | 55 |
 | Status planned | 14 |
 | Status open | 8 |
 | Status n-a | 171 |
