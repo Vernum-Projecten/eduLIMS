@@ -39,13 +39,13 @@ hide it.
 
 | Rule | Built from |
 |---|---|
-| Over the upload limit (1 MiB) | 1 MiB and one byte of zeros |
+| Over the upload limit (5 MiB) | 5 MiB and one byte of zeros |
 | Not `.xlsx` | a good workbook named `plate.xls` |
 | Not a zip | a CSV named `plate.xlsx` |
 | A zip that is no workbook | a zip with one text file |
 | A macro-enabled workbook | a good workbook with the macro-enabled content type |
 | Over the entry limit (50) | a good workbook with 50 more entries |
-| Over the unpacked limit (8 MiB) | a good workbook with an 8 MiB entry of zeros |
+| Over the unpacked limit (40 MiB) | a good workbook with a 40 MiB entry of zeros |
 | A zip bomb | the sheet replaced by 64 MiB of zeros that declares 4 KiB |
 | A DTD with an external entity | the sheet replaced by an XXE document |
 | Two sheets (a second plate) | a good workbook with the sheet twice |

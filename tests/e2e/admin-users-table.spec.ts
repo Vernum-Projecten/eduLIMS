@@ -242,6 +242,9 @@ test("the data table works with the keyboard alone (#58)", async ({ page }) => {
     "aria-sort",
     "descending",
   );
+  // The header follows the search at once, while the sorted rows may still be on their way (the
+  // previous page stays as a placeholder, aria-busy); a selection made then is dropped too.
+  await expect(usersTable(page)).not.toHaveAttribute("aria-busy", "true");
 
   // Select a row with Space, clear the selection, then Reset.
   const checkbox = page.getByRole("checkbox", { name: "Select Test Teacher", exact: true });

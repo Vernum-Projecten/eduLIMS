@@ -102,7 +102,7 @@ function isWellId(value: string): value is WellId {
 }
 
 /** Returns the absorbance of each well as an exact decimal, and the wells whose value is not one. */
-function checkValues(plate: Gen5Plate): {
+function checkValues(plate: Pick<Gen5Plate, "wells">): {
   readonly values: ReadonlyMap<WellId, string>;
   readonly refusals: readonly PlateLinkRefusal[];
 } {
@@ -191,7 +191,7 @@ function checkLinks(
  */
 export function checkPlateLinks(input: {
   readonly labId: LabId;
-  readonly plate: Gen5Plate;
+  readonly plate: Pick<Gen5Plate, "wells">;
   readonly links: readonly WellLinkInput[];
   readonly samples: readonly LabSample[];
 }): PlateLinkResult {

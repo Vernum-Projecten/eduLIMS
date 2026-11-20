@@ -89,6 +89,16 @@ user: the eduLIMS app user never has rights on the FerroEHR database.
   and enums or `CHECK ... IN` for statuses (the states of a
   requested test in `docs/lims-workflow.md`). The application validates too,
   but the database is the last line.
+- **A table two or more cascade steps under the lab cascades from the lab
+  directly** when it points at `samples` or `requests` with `NO ACTION`. The
+  `NO ACTION` check runs at the end of each cascade step, so when a lab or a
+  simulation goes, the check on the sample key runs before the second step
+  has removed the rows that point at the sample, and the delete fails. Give
+  the table a foreign key to `labs` with `ON DELETE CASCADE` as well, as
+  `upload_wells` has (migration 0027, found in #156). Prove it with a test
+  that deletes a lab and a simulation holding such a row:
+  `src/server/db/migration-0027.test.ts` ("removes a lab's uploads with the
+  lab", "removes a simulation's uploads with the simulation").
 - **Names:** `snake_case`, plural table names, `<table>_id` foreign keys.
   The better-auth tables (`user`, `session`, `account`, `verification`) are
   singular, and `audit_event` sits beside them with the same form.
