@@ -104,12 +104,15 @@ async function linkRow(
       // NOTE: #330 (maintainer, 2026-11-20); a teacher's removal wins over a waiting address, which
       // stays (it may be a classmate's), and the refusal is logged once per removal.
       if (!(await refusedSince(trx, simulationId, userId, removal))) {
+        // A `now` taken before this transaction waited on the lock can predate the removal; the
+        // row then carries the removal's time, so the check above finds it next time.
+        const occurredAt = now.getTime() < removal.getTime() ? removal : now;
         await recordAudit(trx, {
           ...event,
           outcome: "refused",
           reason: "removed",
           metadata,
-          occurredAt: now,
+          occurredAt,
         });
       }
       return "refused";

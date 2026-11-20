@@ -63,12 +63,10 @@ export function moveMember(
       .where("simulation_id", "=", simulationId)
       .where("user_id", "=", input.userId)
       .execute();
-    // NOTE: #323, #330 (maintainer, 2026-11-19); an address waiting in another lab goes with the
-    // move, and for an unverified email only the one in the lab the student leaves.
+    // NOTE: #323, #330 (maintainer, 2026-11-20); an address waiting in another lab goes with the
+    // move, for a verified email only: an unverified one may be a classmate's.
     const dropped = await dropWaitingAddressesOf(trx, simulationId, input.userId, {
-      kind: "move",
-      leftLabId: place.lab_id,
-      targetLabId: target.id,
+      exceptLabId: target.id,
     });
     await recordAudit(trx, {
       action: "lab_member_moved",
@@ -88,8 +86,8 @@ export function moveMember(
 
 /**
  * Removes a student from a simulation the actor teaches, records the removal and deletes the
- * addresses that wait for them there, so neither a lab's code nor the next sign-in lets them back
- * in until a teacher adds their address again (#288, #323).
+ * address that waits for their verified email there. Neither a lab's code nor the next sign-in lets
+ * them back in until a teacher adds their address again (#288, #323, #330).
  */
 export function removeMember(
   db: Kysely<DB>,
@@ -106,12 +104,9 @@ export function removeMember(
       .where("user_id", "=", input.userId)
       .execute();
     await recordRemoval(trx, simulationId, input.userId, actor.id, now);
-    // NOTE: #323, #330 (maintainer, 2026-11-19); the student's waiting address goes with them, and
-    // for an unverified email (maybe a classmate's) only one in the lab the student leaves.
-    const dropped = await dropWaitingAddressesOf(trx, simulationId, input.userId, {
-      kind: "removal",
-      leftLabId: place.lab_id,
-    });
+    // NOTE: #323, #330 (maintainer, 2026-11-20); the waiting address of a verified email goes with
+    // the student; an unverified one may be a classmate's and stays, and the link refuses them.
+    const dropped = await dropWaitingAddressesOf(trx, simulationId, input.userId);
     await recordAudit(trx, {
       action: "lab_member_removed",
       actor: { type: "user", id: actor.id },

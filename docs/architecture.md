@@ -296,14 +296,15 @@ student's place and a waiting address point at their lab through the pair
   refused as such, at no cost, and that refusal is logged once per student,
   lab and 15 minutes. A removed student cannot rejoin with a code or through
   a waiting address until a teacher adds their address again, which clears
-  the removal. A code join, a removal and a move delete the student's
-  waiting address in the simulation in the same transaction (an address
-  waits in at most one lab per simulation, so 0 or 1 rows). A code join
-  does so for a verified email only. A removal or a move of an account with
-  an unverified email deletes it only when it waits in the lab the student
-  leaves, because that email may be a classmate's; for a verified email it
-  goes wherever it waits, except in a move's target lab. The removal and
-  move log rows carry the number dropped (`count`, #330). A join locks the simulation row
+  the removal of an account whose email is verified; an unverified email
+  may be a classmate's, so adding it clears nothing (#330). A code join, a
+  removal and a move delete the student's waiting address in the
+  simulation in the same transaction, for a verified email only, wherever
+  it waits except in a move's target lab (an address waits in at most one
+  lab per simulation, so 0 or 1 rows). An unverified email drops nothing,
+  because the row may be a classmate's; the link refusal keeps the removed
+  student out. The removal and move log rows carry the number dropped
+  (`count`, #330). A join locks the simulation row
   (shared) before the code row, and lets go and retries when the code row is
   taken, so it never deadlocks with a writer. The code panel is on the
   teacher's lab page; the Student portal overview lists the student's labs

@@ -52,18 +52,13 @@ export async function wasRemoved(
   simulationId: string,
   userId: string,
 ): Promise<boolean> {
-  const row = await trx
-    .selectFrom("simulation_removals")
-    .select("user_id")
-    .where("simulation_id", "=", simulationId)
-    .where("user_id", "=", userId)
-    .executeTakeFirst();
-  return row !== undefined;
+  return (await removedAt(trx, simulationId, userId)) !== null;
 }
 
 /**
  * Clears the removals of the accounts with these (normalised) addresses: a teacher added them
- * again. An account whose stored address is not plain ASCII never matches.
+ * again. Only an account whose email is verified and plain ASCII matches: an unverified email may
+ * be a classmate's address, so adding it says nothing about that account (#330).
  */
 export async function clearRemovalsOfAddresses(
   trx: Kysely<DB>,
@@ -79,6 +74,7 @@ export async function clearRemovalsOfAddresses(
         .selectFrom("user")
         .select("id")
         .where((eb) => eb(eb.fn("lower", ["email"]), "in", [...emails]))
+        .where("emailVerified", "=", true)
         .where(storedEmailIsAscii()),
     )
     .execute();
