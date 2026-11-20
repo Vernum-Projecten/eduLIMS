@@ -19,6 +19,7 @@ import {
   place,
   securityLines,
   setState,
+  startable,
 } from "../simulations/test-helpers.ts";
 import { insertMeasurement, type NewMeasurement, recordManualMeasurement } from "./measurements.ts";
 import { releaseResult } from "./release.ts";
@@ -449,6 +450,7 @@ describe("more refusals of entry by hand (security review of #370)", () => {
 
   it("refuses a student in two simulations who mixes the ids of both", async () => {
     const { database, w } = await open();
+    await startable(database, w.outsideSimulationId);
     await startSimulation(
       database,
       w.outsiderTeacher,

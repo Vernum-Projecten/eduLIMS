@@ -7,7 +7,7 @@ import type { Kysely } from "kysely";
 import { catalogueTest } from "../correct-values/test-helpers.ts";
 import type { DB } from "../db/schema.gen.ts";
 import { startSimulation } from "../simulations/state.ts";
-import { NOW, type Person, world } from "../simulations/test-helpers.ts";
+import { NOW, type Person, startable, world } from "../simulations/test-helpers.ts";
 import { registerPatient } from "./patients.ts";
 import { type NewRequest, type RequestFields, recordRequest } from "./requests.ts";
 
@@ -22,6 +22,7 @@ export const PATIENT = {
 /** The world, its first simulation started, and two invented catalogue tests. */
 export async function recordsWorld(db: Kysely<DB>) {
   const w = await world(db);
+  await startable(db, w.simulationId);
   const started = await startSimulation(db, w.teacher, { simulationId: w.simulationId }, NOW);
   if (!started.ok) throw new Error(started.error);
   const hba1c = await catalogueTest(db, "HbA1c (invented)");

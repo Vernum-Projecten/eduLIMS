@@ -95,7 +95,10 @@ function SectionCard({ section }: Readonly<{ section: NavItem }>) {
 }
 
 /** A section that is not built yet: its heading and purpose, and a "coming soon" state. */
-export function SectionPlaceholder({ section }: Readonly<{ section: NavItem }>) {
+export function SectionPlaceholder({
+  section,
+  body,
+}: Readonly<{ section: NavItem; body?: string }>) {
   const Icon = section.icon;
   return (
     <Page title={section.label()} description={<p>{section.description()}</p>}>
@@ -110,7 +113,7 @@ export function SectionPlaceholder({ section }: Readonly<{ section: NavItem }>) 
               {m.coming_soon_title()}
             </h2>
           </EmptyTitle>
-          <EmptyDescription>{m.coming_soon_body()}</EmptyDescription>
+          <EmptyDescription>{body ?? m.coming_soon_body()}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </Page>

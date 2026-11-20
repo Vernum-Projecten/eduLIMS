@@ -5,7 +5,7 @@ import { revalidateLogic } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ClipboardPasteIcon, PlusIcon, SaveIcon } from "lucide-react";
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useMemo, useRef } from "react";
 import { useAppForm } from "@/components/form/app-form";
 import type { DialogControl } from "@/components/simulations/name-dialog";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
@@ -98,6 +98,7 @@ export function AddCorrectValueDialog({
 }: Readonly<{ control: DialogControl; simulationId: string; options: Options }>) {
   const save = useSetValues(simulationId);
   const choices = useMemo(() => testOptions(options), [options]);
+  const formRef = useRef<HTMLFormElement>(null);
   const form = useAppForm({
     defaultValues: { sampleNumber: "", testId: "", value: "" } satisfies CorrectValueRowForm,
     validationLogic: revalidateLogic(),
@@ -110,6 +111,8 @@ export function AddCorrectValueDialog({
         return;
       }
       formApi.reset();
+      // The next value starts at the first field (WCAG 2.4.3); the toast announces the save.
+      formRef.current?.querySelector("input")?.focus();
     },
   });
   return (
@@ -120,6 +123,7 @@ export function AddCorrectValueDialog({
       onClose={() => form.reset()}
     >
       <form
+        ref={formRef}
         noValidate
         aria-label={m.correct_values_add_form()}
         className="flex flex-col gap-4"

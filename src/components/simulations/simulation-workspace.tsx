@@ -136,7 +136,7 @@ export function SimulationWorkspace({
       <header className="flex flex-col gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="min-w-0 break-words font-medium text-lg">{page.name}</p>
+            <p className="min-w-0 break-words font-semibold text-xl tracking-tight">{page.name}</p>
             <SimulationStateBadge state={page.state} />
           </div>
           <StateTimes page={page} />

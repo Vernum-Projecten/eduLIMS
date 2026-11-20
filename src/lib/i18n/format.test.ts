@@ -7,6 +7,7 @@ import {
   formatDate,
   formatDateTime,
   formatDecimal,
+  formatList,
   formatNumber,
   formatRelativeTime,
 } from "./format";
@@ -94,5 +95,17 @@ describe("formatRelativeTime", () => {
 
   it("says now under a minute", () => {
     expect(formatRelativeTime("2026-11-11T11:59:30Z", from, { locale: "en" })).toBe("now");
+  });
+});
+
+describe("formatList (#394)", () => {
+  it("joins names as each locale writes a list", () => {
+    expect(formatList(["Albumin", "Glucose", "Urea"], { locale: "en" })).toBe(
+      "Albumin, Glucose, and Urea",
+    );
+    expect(formatList(["Albumin", "Glucose", "Urea"], { locale: "nl" })).toBe(
+      "Albumin, Glucose en Urea",
+    );
+    expect(formatList(["Albumin"], { locale: "en" })).toBe("Albumin");
   });
 });

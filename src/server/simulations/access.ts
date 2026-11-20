@@ -46,6 +46,8 @@ export const SIMULATION_ACTION_ERRORS = [
   "test_retired",
   "value_not_found",
   "missing_limits",
+  "no_students",
+  "no_correct_values",
   "running",
   "lab_has_students",
 ] as const;
