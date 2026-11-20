@@ -45,6 +45,7 @@ export const SIMULATION_ACTION_ERRORS = [
   "missing_limits",
   "running",
   "has_records",
+  "lab_has_students",
 ] as const;
 export type SimulationActionError = (typeof SIMULATION_ACTION_ERRORS)[number];
 
