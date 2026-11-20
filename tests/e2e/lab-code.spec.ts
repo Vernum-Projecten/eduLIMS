@@ -83,6 +83,15 @@ async function createLab(page: Page, name: string): Promise<string> {
   return href;
 }
 
+/** Opens the simulation's Labs page from its navigation (#381). */
+async function labsPage(page: Page): Promise<void> {
+  await page
+    .getByRole("navigation", { name: `Pages of ${SIMULATION}` })
+    .getByRole("link", { name: "Labs", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1, name: "Labs" })).toBeVisible();
+}
+
 async function openLab(page: Page, url: string, name: string): Promise<void> {
   await page.goto(url);
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
@@ -100,7 +109,8 @@ test("a teacher turns a lab's code on and sees it once (S10, #290)", async ({ pa
   const dialog = page.getByRole("dialog", { name: "Create a simulation" });
   await dialog.getByLabel("Name").fill(SIMULATION);
   await dialog.getByRole("button", { name: "Create simulation" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: SIMULATION })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
+  await labsPage(page);
   alphaUrl = await createLab(page, ALPHA);
   betaUrl = await createLab(page, BETA);
 
@@ -144,8 +154,7 @@ test("a teacher turns a lab's code on and sees it once (S10, #290)", async ({ pa
   await axe(page);
 
   // Leaving the page within the app and coming back: the state shows, the code does not.
-  await page.getByRole("link", { name: `Back to ${SIMULATION}` }).click();
-  await expect(page.getByRole("heading", { level: 1, name: SIMULATION })).toBeVisible();
+  await labsPage(page);
   await page.getByRole("link", { name: ALPHA, exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: ALPHA })).toBeVisible();
   await expect(panel.getByText(/^On until /)).toBeVisible();

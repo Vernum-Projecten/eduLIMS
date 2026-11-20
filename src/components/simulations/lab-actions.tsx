@@ -1,37 +1,25 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-import { Link, useNavigate, useRouter } from "@tanstack/react-router";
-import { ArrowLeftIcon, PencilIcon, Trash2Icon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useNavigate, useRouter } from "@tanstack/react-router";
+import { PencilIcon, Trash2Icon } from "lucide-react";
+import { useState } from "react";
+import { RowActions } from "@/components/shell/row-actions";
 import { useConfirmation } from "@/components/simulations/confirm-dialog";
 import { LabDialogs, useLabActions } from "@/components/simulations/labs-section";
-import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { m } from "@/i18n/messages";
 
-/** The link back to a simulation's page. */
-export function BackToSimulation({
-  simulationId,
-  name,
-}: Readonly<{ simulationId: string; name?: string }>) {
-  return (
-    <Button asChild variant="outline" size="sm">
-      <Link to="/teacher/simulations/$simulationId" params={{ simulationId }}>
-        <ArrowLeftIcon aria-hidden="true" data-icon="inline-start" />
-        {name ? m.labs_back({ simulation: name }) : m.labs_back_unnamed()}
-      </Link>
-    </Button>
-  );
-}
-
-/** The actions of a lab's page: back to its simulation, rename it, delete it after a confirmation. */
+/**
+ * The secondary actions of a lab's page in its `…` menu (#384): rename it, or delete it after a
+ * confirmation and land on the simulation's labs. Both dialogs close back to the menu's button.
+ */
 export function LabActions({
   simulation,
   lab,
 }: Readonly<{ simulation: { id: string; name: string }; lab: { id: string; name: string } }>) {
   const [renaming, setRenaming] = useState(false);
-  const renameRef = useRef<HTMLButtonElement>(null);
-  // A deleted lab's page goes, so a success leaves focus to the simulation page it lands on.
+  // A deleted lab's page goes, so a success leaves focus to the labs page it lands on.
   const confirmation = useConfirmation();
   const router = useRouter();
   const navigate = useNavigate();
@@ -41,40 +29,35 @@ export function LabActions({
     lab.name,
     () =>
       navigate({
-        to: "/teacher/simulations/$simulationId",
+        to: "/teacher/simulations/$simulationId/labs",
         params: { simulationId: simulation.id },
       }),
     confirmation,
   );
   return (
     <>
-      <BackToSimulation simulationId={simulation.id} name={simulation.name} />
-      <Button
-        ref={renameRef}
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => setRenaming(true)}
+      <RowActions
+        label={m.data_table_row_actions({ name: lab.name })}
+        triggerRef={confirmation.triggerRef}
       >
-        <PencilIcon aria-hidden="true" data-icon="inline-start" />
-        {m.labs_rename()}
-      </Button>
-      <Button
-        ref={confirmation.triggerRef}
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={actions.remove.isPending}
-        onClick={confirmation.show}
-      >
-        <Trash2Icon aria-hidden="true" data-icon="inline-start" />
-        {m.labs_delete()}
-      </Button>
+        <DropdownMenuItem onSelect={() => setRenaming(true)}>
+          <PencilIcon aria-hidden="true" />
+          {m.labs_rename()}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          variant="destructive"
+          disabled={actions.remove.isPending}
+          onSelect={confirmation.show}
+        >
+          <Trash2Icon aria-hidden="true" />
+          {m.labs_delete()}
+        </DropdownMenuItem>
+      </RowActions>
       <LabDialogs
         lab={lab}
         renaming={renaming}
         setRenaming={setRenaming}
-        renameFrom={renameRef}
+        renameFrom={confirmation.triggerRef}
         actions={actions}
         confirmation={confirmation}
         afterRename={() => router.invalidate()}

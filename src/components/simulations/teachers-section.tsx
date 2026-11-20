@@ -5,10 +5,11 @@ import { revalidateLogic } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { UserMinusIcon, UserPlusIcon } from "lucide-react";
-import { useMemo } from "react";
+import { LogOutIcon, UserMinusIcon, UserPlusIcon } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { createDataTableColumnHelper } from "@/components/data-table/features";
 import { useAppForm } from "@/components/form/app-form";
+import { RowActions } from "@/components/shell/row-actions";
 import { simulationActionKeys } from "@/components/simulations/action-keys";
 import { ConfirmDialog, useConfirmation } from "@/components/simulations/confirm-dialog";
 import { FOCUSABLE_HEADING } from "@/components/simulations/focus";
@@ -16,6 +17,16 @@ import { ListTable } from "@/components/simulations/list-table";
 import { useSimulationAction } from "@/components/simulations/use-simulation-action";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { FieldGroup } from "@/components/ui/field";
 import { m } from "@/i18n/messages";
 import { applyServerRefusal } from "@/lib/forms/server-refusal";
@@ -87,11 +98,14 @@ export function TeachersSection({
   );
   return (
     <section aria-labelledby={TEACHERS_HEADING} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 id={TEACHERS_HEADING} tabIndex={-1} className={FOCUSABLE_HEADING}>
-          {m.simulations_teachers_heading()}
-        </h2>
-        <p className="text-muted-foreground">{m.simulations_teachers_description()}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h2 id={TEACHERS_HEADING} tabIndex={-1} className={FOCUSABLE_HEADING}>
+            {m.simulations_teachers_heading()}
+          </h2>
+          <p className="text-muted-foreground">{m.simulations_teachers_description()}</p>
+        </div>
+        <AddTeacher simulationId={page.id} />
       </div>
       <ListTable
         columns={columns}
@@ -101,12 +115,49 @@ export function TeachersSection({
         busy={busy}
         empty={null}
       />
-      <AddTeacher simulationId={page.id} />
     </section>
   );
 }
 
+/** Opens the dialog that adds a teacher by address; focus returns to the button. */
 function AddTeacher({ simulationId }: Readonly<{ simulationId: string }>) {
+  const [open, setOpen] = useState(false);
+  const openerRef = useRef<HTMLButtonElement>(null);
+  return (
+    <>
+      <Button
+        ref={openerRef}
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => setOpen(true)}
+      >
+        <UserPlusIcon aria-hidden="true" data-icon="inline-start" />
+        {m.simulations_teacher_add()}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            openerRef.current?.focus();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{m.simulations_teacher_add_form()}</DialogTitle>
+            <DialogDescription>{m.simulations_teachers_description()}</DialogDescription>
+          </DialogHeader>
+          <AddTeacherFields simulationId={simulationId} onAdded={() => setOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function AddTeacherFields({
+  simulationId,
+  onAdded,
+}: Readonly<{ simulationId: string; onAdded: () => void }>) {
   const queryClient = useQueryClient();
   const call = useServerFn(addTeacherFn);
   const add = useSimulationAction(
@@ -136,13 +187,14 @@ function AddTeacher({ simulationId }: Readonly<{ simulationId: string }>) {
         return;
       }
       formApi.reset();
+      onAdded();
     },
   });
   return (
     <form
       noValidate
       aria-label={m.simulations_teacher_add_form()}
-      className="flex flex-col gap-4 rounded-lg border p-4"
+      className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         void form.handleSubmit();
@@ -164,11 +216,16 @@ function AddTeacher({ simulationId }: Readonly<{ simulationId: string }>) {
             )}
           </form.AppField>
         </FieldGroup>
-        <div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              {m.simulations_cancel()}
+            </Button>
+          </DialogClose>
           <form.SubmitButton icon={<UserPlusIcon aria-hidden="true" data-icon="inline-start" />}>
             {m.simulations_teacher_add()}
           </form.SubmitButton>
-        </div>
+        </DialogFooter>
       </form.AppForm>
     </form>
   );
@@ -210,18 +267,15 @@ function RemoveTeacher({ teacher }: Readonly<{ teacher: TeacherRow }>) {
   const pending = remove.isPending || leave.isPending;
   return (
     <>
-      <Button
-        ref={confirmation.triggerRef}
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={label}
-        title={label}
-        disabled={pending}
-        onClick={confirmation.show}
+      <RowActions
+        label={m.data_table_row_actions({ name: teacher.name })}
+        triggerRef={confirmation.triggerRef}
       >
-        <UserMinusIcon aria-hidden="true" />
-      </Button>
+        <DropdownMenuItem variant="destructive" disabled={pending} onSelect={confirmation.show}>
+          {teacher.self ? <LogOutIcon aria-hidden="true" /> : <UserMinusIcon aria-hidden="true" />}
+          {label}
+        </DropdownMenuItem>
+      </RowActions>
       <ConfirmDialog
         confirmation={confirmation}
         title={

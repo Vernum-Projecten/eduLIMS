@@ -29,8 +29,6 @@ import type { CorrectionChange } from "@/server/lab-records/corrections";
 import { correctionLogQueryOptions } from "@/server/lab-records/query-options";
 import { ScrollRegion } from "./scroll-region";
 
-const HEADING = "correction-log-heading";
-
 /** Returns a stored value in words: a flag as yes or no, nothing as a dash. */
 function valueText(value: string | boolean | null): string {
   if (value === null) return m.records_none();
@@ -70,17 +68,12 @@ function changeText(change: CorrectionChange, names: CorrectionLog["testNames"])
 /**
  * The correction log of a simulation for its teachers (S11, S12): every correction a lab made
  * to a patient or a request, newest first, with the fields before and after and who made it.
+ * The page around it gives the heading (#381).
  */
-export function CorrectionLogSection({ simulationId }: Readonly<{ simulationId: string }>) {
+export function CorrectionLogTable({ simulationId }: Readonly<{ simulationId: string }>) {
   const { data: log, isFetching } = useSuspenseQuery(correctionLogQueryOptions(simulationId));
   return (
-    <section aria-labelledby={HEADING} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h2 id={HEADING} className="font-semibold text-lg">
-          {m.records_log_heading()}
-        </h2>
-        <p className="text-muted-foreground text-sm">{m.records_log_body()}</p>
-      </div>
+    <div className="flex flex-col gap-3">
       <div className="relative" aria-busy={isFetching}>
         <UpdatingIndicator active={isFetching} />
         {log.entries.length === 0 ? (
@@ -149,6 +142,7 @@ export function CorrectionLogSection({ simulationId }: Readonly<{ simulationId: 
           <p className="mt-2 text-muted-foreground text-sm">{m.records_log_truncated()}</p>
         ) : null}
       </div>
-    </section>
+      <p className="text-muted-foreground text-sm">{m.records_log_entry_time()}</p>
+    </div>
   );
 }

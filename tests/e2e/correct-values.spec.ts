@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: Ruben Talstra
 // SPDX-License-Identifier: Apache-2.0
 
-// The state of a simulation and its correct values (D10, D13, #267): a teacher enters one value,
-// pastes more, changes one with the keyboard, sets a test's limits, starts and finishes the
-// simulation behind a confirmation, and sees the catalogue lock the test; a student reaches none
-// of it. Axe in light, dark and Dutch. Every test, value and limit is invented (Q-PRIV-4).
+// The state of a simulation and its correct values (D10, D13, #267, #381): a teacher enters one
+// value, pastes more, changes one with the keyboard, sets a test's limits on the correct-values
+// page, starts and finishes the simulation from the overview behind a confirmation, and sees the
+// catalogue lock the test; a student reaches none of it. Axe in light, dark and Dutch. Every
+// test, value and limit is invented (Q-PRIV-4).
 import { randomBytes } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
 import { axe, dutch } from "./admin-users-helpers";
@@ -16,6 +17,13 @@ const STUDENT = "student@example.test";
 
 function suffix(): string {
   return randomBytes(3).toString("hex").toUpperCase();
+}
+
+/** Waits for every animation (a dialog, a toast) so focus checks see the end state. */
+async function settle(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+  );
 }
 
 async function addCatalogueTest(page: Page, name: string): Promise<void> {
@@ -41,18 +49,30 @@ async function createSimulation(page: Page, name: string): Promise<string> {
   const dialog = page.getByRole("dialog", { name: "Create a simulation" });
   await dialog.getByLabel("Name").fill(name);
   await dialog.getByRole("button", { name: "Create simulation" }).click();
-  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeVisible();
   const id = /\/teacher\/simulations\/([0-9a-f-]{36})$/.exec(page.url())?.[1];
   if (id === undefined) throw new Error(`no simulation id in ${page.url()}`);
   return id;
 }
 
-function valuesTable(page: Page) {
-  return page.getByRole("table", { name: "Correct values per sample number and test" });
+/** The table of one test's correct values on the correct-values page (#381). */
+function valuesTable(page: Page, test: string) {
+  return page.getByRole("table", { name: `Correct values of ${test}` });
 }
 
-function limitsTable(page: Page) {
-  return page.getByRole("table", { name: "Accuracy limits per test" });
+/** The section of one test: its heading, its limits and its table (#381). */
+function testSection(page: Page, test: string) {
+  return page.getByRole("region", { name: new RegExp(`^${test}`) });
+}
+
+/** Opens a page of the simulation from its navigation (#381). */
+async function openPage(page: Page, simulation: string, label: string): Promise<void> {
+  const link = page
+    .getByRole("navigation", { name: `Pages of ${simulation}` })
+    .getByRole("link", { name: label, exact: true });
+  await expectHydrated(link);
+  await link.click();
+  await expect(page.getByRole("heading", { level: 1, name: label, exact: true })).toBeVisible();
 }
 
 test("a teacher enters, pastes and changes correct values, sets limits, starts and finishes (D10, D13)", async ({
@@ -70,15 +90,19 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
 
   // A new simulation is prepared, with no correct values yet.
   await expect(page.getByText("Prepared", { exact: true }).first()).toBeVisible();
+  await openPage(page, simulation, "Correct values");
   await expect(page.getByText("No correct values yet", { exact: true })).toBeVisible();
   await expect(
     page.getByText("Only the teachers of this simulation see these values. Students never do."),
   ).toBeVisible();
 
   // Every missing field is named at its field (WCAG 3.3.1).
-  const one = page.getByRole("form", { name: "Enter a correct value" });
+  const addValue = page.getByRole("button", { name: "Add correct value" });
+  await expectHydrated(addValue);
+  await addValue.click();
+  const addDialog = page.getByRole("dialog", { name: "Enter one value" });
+  const one = addDialog.getByRole("form", { name: "Enter a correct value" });
   const save = one.getByRole("button", { name: "Save value" });
-  await expectHydrated(save);
   await save.click();
   await expect(one.getByText("Enter the sample number.")).toBeVisible();
   await expect(one.getByText("Choose a test.")).toBeVisible();
@@ -94,30 +118,43 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await expect(
     page.getByText("Correct values saved: 1 added, 0 changed, 0 unchanged."),
   ).toBeVisible();
-  await expect(valuesTable(page).getByRole("row").filter({ hasText: "S-101" })).toContainText(
-    "5.250 mmol/L",
-  );
+  // The dialog stays open, empty, for the next value; closing it returns focus to its opener.
+  await expect(one.getByLabel("Sample number")).toHaveValue("");
+  await addDialog.getByRole("button", { name: "Close", exact: true }).first().click();
+  await expect(addDialog).toBeHidden();
+  await expect(addValue).toBeFocused();
+  await expect(
+    valuesTable(page, testName).getByRole("row").filter({ hasText: "S-101" }),
+  ).toContainText("5.250 mmol/L");
 
   // A paste names the line that does not read, and stores nothing until every line reads.
-  const paste = page.getByRole("form", { name: "Paste correct values" });
+  await page.getByRole("button", { name: "Paste rows" }).click();
+  const pasteDialog = page.getByRole("dialog", { name: "Paste many values" });
+  const paste = pasteDialog.getByRole("form", { name: "Paste correct values" });
   const rows = paste.getByLabel("Rows to paste");
   await rows.fill(`S-102\t${testName}\t6.1\nS-103\tNo such test ${id}\t1`);
   await paste.getByRole("button", { name: "Save pasted values" }).click();
   await expect(
     paste.getByText(`Line 2: the catalogue has no active test named “No such test ${id}”.`),
   ).toBeVisible();
-  await expect(valuesTable(page).getByRole("row").filter({ hasText: "S-102" })).toHaveCount(0);
+  await expect(
+    valuesTable(page, testName).getByRole("row").filter({ hasText: "S-102" }),
+  ).toHaveCount(0);
   await rows.fill(`S-102\t${testName}\t6.1\ns-101;${testName};5.250`);
   await paste.getByRole("button", { name: "Save pasted values" }).click();
   await expect(
     page.getByText("Correct values saved: 1 added, 0 changed, 1 unchanged."),
   ).toBeVisible();
-  await expect(valuesTable(page).getByRole("row")).toHaveCount(3);
+  await expect(pasteDialog).toBeHidden();
+  await expect(valuesTable(page, testName).getByRole("row")).toHaveCount(3);
 
-  // Change a value with the keyboard alone (WCAG 2.1.1).
+  // Change a value from its row's menu with the keyboard alone (WCAG 2.1.1).
   const item = `${testName} of sample S-101`;
-  const change = page.getByRole("button", { name: `Change the correct value of ${item}` });
+  const change = page.getByRole("button", { name: `Actions for ${item}` });
+  await expectHydrated(change);
   await change.focus();
+  await page.keyboard.press("Enter");
+  await pressUntilFocused(page, "ArrowDown", page.getByRole("menuitem", { name: "Change value" }));
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("dialog", { name: `Change the correct value of ${item}` });
   const field = dialog.getByLabel("Correct value");
@@ -127,28 +164,29 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await page.keyboard.press("Enter");
   await expect(dialog).toHaveCount(0);
   await expect(change).toBeFocused();
-  await expect(valuesTable(page).getByRole("row").filter({ hasText: "S-101" })).toContainText(
-    "5.3 mmol/L",
-  );
+  await expect(
+    valuesTable(page, testName).getByRole("row").filter({ hasText: "S-101" }),
+  ).toContainText("5.3 mmol/L");
 
-  // Before the limits, the page names the test that blocks the start, and a start is refused
-  // with the test named (maintainer 2026-11-20).
+  // Before the limits, the overview names the test that blocks the start, and Start waits for
+  // it, saying why beside the button; the checklist reads the server's verdict (#381).
+  await openPage(page, simulation, "Overview");
   const missing = page.getByText(`Before you can start, set the accuracy limits of: ${testName}.`);
   await expect(missing).toBeVisible();
-  await page.getByRole("button", { name: "Start simulation" }).click();
-  await page
-    .getByRole("alertdialog", { name: `Start ${simulation}?` })
-    .getByRole("button", { name: "Start", exact: true })
-    .click();
-  await expect(
-    page.getByText(`Set the accuracy limits of ${testName} before you start the simulation.`),
-  ).toBeVisible();
-  await expect(page.getByText("Prepared", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Blocks the start").first()).toBeVisible();
+  const startButton = page.getByRole("button", { name: "Start simulation" });
+  await expect(startButton).toBeDisabled();
+  await expect(startButton).toHaveAccessibleDescription(
+    "Set the accuracy limits first. Open correct values",
+  );
+  await axe(page);
 
   // Limits: red closer than yellow is refused at its field, compared as decimals (D13).
-  const testRow = limitsTable(page).getByRole("row").filter({ hasText: testName });
-  await expect(testRow).toContainText("No limits yet");
-  await testRow.getByRole("button", { name: `Set the limits of ${testName}` }).click();
+  await page.getByRole("link", { name: "Open correct values" }).first().click();
+  await expect(page.getByRole("heading", { level: 1, name: "Correct values" })).toBeVisible();
+  const section = testSection(page, testName);
+  await expect(section).toContainText("No limits yet");
+  await section.getByRole("button", { name: `Set the limits of ${testName}` }).click();
   const limits = page.getByRole("dialog", { name: `Limits of ${testName}` });
   await limits.getByLabel("Yellow limit").fill("0,30");
   await limits.getByLabel("Red limit").fill("0.29");
@@ -160,10 +198,17 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await limits.getByLabel("Red limit").fill("10");
   await limits.getByRole("button", { name: "Save limits" }).click();
   await expect(limits).toHaveCount(0);
-  await expect(testRow).toContainText("Yellow beyond 0.30%, red beyond 10%");
-  await expect(missing).toHaveCount(0);
+  await expect(section).toContainText("Yellow beyond 0.30%, red beyond 10%");
+  await expect(
+    section.getByRole("button", { name: `Set the limits of ${testName}` }),
+  ).toBeFocused();
 
   // Start behind a confirmation whose safe choice takes the first focus (WCAG 3.3.4).
+  await openPage(page, simulation, "Overview");
+  await expect(missing).toHaveCount(0);
+  await expect(
+    page.getByText("Nothing blocks the start. Start when the labs are ready."),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Start simulation" }).click();
   const start = page.getByRole("alertdialog", { name: `Start ${simulation}?` });
   await expect(start.getByRole("button", { name: "Cancel" })).toBeFocused();
@@ -171,8 +216,15 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await start.getByRole("button", { name: "Start", exact: true }).click();
   await expect(page.getByText(`Started ${simulation}.`)).toBeVisible();
   await expect(page.getByText("Running", { exact: true }).first()).toBeVisible();
+  await settle(page);
+  await expect(page.getByRole("heading", { level: 1, name: "Overview" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "Open the dashboard" })).toHaveAttribute(
+    "href",
+    "/teacher/dashboard",
+  );
 
   // A running simulation is never deleted, whatever its members (maintainer 2026-11-20).
+  await openPage(page, simulation, "Settings");
   await page.getByRole("button", { name: "Delete simulation" }).click();
   await page
     .getByRole("alertdialog", { name: `Delete ${simulation}?` })
@@ -181,7 +233,7 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await expect(
     page.getByText("This simulation is running, so it cannot be deleted. Finish it first."),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { level: 1, name: simulation })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
 
   // The catalogue shows the lock with an icon and text (D9).
   await page.goto(`/teacher/catalogue?q=${encodeURIComponent(testName)}`);
@@ -193,9 +245,12 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   const context = await browser.newContext();
   const student = await context.newPage();
   await devLogin(student, STUDENT);
-  await student.goto(`/teacher/simulations/${simulationId}`);
-  await expect(student.getByText("5.3")).toHaveCount(0);
-  await expect(student.getByText(testName)).toHaveCount(0);
+  for (const path of ["", "/values", "/labs", "/corrections", "/settings"]) {
+    await student.goto(`/teacher/simulations/${simulationId}${path}`);
+    await expect(student).toHaveURL(/\/student$/);
+    await expect(student.getByText("5.3")).toHaveCount(0);
+    await expect(student.getByText(testName)).toHaveCount(0);
+  }
   await context.close();
 
   // Finish; the values stay changeable (D10).
@@ -210,9 +265,10 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
   await expect(page.getByText(`Finished ${simulation}.`)).toBeVisible();
   await expect(page.getByRole("button", { name: "Start simulation" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Finish simulation" })).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: `Change the correct value of ${item}` }),
-  ).toBeEnabled();
+  await openPage(page, simulation, "Correct values");
+  await page.getByRole("button", { name: `Actions for ${item}` }).click();
+  await expect(page.getByRole("menuitem", { name: "Change value" })).toBeEnabled();
+  await page.keyboard.press("Escape");
 
   // Axe on the filled page in dark and in Dutch.
   for (const [theme, locale] of [
@@ -226,8 +282,8 @@ test("a teacher enters, pastes and changes correct values, sets limits, starts a
     ]);
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
-    const heading = locale === "nl" ? dutch("correct_values_heading") : "Correct values";
-    await expect(page.getByRole("heading", { level: 2, name: heading })).toBeVisible();
+    const heading = locale === "nl" ? dutch("simulation_nav_values") : "Correct values";
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
     await axe(page);
   }
 });

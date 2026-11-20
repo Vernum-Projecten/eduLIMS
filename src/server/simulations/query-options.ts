@@ -20,6 +20,7 @@ import {
   getLabPage,
   getMyLabs,
   getSimulationPage,
+  getSimulationReadinessFn,
   listAdminSimulationsFn,
   listMySimulations,
 } from "./functions.ts";
@@ -38,6 +39,9 @@ export const simulationsKeys = {
   /** The correct values and limits of a simulation, teacher-scoped (D10, D13). */
   correctValues: (simulationId: string) =>
     [...simulationsKeys.detail(simulationId), "correct-values"] as const,
+  /** Which preparation steps of a simulation are done, teacher-scoped (D10, #381). */
+  readiness: (simulationId: string) =>
+    [...simulationsKeys.detail(simulationId), "readiness"] as const,
   student: () => [...simulationsKeys.all, "student"] as const,
   admin: () => [...simulationsKeys.all, "admin"] as const,
   adminList: () => [...simulationsKeys.admin(), "list"] as const,
@@ -85,6 +89,15 @@ export function simulationPageQueryOptions(simulationId: string) {
   return queryOptions({
     queryKey: simulationsKeys.detail(simulationId),
     queryFn: () => getSimulationPage({ data: { simulationId } }),
+    staleTime: STALE_TIME.simulations,
+  });
+}
+
+/** The preparation of one simulation and the start's verdict, for its overview (#381). */
+export function simulationReadinessQueryOptions(simulationId: string) {
+  return queryOptions({
+    queryKey: simulationsKeys.readiness(simulationId),
+    queryFn: () => getSimulationReadinessFn({ data: { simulationId } }),
     staleTime: STALE_TIME.simulations,
   });
 }

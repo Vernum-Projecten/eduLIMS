@@ -1,0 +1,1 @@
+- A simulation in the Teacher portal now has its own pages in the order you work: an Overview with a checklist of the preparation and the Start or Finish, then Labs, Correct values (one table per test with its accuracy limits), Dashboard, Corrections and Settings. Start is enabled only when nothing blocks it, and the checklist says what does (D10, D11).

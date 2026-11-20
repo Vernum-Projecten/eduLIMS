@@ -19,6 +19,7 @@ function serverFunctions(source: string): [string, string][] {
 const ROLE_OF: Record<string, "teacher" | "student" | "admin"> = {
   listMySimulations: "teacher",
   getSimulationPage: "teacher",
+  getSimulationReadinessFn: "teacher",
   getLabPage: "teacher",
   createSimulationFn: "teacher",
   renameSimulationFn: "teacher",
@@ -54,6 +55,7 @@ const NO_INPUT = new Set(["listMySimulations", "getMyLabs", "linkMyLabsFn"]);
 const READS = new Set([
   "listMySimulations",
   "getSimulationPage",
+  "getSimulationReadinessFn",
   "getLabPage",
   "getJoinCodeFn",
   "getMyLabs",

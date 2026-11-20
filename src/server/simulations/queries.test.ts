@@ -77,8 +77,22 @@ describe("getTeacherSimulation (D10, D11)", () => {
       .execute();
     const page = await getTeacherSimulation(database, w.teacher.id, w.simulationId);
     expect(page?.labs).toEqual([
-      { id: w.otherLabId, name: "Blue Cuvettes", members: 1, waiting: 1, logoVersion: null },
-      { id: w.labId, name: "Pipette Pilots", members: 6, waiting: 0, logoVersion: null },
+      {
+        id: w.otherLabId,
+        name: "Blue Cuvettes",
+        members: 1,
+        waiting: 1,
+        logoVersion: null,
+        joinCode: "off",
+      },
+      {
+        id: w.labId,
+        name: "Pipette Pilots",
+        members: 6,
+        waiting: 0,
+        logoVersion: null,
+        joinCode: "off",
+      },
     ]);
     expect(page?.teachers.map((teacher) => teacher.userId).sort()).toEqual(
       [w.teacher.id, w.coTeacher.id].sort(),

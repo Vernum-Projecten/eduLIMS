@@ -209,9 +209,9 @@ test("a team registers a patient, records and corrects a request, and copies a l
   await expectNoPageOverflow(page);
   await axe(page);
 
-  // The teacher reads the correction on the simulation page.
+  // The teacher reads the correction on the simulation's Corrections page (#381).
   const teacher = await signedInElsewhere(browser, "teacher@example.test");
-  await teacher.goto(`/teacher/simulations/${seeded.simulationId}`);
+  await teacher.goto(`/teacher/simulations/${seeded.simulationId}/corrections`);
   const log = teacher.getByRole("table", { name: "Corrections" });
   await expect(log.getByRole("cell", { name: seeded.lab })).toBeVisible();
   await expect(log.getByText(/Sample added:/)).toBeVisible();

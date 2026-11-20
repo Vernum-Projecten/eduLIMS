@@ -16,6 +16,7 @@ import type { DB } from "../db/schema.gen.ts";
 import {
   done,
   refused,
+  type SimulationActionError,
   type SimulationActor,
   type SimulationResult,
   withSimulation,
@@ -73,6 +74,31 @@ export async function testsWithoutLimits(
 }
 
 /**
+ * Why a simulation cannot start yet: a refusal code of {@link startSimulation}, and for
+ * `missing_limits` the tests it is about. A new reason the start gains (such as one running
+ * simulation at a time, #386) joins the code union and keeps this shape.
+ */
+export interface StartRefusal {
+  error: Extract<SimulationActionError, "not_prepared" | "missing_limits">;
+  testIds?: readonly string[];
+}
+
+/**
+ * Returns why a simulation in `state`, whose tests `missingLimits` have a correct value but no
+ * accuracy limits, cannot start, or `null` when it can. The start and the overview's checklist
+ * both ask this one rule, so the checklist shows the reason the start would give (#381).
+ */
+export function startRefusal(
+  state: SimulationState,
+  missingLimits: readonly string[],
+): StartRefusal | null {
+  if (state !== "prepared") return { error: "not_prepared" };
+  // NOTE: maintainer 2026-11-20 on #267; every test with a correct value has its limits first.
+  if (missingLimits.length > 0) return { error: "missing_limits", testIds: missingLimits };
+  return null;
+}
+
+/**
  * Starts a prepared simulation the actor teaches. Every test with a correct value needs its
  * accuracy limits first (`missing_limits`, with the ids of the tests without them; maintainer,
  * 2026-11-20 on #267). The catalogue tests its correct values name
@@ -92,15 +118,12 @@ export function startSimulation(
       actor: { type: "user", id: actor.id },
       target: { type: "simulation", id: simulationId },
     } as const;
-    if ((await stateOf(trx, simulationId)) !== "prepared") {
-      await recordAudit(trx, { ...event, outcome: "refused", reason: "not_prepared" });
-      return refused("not_prepared");
-    }
-    // NOTE: maintainer 2026-11-20 on #267; every test with a correct value has its limits first.
-    const missing = await testsWithoutLimits(trx, simulationId);
-    if (missing.length > 0) {
-      await recordAudit(trx, { ...event, outcome: "refused", reason: "missing_limits" });
-      return refused("missing_limits", missing);
+    const state = await stateOf(trx, simulationId);
+    const missing = state === "prepared" ? await testsWithoutLimits(trx, simulationId) : [];
+    const blocked = startRefusal(state, missing);
+    if (blocked !== null) {
+      await recordAudit(trx, { ...event, outcome: "refused", reason: blocked.error });
+      return refused(blocked.error, blocked.testIds);
     }
     // NOTE: security note on #268; ordered by id, so two starts that share tests lock them alike.
     await trx
