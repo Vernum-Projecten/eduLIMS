@@ -24,4 +24,8 @@ down: the owner may have stopped it on purpose to rebuild it (2026-11-20). A
 worker that needs a stack runs its own under its own project name
 (`podman compose -p <own-name> …`), because `compose.dev.yaml` names its
 project `edulims-dev`, so a bare `podman compose -f compose.dev.yaml down`
-from any checkout acts on the owner's stack.
+from any checkout acts on the owner's stack. At cleanup, remove only the
+containers and volumes your own workers created (named after the worker,
+such as `edulims-agent<n>-pg`); other containers on the machine, such as
+`ferroehr-testkit-pg18`, belong to other sessions and are never touched
+(2026-11-20).
