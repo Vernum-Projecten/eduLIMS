@@ -101,7 +101,7 @@ FROM output-${OUTPUT} AS output
 # root-owned, and writes nothing, so compose runs it with a read-only root
 # filesystem. With no arguments it migrates (CMD); operators pass another
 # command (`docker compose run --rm edulims-migrate admin grant <email>`).
-FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:1d736cf8b5716c07a245301f92717143215d248fd55771ee1936ef4b3302e531 AS tools
+FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:ffa8a7545403036c94ec76674b5dbac2d425af2d679147cdf3e30180071487b7 AS tools
 
 ARG VERSION=dev
 ARG REVISION=unknown
@@ -132,7 +132,7 @@ LABEL org.opencontainers.image.title="eduLIMS tools" \
 # /etc/passwd with the nonroot user (uid 65532). No shell, no package manager,
 # no npm. docs/deployment.md records why this base and not node:26-slim or
 # Chainguard's node image.
-FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:1d736cf8b5716c07a245301f92717143215d248fd55771ee1936ef4b3302e531 AS runtime
+FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:ffa8a7545403036c94ec76674b5dbac2d425af2d679147cdf3e30180071487b7 AS runtime
 
 ARG VERSION=dev
 ARG REVISION=unknown
