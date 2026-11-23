@@ -240,7 +240,7 @@ services:
   # integration status checks (GET /health/readiness). The HL7 v2 listener
   # stays off; it needs the [hl7v2] configuration of docs/deployment.md.
   ferrobridge:
-    image: ghcr.io/ferrohealth/ferrobridge:0.0.24@sha256:6e14c783955da9ecd5683fbe781542580e2ebae18d0f4c07e888a1c086e05e59
+    image: ghcr.io/ferrohealth/ferrobridge:0.0.28@sha256:7bae02e93c9be9e5752b492799908e758b9c0593c75b045ba8b36554891807ee
     depends_on:
       ferroehr:
         condition: service_healthy
